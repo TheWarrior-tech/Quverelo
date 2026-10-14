@@ -154,20 +154,8 @@
       "icon": "build/icon.icns",
       "category": "public.app-category.graphics-design",
       "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        },
-        {
-          "target": "pkg",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
+        "dmg",
+        "pkg"
       ],
       "identity": null,
       "hardenedRuntime": false,
