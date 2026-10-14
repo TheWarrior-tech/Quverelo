@@ -1,3 +1,4 @@
+import type { CurvesData } from './curves';
 /**
  * Quvrelo document model.
  *
@@ -202,6 +203,8 @@ export interface Adjustment {
   type: AdjustmentType;
   enabled: boolean;
   params: Record<string, number>;
+  /** Curves only: control points per channel (see core/curves.ts). */
+  curves?: CurvesData;
 }
 
 /** Pixel layer. Pixels live in the asset store and are immutable per assetId. */
