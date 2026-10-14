@@ -99,11 +99,11 @@ export function Welcome() {
         <div className="studio-cards">
           {studios.map((s) => (
             <button key={s.id} className="studio-card" onClick={() => newFromTemplate(s.template)} data-studio-card={s.id}>
-              <div className="badge" style={{ background: s.color, color: '#fff' }}>
+              <div className="badge">
                 <Icon name={s.id} />
               </div>
               <div>
-                <h3>{s.title} Studio</h3>
+                <h3>{s.title}</h3>
                 <p>{s.text}</p>
               </div>
             </button>

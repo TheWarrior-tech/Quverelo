@@ -26,9 +26,9 @@ export class NodeObject extends FabricObject {
     this.stroke = null;
     this.fill = null;
     this.padding = 2;
-    this.borderColor = '#3a86ff';
+    this.borderColor = '#2fb8a6';
     this.cornerColor = '#ffffff';
-    this.cornerStrokeColor = '#3a86ff';
+    this.cornerStrokeColor = '#2fb8a6';
     this.cornerStyle = 'circle';
     this.transparentCorners = false;
     this.cornerSize = 9;

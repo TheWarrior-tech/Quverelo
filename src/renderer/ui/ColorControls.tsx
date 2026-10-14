@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Paint } from '../../core/types';
 import { rgbToHsl } from '../../core/pixels';
 import { parseColor, toHex } from '../engine/pixelOps';
+import { Icon } from './Icons';
 
 function hsvToRgb(h: number, s: number, v: number): [number, number, number] {
   const f = (n: number) => {
@@ -190,13 +191,13 @@ export function PaintEditor({ paint, onChange, onCommit, allowNone = true }: { p
               const stops = [...paint.stops, { offset: 0.5, color: '#888888' }].sort((a, b) => a.offset - b.offset);
               onChange({ ...paint, stops });
               onCommit?.();
-            }}>+</button>
+            }} aria-label="Add stop"><Icon name="plus" /></button>
             <button className="btn" disabled={paint.stops.length <= 2} onClick={() => {
               const stops = paint.stops.filter((_, i) => i !== stop);
               setStop(0);
               onChange({ ...paint, stops });
               onCommit?.();
-            }}>−</button>
+            }} aria-label="Remove stop"><Icon name="minus" /></button>
           </div>
           <div className="row">
             <label>Position</label>

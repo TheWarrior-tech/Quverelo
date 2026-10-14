@@ -110,7 +110,7 @@ class ZoomTool implements Tool {
   drawOverlay(ctx: CanvasRenderingContext2D, z: number) {
     if (!this.start || !this.cur) return;
     const r = boundsOfPoints([this.start, this.cur]);
-    ctx.strokeStyle = '#3a86ff';
+    ctx.strokeStyle = '#2fb8a6';
     ctx.lineWidth = 1 / z;
     ctx.setLineDash([4 / z, 3 / z]);
     ctx.strokeRect(r.x, r.y, r.w, r.h);
@@ -238,8 +238,8 @@ class ShapeTool implements Tool {
     const r = this.rect();
     const opts = this.c.editor.ui.toolOptions;
     ctx.save();
-    ctx.strokeStyle = '#3a86ff';
-    ctx.fillStyle = 'rgba(58,134,255,0.12)';
+    ctx.strokeStyle = '#2fb8a6';
+    ctx.fillStyle = 'rgba(47,184,166,0.12)';
     ctx.lineWidth = 1.5 / z;
     let d: PathCommand[];
     switch (this.kind) {
@@ -260,7 +260,7 @@ class ShapeTool implements Tool {
     const p = new Path2D(pathToString(translatePath(d, r.x + r.w / 2, r.y + r.h / 2)));
     ctx.fill(p);
     ctx.stroke(p);
-    ctx.fillStyle = '#3a86ff';
+    ctx.fillStyle = '#2fb8a6';
     ctx.font = `${11 / z}px Inter, sans-serif`;
     ctx.fillText(`${Math.round(r.w)} × ${Math.round(r.h)}`, r.x + r.w + 6 / z, r.y + r.h + 14 / z);
     ctx.restore();
@@ -368,7 +368,7 @@ class PenTool implements Tool {
     if (!this.anchors.length) return;
     ctx.save();
     const d = subpathsToPath([{ anchors: this.anchors, closed: false }]);
-    ctx.strokeStyle = '#3a86ff';
+    ctx.strokeStyle = '#2fb8a6';
     ctx.lineWidth = 1.5 / z;
     ctx.stroke(new Path2D(pathToString(d)));
     const last = this.anchors[this.anchors.length - 1];
@@ -389,7 +389,7 @@ class PenTool implements Tool {
 function drawAnchors(ctx: CanvasRenderingContext2D, anchors: Anchor[], z: number, selected: number) {
   const s = 7 / z;
   anchors.forEach((a, i) => {
-    ctx.strokeStyle = '#3a86ff';
+    ctx.strokeStyle = '#2fb8a6';
     ctx.lineWidth = 1 / z;
     for (const [hx, hy] of [[a.inX, a.inY], [a.outX, a.outY]]) {
       if (hx === null || hy === null) continue;
@@ -403,7 +403,7 @@ function drawAnchors(ctx: CanvasRenderingContext2D, anchors: Anchor[], z: number
       ctx.fill();
       ctx.stroke();
     }
-    ctx.fillStyle = i === selected ? '#3a86ff' : '#ffffff';
+    ctx.fillStyle = i === selected ? '#2fb8a6' : '#ffffff';
     ctx.fillRect(a.x - s / 2, a.y - s / 2, s, s);
     ctx.strokeRect(a.x - s / 2, a.y - s / 2, s, s);
   });
@@ -667,7 +667,7 @@ class NodeTool implements Tool {
       if (!this.subs) return;
     }
     ctx.save();
-    ctx.strokeStyle = '#3a86ff';
+    ctx.strokeStyle = '#2fb8a6';
     ctx.lineWidth = 1 / z;
     ctx.stroke(new Path2D(pathToString(subpathsToPath(this.subs))));
     this.subs.forEach((s, si) => drawAnchors(ctx, s.anchors, z, this.selected?.sub === si ? this.selected.anchor : -1));

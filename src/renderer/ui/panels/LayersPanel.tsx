@@ -181,8 +181,8 @@ export function LayersPanel() {
         <button className="icon-btn sm" title="Group" aria-label="Group" disabled={sel.length < 2} onClick={() => runCommand('arrange.group')}><Icon name="group" /></button>
         <button className="icon-btn sm" title="Mask to selection" aria-label="Mask to pixel selection" disabled={!sel.length || !ed.ui.pixelSelection} onClick={() => runCommand('layer.mask-selection')}><Icon name="mask" /></button>
         <button className="icon-btn sm" title="Duplicate" aria-label="Duplicate" disabled={!sel.length} onClick={() => runCommand('edit.duplicate')}><Icon name="copy" /></button>
-        <button className="icon-btn sm" title="Bring forward" aria-label="Bring forward" disabled={!sel.length} onClick={() => runCommand('arrange.forward')}>▲</button>
-        <button className="icon-btn sm" title="Send backward" aria-label="Send backward" disabled={!sel.length} onClick={() => runCommand('arrange.backward')}>▼</button>
+        <button className="icon-btn sm" title="Bring forward" aria-label="Bring forward" disabled={!sel.length} onClick={() => runCommand('arrange.forward')}><Icon name="arrow-up" /></button>
+        <button className="icon-btn sm" title="Send backward" aria-label="Send backward" disabled={!sel.length} onClick={() => runCommand('arrange.backward')}><Icon name="arrow-down" /></button>
         <div style={{ flex: 1 }} />
         <button className="icon-btn sm" title="Delete" aria-label="Delete" disabled={!sel.length} onClick={() => runCommand('edit.delete')}><Icon name="trash" /></button>
       </div>

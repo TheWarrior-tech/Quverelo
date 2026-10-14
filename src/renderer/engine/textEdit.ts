@@ -190,7 +190,7 @@ export class TextEditOverlay {
     ta.style.textAlign = style.align;
     ta.style.textDecoration = style.underline ? 'underline' : 'none';
     ta.style.color = paintColor(style.fill);
-    ta.style.caretColor = paintColor(style.fill) === '#ffffff' ? '#ffffff' : '#3a86ff';
+    ta.style.caretColor = paintColor(style.fill) === '#ffffff' ? '#ffffff' : '#2fb8a6';
     ta.style.width = `${w}px`;
     ta.style.height = `${h}px`;
     ta.style.padding = `${pad}px`;

@@ -91,7 +91,7 @@ export class Editor {
     activeContainerId: null,
     selection: [],
     pixelSelection: null,
-    fillColor: '#3a86ff',
+    fillColor: '#8f959e',
     strokeColor: '#1b1b1f',
     strokeEnabled: false,
     fillEnabled: true,

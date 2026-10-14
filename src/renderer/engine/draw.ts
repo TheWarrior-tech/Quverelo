@@ -376,7 +376,7 @@ function drawTextFrame(ctx: CanvasRenderingContext2D, n: Extract<SceneNode, { ty
       ctx.lineTo(x + sz - 2 / z, y + sz / 2);
       ctx.stroke();
     } else if (!isLast) {
-      ctx.fillStyle = '#3a86ff';
+      ctx.fillStyle = '#2fb8a6';
       ctx.beginPath();
       ctx.moveTo(x, y);
       ctx.lineTo(x + sz, y + sz / 2);

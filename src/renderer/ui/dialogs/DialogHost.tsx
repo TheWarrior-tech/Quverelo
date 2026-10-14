@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Icon } from '../Icons';
 import { closeDialog, onDialog, type DialogName } from '../../state/bus';
 import { NewDocumentDialog } from './NewDocumentDialog';
 import { ExportDialog } from './ExportDialog';
@@ -43,7 +44,7 @@ export function Dialog({ title, children, footer, wide, onClose }: { title: stri
       <div className={`dialog ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-label={title} ref={ref} onKeyDown={(e) => e.stopPropagation()}>
         <header>
           <h2>{title}</h2>
-          <button className="icon-btn sm" aria-label="Close" onClick={close}>✕</button>
+          <button className="icon-btn sm" aria-label="Close" onClick={close}><Icon name="close" /></button>
         </header>
         <div className="body">{children}</div>
         {footer && <footer>{footer}</footer>}

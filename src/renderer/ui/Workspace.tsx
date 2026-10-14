@@ -35,7 +35,7 @@ function Topbar() {
     <header className="topbar" role="toolbar" aria-label="Main toolbar">
       <div className="brand">
         <Logo className="logo" />
-        <span className="doc-title" title={ed.doc?.title}>{ed.doc?.title}{h?.dirty ? ' •' : ''}</span>
+        <span className="doc-title" title={ed.doc?.title}>{ed.doc?.title}{h?.dirty && <i className="dirty" aria-label="Unsaved changes" />}</span>
       </div>
       <button className="icon-btn" title="New (Ctrl+N)" aria-label="New document" onClick={() => runCommand('file.new')}><Icon name="new" /></button>
       <button className="icon-btn" title="Open (Ctrl+O)" aria-label="Open" onClick={() => runCommand('file.open')}><Icon name="open" /></button>
@@ -162,9 +162,9 @@ function StatusBar() {
           {['px', 'mm', 'cm', 'in', 'pt'].map((u) => <option key={u}>{u}</option>)}
         </select>
       </label>
-      <button className="icon-btn sm" aria-label="Zoom out" onClick={() => runCommand('view.zoom-out')}>−</button>
+      <button className="icon-btn sm" aria-label="Zoom out" onClick={() => runCommand('view.zoom-out')}><Icon name="minus" /></button>
       <button className="btn ghost" style={{ height: 20, padding: '0 6px' }} onClick={() => runCommand('view.zoom-fit')} title="Zoom to fit (Ctrl+0)">{zoom}%</button>
-      <button className="icon-btn sm" aria-label="Zoom in" onClick={() => runCommand('view.zoom-in')}>+</button>
+      <button className="icon-btn sm" aria-label="Zoom in" onClick={() => runCommand('view.zoom-in')}><Icon name="plus" /></button>
       <span>{ed.settings.snapping ? 'Snap on' : 'Snap off'}</span>
     </footer>
   );

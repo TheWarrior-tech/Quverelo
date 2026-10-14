@@ -20,7 +20,7 @@ class QuvreloCanvas extends Canvas {
   pageH = 100;
   bleed = 0;
   pageBg: string | null = '#ffffff';
-  pasteboard = '#2a2b2f';
+  pasteboard = '#0d0e0f';
 
   _renderBackground(ctx: CanvasRenderingContext2D): void {
     ctx.save();
@@ -69,6 +69,7 @@ export class Viewport {
   readonly editor: Editor;
   private objects = new Map<Id, NodeObject>();
   private lastDoc: QuvreloDocument | null = null;
+  private lastTheme = '';
   private lastContainer: Id | null = null;
   private syncingSelection = false;
   private tool: Tool;
@@ -97,8 +98,8 @@ export class Viewport {
       width: host.clientWidth,
       height: host.clientHeight,
       preserveObjectStacking: true,
-      selectionColor: 'rgba(58,134,255,0.12)',
-      selectionBorderColor: '#3a86ff',
+      selectionColor: 'rgba(47,184,166,0.12)',
+      selectionBorderColor: '#2fb8a6',
       selectionLineWidth: 1,
       fireRightClick: false,
       stopContextMenu: true,
@@ -162,6 +163,12 @@ export class Viewport {
     const container = ed.activeContainer;
     if (!container) return;
     const containerChanged = this.lastContainer !== container.id;
+    const themeKey = document.documentElement.dataset.theme ?? '';
+    if (themeKey !== this.lastTheme) {
+      this.lastTheme = themeKey;
+      this.canvas.pasteboard = getComputedStyle(document.documentElement).getPropertyValue('--pasteboard').trim() || '#0d0e0f';
+      this.canvas.requestRenderAll();
+    }
     if (doc !== this.lastDoc || containerChanged) {
       this.envCache = null;
       const c = this.canvas;
@@ -169,7 +176,7 @@ export class Viewport {
       c.pageH = doc.settings.height;
       c.bleed = doc.settings.bleed;
       c.pageBg = doc.settings.background;
-      c.pasteboard = getComputedStyle(document.documentElement).getPropertyValue('--pasteboard').trim() || '#2a2b2f';
+      c.pasteboard = getComputedStyle(document.documentElement).getPropertyValue('--pasteboard').trim() || '#0d0e0f';
       const page = doc.pages.find((p) => p.id === container.id);
       const master = page?.masterId ? doc.masters.find((m) => m.id === page.masterId) : null;
       const desired: { node: SceneNode; master: boolean }[] = [
@@ -646,13 +653,13 @@ export class Viewport {
     }
     // margins and columns
     if (margins.top || margins.left || margins.right || margins.bottom) {
-      ctx.strokeStyle = 'rgba(199,86,255,0.75)';
+      ctx.strokeStyle = 'rgba(255,107,74,0.75)';
       ctx.lineWidth = px;
       ctx.strokeRect(margins.left, margins.top, W - margins.left - margins.right, H - margins.top - margins.bottom);
       if (columns > 1) {
         const inner = W - margins.left - margins.right;
         const cw = (inner - (columns - 1) * columnGutter) / columns;
-        ctx.strokeStyle = 'rgba(199,86,255,0.4)';
+        ctx.strokeStyle = 'rgba(255,107,74,0.4)';
         for (let i = 1; i < columns; i++) {
           const x = margins.left + i * cw + (i - 1) * columnGutter;
           ctx.beginPath();
@@ -665,7 +672,7 @@ export class Viewport {
       }
     }
     // ruler guides
-    ctx.strokeStyle = 'rgba(0,200,220,0.9)';
+    ctx.strokeStyle = 'rgba(56,189,230,0.9)';
     ctx.lineWidth = px;
     for (const g of doc.guides) {
       ctx.beginPath();
@@ -679,7 +686,7 @@ export class Viewport {
       ctx.stroke();
     }
     // snapping feedback
-    ctx.strokeStyle = '#ff2d95';
+    ctx.strokeStyle = '#ff6b4a';
     for (const s of this.snapLines) {
       ctx.beginPath();
       if (s.orientation === 'v') {
@@ -726,7 +733,7 @@ export class Viewport {
         const f = loc.node;
         pts.push({ x: f.x, y: f.y, on: getContainer(doc, loc.container.id)?.id === container.id });
       }
-      ctx.strokeStyle = 'rgba(58,134,255,0.9)';
+      ctx.strokeStyle = 'rgba(47,184,166,0.9)';
       ctx.lineWidth = 1.5 * px;
       ctx.setLineDash([6 * px, 4 * px]);
       for (let i = 1; i < pts.length; i++) {
