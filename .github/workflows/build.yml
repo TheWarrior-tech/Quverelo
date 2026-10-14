@@ -148,7 +148,7 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=50" --jq '.jobs[] | select(.conclusion=="failure") | "\(.id)\t\(.name)"' > /tmp/failed.tsv || true
           while IFS=$'\t' read -r id name; do
             safe=$(echo "$name" | tr -c 'A-Za-z0-9' '_')
-            gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$id/logs" 2>&1 | grep -v '^\s*$' | tail -n 120 > "/tmp/out/${safe}.txt" || true
+            curl -sL -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/jobs/$id/logs" 2>&1 | sed "s/\x1b\[[0-9;]*[A-Za-z]//g" | grep -v '^\s*$' | tail -n 120 > "/tmp/out/${safe}.txt" || true
           done < /tmp/failed.tsv
           git config user.name "ci"; git config user.email "ci@users.noreply.github.com"
           git fetch origin ci-logs || true
