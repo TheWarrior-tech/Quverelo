@@ -67,9 +67,10 @@ export function AdjustmentsPanel() {
   return (
     <div>
       <Histogram node={n} />
-      <div className="row" style={{ marginTop: 8 }}>
+      <div className="row add-adjustment">
+        <span className="select-icon" aria-hidden="true"><Icon name="plus" size={16} /></span>
         <select aria-label="Add adjustment" value="" onChange={(e) => e.target.value && add(e.target.value as AdjustmentType)}>
-          <option value="">+ Add adjustment or filter…</option>
+          <option value="">Add adjustment or filter…</option>
           <optgroup label="Adjustments">
             {ADJUSTMENTS.filter((a) => !['blur', 'sharpen', 'noise', 'vignette'].includes(a.type)).map((a) => <option key={a.type} value={a.type}>{a.label}</option>)}
           </optgroup>
