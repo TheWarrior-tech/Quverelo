@@ -668,34 +668,7 @@ export class Viewport {
     ctx.setTransform(dpr * v[0], 0, 0, dpr * v[3], dpr * v[4], dpr * v[5]);
     const z = v[0];
     const px = 1 / z;
-    const { width: W, height: H, margins, bleed, columns, columnGutter } = doc.settings;
-    // bleed
-    if (bleed > 0) {
-      ctx.strokeStyle = 'rgba(230,57,70,0.7)';
-      ctx.lineWidth = px;
-      ctx.setLineDash([]);
-      ctx.strokeRect(-bleed, -bleed, W + 2 * bleed, H + 2 * bleed);
-    }
-    // margins and columns
-    if (margins.top || margins.left || margins.right || margins.bottom) {
-      ctx.strokeStyle = 'rgba(255,107,74,0.75)';
-      ctx.lineWidth = px;
-      ctx.strokeRect(margins.left, margins.top, W - margins.left - margins.right, H - margins.top - margins.bottom);
-      if (columns > 1) {
-        const inner = W - margins.left - margins.right;
-        const cw = (inner - (columns - 1) * columnGutter) / columns;
-        ctx.strokeStyle = 'rgba(255,107,74,0.4)';
-        for (let i = 1; i < columns; i++) {
-          const x = margins.left + i * cw + (i - 1) * columnGutter;
-          ctx.beginPath();
-          ctx.moveTo(x, margins.top);
-          ctx.lineTo(x, H - margins.bottom);
-          ctx.moveTo(x + columnGutter, margins.top);
-          ctx.lineTo(x + columnGutter, H - margins.bottom);
-          ctx.stroke();
-        }
-      }
-    }
+    if (this.editor.ui.studio === 'layout') this.drawPageGuides(ctx, px);
     // ruler guides
     ctx.strokeStyle = 'rgba(56,189,230,0.9)';
     ctx.lineWidth = px;
@@ -832,6 +805,44 @@ export class Viewport {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(label, Math.round(cx), Math.round(by) + 9.5);
+    }
+  }
+
+  /**
+   * Layout studio page furniture: page edge hairline, bleed (dashed), margin
+   * box and column guides (coral, DESIGN.md section 3). Photo and Vector never
+   * show them, which is part of what makes Layout read as its own studio.
+   */
+  private drawPageGuides(ctx: CanvasRenderingContext2D, px: number): void {
+    const doc = this.editor.doc!;
+    const { width: W, height: H, margins, bleed, columns, columnGutter } = doc.settings;
+        ctx.lineWidth = px;
+    ctx.setLineDash([]);
+    ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+    ctx.strokeRect(0, 0, W, H);
+    if (bleed > 0) {
+      ctx.strokeStyle = 'rgba(230,57,70,0.75)';
+      ctx.setLineDash([4 * px, 3 * px]);
+      ctx.strokeRect(-bleed, -bleed, W + 2 * bleed, H + 2 * bleed);
+      ctx.setLineDash([]);
+    }
+    if (margins.top || margins.left || margins.right || margins.bottom) {
+      ctx.strokeStyle = 'rgba(255,107,74,0.6)';
+      ctx.strokeRect(margins.left, margins.top, W - margins.left - margins.right, H - margins.top - margins.bottom);
+    }
+    if (columns > 1) {
+      const inner = W - margins.left - margins.right;
+      const cw = (inner - (columns - 1) * columnGutter) / columns;
+      ctx.strokeStyle = 'rgba(255,107,74,0.4)';
+      ctx.beginPath();
+      for (let i = 1; i < columns; i++) {
+        const x = margins.left + i * cw + (i - 1) * columnGutter;
+        ctx.moveTo(x, margins.top);
+        ctx.lineTo(x, H - margins.bottom);
+        ctx.moveTo(x + columnGutter, margins.top);
+        ctx.lineTo(x + columnGutter, H - margins.bottom);
+      }
+      ctx.stroke();
     }
   }
 

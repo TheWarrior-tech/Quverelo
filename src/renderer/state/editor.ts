@@ -212,9 +212,10 @@ export class Editor {
 
   setStudio(studio: StudioKind): void {
     if (!this.feature(studio)) return;
-    const tools = STUDIO_TOOLS[studio];
-    const tool = tools.includes(this.ui.tool) ? this.ui.tool : 'move';
-    this.ui = { ...this.ui, studio, tool };
+    if (studio === this.ui.studio) return;
+    // entering a studio always starts on Move, so its context bar shows the
+    // studio's own controls (page setup in Layout) rather than a stale tool
+    this.ui = { ...this.ui, studio, tool: 'move', editingTextId: null };
     this.emit();
   }
 

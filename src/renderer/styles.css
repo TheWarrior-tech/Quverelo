@@ -671,6 +671,17 @@ kbd {
 .contextbar .choice-row .btn.selected {
   background: var(--c-press);
 }
+.contextbar .field-label,
+.contextbar .page-count {
+  color: var(--c-text-2);
+}
+.contextbar .page-count {
+  min-width: 72px;
+  text-align: center;
+}
+.contextbar .group > .group {
+  gap: 4px;
+}
 .contextbar .tool-name {
   font-weight: 600;
   color: var(--c-text);
@@ -1198,6 +1209,34 @@ kbd {
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
 }
+/* facing pages: one spread per row, pages butt together at the spine */
+.pages-grid.spreads {
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+.spread {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+.spread .page-thumb:first-child:not(:only-child) {
+  align-items: flex-end;
+}
+.spread .page-thumb:last-child:not(:only-child) {
+  align-items: flex-start;
+}
+.spread.first {
+  padding-left: 50%;
+}
+.spread.first .page-thumb {
+  align-items: flex-start;
+}
+.spread .page-thumb {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
 .page-thumb {
   display: flex;
   flex-direction: column;
@@ -1209,23 +1248,25 @@ kbd {
   padding: 8px 4px 6px;
   border-radius: var(--r-1);
 }
-.page-thumb:hover {
-  background: var(--c-hover);
-}
 .page-thumb canvas {
   max-width: 100%;
+  border-radius: 2px;
   box-shadow: 0 0 0 1px var(--c-line-strong);
   background: #fff;
 }
-.page-thumb.active {
-  background: var(--c-accent-wash);
+.page-thumb:hover canvas {
+  box-shadow: 0 0 0 1px var(--c-text-3);
 }
+/* selection lives on the thumbnail only: no card, no wash */
 .page-thumb.active canvas {
   box-shadow: 0 0 0 2px var(--c-accent);
 }
 .page-thumb span {
   font-size: 11px;
   color: var(--c-text-2);
+}
+.page-thumb.active span {
+  color: var(--c-text);
 }
 
 .history-list {
