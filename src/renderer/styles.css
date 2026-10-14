@@ -112,14 +112,19 @@
 }
 
 :root[data-reduce-motion='true'] *,
-:root[data-reduce-motion='true'] *::before {
+:root[data-reduce-motion='true'] *::before,
+:root[data-reduce-motion='true'] *::after {
   transition: none !important;
   animation: none !important;
+  scroll-behavior: auto !important;
 }
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     transition: none !important;
     animation: none !important;
+    scroll-behavior: auto !important;
   }
 }
 
