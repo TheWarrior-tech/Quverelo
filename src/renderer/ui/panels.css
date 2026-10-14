@@ -989,7 +989,7 @@ label.check {
   animation: fade-in var(--dur) var(--ease);
 }
 .color-popover {
-  width: 240px;
+  width: 252px;
 }
 .popover-head {
   display: flex;
@@ -1141,8 +1141,11 @@ label.check {
 .cp-mode-row .segmented:first-child {
   flex: 1;
 }
+.cp-mode-row {
+  gap: 6px !important;
+}
 .cp-mode-row .segmented button {
-  padding: 0 6px;
+  padding: 0 5px;
 }
 .cp-mode-row .segmented:last-child button {
   flex: none;

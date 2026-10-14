@@ -15,7 +15,7 @@ Feel references (studied for structure and restraint, nothing copied): Linear (c
 3. No emoji, no unicode glyphs as icons (`✕ ▲ ▼ ＋`). Every icon comes from `Icons.tsx`.
 4. Exactly one accent colour (verdigris). It appears only on: the active tool, the one primary button per view, focus rings and selection outlines, slider/checkbox "on" state, text links. Studios are not colour-coded.
 5. Two radii: `4px` controls, `8px` containers (dialogs, cards, popovers). `999px` only for knobs and count pills. Nothing in between.
-6. Elevation: resting surfaces are flat and separated by one-stop tone shifts and 1px hairlines. Only popovers/dialogs/toasts carry a shadow.
+6. Elevation: resting surfaces are flat and separated by one-stop tone shifts and 1px hairlines. Only popovers/dialogs/toasts carry a shadow (plus the scroll-edge shade, §6, shown only while a panel is scrolled).
 7. Left-aligned, grid-aligned layouts. No centred hero blocks inside the app.
 8. Every number is tabular (`font-variant-numeric: tabular-nums`).
 9. Motion ≤ 150 ms, ease-out, opacity/transform only, removed under `prefers-reduced-motion` and the in-app "reduce motion" setting.
@@ -69,12 +69,12 @@ Weights: 400 body, 500 labels/controls in active state, 600 titles. Never 700+.
 
 ## 5. Space, size, grid
 
-4px base; allowed steps 4 · 8 · 12 · 16 · 24 · 32 · 48. Control heights: `24` (compact: panel inputs, segmented, small buttons), `28` (default buttons, top bar), `32` (dialog actions). Tool rail buttons `32×32` on a `44px` rail. Panel row height `28`, layer row `32`. Top bar `44`, context bar `36`, status bar `24`, panels `288` wide. All hairlines are 1 device-independent px drawn as `box-shadow`/`border` so they stay crisp at 150 %/200 %.
+4px base; allowed steps 4 · 8 · 12 · 16 · 24 · 32 · 48. Control heights: `24` (compact: panel inputs, segmented, small buttons), `28` (default buttons, top bar), `32` (dialog actions). Tool rail buttons `32×32` on a `44px` rail. Panel row height `28`, layer row `28`. Top bar `44`, context bar `36`, status bar `24`, panels `288` wide. All hairlines are 1 device-independent px drawn as `box-shadow`/`border` so they stay crisp at 150 %/200 %.
 
 ## 6. Radius, elevation, motion
 
-- Radius: `--r-1: 4px` (buttons, inputs, rows, tiles) · `--r-2: 8px` (dialogs, popovers, cards, thumbnails) · `--r-full: 999px` (knobs, count pills).
-- Elevation: `--e-0` none · `--e-1` popover `0 0 0 1px line, 0 4px 16px rgba(0,0,0,.28)` · `--e-2` dialog `0 0 0 1px line, 0 16px 48px rgba(0,0,0,.4)`.
+- Radius: `--r-1: 4px` (buttons, inputs, rows, tiles) · `--r-2: 8px` (dialogs, popovers, cards, thumbnails) · `--r-full: 999px` (knobs, count pills). One derived value, `--r-tile: calc(var(--r-1) - 1px)`, for tiles inset inside a 4px track (segmented controls) and checkboxes. No literal radii anywhere else.
+- Elevation: `--e-0` none · scroll edges (the one exception on resting chrome): a hairline plus a short soft shade appears at the top/bottom of a scrolling panel only while content is hidden past that edge · `--e-1` popover `0 0 0 1px line, 0 4px 16px rgba(0,0,0,.28)` · `--e-2` dialog `0 0 0 1px line, 0 16px 48px rgba(0,0,0,.4)`.
 - Motion: `--dur: 120ms`, `--ease: cubic-bezier(.2,.7,.3,1)`. Allowed: background/colour/opacity fades, 4px toast slide, dialog 4px rise. No bouncing, no scaling on hover.
 
 ## 7. Iconography
@@ -98,17 +98,17 @@ App icon / logo: graphite tile, off-white ring, one accent bar forming the Q tai
 
 **Context bar (36).** Tool name at 500, then controls in groups separated by a 16px hairline. Sliders show label, 96px track, tabular value. Modes (New/Add/Subtract/Intersect) are a segmented control. Hint text is `text-3`, never competes with controls.
 
-**Panels (288).** Stack of groups: tab strip (28) then body. Tabs are text buttons, active = primary text + `--c-press` fill, 4px radius; no underline. Section label = micro type, `text-3`. Rows 28, label column 72, input fills. Group separation = hairline.
+**Panels (288).** Stack of three groups (Inspector · Document structure · Library). Group header 36: collapse chevron, then tabs (text buttons, active = primary text + `--c-press` fill, 4px radius; no underline; arrow keys move between tabs). The first expanded group takes the free space; the others keep a persisted height, resized by dragging the hairline between groups (7px hit area, accent while hovered/dragged; keyboard: arrows 8px, Shift 32px, Enter resets). Min heights 160 / 120 / 84. Sections are flat: micro-label header (28, disclosure chevron, remembered per section), hairline between sections, no nested cards or bordered boxes. Rows 28, label column 72, input fills.
 
-**Layers.** Row 32: twisty, 24×20 thumbnail (4px radius, hairline), name (12), then eye/lock icons that appear on hover or when active. Selected = accent-wash fill + hairline accent on the left 2px. Drag insertion = 2px accent line. Footer actions are 24×24 icon buttons.
+**Layers.** Header 36: blend select · Opacity number field (scrub label). Row 28, full bleed: 16px indent per group level, chevron twisty, 24×20 thumbnail (4px radius, hairline; vector thumbnails tint the type glyph with the fill), name (12), status icons (mask, live adjustments) in `text-3`, then lock/eye toggles that appear on hover, keyboard focus or selection, and stay visible while they carry state (hidden, locked). Selected = accent-wash fill + flush 2px inset accent bar; high contrast = black fill + 2px yellow inset outline, no washes. Drag: the dragged row dims, insertion = 2px accent line with a 6px ring at its start, above or below the hovered row. Keyboard: ↑/↓ move focus, ←/→ collapse/expand, Enter selects, F2 renames, Alt+↑/↓ reorders, Alt+H toggles visibility. Footer actions are 24×24 icon buttons.
 
-**Inputs.** 24 high, `--c-raised`, 1px line-strong, 4px radius, text 12 tabular. Focus = border accent + 2px ring. Number fields hide spinners; arrow keys step, shift ×10. Selects: custom chevron icon. Checkbox 14px, radius 3, accent when on. Radio group = segmented.
+**Inputs.** 24 high, `--c-raised`, 1px line-strong, 4px radius, text 12 tabular. Focus = border accent + 2px ring. **Number fields** (`NumberField`): scrub label on the left (letter or word, `text-3`, `ew-resize` cursor; drag 1px = 1 step, Shift ×10, Alt ×0.1, pointer-locked so drags never run out), value, unit suffix inside the field in `text-3`. Arrow keys step with the same modifiers, Enter commits, Esc reverts, typed units convert (`10mm` in a px field) and simple arithmetic evaluates (`100+20`). The input is the accessible `spinbutton`; the label is decorative. A live scrub is one undo step. Selects: custom chevron icon. Checkbox 14px, radius 3, accent when on. Radio group = segmented.
 
-**Sliders.** 2px track (line-strong), 12px thumb (off-white, 1px shadow ring), thumb gets accent ring on hover/focus; value is a paired number field (see slider row: label 88 · track · value 48).
+**Sliders.** 2px track (line-strong) with the accent fill from the origin to the value, 12px thumb (off-white, 1px shadow ring), thumb gets accent ring on hover/focus; value is a paired number field (slider row: label 72 · track · value 56). The label scrubs too.
 
 **Buttons.** Default: `--c-raised`, hairline, 28 high, 12px text 500. Primary: accent fill + accent-ink text (one per view). Ghost: no fill, hover fill. Danger text only. Disabled 40 % opacity, `not-allowed` cursor absent in desktop (default).
 
-**Colour picker.** Saturation/value square 8px radius, hue strip 10px with 12px knob; fields below in a 2×N grid; swatches 16px, 4px radius, hairline; selected swatch has accent ring.
+**Colour picker.** Saturation/value box (152 high, 8px radius) or hue wheel (152, brightness strip under it); preview tile 28 (checkerboard under alpha), hue strip and alpha strip 10px with 12px knobs filled with the current colour, eyedropper (system EyeDropper, else the canvas picker tool). Model segmented control Hex · RGB · HSL · CMYK (device CMYK, uncalibrated) and Box · Wheel; channel fields are number fields in one row (+ A for alpha). Document palette and Recent (12, most-recent-first) as 16px swatches, 4px radius, hairline; the swatch matching the current colour has an accent ring. Every strip and the box are keyboard sliders (arrows, Shift ×10). **Fill/stroke chips:** overlapping 28px squares (22 on the tool rail), fill top-left, stroke as a 4px ring bottom-right, 1px surface-coloured gap so they read on any theme; none = hairline square with a danger diagonal; the active target sits on top with a `text-2` ring; swap button beside. Context-bar colour controls are a chip + chevron that opens the picker in a popover.
 
 **Dialogs.** 8px radius, `--c-popover`, `--e-2`, backdrop `rgba(0,0,0,.55)` (no blur). Header 48 with title (14/600) and close icon; body 16 padding; footer separated by hairline, buttons right-aligned, primary last. Width 480 default, 840 wide. Esc closes, focus trapped, focus returns.
 
