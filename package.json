@@ -21,6 +21,7 @@
     "build:main": "node scripts/build-main.mjs",
     "build": "npm run build:renderer && npm run build:main",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
+    "audit:contrast": "node scripts/contrast-audit.mjs",
     "start": "electron .",
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
@@ -30,7 +31,7 @@
     "screenshots": "node scripts/screenshots.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "test:all": "npm run typecheck && npm test && npm run build && npm run test:e2e"
+    "test:all": "npm run typecheck && npm run audit:contrast && npm test && npm run build && npm run test:e2e"
   },
   "devDependencies": {
     "@fontsource/atkinson-hyperlegible": "^5.3.0",
