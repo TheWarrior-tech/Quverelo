@@ -3,8 +3,8 @@ import type { ReactElement } from 'react';
 /**
  * Quvrelo icon set. Drawn for this app on a 20x20 grid (16x16 live area),
  * 1.5 stroke, round caps and joins, currentColor. See docs/DESIGN.md section 7.
- * Rules checked in the a11y/icon audit: geometry (incl. stroke) stays inside
- * 2..18 except deliberate round overshoot; rect radius 1.5, small squares 1;
+ * Rules checked in the a11y/icon audit: path geometry stays within 2.5..17.5
+ * (the 1.5 stroke may reach the 2px padding edge); rect radius 1.5, small squares 1;
  * path corners use 1-unit arcs; node/anchor squares are 3x3.
  */
 const P = (d: string) => <path d={d} />;
