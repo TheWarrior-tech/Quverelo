@@ -190,7 +190,8 @@ export function CurvesEditor({ node, adj, onChange, onBegin, onEnd }: {
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (e.button !== 0) return;
     e.preventDefault();
-    ref.current!.focus();
+    // keyboard focus for nudging, without a focus ring on a mouse click
+    ref.current!.focus({ preventScroll: true, focusVisible: false } as FocusOptions);
     const l = toLevel(e);
     let i = nearest(l.x, l.y);
     let list = points;

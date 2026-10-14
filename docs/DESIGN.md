@@ -114,7 +114,7 @@ App icon / logo: graphite tile, off-white ring, one accent bar forming the Q tai
 
 **Menus / selects.** `--c-popover`, 8px radius, items 28 high with 4px inner radius, keycaps right-aligned in `text-3`.
 
-**Toasts.** Bottom-right above status bar, `--c-popover`, 1px line, 6px status dot (accent / danger), 12px text, 120ms rise.
+**Toasts.** Bottom-centre over the canvas area (never over panels or the tool rail), auto-dismiss 3 s (errors 5 s), paused on hover, `--c-popover`, 1px line, 6px status dot (accent / danger), 12px text, 120ms rise.
 
 **Welcome.** Left-aligned content column max 1120. Header: mark + wordmark (display) and one line of description; Open (default) and New document (primary) right. "Start" = three rows of studio entries (line icon in a 32px neutral tile, title, one-line description, shortcut hint), flat cards with hairline and 8px radius. Template sections: micro-label heading with count and hairline, 6-up grid of thumbnails on pasteboard tone (no extra frame), title 12/500, meta 11 `text-3`. Recent files as a table-like list (name, location, 28px rows). No gradients, no big illustrations.
 
@@ -122,7 +122,13 @@ App icon / logo: graphite tile, off-white ring, one accent bar forming the Q tai
 
 **Status bar (24).** Left: size, selection count, status. Right: units select, zoom control (− value +), snap. All 11–12px tabular, `text-2`.
 
-**Rulers.** 20px, `--c-app`, 10px ticks, labels 9px tabular `text-3`.
+**Rulers.** 20px, `--c-app`, page extent one tone up (`--c-raised`), minor ticks 4/7px, labels 9px tabular `text-3` inset 3px. Layout adds margin (coral) and bleed bands on the ruler's inner edge.
+
+**Canvas selection.** 1px `#2fb8a6` box, 7×7 white handles with 1px accent stroke (edge handles only when the box is wider than 28px), rotation knob 20px above the top edge; drawn in screen space so they never scale with zoom. Same in Vector and Layout for every tool except Node/Crop; Photo shows it with Move only. The pixel selection (marching ants) is drawn only in Photo.
+
+**Layout canvas.** Page edge hairline, dashed bleed, coral margins at 60 %, column guides at 40 %; none of these appear in Photo or Vector.
+
+**Curves.** 256×256 graph, `--r-2`, `--c-canvas` fill, 4×4 hairline grid, histogram at 20 %, 1.5px curve, 8px knobs (selected = white + accent ring), RGB·R·G·B segmented control, Input/Output fields.
 
 ## 9. Accessibility (must not regress)
 
