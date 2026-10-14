@@ -1674,13 +1674,20 @@ kbd {
 }
 
 .toasts {
+  /* left/bottom are set from the canvas area's rect (App.tsx ToastStack) */
   position: fixed;
-  right: 16px;
+  left: 50%;
   bottom: 40px;
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 8px;
   z-index: 200;
+  pointer-events: none;
+}
+.toasts .toast {
+  pointer-events: auto;
 }
 .toast {
   display: flex;
