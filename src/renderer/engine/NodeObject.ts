@@ -11,7 +11,7 @@ export const RESIZE_TYPES = new Set(['rect', 'ellipse', 'polygon', 'star', 'text
  * transform handles; drawing is delegated to the shared scene renderer.
  */
 export class NodeObject extends FabricObject {
-  static type = 'EaselNode';
+  static type = 'QuvreloNode';
   node!: SceneNode;
   nodeId!: string;
   isMaster = false;

@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { movePage, removeMaster, renamePage, setPageMaster } from '../../../core/commands';
-import type { EaselDocument } from '../../../core/types';
+import type { QuvreloDocument } from '../../../core/types';
 import { runCommand } from '../../state/commands';
 import { useEditor } from '../hooks';
 import { DocThumb } from '../Welcome';
 import { Icon } from '../Icons';
 
 /** Debounce document snapshots for thumbnails so typing stays fast. */
-function useDebouncedDoc(doc: EaselDocument, ms = 500): EaselDocument {
+function useDebouncedDoc(doc: QuvreloDocument, ms = 500): QuvreloDocument {
   const [d, setD] = useState(doc);
   useEffect(() => {
     const t = window.setTimeout(() => setD(doc), ms);

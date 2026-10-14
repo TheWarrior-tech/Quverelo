@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/vnd.quvrelo+zip">
+    <comment>Quvrelo document</comment>
+    <sub-class-of type="application/zip"/>
+    <icon name="quvrelo"/>
+    <glob pattern="*.quvrelo"/>
+    <magic priority="60">
+      <match type="string" offset="38" value="application/vnd.quvrelo+zip"/>
+    </magic>
+  </mime-type>
+  <mime-type type="application/vnd.easel-studio+zip">
+    <comment>Quvrelo document (pre-release format)</comment>
+    <sub-class-of type="application/zip"/>
+    <glob pattern="*.easel"/>
+  </mime-type>
+</mime-info>

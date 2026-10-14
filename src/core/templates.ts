@@ -1,12 +1,12 @@
 /**
  * Built-in templates, including the classroom pack. Templates are pure
- * functions that build an EaselDocument with the shared model, so they are
+ * functions that build a QuvreloDocument with the shared model, so they are
  * validated by unit tests and render identically in every studio.
  */
 import { addMaster, addTextFrame, addNodes, linkFrames } from './commands';
 import { createDocument, make, makeStroke, solid } from './document';
 import { toPx } from './units';
-import type { EaselDocument, Id, Paint, StudioKind, TextStyle } from './types';
+import type { QuvreloDocument, Id, Paint, StudioKind, TextStyle } from './types';
 
 export interface TemplateInfo {
   id: string;
@@ -15,7 +15,7 @@ export interface TemplateInfo {
   description: string;
   studio: StudioKind;
   size: string;
-  build: () => EaselDocument;
+  build: () => QuvreloDocument;
 }
 
 const A4 = { w: toPx(210, 'mm'), h: toPx(297, 'mm') };
@@ -27,8 +27,8 @@ const SERIF = 'Georgia, Cambria, "Times New Roman", serif';
 const ROUNDED = '"Atkinson Hyperlegible", Verdana, Tahoma, sans-serif';
 
 class Builder {
-  doc: EaselDocument;
-  constructor(doc: EaselDocument) {
+  doc: QuvreloDocument;
+  constructor(doc: QuvreloDocument) {
     this.doc = doc;
   }
   page(i = 0): Id {
@@ -71,7 +71,7 @@ class Builder {
   }
 }
 
-function doc(title: string, w: number, h: number, studio: StudioKind, opts: Partial<EaselDocument['settings']> = {}, pages = 1) {
+function doc(title: string, w: number, h: number, studio: StudioKind, opts: Partial<QuvreloDocument['settings']> = {}, pages = 1) {
   return createDocument({ title, studio, pages, settings: { width: Math.round(w * 100) / 100, height: Math.round(h * 100) / 100, ...opts } });
 }
 
@@ -84,11 +84,11 @@ const printOpts = (unit: 'mm' | 'in' = 'mm') => ({
 
 // ---------------------------------------------------------------------------
 
-function blank(title: string, w: number, h: number, studio: StudioKind, opts: Partial<EaselDocument['settings']> = {}) {
+function blank(title: string, w: number, h: number, studio: StudioKind, opts: Partial<QuvreloDocument['settings']> = {}) {
   return () => doc(title, w, h, studio, opts);
 }
 
-function poster(size: { w: number; h: number }, unit: 'mm' | 'in', title: string): () => EaselDocument {
+function poster(size: { w: number; h: number }, unit: 'mm' | 'in', title: string): () => QuvreloDocument {
   return () => {
     const b = new Builder(doc(title, size.w, size.h, 'vector', printOpts(unit)));
     const p = b.page();
@@ -107,7 +107,7 @@ function poster(size: { w: number; h: number }, unit: 'mm' | 'in', title: string
   };
 }
 
-function worksheet(): EaselDocument {
+function worksheet(): QuvreloDocument {
   const b = new Builder(doc('Worksheet', A4.w, A4.h, 'layout', printOpts()));
   const p = b.page();
   const W = A4.w;
@@ -127,11 +127,11 @@ function worksheet(): EaselDocument {
     for (let l = 0; l < 3; l++) b.line(p, M + 40, y + 58 + l * 30, W - M, y + 58 + l * 30, '#c9ced6', 1);
     y += 160;
   }
-  b.frame(p, M, A4.h - M - 18, W - 2 * M, 18, 'Made with Easel Studio', { fontFamily: SANS, fontSize: 9, align: 'right', fill: solid('#9aa3af') });
+  b.frame(p, M, A4.h - M - 18, W - 2 * M, 18, 'Made with Quvrelo', { fontFamily: SANS, fontSize: 9, align: 'right', fill: solid('#9aa3af') });
   return b.doc;
 }
 
-function certificate(): EaselDocument {
+function certificate(): QuvreloDocument {
   const W = A4.h;
   const H = A4.w; // landscape
   const b = new Builder(doc('Certificate', W, H, 'vector', printOpts()));
@@ -169,7 +169,7 @@ const LOREM =
   'Lunch menus for next half term are attached. A vegetarian option is available every day, and our kitchen team can cater for allergies — please speak to the office.\n\n' +
   'Finally, a big thank you to our parents and carers for your continued support. Have a wonderful half term!';
 
-function newsletter(): EaselDocument {
+function newsletter(): QuvreloDocument {
   const b = new Builder(doc('Newsletter', A4.w, A4.h, 'layout', { ...printOpts(), columns: 2, columnGutter: toPx(5, 'mm') }, 2));
   const W = A4.w;
   const H = A4.h;
@@ -181,7 +181,7 @@ function newsletter(): EaselDocument {
   b.doc = { ...b.doc, pages: b.doc.pages.map((p) => ({ ...p, masterId: m.masterId })) };
   const p1 = b.page(0);
   const p2 = b.page(1);
-  b.frame(p1, M, M + 10, W - 2 * M, 60, 'The Weekly Easel', { fontFamily: SERIF, fontSize: 46, fontWeight: 700, fill: solid('#264653') });
+  b.frame(p1, M, M + 10, W - 2 * M, 60, 'The Weekly Gazette', { fontFamily: SERIF, fontSize: 46, fontWeight: 700, fill: solid('#264653') });
   b.frame(p1, M, M + 72, W - 2 * M, 22, 'Issue 1 · Autumn Term', { fontFamily: SANS, fontSize: 13, fill: solid('#2a9d8f'), fontWeight: 600 });
   b.line(p1, M, M + 102, W - M, M + 102, '#264653', 2);
   b.picture(p1, M, M + 120, W - 2 * M, 250, 'Hero picture');
@@ -199,7 +199,7 @@ function newsletter(): EaselDocument {
   return b.doc;
 }
 
-function slide(): EaselDocument {
+function slide(): QuvreloDocument {
   const b = new Builder(doc('Presentation Slide', 1920, 1080, 'layout', { margins: { top: 80, right: 100, bottom: 80, left: 100 } }));
   const p = b.page();
   b.rect(p, 0, 0, 1920, 1080, { type: 'linear', angle: 135, stops: [{ offset: 0, color: '#0b132b' }, { offset: 1, color: '#1c2541' }] }, { name: 'Background' });
@@ -211,7 +211,7 @@ function slide(): EaselDocument {
   return b.doc;
 }
 
-function social(): EaselDocument {
+function social(): QuvreloDocument {
   const b = new Builder(doc('Social Graphic', 1080, 1080, 'vector'));
   const p = b.page();
   b.rect(p, 0, 0, 1080, 1080, { type: 'radial', stops: [{ offset: 0, color: '#ffbe0b' }, { offset: 1, color: '#fb5607' }] }, { name: 'Background' });
@@ -221,7 +221,7 @@ function social(): EaselDocument {
   return b.doc;
 }
 
-function lessonPlan(): EaselDocument {
+function lessonPlan(): QuvreloDocument {
   const b = new Builder(doc('Lesson Plan', A4.w, A4.h, 'layout', printOpts()));
   const p = b.page();
   const W = A4.w;
@@ -244,7 +244,7 @@ function lessonPlan(): EaselDocument {
   return b.doc;
 }
 
-function weeklyPlanner(): EaselDocument {
+function weeklyPlanner(): QuvreloDocument {
   const W = A4.h;
   const H = A4.w;
   const b = new Builder(doc('Weekly Timetable', W, H, 'layout', printOpts()));
@@ -270,7 +270,7 @@ function weeklyPlanner(): EaselDocument {
   return b.doc;
 }
 
-function exitTicket(): EaselDocument {
+function exitTicket(): QuvreloDocument {
   const b = new Builder(doc('Exit Tickets', A4.w, A4.h, 'layout', printOpts()));
   const p = b.page();
   const W = A4.w;
@@ -290,7 +290,7 @@ function exitTicket(): EaselDocument {
   return b.doc;
 }
 
-function nameBadges(): EaselDocument {
+function nameBadges(): QuvreloDocument {
   const b = new Builder(doc('Name Badges', A4.w, A4.h, 'layout', printOpts()));
   const p = b.page();
   const cols = 2;
@@ -311,7 +311,7 @@ function nameBadges(): EaselDocument {
   return b.doc;
 }
 
-function rulesPoster(): EaselDocument {
+function rulesPoster(): QuvreloDocument {
   const b = new Builder(doc('Classroom Rules', A4.w, A4.h, 'vector', printOpts()));
   const p = b.page();
   const W = A4.w;
@@ -328,7 +328,7 @@ function rulesPoster(): EaselDocument {
   return b.doc;
 }
 
-function flashcards(): EaselDocument {
+function flashcards(): QuvreloDocument {
   const b = new Builder(doc('Flashcards', A4.w, A4.h, 'layout', printOpts(), 2));
   const cols = 2;
   const rows = 4;
@@ -348,7 +348,7 @@ function flashcards(): EaselDocument {
   return b.doc;
 }
 
-function readingLog(): EaselDocument {
+function readingLog(): QuvreloDocument {
   const b = new Builder(doc('Reading Log', A4.w, A4.h, 'layout', printOpts()));
   const p = b.page();
   const W = A4.w;
@@ -377,7 +377,7 @@ function readingLog(): EaselDocument {
   return b.doc;
 }
 
-function photo(): EaselDocument {
+function photo(): QuvreloDocument {
   return doc('Photo', 1920, 1280, 'photo', { background: '#ffffff', dpi: 300 });
 }
 

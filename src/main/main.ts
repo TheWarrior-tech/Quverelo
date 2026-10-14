@@ -9,21 +9,21 @@ import {
   type RecoveryEntry, type UpdateInfo, type UserSettings,
 } from '../shared/api';
 
-const E2E = process.env.EASEL_E2E === '1';
-const REPO = 'TheWarrior-tech/easel-studio';
+const E2E = process.env.QUVRELO_E2E === '1';
+const REPO = 'TheWarrior-tech/Quvrelo';
 
-if (process.env.EASEL_USER_DATA) app.setPath('userData', process.env.EASEL_USER_DATA);
+if (process.env.QUVRELO_USER_DATA) app.setPath('userData', process.env.QUVRELO_USER_DATA);
 
 // ---------------------------------------------------------------------------
 // Policy
 
 export function policyPath(): string {
-  if (process.env.EASEL_POLICY_PATH) return process.env.EASEL_POLICY_PATH;
+  if (process.env.QUVRELO_POLICY_PATH) return process.env.QUVRELO_POLICY_PATH;
   if (process.platform === 'win32') {
-    return path.join(process.env.ProgramData || 'C:\\ProgramData', 'EaselStudio', 'policy.json');
+    return path.join(process.env.ProgramData || 'C:\\ProgramData', 'Quvrelo', 'policy.json');
   }
-  if (process.platform === 'darwin') return '/Library/Application Support/EaselStudio/policy.json';
-  return '/etc/easel-studio/policy.json';
+  if (process.platform === 'darwin') return '/Library/Application Support/Quvrelo/policy.json';
+  return '/etc/quvrelo/policy.json';
 }
 
 function loadPolicy(): PolicyResult {
@@ -97,7 +97,7 @@ let quitting = false;
 const pendingOpen: string[] = [];
 
 function fileArgs(argv: string[]): string[] {
-  return argv.slice(1).filter((a) => /\.(easel|png|jpe?g|webp|svg)$/i.test(a) && existsSync(a));
+  return argv.slice(1).filter((a) => /\.(quvrelo|easel|png|jpe?g|webp|svg)$/i.test(a) && existsSync(a));
 }
 
 async function createWindow() {
@@ -109,7 +109,7 @@ async function createWindow() {
     minHeight: 640,
     show: false,
     backgroundColor: settings.theme === 'light' ? '#eef0f3' : '#1e1f22',
-    title: 'Easel Studio',
+    title: 'Quvrelo',
     autoHideMenuBar: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -122,7 +122,7 @@ async function createWindow() {
   });
 
   win.once('ready-to-show', () => {
-    if (!process.env.EASEL_HIDDEN) win?.show();
+    if (!process.env.QUVRELO_HIDDEN) win?.show();
   });
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (featureEnabled(policy, 'external-links') && /^https?:/.test(url)) shell.openExternal(url);
@@ -176,9 +176,9 @@ function buildMenu() {
   }));
   if (process.platform === 'darwin') {
     sections.unshift({
-      label: 'Easel Studio',
+      label: 'Quvrelo',
       submenu: [
-        { label: 'About Easel Studio', click: send('help.about') },
+        { label: 'About Quvrelo', click: send('help.about') },
         { type: 'separator' },
         { label: 'Preferences…', accelerator: 'Cmd+,', click: send('app.preferences') },
         { type: 'separator' },
@@ -221,7 +221,7 @@ function registerIpc() {
   ipcMain.handle('file:open-dialog', async (_e, opts: { filters: FileFilter[]; multi?: boolean; title?: string }): Promise<OpenedFile[]> => {
     if (!win) return [];
     let paths: string[];
-    if (E2E && process.env.EASEL_E2E_OPEN) paths = process.env.EASEL_E2E_OPEN.split(path.delimiter);
+    if (E2E && process.env.QUVRELO_E2E_OPEN) paths = process.env.QUVRELO_E2E_OPEN.split(path.delimiter);
     else {
       const r = await dialog.showOpenDialog(win, {
         title: opts.title,
@@ -240,7 +240,7 @@ function registerIpc() {
     let target = opts.path;
     if (target && !isSavePathAllowed(policy, target, expandPath, caseInsensitiveFs)) target = null;
     if (!target) {
-      if (E2E && process.env.EASEL_E2E_SAVE_DIR) target = path.join(process.env.EASEL_E2E_SAVE_DIR, opts.defaultName);
+      if (E2E && process.env.QUVRELO_E2E_SAVE_DIR) target = path.join(process.env.QUVRELO_E2E_SAVE_DIR, opts.defaultName);
       else {
         for (;;) {
           const r = await dialog.showSaveDialog(win, {
@@ -262,7 +262,7 @@ function registerIpc() {
       }
     }
     await fs.mkdir(path.dirname(target), { recursive: true });
-    const tmp = target + '.easel-tmp';
+    const tmp = target + '.quvrelo-tmp';
     await fs.writeFile(tmp, Buffer.from(opts.data));
     await fs.rename(tmp, target);
     return target;
@@ -287,8 +287,8 @@ function registerIpc() {
   ipcMain.handle('recovery:write', async (_e, entry: RecoveryEntry, data: Uint8Array) => {
     await fs.mkdir(recoveryDir(), { recursive: true });
     const id = safeId(entry.id);
-    await fs.writeFile(path.join(recoveryDir(), id + '.easel.tmp'), Buffer.from(data));
-    await fs.rename(path.join(recoveryDir(), id + '.easel.tmp'), path.join(recoveryDir(), id + '.easel'));
+    await fs.writeFile(path.join(recoveryDir(), id + '.quvrelo.tmp'), Buffer.from(data));
+    await fs.rename(path.join(recoveryDir(), id + '.quvrelo.tmp'), path.join(recoveryDir(), id + '.quvrelo'));
     await fs.writeFile(path.join(recoveryDir(), id + '.json'), JSON.stringify({ ...entry, id }));
   });
   ipcMain.handle('recovery:list', async () => {
@@ -298,7 +298,7 @@ function registerIpc() {
       for (const f of files.filter((x) => x.endsWith('.json'))) {
         try {
           const e = JSON.parse(await fs.readFile(path.join(recoveryDir(), f), 'utf8')) as RecoveryEntry;
-          if (existsSync(path.join(recoveryDir(), safeId(e.id) + '.easel'))) out.push(e);
+          if (existsSync(path.join(recoveryDir(), safeId(e.id) + '.quvrelo'))) out.push(e);
         } catch {
           /* ignore damaged entry */
         }
@@ -310,13 +310,13 @@ function registerIpc() {
   });
   ipcMain.handle('recovery:read', async (_e, id: string) => {
     try {
-      return new Uint8Array(await fs.readFile(path.join(recoveryDir(), safeId(id) + '.easel')));
+      return new Uint8Array(await fs.readFile(path.join(recoveryDir(), safeId(id) + '.quvrelo')));
     } catch {
       return null;
     }
   });
   ipcMain.handle('recovery:delete', async (_e, id: string) => {
-    await fs.rm(path.join(recoveryDir(), safeId(id) + '.easel'), { force: true });
+    await fs.rm(path.join(recoveryDir(), safeId(id) + '.quvrelo'), { force: true });
     await fs.rm(path.join(recoveryDir(), safeId(id) + '.json'), { force: true });
   });
 
@@ -326,7 +326,7 @@ function registerIpc() {
       const d = expandPath(dir);
       try {
         for (const f of await fs.readdir(d)) {
-          if (f.toLowerCase().endsWith('.easel')) out.push({ name: f.replace(/\.easel$/i, ''), path: path.join(d, f), folder: path.basename(d) });
+          if (/\.(quvrelo|easel)$/i.test(f)) out.push({ name: f.replace(/\.(quvrelo|easel)$/i, ''), path: path.join(d, f), folder: path.basename(d) });
         }
       } catch {
         /* folder unavailable (e.g. network offline) */
@@ -339,7 +339,7 @@ function registerIpc() {
     if (!featureEnabled(policy, 'assignments')) throw new Error('Assignments are disabled by your administrator');
     let root: string;
     if (policy.handInDirectory) root = expandPath(policy.handInDirectory);
-    else if (E2E && process.env.EASEL_E2E_SAVE_DIR) root = path.join(process.env.EASEL_E2E_SAVE_DIR, 'handin');
+    else if (E2E && process.env.QUVRELO_E2E_SAVE_DIR) root = path.join(process.env.QUVRELO_E2E_SAVE_DIR, 'handin');
     else {
       const r = await dialog.showOpenDialog(win!, { title: 'Choose the hand-in folder', defaultPath: defaultDir(), properties: ['openDirectory', 'createDirectory'] });
       if (r.canceled || !r.filePaths[0]) throw new Error('Hand-in cancelled');
@@ -349,7 +349,7 @@ function registerIpc() {
     const dir = path.join(root, clean(o.className));
     await fs.mkdir(dir, { recursive: true });
     const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const target = path.join(dir, `${clean(o.studentName)} - ${clean(o.fileName)} - ${stamp}.easel`);
+    const target = path.join(dir, `${clean(o.studentName)} - ${clean(o.fileName)} - ${stamp}.quvrelo`);
     await fs.writeFile(target, Buffer.from(o.data));
     return target;
   });

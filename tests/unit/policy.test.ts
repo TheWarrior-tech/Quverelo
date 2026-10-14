@@ -23,10 +23,10 @@ describe('policy.json', () => {
   it('enforces locked save directories', () => {
     const { policy } = parsePolicy({ defaultSaveDirectory: 'H:\\Work', lockSaveDirectory: true, allowedSaveDirectories: ['\\\\server\\handin'] });
     const id = (p: string) => p;
-    expect(isSavePathAllowed(policy, 'H:\\Work\\art\\poster.easel', id)).toBe(true);
-    expect(isSavePathAllowed(policy, 'h:\\work\\poster.easel', id)).toBe(true);
-    expect(isSavePathAllowed(policy, 'C:\\Users\\x\\poster.easel', id)).toBe(false);
-    expect(isSavePathAllowed(policy, 'H:\\Workshop\\x.easel', id)).toBe(false);
-    expect(isSavePathAllowed(policy, '\\\\server\\handin\\x.easel', id)).toBe(true);
+    expect(isSavePathAllowed(policy, 'H:\\Work\\art\\poster.quvrelo', id)).toBe(true);
+    expect(isSavePathAllowed(policy, 'h:\\work\\poster.quvrelo', id)).toBe(true);
+    expect(isSavePathAllowed(policy, 'C:\\Users\\x\\poster.quvrelo', id)).toBe(false);
+    expect(isSavePathAllowed(policy, 'H:\\Workshop\\x.quvrelo', id)).toBe(false);
+    expect(isSavePathAllowed(policy, '\\\\server\\handin\\x.quvrelo', id)).toBe(true);
   });
 });

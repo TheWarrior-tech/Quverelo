@@ -90,14 +90,21 @@ export function Logo({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 64 64" aria-hidden="true">
       <defs>
-        <linearGradient id="lg-easel" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#ff8a3d" />
-          <stop offset="0.5" stopColor="#4a8dff" />
-          <stop offset="1" stopColor="#3ecf8e" />
+        <linearGradient id="lg-quvrelo" x1="0.1" y1="0" x2="0.9" y2="1">
+          <stop offset="0" stopColor="#4F3BF2" />
+          <stop offset="0.55" stopColor="#8B3DF0" />
+          <stop offset="1" stopColor="#E8478F" />
+        </linearGradient>
+        <linearGradient id="lg-quvrelo-tip" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#FFE29A" />
+          <stop offset="1" stopColor="#FF9F5A" />
         </linearGradient>
       </defs>
-      <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#lg-easel)" />
-      <path d="M22 46L32 16l10 30M25.5 36h13M32 46v6" stroke="#fff" strokeWidth="4.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#lg-quvrelo)" />
+      <path d="M33.4 43.8A14 14 0 1 1 44.8 32.4" fill="none" stroke="#fff" strokeWidth="6.5" strokeLinecap="round" />
+      <g transform="translate(31 30) rotate(45)">
+        <path d="M8.5 -3 L18 -3 L24.5 0 L18 3 L8.5 3 Q6 3 6 0 Q6 -3 8.5 -3 Z" fill="url(#lg-quvrelo-tip)" transform="translate(2.5 0)" />
+      </g>
     </svg>
   );
 }

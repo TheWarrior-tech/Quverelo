@@ -1,7 +1,7 @@
 {
-  "$schema-comment": "Copy to %ProgramData%\\EaselStudio\\policy.json (Windows) or /Library/Application Support/EaselStudio/policy.json (macOS). Remove any keys you do not need.",
+  "$schema-comment": "Copy to %ProgramData%\\Quvrelo\\policy.json (Windows) or /Library/Application Support/Quvrelo/policy.json (macOS). Remove any keys you do not need.",
   "organizationName": "Example Academy",
-  "defaultSaveDirectory": "%USERPROFILE%\\Documents\\Easel Work",
+  "defaultSaveDirectory": "%USERPROFILE%\\Documents\\Quvrelo Work",
   "lockSaveDirectory": false,
   "allowedSaveDirectories": [],
   "handInDirectory": "\\\\fileserver\\handin$",
@@ -11,7 +11,7 @@
   "forceTheme": null,
   "uiScale": 1,
   "lockUiScale": false,
-  "templateDirectories": ["\\\\fileserver\\templates$\\Easel"],
+  "templateDirectories": ["\\\\fileserver\\templates$\\Quvrelo"],
   "showWelcomeScreen": true,
   "maxUndoSteps": 250
 }

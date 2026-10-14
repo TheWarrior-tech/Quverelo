@@ -8,11 +8,11 @@ import { nodeToPath, estimateTextSize } from '../../core/document';
 import { flowStory, lineHeightPx, type FlowResult, type MeasureFn } from '../../core/textflow';
 import { baselineOffset, imageFrameContentRect } from '../../core/svg';
 import { pathToString } from '../../core/path';
-import type { EaselDocument, Id, Paint, PathCommand, SceneNode, Story, Stroke, TextStyle } from '../../core/types';
+import type { QuvreloDocument, Id, Paint, PathCommand, SceneNode, Story, Stroke, TextStyle } from '../../core/types';
 import type { AssetStore } from './assets';
 
 export interface DrawEnv {
-  doc: EaselDocument;
+  doc: QuvreloDocument;
   assets: AssetStore;
   /** editor chrome: placeholders, overflow markers */
   editor: boolean;
@@ -66,7 +66,7 @@ export function artisticTextSize(text: string, style: TextStyle): { w: number; h
 
 const flowCache = new Map<string, { story: Story; frames: string; result: FlowResult }>();
 
-export function frameChain(doc: EaselDocument, story: Story): Extract<SceneNode, { type: 'textframe' }>[] {
+export function frameChain(doc: QuvreloDocument, story: Story): Extract<SceneNode, { type: 'textframe' }>[] {
   const out: Extract<SceneNode, { type: 'textframe' }>[] = [];
   const index = frameIndex(doc);
   for (const id of story.chain) {
@@ -76,8 +76,8 @@ export function frameChain(doc: EaselDocument, story: Story): Extract<SceneNode,
   return out;
 }
 
-const frameIndexCache = new WeakMap<EaselDocument, Map<Id, Extract<SceneNode, { type: 'textframe' }>>>();
-function frameIndex(doc: EaselDocument) {
+const frameIndexCache = new WeakMap<QuvreloDocument, Map<Id, Extract<SceneNode, { type: 'textframe' }>>>();
+function frameIndex(doc: QuvreloDocument) {
   let m = frameIndexCache.get(doc);
   if (m) return m;
   m = new Map();
@@ -93,7 +93,7 @@ function frameIndex(doc: EaselDocument) {
   return m;
 }
 
-export function storyFlow(doc: EaselDocument, storyId: Id): FlowResult | null {
+export function storyFlow(doc: QuvreloDocument, storyId: Id): FlowResult | null {
   const story = doc.stories[storyId];
   if (!story) return null;
   const frames = frameChain(doc, story);
@@ -424,7 +424,7 @@ function drawImageFrame(ctx: CanvasRenderingContext2D, n: Extract<SceneNode, { t
 }
 
 /** Render a whole page (master + nodes) onto a context already scaled to document units. */
-export function drawPage(ctx: CanvasRenderingContext2D, doc: EaselDocument, pageIndex: number, env: DrawEnv, includeBackground = true): void {
+export function drawPage(ctx: CanvasRenderingContext2D, doc: QuvreloDocument, pageIndex: number, env: DrawEnv, includeBackground = true): void {
   const page = doc.pages[pageIndex];
   if (!page) return;
   const { width, height, background, bleed } = doc.settings;

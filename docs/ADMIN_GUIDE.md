@@ -1,6 +1,6 @@
-# Easel Studio — IT Administrator Deployment Guide
+# Quvrelo — IT Administrator Deployment Guide
 
-Easel Studio is designed to be deployed to shared school and office computers with no per-user setup:
+Quvrelo is designed to be deployed to shared school and office computers with no per-user setup:
 
 - **No accounts, no licence keys, no sign-in.**
 - **No telemetry.** The app never contacts the internet on its own. The renderer process is blocked from all network requests. The only network call is *Help ▸ Check for Updates*, which runs only when a user clicks it and can be removed with `"disableUpdateCheck": true`.
@@ -10,10 +10,14 @@ Easel Studio is designed to be deployed to shared school and office computers wi
 
 | File | Use |
 |---|---|
-| `EaselStudio-<ver>-x64.msi`, `EaselStudio-<ver>-arm64.msi` | Windows per-machine install (Intune, SCCM/MECM, Group Policy software installation, PDQ). |
-| `EaselStudio-Setup-<ver>-x64.exe`, `...-arm64.exe` | Windows NSIS installer; per-user or per-machine. |
-| `EaselStudio-<ver>-mac-arm64.pkg`, `...-mac-x64.pkg` | macOS installer package for Jamf, Mosyle, Kandji, Munki or Apple Remote Desktop. Installs to `/Applications`. |
-| `EaselStudio-<ver>-mac-arm64.dmg`, `...-mac-x64.dmg` | macOS drag-to-install disk image. |
+| `Quvrelo-<ver>-x64.msi`, `Quvrelo-<ver>-arm64.msi` | Windows per-machine install (Intune, SCCM/MECM, Group Policy software installation, PDQ). |
+| `Quvrelo-Setup-<ver>-x64.exe`, `...-arm64.exe` | Windows NSIS installer; per-user or per-machine. |
+| `Quvrelo-<ver>-mac-arm64.pkg`, `...-mac-x64.pkg` | macOS installer package for Jamf, Mosyle, Kandji, Munki or Apple Remote Desktop. Installs to `/Applications`. |
+| `Quvrelo-<ver>-mac-arm64.dmg`, `...-mac-x64.dmg` | macOS drag-to-install disk image. |
+
+| `Quvrelo-<ver>-x86_64.AppImage` | Linux, any distribution, no install needed. |
+| `Quvrelo-<ver>-amd64.deb` | Debian, Ubuntu, Mint (apt). |
+| `Quvrelo-<ver>-x86_64.rpm` | Fedora, RHEL, Rocky, openSUSE (dnf/zypper). |
 
 Each release also includes `SHA256SUMS.txt` so you can verify downloads.
 
@@ -21,49 +25,49 @@ Each release also includes `SHA256SUMS.txt` so you can verify downloads.
 
 ### Windows — MSI (recommended for managed fleets)
 ```bat
-msiexec /i EaselStudio-0.1.0-x64.msi /qn /norestart
-msiexec /i EaselStudio-0.1.0-x64.msi /qn /l*v "%TEMP%\easel-install.log"
+msiexec /i Quvrelo-0.1.0-x64.msi /qn /norestart
+msiexec /i Quvrelo-0.1.0-x64.msi /qn /l*v "%TEMP%\quvrelo-install.log"
 :: uninstall
-msiexec /x EaselStudio-0.1.0-x64.msi /qn
+msiexec /x Quvrelo-0.1.0-x64.msi /qn
 ```
-The MSI installs per-machine into `C:\Program Files\Easel Studio` and creates Start-menu and desktop shortcuts for all users.
+The MSI installs per-machine into `C:\Program Files\Quvrelo` and creates Start-menu and desktop shortcuts for all users.
 
 ### Windows — NSIS EXE
 ```bat
 :: per-machine (all users), silent; requires elevation
-EaselStudio-Setup-0.1.0-x64.exe /S /allusers
+Quvrelo-Setup-0.1.0-x64.exe /S /allusers
 :: per-user, silent, no elevation
-EaselStudio-Setup-0.1.0-x64.exe /S /currentuser
+Quvrelo-Setup-0.1.0-x64.exe /S /currentuser
 :: custom directory (must be the last argument, no quotes)
-EaselStudio-Setup-0.1.0-x64.exe /S /allusers /D=D:\Apps\Easel Studio
+Quvrelo-Setup-0.1.0-x64.exe /S /allusers /D=D:\Apps\Quvrelo
 :: silent uninstall (per-machine)
-"C:\Program Files\Easel Studio\Uninstall Easel Studio.exe" /S /allusers
+"C:\Program Files\Quvrelo\Uninstall Quvrelo.exe" /S /allusers
 ```
 
 ### Intune (Win32 app)
-- Install command: `msiexec /i EaselStudio-0.1.0-x64.msi /qn`
+- Install command: `msiexec /i Quvrelo-0.1.0-x64.msi /qn`
 - Uninstall command: `msiexec /x {product-code} /qn` (Intune detects the product code automatically from the MSI)
-- Detection rule: MSI product code, or file `C:\Program Files\Easel Studio\Easel Studio.exe` exists.
+- Detection rule: MSI product code, or file `C:\Program Files\Quvrelo\Quvrelo.exe` exists.
 
 ### macOS
 ```sh
-sudo installer -pkg EaselStudio-0.1.0-mac-arm64.pkg -target /
+sudo installer -pkg Quvrelo-0.1.0-mac-arm64.pkg -target /
 ```
 Releases are **not yet notarised**. Gatekeeper may block first launch for users; remove the quarantine attribute as part of your deployment script:
 ```sh
-sudo xattr -dr com.apple.quarantine "/Applications/Easel Studio.app"
+sudo xattr -dr com.apple.quarantine "/Applications/Quvrelo.app"
 ```
 (Packages pushed by MDM are normally not quarantined.)
 
 ## 3. Policy file (`policy.json`)
 
-A machine-wide JSON file lets you control behaviour for every user. Easel Studio reads it at launch.
+A machine-wide JSON file lets you control behaviour for every user. Quvrelo reads it at launch.
 
 | OS | Location |
 |---|---|
-| Windows | `%ProgramData%\EaselStudio\policy.json` (usually `C:\ProgramData\EaselStudio\policy.json`) |
-| macOS | `/Library/Application Support/EaselStudio/policy.json` |
-| Linux | `/etc/easel-studio/policy.json` |
+| Windows | `%ProgramData%\Quvrelo\policy.json` (usually `C:\ProgramData\Quvrelo\policy.json`) |
+| macOS | `/Library/Application Support/Quvrelo/policy.json` |
+| Linux | `/etc/quvrelo/policy.json` |
 
 Make the file read-only for standard users. Invalid keys are ignored and listed under *Help ▸ About* ("Policy warnings"), so a typo never stops the app from starting. An example ships inside the app at `resources/policy.example.json` and in this repository at [`docs/policy.example.json`](policy.example.json).
 
@@ -75,8 +79,8 @@ Make the file read-only for standard users. Invalid keys are ignored and listed 
 | `defaultSaveDirectory` | string \| null | `null` (Documents) | Starting folder for Save, Export and Open dialogs. Supports `%USERPROFILE%`, `%USERNAME%`, `%DOCUMENTS%`, any `%ENV_VAR%`, `~` and `$USER`. |
 | `lockSaveDirectory` | boolean | `false` | When `true`, users can only save/export inside `defaultSaveDirectory`, `allowedSaveDirectories` or `handInDirectory`. Requires `defaultSaveDirectory`. |
 | `allowedSaveDirectories` | string[] | `[]` | Extra permitted folders when locked (e.g. a OneDrive folder or USB path). |
-| `handInDirectory` | string \| null | `null` | Folder used by *File ▸ Hand In*. Work is copied to `<handInDirectory>\<Class>\<Student> - <Assignment> - <timestamp>.easel`. If unset, students choose a folder. |
-| `templateDirectories` | string[] | `[]` | Folders containing `.easel` files shown as "School templates" on the welcome screen (network shares are fine; unavailable folders are skipped). |
+| `handInDirectory` | string \| null | `null` | Folder used by *File ▸ Hand In*. Work is copied to `<handInDirectory>\<Class>\<Student> - <Assignment> - <timestamp>.quvrelo`. If unset, students choose a folder. |
+| `templateDirectories` | string[] | `[]` | Folders containing `.quvrelo` files shown as "School templates" on the welcome screen (network shares are fine; unavailable folders are skipped). |
 | `disabledFeatures` | string[] | `[]` | Features to remove from the UI. See the list below. |
 | `disableUpdateCheck` | boolean | `false` | Removes *Help ▸ Check for Updates*, so the app makes no network requests at all. |
 | `autosaveIntervalSeconds` | number | `60` | Crash-recovery autosave interval (0–3600; `0` disables autosave). |
@@ -93,11 +97,11 @@ Make the file read-only for standard users. Invalid keys are ignored and listed 
 ```json
 {
   "organizationName": "Example Academy",
-  "defaultSaveDirectory": "H:\\Easel Work",
+  "defaultSaveDirectory": "H:\\Quvrelo Work",
   "lockSaveDirectory": true,
   "allowedSaveDirectories": ["%USERPROFILE%\\OneDrive - Example Academy"],
   "handInDirectory": "\\\\fileserver\\handin$",
-  "templateDirectories": ["\\\\fileserver\\templates$\\Easel"],
+  "templateDirectories": ["\\\\fileserver\\templates$\\Quvrelo"],
   "disableUpdateCheck": true,
   "autosaveIntervalSeconds": 45
 }
@@ -114,16 +118,27 @@ Make the file read-only for standard users. Invalid keys are ignored and listed 
 ```
 
 ### Deploying the policy
-- **Group Policy Preferences:** *Computer Configuration ▸ Preferences ▸ Windows Settings ▸ Files* — copy `policy.json` to `%ProgramData%\EaselStudio\policy.json`.
-- **Intune:** wrap a small PowerShell script: `New-Item -ItemType Directory -Force "$env:ProgramData\EaselStudio"; Copy-Item policy.json "$env:ProgramData\EaselStudio\policy.json" -Force`.
-- **macOS MDM:** deliver the file with a script or package payload to `/Library/Application Support/EaselStudio/policy.json` (owner `root:wheel`, mode `644`).
+- **Group Policy Preferences:** *Computer Configuration ▸ Preferences ▸ Windows Settings ▸ Files* — copy `policy.json` to `%ProgramData%\Quvrelo\policy.json`.
+- **Intune:** wrap a small PowerShell script: `New-Item -ItemType Directory -Force "$env:ProgramData\Quvrelo"; Copy-Item policy.json "$env:ProgramData\Quvrelo\policy.json" -Force`.
+- **macOS MDM:** deliver the file with a script or package payload to `/Library/Application Support/Quvrelo/policy.json` (owner `root:wheel`, mode `644`).
+
+### Linux deployment
+```sh
+# Debian / Ubuntu (unattended)
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ./Quvrelo-0.1.0-amd64.deb
+# Fedora / RHEL / Rocky
+sudo dnf install -y ./Quvrelo-0.1.0-x86_64.rpm
+# Policy
+sudo install -D -m 644 policy.json /etc/quvrelo/policy.json
+```
+The packages install to `/opt/Quvrelo`, add a `quvrelo` launcher, a desktop entry, hicolor icons (16–512 px) and register the `.quvrelo` MIME type (`application/vnd.quvrelo+zip`). Roll out with Ansible, Puppet, Landscape, Satellite or your distribution's package repository. The AppImage needs no root: copy it to a shared folder and `chmod +x`. If Electron's sandbox is unavailable (some hardened or container kernels), launch with `--no-sandbox`. A Flatpak manifest is planned; until then use the AppImage where a distribution-neutral package is needed.
 
 ## 4. Data locations
 
-| Data | Windows | macOS |
-|---|---|---|
-| User settings, recent files | `%APPDATA%\Easel Studio\` | `~/Library/Application Support/Easel Studio/` |
-| Crash-recovery autosaves | `%APPDATA%\Easel Studio\recovery\` | `~/Library/Application Support/Easel Studio/recovery/` |
+| Data | Windows | macOS | Linux |
+|---|---|---|---|
+| User settings, recent files | `%APPDATA%\Quvrelo\` | `~/Library/Application Support/Quvrelo/` | `~/.config/Quvrelo/` |
+| Crash-recovery autosaves | `%APPDATA%\Quvrelo\recovery\` | `~/Library/Application Support/Quvrelo/recovery/` | `~/.config/Quvrelo/recovery/` |
 
 Recovery files are deleted when a document is saved or closed without saving. Nothing is written outside these folders and the locations users choose to save to.
 

@@ -1,7 +1,7 @@
 /** Exporters: PNG, JPEG, SVG and multi-page PDF (all offline). */
 import { PDFDocument, PDFName, PDFString } from 'pdf-lib';
 import { pageToSvg } from '../../core/svg';
-import type { EaselDocument } from '../../core/types';
+import type { QuvreloDocument } from '../../core/types';
 import type { AssetStore } from './assets';
 import { canvasToBytes, createCanvas, ctx2d } from './assets';
 import { drawPage, measureText } from './draw';
@@ -13,7 +13,7 @@ export interface RasterExportOptions {
   transparent: boolean;
 }
 
-export function renderPageCanvas(doc: EaselDocument, assets: AssetStore, o: RasterExportOptions): HTMLCanvasElement {
+export function renderPageCanvas(doc: QuvreloDocument, assets: AssetStore, o: RasterExportOptions): HTMLCanvasElement {
   const b = o.includeBleed ? doc.settings.bleed : 0;
   const w = (doc.settings.width + 2 * b) * o.scale;
   const h = (doc.settings.height + 2 * b) * o.scale;
@@ -32,7 +32,7 @@ export function renderPageCanvas(doc: EaselDocument, assets: AssetStore, o: Rast
 }
 
 export async function exportRaster(
-  doc: EaselDocument, assets: AssetStore, o: RasterExportOptions & { format: 'png' | 'jpg' | 'webp'; quality: number },
+  doc: QuvreloDocument, assets: AssetStore, o: RasterExportOptions & { format: 'png' | 'jpg' | 'webp'; quality: number },
 ): Promise<Uint8Array> {
   const c = renderPageCanvas(doc, assets, { ...o, transparent: o.format === 'png' ? o.transparent : false });
   if (o.format === 'jpg') {
@@ -47,7 +47,7 @@ export async function exportRaster(
   return canvasToBytes(c, o.format === 'webp' ? 'image/webp' : 'image/png', o.quality);
 }
 
-export function exportSvg(doc: EaselDocument, assets: AssetStore, pageIndex: number, includeBleed = false): string {
+export function exportSvg(doc: QuvreloDocument, assets: AssetStore, pageIndex: number, includeBleed = false): string {
   const page = doc.pages[pageIndex];
   return pageToSvg(doc, page, {
     measure: measureText,
@@ -73,11 +73,11 @@ export interface PdfExportOptions {
 
 const PT_PER_PX = 72 / 96;
 
-export async function exportPdf(doc: EaselDocument, assets: AssetStore, o: PdfExportOptions): Promise<Uint8Array> {
+export async function exportPdf(doc: QuvreloDocument, assets: AssetStore, o: PdfExportOptions): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   pdf.setTitle(doc.title);
-  pdf.setCreator('Easel Studio');
-  pdf.setProducer('Easel Studio (pdf-lib)');
+  pdf.setCreator('Quvrelo');
+  pdf.setProducer('Quvrelo (pdf-lib)');
   pdf.setCreationDate(new Date());
   pdf.setModificationDate(new Date());
   const indices = o.pages === 'all' ? doc.pages.map((_, i) => i) : o.pages;

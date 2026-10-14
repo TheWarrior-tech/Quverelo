@@ -1,4 +1,4 @@
-## Easel Studio — first public preview
+## Quvrelo — first public preview
 
 Photo editing, vector design and page layout in **one** offline app, built for schools and professional teams.
 
@@ -13,9 +13,9 @@ Photo editing, vector design and page layout in **one** offline app, built for s
 ### Downloads
 | | Installer |
 |---|---|
-| Windows | `EaselStudio-Setup-*-x64.exe` (or `-arm64.exe`) · managed: `EaselStudio-*-x64.msi` |
-| macOS | `EaselStudio-*-mac-arm64.dmg` (Apple silicon) or `-mac-x64.dmg` (Intel) · managed: `.pkg` |
-| Linux | `.AppImage` / `.deb` |
+| Windows | `Quvrelo-Setup-*-x64.exe` (or `-arm64.exe`) · managed: `Quvrelo-*-x64.msi` |
+| macOS | `Quvrelo-*-mac-arm64.dmg` (Apple silicon) or `-mac-x64.dmg` (Intel) · managed: `.pkg` |
+| Linux | `.AppImage` · `.deb` (Debian/Ubuntu) · `.rpm` (Fedora/RHEL/openSUSE) |
 
 Verify downloads with `SHA256SUMS.txt`.
 
@@ -28,4 +28,4 @@ Verify downloads with `SHA256SUMS.txt`.
 - Text styling applies to a whole text object/story (per-character styles are coming).
 - PSD/IDML/Affinity file import is not available yet.
 
-See the [IT admin guide](https://github.com/TheWarrior-tech/easel-studio/blob/main/docs/ADMIN_GUIDE.md) and [user guide](https://github.com/TheWarrior-tech/easel-studio/blob/main/docs/USER_GUIDE.md).
+See the [IT admin guide](https://github.com/TheWarrior-tech/Quvrelo/blob/main/docs/ADMIN_GUIDE.md) and [user guide](https://github.com/TheWarrior-tech/Quvrelo/blob/main/docs/USER_GUIDE.md).

@@ -163,7 +163,7 @@ export const APP_MENU: MenuSection[] = [
       { id: 'help.shortcuts', label: 'Keyboard Shortcuts', accel: 'F1' },
       { id: 'help.guide', label: 'Quick Start Guide' },
       { id: 'help.check-updates', label: 'Check for Updates…', feature: 'update-check' },
-      { id: 'help.about', label: 'About Easel Studio' },
+      { id: 'help.about', label: 'About Quvrelo' },
     ],
   },
 ];

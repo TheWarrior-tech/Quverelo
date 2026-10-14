@@ -1,4 +1,4 @@
-/** Contract between the renderer and the main process (exposed by preload as window.easel). */
+/** Contract between the renderer and the main process (exposed by preload as window.quvrelo). */
 import type { Policy } from '../core/policy';
 
 export interface FileFilter {
@@ -72,7 +72,7 @@ export interface UpdateInfo {
   error?: string;
 }
 
-export interface EaselApi {
+export interface QuvreloApi {
   getPolicy(): Promise<Policy>;
   getAppInfo(): Promise<AppInfo>;
   getSettings(): Promise<UserSettings>;
@@ -110,6 +110,6 @@ export interface EaselApi {
 
 declare global {
   interface Window {
-    easel: EaselApi;
+    quvrelo: QuvreloApi;
   }
 }

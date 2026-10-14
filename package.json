@@ -1,17 +1,17 @@
 {
-  "name": "easel-studio",
-  "productName": "Easel Studio",
+  "name": "quvrelo",
+  "productName": "Quvrelo",
   "version": "0.1.0",
   "description": "Offline all-in-one creative suite for schools: photo editing, vector design and page layout in one app.",
   "main": "dist-electron/main.js",
   "author": {
-    "name": "Easel Studio contributors",
+    "name": "Quvrelo contributors",
     "email": "finnothompson@gmail.com"
   },
-  "homepage": "https://github.com/TheWarrior-tech/easel-studio",
+  "homepage": "https://github.com/TheWarrior-tech/Quvrelo",
   "repository": {
     "type": "git",
-    "url": "https://github.com/TheWarrior-tech/easel-studio.git"
+    "url": "https://github.com/TheWarrior-tech/Quvrelo.git"
   },
   "license": "MIT",
   "private": true,
@@ -59,10 +59,10 @@
     "vitest": "^3.2.7"
   },
   "build": {
-    "appId": "io.github.thewarriortech.easelstudio",
-    "productName": "Easel Studio",
-    "copyright": "Copyright \u00a9 2026 Easel Studio contributors",
-    "artifactName": "EaselStudio-${version}-${os}-${arch}.${ext}",
+    "appId": "com.quvrelo.app",
+    "productName": "Quvrelo",
+    "copyright": "Copyright © 2026 Quvrelo contributors",
+    "artifactName": "Quvrelo-${version}-${os}-${arch}.${ext}",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -77,14 +77,26 @@
       {
         "from": "docs/policy.example.json",
         "to": "policy.example.json"
+      },
+      {
+        "from": "build/linux/quvrelo.xml",
+        "to": "quvrelo-mime.xml"
       }
     ],
     "asar": true,
     "fileAssociations": [
       {
+        "ext": "quvrelo",
+        "name": "Quvrelo Document",
+        "description": "Quvrelo Document",
+        "mimeType": "application/vnd.quvrelo+zip",
+        "role": "Editor",
+        "icon": "icon"
+      },
+      {
         "ext": "easel",
-        "name": "Easel Studio Document",
-        "description": "Easel Studio Document",
+        "name": "Quvrelo Document (pre-release)",
+        "description": "Quvrelo Document (pre-release format)",
         "mimeType": "application/vnd.easel-studio+zip",
         "role": "Editor",
         "icon": "icon"
@@ -94,7 +106,7 @@
       {
         "provider": "github",
         "owner": "TheWarrior-tech",
-        "repo": "easel-studio",
+        "repo": "Quvrelo",
         "releaseType": "release"
       }
     ],
@@ -116,7 +128,7 @@
           ]
         }
       ],
-      "artifactName": "EaselStudio-${version}-win-${arch}.${ext}"
+      "artifactName": "Quvrelo-${version}-win-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -125,9 +137,9 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Easel Studio",
+      "shortcutName": "Quvrelo",
       "deleteAppDataOnUninstall": false,
-      "artifactName": "EaselStudio-Setup-${version}-${arch}.${ext}"
+      "artifactName": "Quvrelo-Setup-${version}-${arch}.${ext}"
     },
     "msi": {
       "oneClick": false,
@@ -135,8 +147,8 @@
       "runAfterFinish": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Easel Studio",
-      "artifactName": "EaselStudio-${version}-${arch}.${ext}"
+      "shortcutName": "Quvrelo",
+      "artifactName": "Quvrelo-${version}-${arch}.${ext}"
     },
     "mac": {
       "icon": "build/icon.png",
@@ -160,10 +172,10 @@
       "identity": null,
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
-      "artifactName": "EaselStudio-${version}-mac-${arch}.${ext}"
+      "artifactName": "Quvrelo-${version}-mac-${arch}.${ext}"
     },
     "dmg": {
-      "title": "Easel Studio ${version}"
+      "title": "Quvrelo ${version}"
     },
     "pkg": {
       "installLocation": "/Applications",
@@ -175,14 +187,67 @@
       "overwriteAction": "upgrade"
     },
     "linux": {
-      "icon": "build/icon.png",
+      "icon": "build/icons",
       "category": "Graphics",
+      "executableName": "quvrelo",
       "target": [
         "AppImage",
-        "deb"
+        "deb",
+        "rpm"
       ],
-      "maintainer": "Easel Studio contributors",
-      "synopsis": "Photo, vector and layout design for schools"
+      "maintainer": "Quvrelo contributors <finnothompson@gmail.com>",
+      "vendor": "Quvrelo",
+      "synopsis": "Photo, vector and layout design in one app",
+      "description": "Quvrelo is an offline all-in-one creative suite: Photo, Vector and Layout studios in one app.",
+      "desktop": {
+        "Name": "Quvrelo",
+        "GenericName": "Creative Suite",
+        "Keywords": "design;photo;vector;layout;illustration;publishing;",
+        "StartupWMClass": "Quvrelo"
+      },
+      "mimeTypes": [
+        "application/vnd.quvrelo+zip"
+      ],
+      "artifactName": "Quvrelo-${version}-${arch}.${ext}"
+    },
+    "deb": {
+      "afterInstall": "build/linux/after-install.sh",
+      "afterRemove": "build/linux/after-remove.sh",
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libuuid1",
+        "libsecret-1-0"
+      ]
+    },
+    "rpm": {
+      "afterInstall": "build/linux/after-install.sh",
+      "afterRemove": "build/linux/after-remove.sh"
+    },
+    "appImage": {
+      "artifactName": "Quvrelo-${version}-${arch}.${ext}"
+    },
+    "flatpak": {
+      "runtime": "org.freedesktop.Platform",
+      "runtimeVersion": "24.08",
+      "sdk": "org.freedesktop.Sdk",
+      "base": "org.electronjs.Electron2.BaseApp",
+      "baseVersion": "24.08",
+      "category": "Graphics",
+      "finishArgs": [
+        "--socket=wayland",
+        "--socket=x11",
+        "--share=ipc",
+        "--device=dri",
+        "--filesystem=home",
+        "--talk-name=org.freedesktop.Notifications"
+      ],
+      "artifactName": "Quvrelo-${version}-${arch}.${ext}"
     }
   }
 }

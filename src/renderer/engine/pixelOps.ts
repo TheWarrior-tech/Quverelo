@@ -3,20 +3,20 @@ import { apply, invert, multiply, translate, scale, type Matrix } from '../../co
 import { findNode, make, worldMatrix } from '../../core/document';
 import { addNodes, updateNode } from '../../core/commands';
 import { transformPath } from '../../core/path';
-import type { EaselDocument, Id, PathCommand, RasterNode } from '../../core/types';
+import type { QuvreloDocument, Id, PathCommand, RasterNode } from '../../core/types';
 import type { Editor } from '../state/editor';
 import { cloneCanvas, createCanvas, ctx2d } from './assets';
 import { toPath2D } from './draw';
 
 /** Matrix mapping document (world) coordinates to a raster node's pixel grid. */
-export function worldToPixelMatrix(doc: EaselDocument, id: Id): Matrix | null {
+export function worldToPixelMatrix(doc: QuvreloDocument, id: Id): Matrix | null {
   const loc = findNode(doc, id);
   if (!loc || loc.node.type !== 'raster') return null;
   const n = loc.node;
   return multiply(translate(n.w / 2, n.h / 2), invert(worldMatrix(loc)));
 }
 
-export function selectionInPixels(doc: EaselDocument, id: Id, sel: PathCommand[] | null): Path2D | null {
+export function selectionInPixels(doc: QuvreloDocument, id: Id, sel: PathCommand[] | null): Path2D | null {
   if (!sel) return null;
   const m = worldToPixelMatrix(doc, id);
   if (!m) return null;

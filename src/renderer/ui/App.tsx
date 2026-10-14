@@ -25,8 +25,8 @@ export function App() {
   useEffect(() => {
     hookTitle();
     startAutosave();
-    const offMenu = window.easel.onMenuCommand((id) => void runCommand(id));
-    const offOpen = window.easel.onOpenPath((p) => void openPath(p));
+    const offMenu = window.quvrelo.onMenuCommand((id) => void runCommand(id));
+    const offOpen = window.quvrelo.onOpenPath((p) => void openPath(p));
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && editor.session && !(e.target as HTMLElement)?.closest('input,textarea,select,button,[role="tab"],.panels,.dialog')) {
         e.preventDefault();
@@ -46,14 +46,14 @@ export function App() {
       if (!files.length) return;
       const io = await import('../state/io');
       const loaded = await Promise.all(files.map(async (f) => ({ name: f.name, data: new Uint8Array(await f.arrayBuffer()) })));
-      if (!editor.session || loaded[0].name.toLowerCase().endsWith('.easel')) await io.openFileData(loaded[0].data, loaded[0].name, null);
+      if (!editor.session || /\.(quvrelo|easel)$/i.test(loaded[0].name)) await io.openFileData(loaded[0].data, loaded[0].name, null);
       else await io.placeImages(loaded);
     };
     const onDragOver = (e: DragEvent) => e.preventDefault();
     window.addEventListener('drop', onDrop);
     window.addEventListener('dragover', onDragOver);
     // test hook: lets end-to-end tests drive commands and inspect state
-    (window as unknown as { __easel: unknown }).__easel = { editor, runCommand };
+    (window as unknown as { __quvrelo: unknown }).__quvrelo = { editor, runCommand };
     return () => {
       offMenu();
       offOpen();

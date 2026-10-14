@@ -1,5 +1,5 @@
 /**
- * Easel Studio document model.
+ * Quvrelo document model.
  *
  * One model is shared by all three studios (Photo, Vector, Layout). It is plain,
  * JSON-serialisable data and is treated as immutable: every edit produces a new
@@ -297,8 +297,8 @@ export interface DocumentSettings {
   columnGutter: number;
 }
 
-export interface EaselDocument {
-  format: 'easel';
+export interface QuvreloDocument {
+  format: 'quvrelo';
   version: 1;
   id: Id;
   title: string;

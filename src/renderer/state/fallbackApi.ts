@@ -1,12 +1,12 @@
 /**
- * Browser fallback for window.easel so the renderer can run outside Electron
+ * Browser fallback for window.quvrelo so the renderer can run outside Electron
  * (component development, browser-based tests). Uses file inputs and downloads.
  */
 import { DEFAULT_POLICY } from '../../core/policy';
-import { DEFAULT_SETTINGS, type EaselApi, type OpenedFile, type UserSettings } from '../../shared/api';
+import { DEFAULT_SETTINGS, type QuvreloApi, type OpenedFile, type UserSettings } from '../../shared/api';
 
-export function browserFallbackApi(): EaselApi {
-  const settingsKey = 'easel.settings';
+export function browserFallbackApi(): QuvreloApi {
+  const settingsKey = 'quvrelo.settings';
   const loadSettings = (): UserSettings => ({ ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(settingsKey) || '{}') });
   const pick = (accept: string, multi: boolean): Promise<OpenedFile[]> =>
     new Promise((resolve) => {

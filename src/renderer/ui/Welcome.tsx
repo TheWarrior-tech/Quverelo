@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { TEMPLATES, type TemplateInfo } from '../../core/templates';
-import type { EaselDocument, StudioKind } from '../../core/types';
+import type { QuvreloDocument, StudioKind } from '../../core/types';
 import type { ExternalTemplate, RecentFile, RecoveryEntry } from '../../shared/api';
 import { editor } from '../state/editor';
 import { newFromTemplate, openDialogAndLoad, openPath, restoreRecovery } from '../state/io';
@@ -9,7 +9,7 @@ import { createCanvas, ctx2d } from '../engine/assets';
 import { drawPage } from '../engine/draw';
 import { Icon, Logo } from './Icons';
 
-export function DocThumb({ doc, max = 150, pageIndex = 0 }: { doc: EaselDocument; max?: number; pageIndex?: number }) {
+export function DocThumb({ doc, max = 150, pageIndex = 0 }: { doc: QuvreloDocument; max?: number; pageIndex?: number }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const host = ref.current;
@@ -55,9 +55,9 @@ export function Welcome() {
   const [recovery, setRecovery] = useState<RecoveryEntry[]>([]);
   const [external, setExternal] = useState<ExternalTemplate[]>([]);
   useEffect(() => {
-    void window.easel.getRecent().then(setRecent);
-    void window.easel.listRecovery().then(setRecovery);
-    void window.easel.listExternalTemplates().then(setExternal);
+    void window.quvrelo.getRecent().then(setRecent);
+    void window.quvrelo.listRecovery().then(setRecovery);
+    void window.quvrelo.listExternalTemplates().then(setExternal);
   }, []);
   const studios = STUDIO_INFO.filter((s) => editor.feature(s.id));
   const cats: TemplateInfo['category'][] = ['Classroom', 'Print', 'Digital', 'Start'];
@@ -67,7 +67,7 @@ export function Welcome() {
         <header className="welcome-hero">
           <Logo className="logo" />
           <div>
-            <h1>Easel Studio</h1>
+            <h1>Quvrelo</h1>
             <p>Photo, vector and layout design in one app — offline, private and made for classrooms.{editor.policy.organizationName ? ` · ${editor.policy.organizationName}` : ''}</p>
           </div>
           <div className="actions">
@@ -83,14 +83,14 @@ export function Welcome() {
         {recovery.length > 0 && (
           <section className="recovery-banner" aria-label="Recovered documents">
             <h3>Recovered work</h3>
-            <div style={{ color: 'var(--text-dim)' }}>Easel Studio closed unexpectedly. These documents were autosaved:</div>
+            <div style={{ color: 'var(--text-dim)' }}>Quvrelo closed unexpectedly. These documents were autosaved:</div>
             {recovery.map((r) => (
               <div className="item" key={r.id}>
                 <span>
                   <b>{r.title}</b> — {new Date(r.savedAt).toLocaleString()}
                 </span>
                 <button className="btn primary" onClick={() => void restoreRecovery(r.id)}>Restore</button>
-                <button className="btn ghost" onClick={async () => { await window.easel.deleteRecovery(r.id); setRecovery((l) => l.filter((x) => x.id !== r.id)); }}>Discard</button>
+                <button className="btn ghost" onClick={async () => { await window.quvrelo.deleteRecovery(r.id); setRecovery((l) => l.filter((x) => x.id !== r.id)); }}>Discard</button>
               </div>
             ))}
           </section>

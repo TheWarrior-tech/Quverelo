@@ -5,7 +5,7 @@
 import { nodeToPath } from './document';
 import { pathToString } from './path';
 import { flowStory, lineHeightPx, monoMeasure, type MeasureFn } from './textflow';
-import type { EaselDocument, Id, Page, Paint, SceneNode, Stroke, TextStyle } from './types';
+import type { QuvreloDocument, Id, Page, Paint, SceneNode, Stroke, TextStyle } from './types';
 
 export interface SvgExportOptions {
   measure?: MeasureFn;
@@ -33,7 +33,7 @@ export function baselineOffset(style: TextStyle): number {
 class Ctx {
   defs: string[] = [];
   private n = 0;
-  constructor(public opts: SvgExportOptions, public doc: EaselDocument) {}
+  constructor(public opts: SvgExportOptions, public doc: QuvreloDocument) {}
   id(prefix: string) {
     this.n++;
     return `${prefix}${this.n}`;
@@ -208,7 +208,7 @@ function nodeToSvg(ctx: Ctx, n: SceneNode): string {
   return `${open}${body}</g>`;
 }
 
-function findFrame(doc: EaselDocument, id: Id): Extract<SceneNode, { type: 'textframe' }> | null {
+function findFrame(doc: QuvreloDocument, id: Id): Extract<SceneNode, { type: 'textframe' }> | null {
   const visit = (nodes: SceneNode[]): Extract<SceneNode, { type: 'textframe' }> | null => {
     for (const n of nodes) {
       if (n.id === id && n.type === 'textframe') return n;
@@ -250,7 +250,7 @@ export function imageFrameContentRect(
   return { x: -w / 2 + n.contentX, y: -h / 2 + n.contentY, w, h };
 }
 
-export function pageToSvg(doc: EaselDocument, page: Page, opts: SvgExportOptions = {}): string {
+export function pageToSvg(doc: QuvreloDocument, page: Page, opts: SvgExportOptions = {}): string {
   const ctx = new Ctx(opts, doc);
   const { width, height, background, bleed } = doc.settings;
   const b = opts.includeBleed ? bleed : 0;

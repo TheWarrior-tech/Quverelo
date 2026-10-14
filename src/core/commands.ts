@@ -13,7 +13,7 @@ import {
 } from './document';
 import { centrePath, transformPath } from './path';
 import type {
-  EaselDocument, GroupNode, Guide, Id, Page, PathNode, SceneNode, Story, TextStyle, Swatch, NodeBase,
+  QuvreloDocument, GroupNode, Guide, Id, Page, PathNode, SceneNode, Story, TextStyle, Swatch, NodeBase,
 } from './types';
 
 export type BoundsFn = (n: SceneNode) => Rect;
@@ -21,7 +21,7 @@ export type BoundsFn = (n: SceneNode) => Rect;
 // ---------------------------------------------------------------------------
 // Nodes
 
-export function addNodes(doc: EaselDocument, containerId: Id, nodes: SceneNode[], index?: number): EaselDocument {
+export function addNodes(doc: QuvreloDocument, containerId: Id, nodes: SceneNode[], index?: number): QuvreloDocument {
   const c = getContainer(doc, containerId);
   if (!c) return doc;
   const list = [...c.nodes];
@@ -33,8 +33,8 @@ export function addNodes(doc: EaselDocument, containerId: Id, nodes: SceneNode[]
 type LoosePatch = { [key: string]: any };
 
 export function updateNode<T extends SceneNode = SceneNode>(
-  doc: EaselDocument, id: Id, patch: Partial<T> | LoosePatch | ((n: T) => T),
-): EaselDocument {
+  doc: QuvreloDocument, id: Id, patch: Partial<T> | LoosePatch | ((n: T) => T),
+): QuvreloDocument {
   return mapContainers(doc, (nodes) =>
     mapNodes(nodes, (n) => {
       if (n.id !== id) return n;
@@ -43,12 +43,12 @@ export function updateNode<T extends SceneNode = SceneNode>(
   );
 }
 
-export function updateNodes(doc: EaselDocument, ids: Id[], fn: (n: SceneNode) => SceneNode): EaselDocument {
+export function updateNodes(doc: QuvreloDocument, ids: Id[], fn: (n: SceneNode) => SceneNode): QuvreloDocument {
   const set = new Set(ids);
   return mapContainers(doc, (nodes) => mapNodes(nodes, (n) => (set.has(n.id) ? fn(n) : n)));
 }
 
-export function removeNodes(doc: EaselDocument, ids: Id[]): EaselDocument {
+export function removeNodes(doc: QuvreloDocument, ids: Id[]): QuvreloDocument {
   const set = new Set(ids);
   const removedFrames = new Set<Id>();
   for (const id of ids) {
@@ -68,7 +68,7 @@ export function removeNodes(doc: EaselDocument, ids: Id[]): EaselDocument {
 }
 
 /** Siblings list containing the node and a setter for it. */
-function withSiblings(doc: EaselDocument, id: Id, fn: (siblings: SceneNode[], index: number) => SceneNode[]): EaselDocument {
+function withSiblings(doc: QuvreloDocument, id: Id, fn: (siblings: SceneNode[], index: number) => SceneNode[]): QuvreloDocument {
   const loc = findNode(doc, id);
   if (!loc) return doc;
   if (!loc.ancestors.length) {
@@ -81,7 +81,7 @@ function withSiblings(doc: EaselDocument, id: Id, fn: (siblings: SceneNode[], in
 
 export type ArrangeOp = 'forward' | 'backward' | 'front' | 'back';
 
-export function arrange(doc: EaselDocument, ids: Id[], op: ArrangeOp): EaselDocument {
+export function arrange(doc: QuvreloDocument, ids: Id[], op: ArrangeOp): QuvreloDocument {
   let out = doc;
   const ordered = op === 'forward' || op === 'back' ? [...ids].reverse() : ids;
   for (const id of ordered) {
@@ -101,7 +101,7 @@ export function arrange(doc: EaselDocument, ids: Id[], op: ArrangeOp): EaselDocu
 }
 
 /** Move a node to a specific index in a container (used by layer drag-and-drop). */
-export function moveNodeTo(doc: EaselDocument, id: Id, containerId: Id, index: number): EaselDocument {
+export function moveNodeTo(doc: QuvreloDocument, id: Id, containerId: Id, index: number): QuvreloDocument {
   const loc = findNode(doc, id);
   if (!loc) return doc;
   const node = loc.node;
@@ -114,12 +114,12 @@ export function moveNodeTo(doc: EaselDocument, id: Id, containerId: Id, index: n
   return out;
 }
 
-function removeNodesKeepStories(doc: EaselDocument, ids: Id[]): EaselDocument {
+function removeNodesKeepStories(doc: QuvreloDocument, ids: Id[]): QuvreloDocument {
   const set = new Set(ids);
   return mapContainers(doc, (nodes) => mapNodes(nodes, (n) => (set.has(n.id) ? null : n)));
 }
 
-export function duplicateNodes(doc: EaselDocument, ids: Id[], offset = 20): { doc: EaselDocument; ids: Id[] } {
+export function duplicateNodes(doc: QuvreloDocument, ids: Id[], offset = 20): { doc: QuvreloDocument; ids: Id[] } {
   let out = doc;
   const newIds: Id[] = [];
   for (const id of ids) {
@@ -141,7 +141,7 @@ export function duplicateNodes(doc: EaselDocument, ids: Id[], offset = 20): { do
   return { doc: out, ids: newIds };
 }
 
-function detachClonedFrames(doc: EaselDocument, node: SceneNode): EaselDocument {
+function detachClonedFrames(doc: QuvreloDocument, node: SceneNode): QuvreloDocument {
   let out = doc;
   walk([node], (n) => {
     if (n.type === 'textframe') {
@@ -155,7 +155,7 @@ function detachClonedFrames(doc: EaselDocument, node: SceneNode): EaselDocument 
   return out;
 }
 
-export function groupNodes(doc: EaselDocument, ids: Id[], bounds: BoundsFn = nodeBounds): { doc: EaselDocument; groupId: Id | null } {
+export function groupNodes(doc: QuvreloDocument, ids: Id[], bounds: BoundsFn = nodeBounds): { doc: QuvreloDocument; groupId: Id | null } {
   if (ids.length < 1) return { doc, groupId: null };
   const locs = ids.map((id) => findNode(doc, id)).filter((l): l is NonNullable<typeof l> => !!l);
   if (!locs.length) return { doc, groupId: null };
@@ -181,7 +181,7 @@ export function groupNodes(doc: EaselDocument, ids: Id[], bounds: BoundsFn = nod
     });
     return list;
   };
-  let out: EaselDocument;
+  let out: QuvreloDocument;
   if (parentId) out = updateNode<GroupNode>(doc, parentId, (g) => ({ ...g, children: insert(g.children) }));
   else {
     const c = getContainer(doc, first.container.id)!;
@@ -197,7 +197,7 @@ export function bakeTransform<T extends SceneNode>(child: T, parent: Matrix): T 
   return { ...child, ...t, flipX: false } as T;
 }
 
-export function ungroup(doc: EaselDocument, groupId: Id): { doc: EaselDocument; ids: Id[] } {
+export function ungroup(doc: QuvreloDocument, groupId: Id): { doc: QuvreloDocument; ids: Id[] } {
   const loc = findNode(doc, groupId);
   if (!loc || loc.node.type !== 'group') return { doc, ids: [] };
   const g = loc.node;
@@ -217,8 +217,8 @@ export function ungroup(doc: EaselDocument, groupId: Id): { doc: EaselDocument; 
 export type AlignMode = 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom';
 
 export function alignNodes(
-  doc: EaselDocument, ids: Id[], mode: AlignMode, target: Rect | null, bounds: BoundsFn = nodeBounds,
-): EaselDocument {
+  doc: QuvreloDocument, ids: Id[], mode: AlignMode, target: Rect | null, bounds: BoundsFn = nodeBounds,
+): QuvreloDocument {
   const locs = ids.map((id) => findNode(doc, id)).filter((l): l is NonNullable<typeof l> => !!l);
   if (!locs.length) return doc;
   const ref = target ?? unionRects(locs.map((l) => bounds(l.node)));
@@ -238,7 +238,7 @@ export function alignNodes(
   });
 }
 
-export function distributeNodes(doc: EaselDocument, ids: Id[], axis: 'h' | 'v', bounds: BoundsFn = nodeBounds): EaselDocument {
+export function distributeNodes(doc: QuvreloDocument, ids: Id[], axis: 'h' | 'v', bounds: BoundsFn = nodeBounds): QuvreloDocument {
   const locs = ids.map((id) => findNode(doc, id)).filter((l): l is NonNullable<typeof l> => !!l);
   if (locs.length < 3) return doc;
   const items = locs.map((l) => ({ id: l.node.id, b: bounds(l.node) }));
@@ -261,20 +261,20 @@ export function distributeNodes(doc: EaselDocument, ids: Id[], axis: 'h' | 'v', 
   });
 }
 
-export function flipNodes(doc: EaselDocument, ids: Id[], axis: 'h' | 'v'): EaselDocument {
+export function flipNodes(doc: QuvreloDocument, ids: Id[], axis: 'h' | 'v'): QuvreloDocument {
   return updateNodes(doc, ids, (n) => (axis === 'h' ? { ...n, flipX: !n.flipX } : { ...n, flipY: !n.flipY }));
 }
 
-export function rotateNodes(doc: EaselDocument, ids: Id[], deg: number): EaselDocument {
+export function rotateNodes(doc: QuvreloDocument, ids: Id[], deg: number): QuvreloDocument {
   return updateNodes(doc, ids, (n) => ({ ...n, rotation: (((n.rotation + deg) % 360) + 360) % 360 }));
 }
 
-export function nudgeNodes(doc: EaselDocument, ids: Id[], dx: number, dy: number): EaselDocument {
+export function nudgeNodes(doc: QuvreloDocument, ids: Id[], dx: number, dy: number): QuvreloDocument {
   return updateNodes(doc, ids, (n) => (n.locked ? n : { ...n, x: n.x + dx, y: n.y + dy }));
 }
 
 /** Convert a shape into an editable path node with the same appearance. */
-export function convertToCurves(doc: EaselDocument, id: Id): EaselDocument {
+export function convertToCurves(doc: QuvreloDocument, id: Id): QuvreloDocument {
   const loc = findNode(doc, id);
   if (!loc) return doc;
   const n = loc.node;
@@ -305,7 +305,7 @@ export function pathNodeFromWorld(d: Parameters<typeof centrePath>[0], init: Par
 }
 
 /** World-space outline of a node (applies the node and ancestor transforms). */
-export function worldPath(doc: EaselDocument, id: Id) {
+export function worldPath(doc: QuvreloDocument, id: Id) {
   const loc = findNode(doc, id);
   if (!loc) return null;
   const d = nodeToPath(loc.node);
@@ -314,7 +314,7 @@ export function worldPath(doc: EaselDocument, id: Id) {
 }
 
 /** Convert a world point into a node's local coordinates. */
-export function worldToLocal(doc: EaselDocument, id: Id, p: { x: number; y: number }) {
+export function worldToLocal(doc: QuvreloDocument, id: Id, p: { x: number; y: number }) {
   const loc = findNode(doc, id);
   if (!loc) return p;
   return apply(invert(worldMatrix(loc)), p);
@@ -323,14 +323,14 @@ export function worldToLocal(doc: EaselDocument, id: Id, p: { x: number; y: numb
 // ---------------------------------------------------------------------------
 // Masks
 
-export function setMaskFromWorldPath(doc: EaselDocument, id: Id, worldD: Parameters<typeof transformPath>[0], inverted = false): EaselDocument {
+export function setMaskFromWorldPath(doc: QuvreloDocument, id: Id, worldD: Parameters<typeof transformPath>[0], inverted = false): QuvreloDocument {
   const loc = findNode(doc, id);
   if (!loc) return doc;
   const local = transformPath(worldD, invert(worldMatrix(loc)));
   return updateNode(doc, id, { mask: { d: local, inverted, enabled: true } } as Partial<SceneNode>);
 }
 
-export function releaseMask(doc: EaselDocument, id: Id): EaselDocument {
+export function releaseMask(doc: QuvreloDocument, id: Id): QuvreloDocument {
   return updateNode(doc, id, (n) => {
     const { mask: _mask, ...rest } = n;
     return rest as SceneNode;
@@ -340,14 +340,14 @@ export function releaseMask(doc: EaselDocument, id: Id): EaselDocument {
 // ---------------------------------------------------------------------------
 // Pages & masters
 
-export function addPage(doc: EaselDocument, afterIndex = doc.pages.length - 1, masterId: Id | null = null): { doc: EaselDocument; pageId: Id } {
+export function addPage(doc: QuvreloDocument, afterIndex = doc.pages.length - 1, masterId: Id | null = null): { doc: QuvreloDocument; pageId: Id } {
   const page = createPage(`Page ${doc.pages.length + 1}`, masterId ?? doc.pages[afterIndex]?.masterId ?? null);
   const pages = [...doc.pages];
   pages.splice(afterIndex + 1, 0, page);
   return { doc: renumberPages({ ...doc, pages }), pageId: page.id };
 }
 
-export function duplicatePage(doc: EaselDocument, pageId: Id): { doc: EaselDocument; pageId: Id } {
+export function duplicatePage(doc: QuvreloDocument, pageId: Id): { doc: QuvreloDocument; pageId: Id } {
   const i = doc.pages.findIndex((p) => p.id === pageId);
   if (i < 0) return { doc, pageId };
   const src = doc.pages[i];
@@ -363,7 +363,7 @@ export function duplicatePage(doc: EaselDocument, pageId: Id): { doc: EaselDocum
   return { doc: renumberPages({ ...out, pages }), pageId: page.id };
 }
 
-export function removePage(doc: EaselDocument, pageId: Id): EaselDocument {
+export function removePage(doc: QuvreloDocument, pageId: Id): QuvreloDocument {
   if (doc.pages.length <= 1) return doc;
   const page = doc.pages.find((p) => p.id === pageId);
   if (!page) return doc;
@@ -372,7 +372,7 @@ export function removePage(doc: EaselDocument, pageId: Id): EaselDocument {
   return renumberPages(out);
 }
 
-export function movePage(doc: EaselDocument, pageId: Id, toIndex: number): EaselDocument {
+export function movePage(doc: QuvreloDocument, pageId: Id, toIndex: number): QuvreloDocument {
   const pages = [...doc.pages];
   const i = pages.findIndex((p) => p.id === pageId);
   if (i < 0) return doc;
@@ -382,12 +382,12 @@ export function movePage(doc: EaselDocument, pageId: Id, toIndex: number): Easel
 }
 
 /** Keep default "Page N" names in sequence; custom names are preserved. */
-function renumberPages(doc: EaselDocument): EaselDocument {
+function renumberPages(doc: QuvreloDocument): QuvreloDocument {
   const pages = doc.pages.map((p, i) => (/^Page \d+( copy)?$/.test(p.name) ? { ...p, name: `Page ${i + 1}` } : p));
   return { ...doc, pages };
 }
 
-export function renamePage(doc: EaselDocument, pageId: Id, name: string): EaselDocument {
+export function renamePage(doc: QuvreloDocument, pageId: Id, name: string): QuvreloDocument {
   return {
     ...doc,
     pages: doc.pages.map((p) => (p.id === pageId ? { ...p, name } : p)),
@@ -395,17 +395,17 @@ export function renamePage(doc: EaselDocument, pageId: Id, name: string): EaselD
   };
 }
 
-export function setPageMaster(doc: EaselDocument, pageId: Id, masterId: Id | null): EaselDocument {
+export function setPageMaster(doc: QuvreloDocument, pageId: Id, masterId: Id | null): QuvreloDocument {
   return { ...doc, pages: doc.pages.map((p) => (p.id === pageId ? { ...p, masterId } : p)) };
 }
 
-export function addMaster(doc: EaselDocument, name?: string): { doc: EaselDocument; masterId: Id } {
+export function addMaster(doc: QuvreloDocument, name?: string): { doc: QuvreloDocument; masterId: Id } {
   const letter = String.fromCharCode(65 + doc.masters.length);
   const m = createMaster(name ?? `${letter}-Master`);
   return { doc: { ...doc, masters: [...doc.masters, m] }, masterId: m.id };
 }
 
-export function removeMaster(doc: EaselDocument, masterId: Id): EaselDocument {
+export function removeMaster(doc: QuvreloDocument, masterId: Id): QuvreloDocument {
   const m = doc.masters.find((x) => x.id === masterId);
   if (!m) return doc;
   let out = removeNodes(doc, m.nodes.map((n) => n.id));
@@ -421,30 +421,30 @@ export function removeMaster(doc: EaselDocument, masterId: Id): EaselDocument {
 // Stories & text frames
 
 export function addTextFrame(
-  doc: EaselDocument, containerId: Id, init: Partial<Extract<SceneNode, { type: 'textframe' }>>, text = '', style: Partial<TextStyle> = {},
-): { doc: EaselDocument; id: Id } {
+  doc: QuvreloDocument, containerId: Id, init: Partial<Extract<SceneNode, { type: 'textframe' }>>, text = '', style: Partial<TextStyle> = {},
+): { doc: QuvreloDocument; id: Id } {
   const story = createStory(text, style);
   const frame = make.textframe({ ...init, storyId: story.id });
   story.chain = [frame.id];
-  let out: EaselDocument = { ...doc, stories: { ...doc.stories, [story.id]: story } };
+  let out: QuvreloDocument = { ...doc, stories: { ...doc.stories, [story.id]: story } };
   out = addNodes(out, containerId, [frame]);
   return { doc: out, id: frame.id };
 }
 
-export function setStoryText(doc: EaselDocument, storyId: Id, text: string): EaselDocument {
+export function setStoryText(doc: QuvreloDocument, storyId: Id, text: string): QuvreloDocument {
   const s = doc.stories[storyId];
   if (!s || s.text === text) return doc;
   return { ...doc, stories: { ...doc.stories, [storyId]: { ...s, text } } };
 }
 
-export function setStoryStyle(doc: EaselDocument, storyId: Id, style: Partial<TextStyle>): EaselDocument {
+export function setStoryStyle(doc: QuvreloDocument, storyId: Id, style: Partial<TextStyle>): QuvreloDocument {
   const s = doc.stories[storyId];
   if (!s) return doc;
   return { ...doc, stories: { ...doc.stories, [storyId]: { ...s, style: { ...s.style, ...style } } } };
 }
 
 /** Link `toFrame` after `fromFrame` so the story overflows into it. */
-export function linkFrames(doc: EaselDocument, fromFrameId: Id, toFrameId: Id): EaselDocument {
+export function linkFrames(doc: QuvreloDocument, fromFrameId: Id, toFrameId: Id): QuvreloDocument {
   const from = findNode(doc, fromFrameId)?.node;
   const to = findNode(doc, toFrameId)?.node;
   if (!from || !to || from.type !== 'textframe' || to.type !== 'textframe' || fromFrameId === toFrameId) return doc;
@@ -469,7 +469,7 @@ export function linkFrames(doc: EaselDocument, fromFrameId: Id, toFrameId: Id): 
 }
 
 /** Detach a frame from its story chain; it gets a new empty story. */
-export function unlinkFrame(doc: EaselDocument, frameId: Id): EaselDocument {
+export function unlinkFrame(doc: QuvreloDocument, frameId: Id): QuvreloDocument {
   const frame = findNode(doc, frameId)?.node;
   if (!frame || frame.type !== 'textframe') return doc;
   const story = doc.stories[frame.storyId];
@@ -488,8 +488,8 @@ export function unlinkFrame(doc: EaselDocument, frameId: Id): EaselDocument {
 // Document-level
 
 export function resizeDocument(
-  doc: EaselDocument, width: number, height: number, anchor: { x: number; y: number } = { x: 0.5, y: 0.5 },
-): EaselDocument {
+  doc: QuvreloDocument, width: number, height: number, anchor: { x: number; y: number } = { x: 0.5, y: 0.5 },
+): QuvreloDocument {
   const dx = (width - doc.settings.width) * anchor.x;
   const dy = (height - doc.settings.height) * anchor.y;
   const shift = (nodes: SceneNode[]) => nodes.map((n) => ({ ...n, x: n.x + dx, y: n.y + dy }));
@@ -503,7 +503,7 @@ export function resizeDocument(
 }
 
 /** Crop every page of the document to a rectangle (document coordinates). */
-export function cropDocument(doc: EaselDocument, r: Rect): EaselDocument {
+export function cropDocument(doc: QuvreloDocument, r: Rect): QuvreloDocument {
   const w = Math.max(1, Math.round(r.w));
   const h = Math.max(1, Math.round(r.h));
   const shift = (nodes: SceneNode[]) => nodes.map((n) => ({ ...n, x: n.x - r.x, y: n.y - r.y }));
@@ -518,31 +518,31 @@ export function cropDocument(doc: EaselDocument, r: Rect): EaselDocument {
   };
 }
 
-export function addGuide(doc: EaselDocument, orientation: 'h' | 'v', position: number): { doc: EaselDocument; id: Id } {
+export function addGuide(doc: QuvreloDocument, orientation: 'h' | 'v', position: number): { doc: QuvreloDocument; id: Id } {
   const g: Guide = { id: newId('gd'), orientation, position };
   return { doc: { ...doc, guides: [...doc.guides, g] }, id: g.id };
 }
 
-export function moveGuide(doc: EaselDocument, id: Id, position: number): EaselDocument {
+export function moveGuide(doc: QuvreloDocument, id: Id, position: number): QuvreloDocument {
   return { ...doc, guides: doc.guides.map((g) => (g.id === id ? { ...g, position } : g)) };
 }
 
-export function removeGuide(doc: EaselDocument, id: Id): EaselDocument {
+export function removeGuide(doc: QuvreloDocument, id: Id): QuvreloDocument {
   return { ...doc, guides: doc.guides.filter((g) => g.id !== id) };
 }
 
-export function addSwatch(doc: EaselDocument, color: string, name?: string): EaselDocument {
+export function addSwatch(doc: QuvreloDocument, color: string, name?: string): QuvreloDocument {
   if (doc.swatches.some((s) => s.color.toLowerCase() === color.toLowerCase())) return doc;
   const sw: Swatch = { id: newId('sw'), name: name ?? color, color };
   return { ...doc, swatches: [...doc.swatches, sw] };
 }
 
-export function removeSwatch(doc: EaselDocument, id: Id): EaselDocument {
+export function removeSwatch(doc: QuvreloDocument, id: Id): QuvreloDocument {
   return { ...doc, swatches: doc.swatches.filter((s) => s.id !== id) };
 }
 
 /** Remove asset metadata no longer referenced by any node. */
-export function pruneAssets(doc: EaselDocument, referenced: Set<Id>): EaselDocument {
+export function pruneAssets(doc: QuvreloDocument, referenced: Set<Id>): QuvreloDocument {
   const assets = Object.fromEntries(Object.entries(doc.assets).filter(([id]) => referenced.has(id)));
   return Object.keys(assets).length === Object.keys(doc.assets).length ? doc : { ...doc, assets };
 }

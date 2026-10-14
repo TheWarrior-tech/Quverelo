@@ -5,7 +5,7 @@
  */
 import { DocumentHistory } from '../../core/history';
 import { findNode, getContainer, referencedAssets } from '../../core/document';
-import type { EaselDocument, Id, PathCommand, SceneNode, StudioKind } from '../../core/types';
+import type { QuvreloDocument, Id, PathCommand, SceneNode, StudioKind } from '../../core/types';
 import { DEFAULT_POLICY, featureEnabled, type FeatureId, type Policy } from '../../core/policy';
 import { DEFAULT_SETTINGS, type UserSettings } from '../../shared/api';
 import { AssetStore } from '../engine/assets';
@@ -102,7 +102,7 @@ export class Editor {
     status: '',
   };
   /** clipboard (in-app) */
-  clipboard: { nodes: SceneNode[]; stories: EaselDocument['stories'] } | null = null;
+  clipboard: { nodes: SceneNode[]; stories: QuvreloDocument['stories'] } | null = null;
   private listeners = new Set<Listener>();
   private unsubHistory: (() => void) | null = null;
   private versionNo = 0;
@@ -112,7 +112,7 @@ export class Editor {
     return this.versionNo;
   }
 
-  get doc(): EaselDocument | null {
+  get doc(): QuvreloDocument | null {
     return this.session?.history.doc ?? null;
   }
 
@@ -147,7 +147,7 @@ export class Editor {
     for (const l of this.listeners) l();
   }
 
-  openSession(doc: EaselDocument, filePath: string | null, studio?: StudioKind): void {
+  openSession(doc: QuvreloDocument, filePath: string | null, studio?: StudioKind): void {
     this.unsubHistory?.();
     const history = new DocumentHistory(doc, { limit: this.policy.maxUndoSteps });
     this.session = { history, filePath, recoveryId: doc.id };
@@ -179,7 +179,7 @@ export class Editor {
   }
 
   /** Apply a document change as an undoable step. */
-  commit(label: string, fn: (doc: EaselDocument) => EaselDocument, mergeKey?: string): boolean {
+  commit(label: string, fn: (doc: QuvreloDocument) => QuvreloDocument, mergeKey?: string): boolean {
     const h = this.history;
     if (!h) return false;
     const next = fn(h.doc);
@@ -187,7 +187,7 @@ export class Editor {
   }
 
   /** Replace the document without an undo step (live previews). */
-  preview(fn: (doc: EaselDocument) => EaselDocument): void {
+  preview(fn: (doc: QuvreloDocument) => QuvreloDocument): void {
     const h = this.history;
     if (!h) return;
     h.replace(fn(h.doc));

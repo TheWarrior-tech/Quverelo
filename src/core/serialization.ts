@@ -1,17 +1,19 @@
 /**
- * Native .easel file format: a zip container.
+ * Native .quvrelo file format: a zip container.
  *
- *   mimetype            "application/vnd.easel-studio+zip" (stored first, uncompressed)
- *   document.json       the EaselDocument (pixels referenced by asset id)
+ *   mimetype            "application/vnd.quvrelo+zip" (stored first, uncompressed)
+ *   document.json       the QuvreloDocument (pixels referenced by asset id)
  *   assets/<id>.<ext>   binary asset data (PNG/JPEG/WebP)
  *   thumbnail.png       optional preview of the first page
  */
 import JSZip from 'jszip';
 import { referencedAssets } from './document';
-import type { EaselDocument, Id } from './types';
+import type { QuvreloDocument, Id } from './types';
 import { migrateDocument } from './migrate';
 
-export const EASEL_MIME = 'application/vnd.easel-studio+zip';
+export const QUVRELO_MIME = 'application/vnd.quvrelo+zip';
+/** Mimetype written by pre-release builds (when the app was called Easel Studio); still readable. */
+export const LEGACY_MIME = 'application/vnd.easel-studio+zip';
 
 export interface AssetBlob {
   bytes: Uint8Array;
@@ -25,15 +27,15 @@ export function extForMime(mime: string): string {
   return 'png';
 }
 
-export async function packEasel(
-  doc: EaselDocument,
+export async function packQuvrelo(
+  doc: QuvreloDocument,
   getAsset: (id: Id) => Promise<AssetBlob | null>,
   thumbnail?: Uint8Array,
 ): Promise<Uint8Array> {
   const zip = new JSZip();
-  zip.file('mimetype', EASEL_MIME, { compression: 'STORE' });
+  zip.file('mimetype', QUVRELO_MIME, { compression: 'STORE' });
   const used = referencedAssets(doc);
-  const assets: EaselDocument['assets'] = {};
+  const assets: QuvreloDocument['assets'] = {};
   for (const id of used) {
     const blob = await getAsset(id);
     if (!blob) continue;
@@ -41,22 +43,22 @@ export async function packEasel(
     assets[id] = { ...meta, mime: blob.mime };
     zip.file(`assets/${id}.${extForMime(blob.mime)}`, blob.bytes, { compression: 'STORE' });
   }
-  const out: EaselDocument = { ...doc, assets };
+  const out: QuvreloDocument = { ...doc, assets };
   zip.file('document.json', JSON.stringify(out));
   if (thumbnail) zip.file('thumbnail.png', thumbnail, { compression: 'STORE' });
   return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE', compressionOptions: { level: 6 } });
 }
 
-export interface UnpackedEasel {
-  doc: EaselDocument;
+export interface UnpackedQuvrelo {
+  doc: QuvreloDocument;
   assets: Map<Id, AssetBlob>;
   thumbnail?: Uint8Array;
 }
 
-export async function unpackEasel(data: Uint8Array | ArrayBuffer): Promise<UnpackedEasel> {
+export async function unpackQuvrelo(data: Uint8Array | ArrayBuffer): Promise<UnpackedQuvrelo> {
   const zip = await JSZip.loadAsync(data);
   const mime = await zip.file('mimetype')?.async('string');
-  if (mime && mime.trim() !== EASEL_MIME) throw new Error('Not an Easel Studio document');
+  if (mime && mime.trim() !== QUVRELO_MIME && mime.trim() !== LEGACY_MIME) throw new Error('Not a Quvrelo document');
   const json = await zip.file('document.json')?.async('string');
   if (!json) throw new Error('Damaged file: document.json is missing');
   const doc = migrateDocument(JSON.parse(json));

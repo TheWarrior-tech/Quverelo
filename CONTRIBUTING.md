@@ -1,4 +1,4 @@
-# Contributing to Easel Studio
+# Contributing to Quvrelo
 
 Thanks for helping build a creative suite schools and teams can rely on.
 
@@ -10,8 +10,8 @@ Thanks for helping build a creative suite schools and teams can rely on.
 
 ## Setup
 ```sh
-git clone https://github.com/TheWarrior-tech/easel-studio.git
-cd easel-studio
+git clone https://github.com/TheWarrior-tech/Quvrelo.git
+cd quvrelo
 npm ci
 npm run dev
 ```
@@ -22,14 +22,14 @@ npm run typecheck
 npm test                 # Vitest unit tests for src/core
 npm run build
 npm run test:e2e         # Playwright + Electron (Linux: xvfb-run -a npm run test:e2e)
-EASEL_SHOTS_DIR=docs/screenshots xvfb-run -a npx playwright test screenshots   # refresh README screenshots
+QUVRELO_SHOTS_DIR=docs/screenshots xvfb-run -a npx playwright test screenshots   # refresh README screenshots
 ```
 
 ## Architecture
 ```
 src/
   core/        Pure TypeScript, no DOM. The single document model shared by every studio.
-    types.ts         EaselDocument, pages, masters, stories, nodes (raster, vector, text, frames, groups)
+    types.ts         QuvreloDocument, pages, masters, stories, nodes (raster, vector, text, frames, groups)
     document.ts      factories, tree helpers, geometry of nodes
     commands.ts      pure document operations (add, group, align, booleans, pages, masters, text frames…)
     history.ts       undo/redo over immutable snapshots (structural sharing)
@@ -37,7 +37,7 @@ src/
     pixels.ts        adjustments, filters, histogram, flood fill (pure RGBA operations)
     boolean.ts       path booleans (paper.js, headless)
     svg.ts           SVG exporter
-    serialization.ts .easel zip format; migrate.ts upgrades older files
+    serialization.ts .quvrelo zip format; migrate.ts upgrades older files
     templates.ts     built-in and classroom templates
     policy.ts        policy.json schema and validation
   renderer/
@@ -64,4 +64,4 @@ tests/
 3. GitHub Actions builds Windows (NSIS + MSI), macOS (DMG + PKG) and Linux installers and publishes them to a GitHub Release with SHA-256 checksums.
 
 ## Reporting bugs
-Open an issue with your OS, Easel Studio version (*Help ▸ About*), steps to reproduce and, if possible, the `.easel` file.
+Open an issue with your OS, Quvrelo version (*Help ▸ About*), steps to reproduce and, if possible, the `.quvrelo` file.

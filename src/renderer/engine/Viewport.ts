@@ -8,14 +8,14 @@ import { decompose, multiply, scale as scaleM, type Matrix, type Rect } from '..
 import { findNode, getContainer } from '../../core/document';
 import { transformPath, pathToString } from '../../core/path';
 import { updateNode, updateNodes } from '../../core/commands';
-import type { EaselDocument, Id, SceneNode } from '../../core/types';
+import type { QuvreloDocument, Id, SceneNode } from '../../core/types';
 import type { Editor } from '../state/editor';
 import { NodeObject, RESIZE_TYPES } from './NodeObject';
 import { renderBounds, type DrawEnv } from './draw';
 import { createTool, type Tool, type ToolContext } from './tools';
 import { TextEditOverlay } from './textEdit';
 
-class EaselCanvas extends Canvas {
+class QuvreloCanvas extends Canvas {
   pageW = 100;
   pageH = 100;
   bleed = 0;
@@ -64,11 +64,11 @@ export interface SnapLine {
 
 export class Viewport {
   readonly host: HTMLElement;
-  readonly canvas: EaselCanvas;
+  readonly canvas: QuvreloCanvas;
   readonly overlay: HTMLCanvasElement;
   readonly editor: Editor;
   private objects = new Map<Id, NodeObject>();
-  private lastDoc: EaselDocument | null = null;
+  private lastDoc: QuvreloDocument | null = null;
   private lastContainer: Id | null = null;
   private syncingSelection = false;
   private tool: Tool;
@@ -93,7 +93,7 @@ export class Viewport {
     el.setAttribute('aria-label', 'Document canvas');
     el.tabIndex = -1;
     host.appendChild(el);
-    this.canvas = new EaselCanvas(el, {
+    this.canvas = new QuvreloCanvas(el, {
       width: host.clientWidth,
       height: host.clientHeight,
       preserveObjectStacking: true,
@@ -536,7 +536,7 @@ export class Viewport {
   setVpt(v: Matrix): void {
     this.canvas.setViewportTransform(v as never);
     this.editor.ui.zoom = v[0];
-    (window as unknown as { __easelVpt: number[] }).__easelVpt = [...v];
+    (window as unknown as { __quvreloVpt: number[] }).__quvreloVpt = [...v];
     this.envCache = null;
     this.canvas.requestRenderAll();
     this.textEdit.sync();

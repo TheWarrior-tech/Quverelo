@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { EaselApi } from '../shared/api';
+import type { QuvreloApi } from '../shared/api';
 
-const api: EaselApi = {
+const api: QuvreloApi = {
   getPolicy: () => ipcRenderer.invoke('policy:get'),
   getAppInfo: () => ipcRenderer.invoke('app:info'),
   getSettings: () => ipcRenderer.invoke('settings:get'),
@@ -37,4 +37,4 @@ const api: EaselApi = {
   },
 };
 
-contextBridge.exposeInMainWorld('easel', api);
+contextBridge.exposeInMainWorld('quvrelo', api);

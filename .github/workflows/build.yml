@@ -40,7 +40,7 @@ jobs:
         run: xvfb-run -a -s "-screen 0 1600x1000x24" npx playwright test
         env:
           CI: 'true'
-          EASEL_SHOTS_DIR: test-screenshots
+          QUVRELO_SHOTS_DIR: test-screenshots
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -80,6 +80,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - name: Linux packaging tools (rpm)
+        if: matrix.name == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y rpm
       - name: Build installers
         run: npx electron-builder ${{ matrix.args }} --publish never
       - name: List artefacts
@@ -95,6 +98,7 @@ jobs:
             release/*.pkg
             release/*.AppImage
             release/*.deb
+            release/*.rpm
           if-no-files-found: error
 
   release:
@@ -120,7 +124,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
-          name: Easel Studio ${{ steps.tag.outputs.tag }}
+          name: Quvrelo ${{ steps.tag.outputs.tag }}
           body_path: docs/RELEASE_NOTES.md
           files: dist-installers/*
           fail_on_unmatched_files: true

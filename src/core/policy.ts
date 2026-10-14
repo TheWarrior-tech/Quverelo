@@ -2,9 +2,9 @@
  * Administrator policy (policy.json). Shared by the main process (which reads
  * the file from the machine-wide location) and the renderer (which applies it).
  *
- * Windows: %ProgramData%\EaselStudio\policy.json
- * macOS:   /Library/Application Support/EaselStudio/policy.json
- * Linux:   /etc/easel-studio/policy.json
+ * Windows: %ProgramData%\Quvrelo\policy.json
+ * macOS:   /Library/Application Support/Quvrelo/policy.json
+ * Linux:   /etc/quvrelo/policy.json
  */
 
 export const FEATURE_IDS = [
@@ -37,7 +37,7 @@ export interface Policy {
   /** Default UI scale (0.75–2). Users may change it unless lockUiScale. */
   uiScale: number;
   lockUiScale: boolean;
-  /** Extra template folders containing .easel files (school template packs). */
+  /** Extra template folders containing .quvrelo files (school template packs). */
   templateDirectories: string[];
   /** Show the welcome screen at launch. */
   showWelcomeScreen: boolean;

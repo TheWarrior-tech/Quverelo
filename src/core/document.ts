@@ -4,7 +4,7 @@ import {
 } from './geometry';
 import { ellipsePath, pathBounds, pointsToPath, polygonPoints, rectPath, starPoints } from './path';
 import type {
-  DocumentSettings, EaselDocument, GroupNode, MasterPage, NodeBase, Page, Paint, PathCommand,
+  DocumentSettings, QuvreloDocument, GroupNode, MasterPage, NodeBase, Page, Paint, PathCommand,
   SceneNode, Story, Stroke, StudioKind, Swatch, TextStyle, Id,
 } from './types';
 
@@ -73,13 +73,13 @@ export function createDocument(opts: {
   settings?: Partial<DocumentSettings>;
   pages?: number;
   studio?: StudioKind;
-} = {}): EaselDocument {
+} = {}): QuvreloDocument {
   const now = new Date().toISOString();
   const pageCount = Math.max(1, opts.pages ?? 1);
   const pages: Page[] = [];
   for (let i = 0; i < pageCount; i++) pages.push(createPage(`Page ${i + 1}`));
   return {
-    format: 'easel',
+    format: 'quvrelo',
     version: 1,
     id: newId('doc'),
     title: opts.title ?? 'Untitled',
@@ -250,14 +250,14 @@ export function walk(nodes: SceneNode[], fn: (n: SceneNode, ancestors: GroupNode
   }
 }
 
-export function allContainers(doc: EaselDocument): { kind: 'page' | 'master'; id: Id; nodes: SceneNode[] }[] {
+export function allContainers(doc: QuvreloDocument): { kind: 'page' | 'master'; id: Id; nodes: SceneNode[] }[] {
   return [
     ...doc.pages.map((p) => ({ kind: 'page' as const, id: p.id, nodes: p.nodes })),
     ...doc.masters.map((m) => ({ kind: 'master' as const, id: m.id, nodes: m.nodes })),
   ];
 }
 
-export function findNode(doc: EaselDocument, id: Id): NodeLocation | null {
+export function findNode(doc: QuvreloDocument, id: Id): NodeLocation | null {
   for (const c of allContainers(doc)) {
     const found = findIn(c.nodes, id, []);
     if (found) return { ...found, container: { kind: c.kind, id: c.id } };
@@ -300,7 +300,7 @@ export function mapNodes(nodes: SceneNode[], fn: (n: SceneNode) => SceneNode | n
 }
 
 /** Apply fn to every container's node list. */
-export function mapContainers(doc: EaselDocument, fn: (nodes: SceneNode[]) => SceneNode[]): EaselDocument {
+export function mapContainers(doc: QuvreloDocument, fn: (nodes: SceneNode[]) => SceneNode[]): QuvreloDocument {
   let changed = false;
   const pages = doc.pages.map((p) => {
     const nodes = fn(p.nodes);
@@ -317,11 +317,11 @@ export function mapContainers(doc: EaselDocument, fn: (nodes: SceneNode[]) => Sc
   return changed ? { ...doc, pages, masters } : doc;
 }
 
-export function getContainer(doc: EaselDocument, id: Id): Page | MasterPage | undefined {
+export function getContainer(doc: QuvreloDocument, id: Id): Page | MasterPage | undefined {
   return doc.pages.find((p) => p.id === id) ?? doc.masters.find((m) => m.id === id);
 }
 
-export function setContainerNodes(doc: EaselDocument, id: Id, nodes: SceneNode[]): EaselDocument {
+export function setContainerNodes(doc: QuvreloDocument, id: Id, nodes: SceneNode[]): QuvreloDocument {
   if (doc.pages.some((p) => p.id === id)) {
     return { ...doc, pages: doc.pages.map((p) => (p.id === id ? { ...p, nodes } : p)) };
   }
@@ -329,7 +329,7 @@ export function setContainerNodes(doc: EaselDocument, id: Id, nodes: SceneNode[]
 }
 
 /** Collect asset ids referenced anywhere in the document. */
-export function referencedAssets(doc: EaselDocument): Set<Id> {
+export function referencedAssets(doc: QuvreloDocument): Set<Id> {
   const ids = new Set<Id>();
   for (const c of allContainers(doc)) {
     walk(c.nodes, (n) => {

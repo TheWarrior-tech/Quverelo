@@ -41,7 +41,7 @@ export function GuideDialog() {
   return (
     <Dialog title="Quick Start Guide" wide footer={<button className="btn primary" onClick={closeDialog}>Got it</button>}>
       <div className="guide">
-        <p>Easel Studio is one app with three <b>studios</b>. They all work on the same document, so you can switch at any time with the buttons at the top (or Ctrl/⌘+Alt+1, 2, 3).</p>
+        <p>Quvrelo is one app with three <b>studios</b>. They all work on the same document, so you can switch at any time with the buttons at the top (or Ctrl/⌘+Alt+1, 2, 3).</p>
         <h3>Photo studio</h3>
         <ul>
           <li>Open a JPG, PNG or WebP, or place one with File ▸ Place Image. Each photo becomes a <b>pixel layer</b>.</li>
@@ -67,7 +67,7 @@ export function GuideDialog() {
         </ul>
         <h3>Saving & handing in</h3>
         <ul>
-          <li>Save as an <b>.easel</b> file — everything, including photos, is kept in one file. Work is autosaved for crash recovery.</li>
+          <li>Save as an <b>.quvrelo</b> file — everything, including photos, is kept in one file. Work is autosaved for crash recovery.</li>
           <li>Teachers can add assignment details (File ▸ Assignment Details). Students hand work in with File ▸ Hand In.</li>
         </ul>
       </div>
@@ -77,13 +77,13 @@ export function GuideDialog() {
 
 export function AboutDialog() {
   const [info, setInfo] = useState<AppInfo | null>(null);
-  useEffect(() => void window.easel.getAppInfo().then(setInfo), []);
+  useEffect(() => void window.quvrelo.getAppInfo().then(setInfo), []);
   return (
-    <Dialog title="About Easel Studio" footer={<button className="btn primary" onClick={closeDialog}>Close</button>}>
+    <Dialog title="About Quvrelo" footer={<button className="btn primary" onClick={closeDialog}>Close</button>}>
       <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
         <Logo className="logo" />
         <div>
-          <h3 style={{ margin: 0 }}>Easel Studio {info?.version}</h3>
+          <h3 style={{ margin: 0 }}>Quvrelo {info?.version}</h3>
           <p style={{ margin: '4px 0' }}>Photo, vector and layout design for schools and teams. Free and open source (MIT).</p>
         </div>
       </div>

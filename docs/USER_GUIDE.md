@@ -1,6 +1,6 @@
-# Easel Studio — User Guide
+# Quvrelo — User Guide
 
-Easel Studio is one app with three **studios**. They all edit the same document, so you can switch whenever you like using the buttons at the top of the window (or <kbd>Ctrl/⌘</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd>, <kbd>2</kbd>, <kbd>3</kbd>).
+Quvrelo is one app with three **studios**. They all edit the same document, so you can switch whenever you like using the buttons at the top of the window (or <kbd>Ctrl/⌘</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd>, <kbd>2</kbd>, <kbd>3</kbd>).
 
 - **Photo** — pixel layers, painting, selections and live adjustments.
 - **Vector** — shapes, curves, gradients and booleans for logos, posters and diagrams.
@@ -12,7 +12,7 @@ Press <kbd>F1</kbd> at any time to see every keyboard shortcut.
 1. On the welcome screen pick a studio card, a template (the **Classroom pack** has worksheets, certificates, lesson plans, timetables and more) or **New document** for a custom size.
 2. Use the **tools** on the left. The **context bar** under the top toolbar shows options for the current tool.
 3. The **panels** on the right show properties, colours, layers, pages and history. Press <kbd>Tab</kbd> to hide/show them.
-4. Save with <kbd>Ctrl/⌘</kbd>+<kbd>S</kbd>. Everything — including photos — is stored in one `.easel` file.
+4. Save with <kbd>Ctrl/⌘</kbd>+<kbd>S</kbd>. Everything — including photos — is stored in one `.quvrelo` file.
 
 ## Moving around
 | Action | How |

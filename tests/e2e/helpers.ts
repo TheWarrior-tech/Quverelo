@@ -11,18 +11,18 @@ export interface Launched {
 }
 
 export async function launch(env: Record<string, string> = {}): Promise<Launched> {
-  const saveDir = fs.mkdtempSync(path.join(os.tmpdir(), 'easel-save-'));
-  const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'easel-ud-'));
+  const saveDir = fs.mkdtempSync(path.join(os.tmpdir(), 'quvrelo-save-'));
+  const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'quvrelo-ud-'));
   const args = ['.'];
   if (process.platform === 'linux') args.unshift('--no-sandbox');
   const app = await electron.launch({
     args,
     env: {
       ...process.env,
-      EASEL_E2E: '1',
-      EASEL_E2E_SAVE_DIR: saveDir,
-      EASEL_USER_DATA: userData,
-      EASEL_POLICY_PATH: env.EASEL_POLICY_PATH ?? path.join(saveDir, 'no-policy.json'),
+      QUVRELO_E2E: '1',
+      QUVRELO_E2E_SAVE_DIR: saveDir,
+      QUVRELO_USER_DATA: userData,
+      QUVRELO_POLICY_PATH: env.QUVRELO_POLICY_PATH ?? path.join(saveDir, 'no-policy.json'),
       ...env,
     },
   });
@@ -31,13 +31,13 @@ export async function launch(env: Record<string, string> = {}): Promise<Launched
   return { app, page, saveDir, userData };
 }
 
-/** Evaluate against the in-app test hook (window.__easel). */
+/** Evaluate against the in-app test hook (window.__quvrelo). */
 export async function state<T>(page: Page, fn: string): Promise<T> {
-  return page.evaluate(`(() => { const { editor } = window.__easel; return (${fn}); })()`) as Promise<T>;
+  return page.evaluate(`(() => { const { editor } = window.__quvrelo; return (${fn}); })()`) as Promise<T>;
 }
 
 export async function run(page: Page, id: string): Promise<void> {
-  await page.evaluate((cmd) => (window as unknown as { __easel: { runCommand: (id: string) => Promise<void> } }).__easel.runCommand(cmd), id);
+  await page.evaluate((cmd) => (window as unknown as { __quvrelo: { runCommand: (id: string) => Promise<void> } }).__quvrelo.runCommand(cmd), id);
 }
 
 export async function canvasBox(page: Page) {
@@ -49,7 +49,7 @@ export async function canvasBox(page: Page) {
 /** Convert document coordinates to screen coordinates using the viewport transform. */
 export async function docToScreen(page: Page, x: number, y: number) {
   const box = await canvasBox(page);
-  const v = await page.evaluate(() => (window as unknown as { __easelVpt?: number[] }).__easelVpt ?? null);
+  const v = await page.evaluate(() => (window as unknown as { __quvreloVpt?: number[] }).__quvreloVpt ?? null);
   if (!v) throw new Error('viewport transform unavailable');
   return { x: box.x + x * v[0] + v[4], y: box.y + y * v[3] + v[5] };
 }
@@ -61,7 +61,7 @@ export async function drag(page: Page, from: { x: number; y: number }, to: { x: 
   await page.mouse.up();
 }
 
-export const shotsDir = process.env.EASEL_SHOTS_DIR ?? '';
+export const shotsDir = process.env.QUVRELO_SHOTS_DIR ?? '';
 export async function shot(page: Page, name: string) {
   if (!shotsDir) return;
   fs.mkdirSync(shotsDir, { recursive: true });

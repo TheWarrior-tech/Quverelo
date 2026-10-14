@@ -20,8 +20,8 @@ import { resetMeasureCache } from './engine/draw';
 import { browserFallbackApi } from './state/fallbackApi';
 
 async function boot() {
-  if (!window.easel) window.easel = browserFallbackApi();
-  const [policy, settings] = await Promise.all([window.easel.getPolicy(), window.easel.getSettings()]);
+  if (!window.quvrelo) window.quvrelo = browserFallbackApi();
+  const [policy, settings] = await Promise.all([window.quvrelo.getPolicy(), window.quvrelo.getSettings()]);
   editor.policy = policy;
   editor.settings = settings;
   editor.ui.studio = settings.lastStudio;

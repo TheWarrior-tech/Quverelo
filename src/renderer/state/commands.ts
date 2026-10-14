@@ -14,7 +14,7 @@ import { composeTransform, invert } from '../../core/geometry';
 import { cloneNode, findNode, getContainer, make } from '../../core/document';
 import { pathBounds, rectPath, translatePath } from '../../core/path';
 import { newId } from '../../core/ids';
-import type { EaselDocument, Id, PathNode, SceneNode } from '../../core/types';
+import type { QuvreloDocument, Id, PathNode, SceneNode } from '../../core/types';
 import { editor } from './editor';
 import { closeDialog, openDialog, toast } from './bus';
 import * as io from './io';
@@ -78,7 +78,7 @@ reg('file.close', async () => {
       message: 'You have unsaved changes. Save before closing?',
       actions: [
         { label: 'Save', primary: true, run: async () => { if (await io.save()) editor.closeSession(); } },
-        { label: "Don't Save", run: () => { void window.easel.deleteRecovery(editor.session!.recoveryId); editor.closeSession(); } },
+        { label: "Don't Save", run: () => { void window.quvrelo.deleteRecovery(editor.session!.recoveryId); editor.closeSession(); } },
         { label: 'Cancel', run: () => undefined },
       ],
     });
@@ -89,7 +89,7 @@ reg('file.close', async () => {
 reg('file.save', () => void io.save(false));
 reg('file.save-as', () => void io.save(true));
 reg('file.save-and-quit', async () => {
-  if (await io.save(false)) window.easel.quitNow();
+  if (await io.save(false)) window.quvrelo.quitNow();
 });
 reg('file.place', () => io.placeImages());
 reg('file.import-svg', () => io.importSvgFile());
@@ -103,16 +103,16 @@ reg('app.preferences', () => openDialog('preferences'));
 // Edit
 
 reg('edit.undo', () => {
-  if (editingText()) return window.easel.nativeEdit('undo');
+  if (editingText()) return window.quvrelo.nativeEdit('undo');
   viewport?.textEdit.end();
   editor.history?.undo();
 });
 reg('edit.redo', () => {
-  if (editingText()) return window.easel.nativeEdit('redo');
+  if (editingText()) return window.quvrelo.nativeEdit('redo');
   editor.history?.redo();
 });
 reg('edit.copy', () => {
-  if (editingText()) return window.easel.nativeEdit('copy');
+  if (editingText()) return window.quvrelo.nativeEdit('copy');
   const c = io.cloneForClipboard(sel());
   if (c && c.nodes.length) {
     editor.clipboard = c;
@@ -120,7 +120,7 @@ reg('edit.copy', () => {
   }
 });
 reg('edit.cut', () => {
-  if (editingText()) return window.easel.nativeEdit('cut');
+  if (editingText()) return window.quvrelo.nativeEdit('cut');
   const c = io.cloneForClipboard(sel());
   if (!c || !c.nodes.length) return;
   editor.clipboard = c;
@@ -128,7 +128,7 @@ reg('edit.cut', () => {
   editor.select([]);
 });
 reg('edit.paste', async () => {
-  if (editingText()) return window.easel.nativeEdit('paste');
+  if (editingText()) return window.quvrelo.nativeEdit('paste');
   if (!editor.doc) return;
   const clip = editor.clipboard;
   if (!clip) {
@@ -138,7 +138,7 @@ reg('edit.paste', async () => {
   const container = editor.activeContainer!;
   // fresh ids; text frames get fresh stories so pasted copies don't join the original chain
   const storyMap = new Map<Id, Id>();
-  const stories: EaselDocument['stories'] = {};
+  const stories: QuvreloDocument['stories'] = {};
   const nodes = clip.nodes.map((n) => {
     const c = cloneNode(n);
     const fix = (x: SceneNode) => {
@@ -146,7 +146,7 @@ reg('edit.paste', async () => {
         const src = clip.stories[x.storyId];
         const sid = newId('st');
         storyMap.set(x.storyId, sid);
-        stories[sid] = { id: sid, text: src?.text ?? '', style: src?.style ?? editor.doc!.stories[x.storyId]?.style, chain: [x.id] } as EaselDocument['stories'][string];
+        stories[sid] = { id: sid, text: src?.text ?? '', style: src?.style ?? editor.doc!.stories[x.storyId]?.style, chain: [x.id] } as QuvreloDocument['stories'][string];
         (x as { storyId: Id }).storyId = sid;
       }
       if (x.type === 'group') x.children.forEach(fix);
@@ -184,7 +184,7 @@ reg('edit.delete', () => {
   editor.select([]);
 });
 reg('edit.select-all', () => {
-  if (editingText()) return window.easel.nativeEdit('selectAll');
+  if (editingText()) return window.quvrelo.nativeEdit('selectAll');
   const c = editor.activeContainer;
   if (!c) return;
   editor.select(c.nodes.filter((n) => !n.locked && n.visible).map((n) => n.id));
@@ -234,7 +234,7 @@ for (const mode of ['left', 'hcenter', 'right', 'top', 'vcenter', 'bottom'] as A
     editor.commit('Align', (d) => alignNodes(d, sel(), mode, target, bounds));
   });
 }
-function pageRect(doc: EaselDocument) {
+function pageRect(doc: QuvreloDocument) {
   if (editor.ui.studio === 'layout') {
     const m = doc.settings.margins;
     return { x: m.left, y: m.top, w: doc.settings.width - m.left - m.right, h: doc.settings.height - m.top - m.bottom };
@@ -374,7 +374,7 @@ reg('layer.hide', () => sel().length && editor.commit('Visibility', (d) => updat
 // ---------------------------------------------------------------------------
 // Pixel selection
 
-function pageSelection(doc: EaselDocument) {
+function pageSelection(doc: QuvreloDocument) {
   return translatePath(rectPath(doc.settings.width, doc.settings.height), doc.settings.width / 2, doc.settings.height / 2);
 }
 reg('select.all-pixels', () => {
@@ -548,7 +548,7 @@ export async function setSetting(patch: Partial<typeof editor.settings>): Promis
   editor.settings = { ...editor.settings, ...patch };
   editor.emit();
   try {
-    editor.settings = await window.easel.setSettings(patch);
+    editor.settings = await window.quvrelo.setSettings(patch);
     editor.emit();
   } catch {
     /* settings persistence unavailable */
@@ -562,14 +562,14 @@ reg('help.shortcuts', () => openDialog('shortcuts'));
 reg('help.guide', () => openDialog('guide'));
 reg('help.about', () => openDialog('about'));
 reg('help.check-updates', async () => {
-  const r = await window.easel.checkForUpdates();
+  const r = await window.quvrelo.checkForUpdates();
   if (r.error) toast(`Update check: ${r.error}`, 'error');
   else if (r.newer && r.url) {
     openDialog('confirm', {
       title: 'Update available',
-      message: `Easel Studio ${r.latest} is available (you have ${r.current}). Open the download page?`,
+      message: `Quvrelo ${r.latest} is available (you have ${r.current}). Open the download page?`,
       actions: [
-        { label: 'Open download page', primary: true, run: () => window.easel.openExternal(r.url!) },
+        { label: 'Open download page', primary: true, run: () => window.quvrelo.openExternal(r.url!) },
         { label: 'Later', run: () => undefined },
       ],
     });

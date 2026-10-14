@@ -1,9 +1,9 @@
 /** File operations: new/open/save, import/place, export, autosave & recovery, hand-in. */
-import { packEasel, unpackEasel } from '../../core/serialization';
+import { packQuvrelo, unpackQuvrelo } from '../../core/serialization';
 import { createDocument, findNode, make, structuredCloneSafe } from '../../core/document';
 import { addNodes, updateNode } from '../../core/commands';
 import { templateById } from '../../core/templates';
-import type { EaselDocument, ImageFrameNode, SceneNode, StudioKind } from '../../core/types';
+import type { QuvreloDocument, ImageFrameNode, SceneNode, StudioKind } from '../../core/types';
 import type { FileFilter } from '../../shared/api';
 import { canvasToBytes, createCanvas, ctx2d } from '../engine/assets';
 import { exportPdf, exportRaster, exportSvg, renderPageCanvas } from '../engine/export';
@@ -11,7 +11,7 @@ import { importSvg } from '../engine/svgImport';
 import { editor } from './editor';
 import { toast } from './bus';
 
-const EASEL_FILTER: FileFilter[] = [{ name: 'Easel Studio Document', extensions: ['easel'] }];
+const QUVRELO_FILTER: FileFilter[] = [{ name: 'Quvrelo Document', extensions: ['quvrelo'] }];
 const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'];
 
 function mimeFor(name: string): string {
@@ -32,8 +32,8 @@ function refreshTitle(): void {
   const doc = editor.doc;
   const dirty = editor.history?.dirty ?? false;
   const org = editor.policy.organizationName ? ` — ${editor.policy.organizationName}` : '';
-  window.easel?.setTitle(doc ? `${doc.title}${dirty ? ' •' : ''} — Easel Studio${org}` : `Easel Studio${org}`);
-  window.easel?.setDirty(dirty);
+  window.quvrelo?.setTitle(doc ? `${doc.title}${dirty ? ' •' : ''} — Quvrelo${org}` : `Quvrelo${org}`);
+  window.quvrelo?.setDirty(dirty);
 }
 
 let titleHooked = false;
@@ -51,7 +51,7 @@ export function newFromTemplate(id: string): void {
   editor.openSession(doc, null, t.studio);
 }
 
-export function newBlank(opts: { title: string; width: number; height: number; unit: EaselDocument['settings']['unit']; pages: number; studio: StudioKind; margins: number; bleed: number; background: string | null; dpi: number }): void {
+export function newBlank(opts: { title: string; width: number; height: number; unit: QuvreloDocument['settings']['unit']; pages: number; studio: StudioKind; margins: number; bleed: number; background: string | null; dpi: number }): void {
   editor.assets.clear();
   const doc = createDocument({
     title: opts.title,
@@ -70,8 +70,8 @@ export function newBlank(opts: { title: string; width: number; height: number; u
   editor.openSession(doc, null, opts.studio);
 }
 
-async function loadEaselBytes(data: Uint8Array, path: string | null): Promise<void> {
-  const { doc, assets } = await unpackEasel(data);
+async function loadQuvreloBytes(data: Uint8Array, path: string | null): Promise<void> {
+  const { doc, assets } = await unpackQuvrelo(data);
   editor.assets.clear();
   for (const [id, blob] of assets) await editor.assets.addBytes(blob.bytes, blob.mime, id);
   editor.openSession(doc, path);
@@ -100,7 +100,7 @@ async function openImageAsDocument(bytes: Uint8Array, name: string, path: string
 
 export async function openPath(path: string): Promise<void> {
   try {
-    const f = await window.easel.readFile(path);
+    const f = await window.quvrelo.readFile(path);
     await openFileData(f.data, f.name, f.path);
   } catch (e) {
     toast(`Could not open ${path}: ${(e as Error).message}`, 'error');
@@ -108,9 +108,9 @@ export async function openPath(path: string): Promise<void> {
 }
 
 export async function openFileData(data: Uint8Array, name: string, path: string | null): Promise<void> {
-  if (name.toLowerCase().endsWith('.easel')) {
-    await loadEaselBytes(data, path);
-    if (path) void window.easel.addRecent(path);
+  if (/\.(quvrelo|easel)$/i.test(name)) {
+    await loadQuvreloBytes(data, path);
+    if (path) void window.quvrelo.addRecent(path);
   } else {
     await openImageAsDocument(data, name, path);
   }
@@ -118,11 +118,11 @@ export async function openFileData(data: Uint8Array, name: string, path: string 
 }
 
 export async function openDialogAndLoad(): Promise<void> {
-  const files = await window.easel.openFileDialog({
+  const files = await window.quvrelo.openFileDialog({
     title: 'Open',
     filters: [
-      { name: 'All supported', extensions: ['easel', ...IMAGE_EXT, 'svg'] },
-      ...EASEL_FILTER,
+      { name: 'All supported', extensions: ['quvrelo', 'easel', ...IMAGE_EXT, 'svg'] },
+      ...QUVRELO_FILTER,
       { name: 'Images', extensions: IMAGE_EXT },
       { name: 'SVG', extensions: ['svg'] },
     ],
@@ -149,7 +149,7 @@ async function thumbnail(): Promise<Uint8Array | undefined> {
 
 export async function packCurrent(): Promise<Uint8Array> {
   const doc = editor.doc!;
-  return packEasel(doc, (id) => editor.assets.blob(id), await thumbnail());
+  return packQuvrelo(doc, (id) => editor.assets.blob(id), await thumbnail());
 }
 
 export async function save(saveAs = false): Promise<boolean> {
@@ -158,11 +158,11 @@ export async function save(saveAs = false): Promise<boolean> {
   const before = editor.doc!;
   try {
     const data = await packCurrent();
-    const path = await window.easel.saveFile({
+    const path = await window.quvrelo.saveFile({
       path: saveAs ? null : s.filePath,
       data,
-      defaultName: `${before.title || 'Untitled'}.easel`,
-      filters: EASEL_FILTER,
+      defaultName: `${before.title || 'Untitled'}.quvrelo`,
+      filters: QUVRELO_FILTER,
       title: saveAs ? 'Save As' : 'Save',
     });
     if (!path) return false;
@@ -170,8 +170,8 @@ export async function save(saveAs = false): Promise<boolean> {
     const title = baseName(path.split(/[\\/]/).pop() ?? before.title);
     if (title !== before.title) editor.preview((d) => ({ ...d, title }));
     editor.history!.markSaved();
-    void window.easel.addRecent(path);
-    void window.easel.deleteRecovery(s.recoveryId);
+    void window.quvrelo.addRecent(path);
+    void window.quvrelo.deleteRecovery(s.recoveryId);
     toast(`Saved ${path.split(/[\\/]/).pop()}`, 'success');
     return true;
   } catch (e) {
@@ -184,7 +184,7 @@ export async function save(saveAs = false): Promise<boolean> {
 // Import & place
 
 async function pickImages(): Promise<{ data: Uint8Array; name: string }[]> {
-  const files = await window.easel.openFileDialog({ title: 'Place Image', filters: [{ name: 'Images', extensions: [...IMAGE_EXT, 'svg'] }], multi: true });
+  const files = await window.quvrelo.openFileDialog({ title: 'Place Image', filters: [{ name: 'Images', extensions: [...IMAGE_EXT, 'svg'] }], multi: true });
   return files.map((f) => ({ data: f.data, name: f.name }));
 }
 
@@ -236,7 +236,7 @@ export async function placeImages(files?: { data: Uint8Array; name: string }[]):
 }
 
 export async function importSvgFile(): Promise<void> {
-  const files = await window.easel.openFileDialog({ title: 'Import SVG', filters: [{ name: 'SVG', extensions: ['svg'] }] });
+  const files = await window.quvrelo.openFileDialog({ title: 'Import SVG', filters: [{ name: 'SVG', extensions: ['svg'] }] });
   if (!files.length) return;
   await placeImages(files.map((f) => ({ data: f.data, name: f.name })));
 }
@@ -279,18 +279,18 @@ export async function runExport(req: ExportRequest): Promise<string | null> {
   const title = doc.title || 'Untitled';
   if (req.format === 'pdf') {
     const data = await exportPdf(doc, editor.assets, { dpi: req.dpi, includeBleed: req.includeBleed, cropMarks: req.cropMarks, quality: req.quality, pages: req.pages });
-    return window.easel.saveFile({ path: null, data, defaultName: `${title}.pdf`, filters: [{ name: 'PDF', extensions: ['pdf'] }], title: 'Export PDF' });
+    return window.quvrelo.saveFile({ path: null, data, defaultName: `${title}.pdf`, filters: [{ name: 'PDF', extensions: ['pdf'] }], title: 'Export PDF' });
   }
   let last: string | null = null;
   for (const i of req.pages) {
     const suffix = req.pages.length > 1 || doc.pages.length > 1 ? ` - ${doc.pages[i].name}` : '';
     if (req.format === 'svg') {
       const svg = exportSvg(doc, editor.assets, i, req.includeBleed);
-      last = await window.easel.saveFile({ path: null, data: new TextEncoder().encode(svg), defaultName: `${title}${suffix}.svg`, filters: [{ name: 'SVG', extensions: ['svg'] }], title: 'Export SVG' });
+      last = await window.quvrelo.saveFile({ path: null, data: new TextEncoder().encode(svg), defaultName: `${title}${suffix}.svg`, filters: [{ name: 'SVG', extensions: ['svg'] }], title: 'Export SVG' });
     } else {
       const data = await exportRaster(doc, editor.assets, { pageIndex: i, scale: req.scale, includeBleed: req.includeBleed, transparent: req.transparent, format: req.format, quality: req.quality });
       const ext = req.format === 'jpg' ? 'jpg' : 'png';
-      last = await window.easel.saveFile({ path: null, data, defaultName: `${title}${suffix}.${ext}`, filters: [{ name: ext.toUpperCase(), extensions: [ext] }], title: `Export ${ext.toUpperCase()}` });
+      last = await window.quvrelo.saveFile({ path: null, data, defaultName: `${title}${suffix}.${ext}`, filters: [{ name: ext.toUpperCase(), extensions: [ext] }], title: `Export ${ext.toUpperCase()}` });
     }
     if (!last) return null;
   }
@@ -301,7 +301,7 @@ export async function runExport(req: ExportRequest): Promise<string | null> {
 // Autosave & recovery
 
 let autosaveTimer: number | null = null;
-let lastAutosaved: EaselDocument | null = null;
+let lastAutosaved: QuvreloDocument | null = null;
 
 export function startAutosave(): void {
   if (autosaveTimer) window.clearInterval(autosaveTimer);
@@ -315,8 +315,8 @@ export async function autosaveNow(): Promise<void> {
   const doc = editor.doc;
   if (!s || !doc || !editor.history!.dirty || doc === lastAutosaved) return;
   try {
-    const data = await packEasel(doc, (id) => editor.assets.blob(id));
-    await window.easel.writeRecovery({ id: s.recoveryId, title: doc.title, savedAt: new Date().toISOString(), originalPath: s.filePath }, data);
+    const data = await packQuvrelo(doc, (id) => editor.assets.blob(id));
+    await window.quvrelo.writeRecovery({ id: s.recoveryId, title: doc.title, savedAt: new Date().toISOString(), originalPath: s.filePath }, data);
     lastAutosaved = doc;
     editor.collectGarbage();
   } catch (e) {
@@ -325,12 +325,12 @@ export async function autosaveNow(): Promise<void> {
 }
 
 export async function restoreRecovery(id: string): Promise<void> {
-  const data = await window.easel.readRecovery(id);
+  const data = await window.quvrelo.readRecovery(id);
   if (!data) {
     toast('Recovery file is no longer available', 'error');
     return;
   }
-  const { doc, assets } = await unpackEasel(data);
+  const { doc, assets } = await unpackQuvrelo(data);
   editor.assets.clear();
   for (const [aid, blob] of assets) await editor.assets.addBytes(blob.bytes, blob.mime, aid);
   editor.openSession(doc, null);
@@ -348,13 +348,13 @@ export async function handIn(studentName: string): Promise<string | null> {
   if (!doc) return null;
   const info = doc.assignment;
   const className = info?.className || 'Class';
-  const stamped: EaselDocument = {
+  const stamped: QuvreloDocument = {
     ...doc,
     assignment: { ...(info ?? { title: doc.title, className, teacher: '', dueDate: '', instructions: '' }), studentName, submittedAt: new Date().toISOString() },
   };
   editor.commit('Hand in', () => stamped);
   const data = await packCurrent();
-  const path = await window.easel.handIn({ data, fileName: info?.title || doc.title, className, studentName });
+  const path = await window.quvrelo.handIn({ data, fileName: info?.title || doc.title, className, studentName });
   toast(`Handed in to ${path}`, 'success');
   return path;
 }
@@ -372,11 +372,11 @@ export function exportSnapshotCanvas(pageIndex: number, maxSize: number): HTMLCa
   }
 }
 
-export function cloneForClipboard(ids: string[]): { nodes: SceneNode[]; stories: EaselDocument['stories'] } | null {
+export function cloneForClipboard(ids: string[]): { nodes: SceneNode[]; stories: QuvreloDocument['stories'] } | null {
   const doc = editor.doc;
   if (!doc) return null;
   const nodes = ids.map((id) => findNode(doc, id)?.node).filter((n): n is SceneNode => !!n).map((n) => structuredCloneSafe(n));
-  const stories: EaselDocument['stories'] = {};
+  const stories: QuvreloDocument['stories'] = {};
   const visit = (list: SceneNode[]) => list.forEach((n) => {
     if (n.type === 'textframe' && doc.stories[n.storyId]) stories[n.storyId] = structuredCloneSafe(doc.stories[n.storyId]);
     if (n.type === 'group') visit(n.children);

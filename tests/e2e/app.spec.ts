@@ -5,7 +5,7 @@ import { docToScreen, drag, launch, run, state, type Launched } from './helpers'
 
 const fixture = path.resolve('tests/fixtures/gradient.png');
 
-test.describe('Easel Studio', () => {
+test.describe('Quvrelo', () => {
   let L: Launched;
 
   test.afterEach(async () => {
@@ -15,7 +15,7 @@ test.describe('Easel Studio', () => {
   test('welcome screen lists studios and the classroom pack', async () => {
     L = await launch();
     const { page } = L;
-    await expect(page.locator('.welcome h1')).toHaveText('Easel Studio');
+    await expect(page.locator('.welcome h1')).toHaveText('Quvrelo');
     await expect(page.locator('[data-studio-card]')).toHaveCount(3);
     expect(await page.locator('[data-template]').count()).toBeGreaterThanOrEqual(15);
     await page.waitForTimeout(500);
@@ -35,7 +35,7 @@ test.describe('Easel Studio', () => {
     expect(await state<number>(page, 'editor.doc.pages[0].nodes.length')).toBe(before + 2);
     // select both new shapes and add them together
     await page.evaluate(() => {
-      const { editor } = (window as any).__easel;
+      const { editor } = (window as any).__quvrelo;
       const nodes = editor.doc.pages[0].nodes;
       editor.select(nodes.slice(-2).map((n: any) => n.id));
     });
@@ -67,7 +67,7 @@ test.describe('Easel Studio', () => {
   });
 
   test('photo studio: open image, adjust, paint, select, export PNG', async () => {
-    L = await launch({ EASEL_E2E_OPEN: fixture });
+    L = await launch({ QUVRELO_E2E_OPEN: fixture });
     const { page, saveDir } = L;
     await run(page, 'file.open');
     await expect(page.locator('.workspace')).toBeVisible();
@@ -75,7 +75,7 @@ test.describe('Easel Studio', () => {
     expect(await state<string>(page, 'editor.doc.pages[0].nodes[0].type')).toBe('raster');
     // select the layer and add an adjustment from the panel
     await page.evaluate(() => {
-      const { editor } = (window as any).__easel;
+      const { editor } = (window as any).__quvrelo;
       editor.select([editor.doc.pages[0].nodes[0].id]);
     });
     await page.locator('select[aria-label="Add adjustment"]').selectOption('black-white');
@@ -117,10 +117,10 @@ test.describe('Easel Studio', () => {
     await page.click('[data-tool="textframe"]');
     await drag(page, await docToScreen(page, 80, 900), await docToScreen(page, 500, 1000));
     await expect(page.locator('.text-edit-overlay')).toBeVisible();
-    await page.keyboard.type('Hello from Easel Studio');
+    await page.keyboard.type('Hello from Quvrelo');
     await page.keyboard.press('Escape');
     const texts = await state<string[]>(page, 'Object.values(editor.doc.stories).map(s => s.text)');
-    expect(texts).toContain('Hello from Easel Studio');
+    expect(texts).toContain('Hello from Quvrelo');
     await run(page, 'page.add');
     expect(await state<number>(page, 'editor.doc.pages.length')).toBe(3);
     await run(page, 'file.export-pdf');
@@ -132,8 +132,8 @@ test.describe('Easel Studio', () => {
     expect((await PDFDocument.load(pdf)).getPageCount()).toBe(3);
     // save, close, reopen
     await run(page, 'file.save');
-    await expect.poll(() => fs.readdirSync(saveDir).filter((f) => f.endsWith('.easel')).length).toBe(1);
-    const file = path.join(saveDir, fs.readdirSync(saveDir).find((f) => f.endsWith('.easel'))!);
+    await expect.poll(() => fs.readdirSync(saveDir).filter((f) => f.endsWith('.quvrelo')).length).toBe(1);
+    const file = path.join(saveDir, fs.readdirSync(saveDir).find((f) => f.endsWith('.quvrelo'))!);
     await run(page, 'file.close');
     await expect(page.locator('.welcome')).toBeVisible();
     // reopen via the main-process open-path channel
@@ -141,7 +141,7 @@ test.describe('Easel Studio', () => {
     await expect(page.locator('.workspace')).toBeVisible();
     expect(await state<number>(page, 'editor.doc.pages.length')).toBe(3);
     const reopened = await state<string[]>(page, 'Object.values(editor.doc.stories).map(s => s.text)');
-    expect(reopened).toContain('Hello from Easel Studio');
+    expect(reopened).toContain('Hello from Quvrelo');
   });
 
   test('every tool can be activated in every studio without errors', async () => {
@@ -167,10 +167,10 @@ test.describe('Easel Studio', () => {
   });
 
   test('admin policy disables features and locks the theme', async () => {
-    const dir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'easel-pol-'));
+    const dir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'quvrelo-pol-'));
     const pol = path.join(dir, 'policy.json');
     fs.writeFileSync(pol, JSON.stringify({ disabledFeatures: ['photo'], forceTheme: 'high-contrast', organizationName: 'Test Academy' }));
-    L = await launch({ EASEL_POLICY_PATH: pol });
+    L = await launch({ QUVRELO_POLICY_PATH: pol });
     const { page } = L;
     await expect(page.locator('[data-studio-card]')).toHaveCount(2);
     expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('high-contrast');

@@ -1,8 +1,8 @@
-import type { EaselDocument } from './types';
+import type { QuvreloDocument } from './types';
 
 export interface HistoryEntry {
   label: string;
-  doc: EaselDocument;
+  doc: QuvreloDocument;
   time: number;
   mergeKey?: string;
 }
@@ -23,13 +23,13 @@ type Listener = () => void;
 export class DocumentHistory {
   private entries: HistoryEntry[];
   private index = 0;
-  private savedDoc: EaselDocument;
+  private savedDoc: QuvreloDocument;
   private listeners = new Set<Listener>();
   private readonly limit: number;
   private readonly mergeWindowMs: number;
   private readonly now: () => number;
 
-  constructor(doc: EaselDocument, opts: HistoryOptions = {}) {
+  constructor(doc: QuvreloDocument, opts: HistoryOptions = {}) {
     this.limit = opts.limit ?? 250;
     this.mergeWindowMs = opts.mergeWindowMs ?? 1200;
     this.now = opts.now ?? (() => Date.now());
@@ -37,7 +37,7 @@ export class DocumentHistory {
     this.savedDoc = doc;
   }
 
-  get doc(): EaselDocument {
+  get doc(): QuvreloDocument {
     return this.entries[this.index].doc;
   }
 
@@ -67,7 +67,7 @@ export class DocumentHistory {
   }
 
   /** Record a new document state. Returns false if nothing changed. */
-  push(label: string, doc: EaselDocument, mergeKey?: string): boolean {
+  push(label: string, doc: QuvreloDocument, mergeKey?: string): boolean {
     if (doc === this.doc) return false;
     const t = this.now();
     const top = this.entries[this.index];
@@ -91,7 +91,7 @@ export class DocumentHistory {
   }
 
   /** Replace the current state without creating an entry (used for live previews). */
-  replace(doc: EaselDocument): void {
+  replace(doc: QuvreloDocument): void {
     this.entries[this.index] = { ...this.entries[this.index], doc };
     this.emit();
   }
@@ -117,7 +117,7 @@ export class DocumentHistory {
   }
 
   /** Reset to a fresh document (e.g. after opening a file). */
-  reset(doc: EaselDocument, label = 'Open'): void {
+  reset(doc: QuvreloDocument, label = 'Open'): void {
     this.entries = [{ label, doc, time: this.now() }];
     this.index = 0;
     this.savedDoc = doc;
