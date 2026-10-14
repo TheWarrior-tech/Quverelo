@@ -1,0 +1,188 @@
+{
+  "name": "easel-studio",
+  "productName": "Easel Studio",
+  "version": "0.1.0",
+  "description": "Offline all-in-one creative suite for schools: photo editing, vector design and page layout in one app.",
+  "main": "dist-electron/main.js",
+  "author": {
+    "name": "Easel Studio contributors",
+    "email": "finnothompson@gmail.com"
+  },
+  "homepage": "https://github.com/TheWarrior-tech/easel-studio",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TheWarrior-tech/easel-studio.git"
+  },
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build:renderer": "vite build",
+    "build:main": "node scripts/build-main.mjs",
+    "build": "npm run build:renderer && npm run build:main",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
+    "start": "electron .",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "screenshots": "node scripts/screenshots.mjs",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:all": "npm run typecheck && npm test && npm run build && npm run test:e2e"
+  },
+  "devDependencies": {
+    "@fontsource/atkinson-hyperlegible": "^5.3.0",
+    "@fontsource/caveat": "^5.3.0",
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/merriweather": "^5.3.0",
+    "@fontsource/opendyslexic": "^5.3.0",
+    "@fontsource/roboto-slab": "^5.3.0",
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^22.20.5",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "electron": "^38.8.6",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
+    "fabric": "^6.9.1",
+    "jszip": "^3.10.2",
+    "paper": "^0.12.18",
+    "pdf-lib": "^1.17.1",
+    "playwright": "^1.64.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.4",
+    "vitest": "^3.2.7"
+  },
+  "build": {
+    "appId": "io.github.thewarriortech.easelstudio",
+    "productName": "Easel Studio",
+    "copyright": "Copyright \u00a9 2026 Easel Studio contributors",
+    "artifactName": "EaselStudio-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json",
+      "!**/*.map"
+    ],
+    "extraResources": [
+      {
+        "from": "docs/policy.example.json",
+        "to": "policy.example.json"
+      }
+    ],
+    "asar": true,
+    "fileAssociations": [
+      {
+        "ext": "easel",
+        "name": "Easel Studio Document",
+        "description": "Easel Studio Document",
+        "mimeType": "application/vnd.easel-studio+zip",
+        "role": "Editor",
+        "icon": "icon"
+      }
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "TheWarrior-tech",
+        "repo": "easel-studio",
+        "releaseType": "release"
+      }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "msi",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "artifactName": "EaselStudio-${version}-win-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Easel Studio",
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "EaselStudio-Setup-${version}-${arch}.${ext}"
+    },
+    "msi": {
+      "oneClick": false,
+      "perMachine": true,
+      "runAfterFinish": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Easel Studio",
+      "artifactName": "EaselStudio-${version}-${arch}.${ext}"
+    },
+    "mac": {
+      "icon": "build/icon.png",
+      "category": "public.app-category.graphics-design",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "pkg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "artifactName": "EaselStudio-${version}-mac-${arch}.${ext}"
+    },
+    "dmg": {
+      "title": "Easel Studio ${version}"
+    },
+    "pkg": {
+      "installLocation": "/Applications",
+      "allowAnywhere": false,
+      "allowCurrentUserHome": false,
+      "allowRootDirectory": true,
+      "isRelocatable": false,
+      "isVersionChecked": false,
+      "overwriteAction": "upgrade"
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "category": "Graphics",
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "maintainer": "Easel Studio contributors",
+      "synopsis": "Photo, vector and layout design for schools"
+    }
+  }
+}
