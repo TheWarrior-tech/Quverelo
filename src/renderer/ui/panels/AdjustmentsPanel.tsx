@@ -8,6 +8,7 @@ import { runCommand } from '../../state/commands';
 import { canvasToPixels, createCanvas, ctx2d } from '../../engine/assets';
 import { useEditor } from '../hooks';
 import { Icon } from '../Icons';
+import { CurvesEditor } from './CurvesEditor';
 
 function setAdjustments(n: RasterNode, list: Adjustment[], merge?: string) {
   editor.commit('Adjustment', (d) => updateNode(d, n.id, { adjustments: list } as Partial<SceneNode>), merge);
@@ -86,9 +87,12 @@ export function AdjustmentsPanel() {
             <header>
               <input type="checkbox" checked={a.enabled} aria-label={`Enable ${spec.label}`} onChange={(e) => update(a.id, { enabled: e.target.checked })} />
               <span>{spec.label}</span>
-              <button className="icon-btn sm" aria-label={`Reset ${spec.label}`} title="Reset" onClick={() => update(a.id, { params: defaultParams(a.type) })}><Icon name="undo" /></button>
+              <button className="icon-btn sm" aria-label={`Reset ${spec.label}`} title="Reset" onClick={() => update(a.id, { params: defaultParams(a.type), curves: undefined })}><Icon name="undo" /></button>
               <button className="icon-btn sm" aria-label={`Remove ${spec.label}`} title="Remove" onClick={() => setAdjustments(n, n.adjustments.filter((x) => x.id !== a.id))}><Icon name="trash" /></button>
             </header>
+            {a.type === 'curves' && (
+              <CurvesEditor node={n} adj={a} onChange={(curves, merge) => update(a.id, { curves }, merge)} onBegin={beginDrag} onEnd={endDrag} />
+            )}
             {spec.params.length > 0 && (
               <div className="params">
                 {spec.params.map((p) => (
