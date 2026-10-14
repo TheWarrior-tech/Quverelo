@@ -143,12 +143,16 @@ export function ContextBar() {
               <button key={m} className={`btn ${o.selectionMode === m ? 'selected' : ''}`} role="radio" aria-checked={o.selectionMode === m} onClick={() => ed.setToolOptions({ selectionMode: m })}>{m[0].toUpperCase() + m.slice(1)}</button>
             ))}
           </div>
-          <button className="btn" onClick={() => runCommand('select.all-pixels')}>Select all</button>
-          <button className="btn" onClick={() => runCommand('select.invert')} disabled={!ed.ui.pixelSelection}>Invert</button>
-          <button className="btn" onClick={() => runCommand('select.none')} disabled={!ed.ui.pixelSelection}>Deselect</button>
-          <button className="btn" onClick={() => runCommand('select.crop')} disabled={!ed.ui.pixelSelection}>Crop</button>
-          <button className="btn" onClick={() => runCommand('select.copy-to-layer')} disabled={!ed.ui.pixelSelection}>To new layer</button>
-          <button className="btn" onClick={() => runCommand('layer.mask-selection')} disabled={!ed.ui.pixelSelection || !sel.length}>Mask layer</button>
+          <div className="group">
+            <button className="icon-btn sm" title="Select all pixels" aria-label="Select all" onClick={() => runCommand('select.all-pixels')}><Icon name="select-all" /></button>
+            <button className="icon-btn sm" title="Deselect (Ctrl+Shift+D)" aria-label="Deselect" onClick={() => runCommand('select.none')} disabled={!ed.ui.pixelSelection}><Icon name="deselect" /></button>
+            <button className="icon-btn sm" title="Invert selection (Ctrl+Shift+I)" aria-label="Invert selection" onClick={() => runCommand('select.invert')} disabled={!ed.ui.pixelSelection}><Icon name="select-invert" /></button>
+          </div>
+          <div className="group">
+            <button className="btn" onClick={() => runCommand('select.crop')} disabled={!ed.ui.pixelSelection}><Icon name="crop" /> Crop to selection</button>
+            <button className="icon-btn sm" title="Copy selection to a new layer" aria-label="Copy selection to a new layer" onClick={() => runCommand('select.copy-to-layer')} disabled={!ed.ui.pixelSelection}><Icon name="copy" /></button>
+            <button className="btn" onClick={() => runCommand('layer.mask-selection')} disabled={!ed.ui.pixelSelection || !sel.length}><Icon name="mask" /> Mask layer</button>
+          </div>
         </>
       )}
       {t === 'crop' && <span style={{ color: 'var(--text-dim)' }}>Drag to set the crop area, then press Enter or double-click. Esc cancels.</span>}

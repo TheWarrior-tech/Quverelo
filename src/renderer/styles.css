@@ -610,9 +610,24 @@ kbd {
   gap: 6px;
 }
 .contextbar .group + .group,
-.contextbar .tool-name + .group {
+.contextbar .tool-name + .group,
+.contextbar .choice-row + .group {
+  position: relative;
   padding-left: 12px;
-  border-left: 1px solid var(--c-line);
+  border-left: 0;
+}
+/* group divider: a 16px hairline, not a full-height rule */
+.contextbar .group + .group::before,
+.contextbar .tool-name + .group::before,
+.contextbar .choice-row + .group::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 1px;
+  height: 16px;
+  margin-top: -8px;
+  background: var(--c-line-strong);
 }
 .contextbar label {
   font-size: 12px;
@@ -623,15 +638,32 @@ kbd {
 .contextbar input[type='range'] {
   width: 96px;
 }
+/* context bar controls are ghost buttons: no border, hover fill, 24px (DESIGN.md §8) */
 .contextbar .btn {
   height: 24px;
   padding: 0 8px;
+  gap: 6px;
   background: transparent;
-  border-color: var(--c-line);
+  border: 0;
+  box-shadow: none;
+  color: var(--c-text-2);
+  font-weight: 500;
+}
+.contextbar .btn svg.icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.75;
 }
 .contextbar .btn:hover {
   background: var(--c-hover);
-  border-color: var(--c-line-strong);
+  color: var(--c-text);
+}
+.contextbar .btn:active {
+  background: var(--c-press);
+}
+.contextbar .icon-btn.sm {
+  width: 24px;
+  height: 24px;
 }
 .contextbar .choice-row .btn {
   border-color: transparent;
@@ -656,10 +688,13 @@ kbd {
   border: 1px solid var(--c-line);
   border-radius: var(--r-2);
 }
-.contextbar .choice-row + .group,
 .contextbar .group.choice-row {
-  padding-left: 2px;
+  /* a segmented control is self-contained: no divider before it */
+  padding: 2px;
   border-left: 1px solid var(--c-line);
+}
+.contextbar .group.choice-row::before {
+  display: none;
 }
 .choice-row .btn {
   height: 20px;

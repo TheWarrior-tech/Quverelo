@@ -33,6 +33,11 @@ const paths: Record<string, ReactElement> = {
   star: P('M10 3l2.1 4.4 4.9.7-3.5 3.4.8 4.8L10 14l-4.3 2.3.8-4.8L3 8.1l4.9-.7z'),
   line: P('M4 16L16 4'),
 
+  // pixel selection commands (dashed frame = selection, as the marquee tools)
+  'select-all': <>{R(3.5, 3.5, 13, 13, 1, DASH)}{P('M7 10.2l2 2 4-4.2')}</>,
+  deselect: <>{R(3.5, 3.5, 13, 13, 1, DASH)}{P('M7.5 7.5l5 5M12.5 7.5l-5 5')}</>,
+  'select-invert': <>{R(3.5, 3.5, 13, 13, 1, DASH)}{R(7, 7, 6, 6, 1)}</>,
+
   // file + edit
   undo: P('M7.5 4L3.5 8l4 4M3.5 8H12a4.5 4.5 0 010 9H8.5'),
   redo: P('M12.5 4l4 4-4 4M16.5 8H8a4.5 4.5 0 000 9h3.5'),
