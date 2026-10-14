@@ -35,10 +35,10 @@ Neutrals are near-grey with ~0 chroma so photography never fights the chrome. Th
 | `--c-hover` | `rgba(255,255,255,.05)` | `rgba(0,0,0,.05)` | `rgba(255,255,255,.18)` | hover fill |
 | `--c-press` | `rgba(255,255,255,.09)` | `rgba(0,0,0,.09)` | `rgba(255,255,255,.3)` | pressed / active fill |
 | `--c-line` | `rgba(255,255,255,.08)` | `rgba(0,0,0,.09)` | `#fff` | 1px hairlines |
-| `--c-line-strong` | `rgba(255,255,255,.15)` | `rgba(0,0,0,.18)` | `#fff` | input borders, keycaps |
+| `--c-line-strong` | `rgba(255,255,255,.34)` | `rgba(0,0,0,.43)` | `#fff` | input/button borders, keycaps, slider track (≥ 3:1, WCAG 1.4.11) |
 | `--c-text` | `#ececed` | `#18191b` | `#fff` | primary text |
 | `--c-text-2` | `#a3a5aa` | `#54565b` | `#fff` | secondary text, labels |
-| `--c-text-3` | `#8b8d93` | `#686a70` | `#e6e6e6` | tertiary, placeholders, units |
+| `--c-text-3` | `#8b8d93` | `#606268` | `#e6e6e6` | tertiary, placeholders, units |
 | `--c-accent` | `#3cc4b0` | `#0c7a6b` | `#ffd400` | accent (see rule 4) |
 | `--c-accent-hover` | `#58d3c0` | `#096558` | `#ffe766` | |
 | `--c-accent-ink` | `#06231e` | `#ffffff` | `#000` | text on solid accent |
@@ -46,7 +46,7 @@ Neutrals are near-grey with ~0 chroma so photography never fights the chrome. Th
 | `--c-focus` | `#58d3c0` | `#096558` | `#ffd400` | 2px focus ring, offset 1px |
 | `--c-danger` | `#ff6b6b` | `#c92a2a` | `#ff8080` | destructive text/icons only |
 
-Contrast (WCAG 2.2 AA minimum, checked): text on panel ≥ 12:1; text-2 ≥ 7:1; text-3 ≥ 4.5:1; accent-ink on accent ≥ 7:1; accent as text on panel ≥ 4.5:1.
+Contrast (WCAG 2.2 AA minimum, checked): text on panel ≥ 12:1; text-2 ≥ 7:1; text-3 ≥ 4.5:1; accent-ink on accent ≥ 7:1; accent as text on panel ≥ 4.5:1; focus ring, accent fills and `--c-line-strong` boundaries ≥ 3:1 on every surface. `--c-line` hairlines are decorative and exempt. Enforced by `npm run audit:contrast` (scripts/contrast-audit.mjs, also run by vitest) for all three themes — change a token, run it.
 
 Canvas overlays (selection, handles, guides) use accent `#2fb8a6` for selection, coral `#ff6b4a` for snapping and margins, cyan for ruler guides, so they stay legible on photographs.
 
@@ -86,7 +86,9 @@ Custom set drawn for Quvrelo (`src/renderer/ui/Icons.tsx`), no third-party glyph
 - Colour is `currentColor`; active tool rail icon uses accent-ink on accent fill.
 - Studios have glyphs (photo = aperture, vector = node curve, layout = columns). No coloured studio badges.
 
-App icon / logo: graphite tile, off-white ring, one accent bar forming the Q tail. Flat, no gradient, no shadow. Source `build/icon.svg`.
+App icon / logo: graphite tile, off-white ring, one accent bar forming the Q tail. Flat, no gradient, no shadow. Source `build/icon.svg`; `build/icon-small.svg` is the 16–32px variant (near full-bleed tile, no inner hairline, heavier ring and tail). Re-render every raster with `scripts/render-icons.cjs` (each size rasterised from vector).
+
+Icon buttons: use `tip(label, commandId | key)` from `ui/tooltip.ts` — `aria-label` is the name, the tooltip is name + shortcut read from the app menu, `aria-keyshortcuts` is set.
 
 ## 8. Components
 
