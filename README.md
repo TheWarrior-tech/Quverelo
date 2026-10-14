@@ -6,7 +6,7 @@
 Offline. No accounts. No telemetry. Free and open source (MIT). Windows and macOS.</p>
 
 <p align="center">
-  <a href="https://github.com/TheWarrior-tech/Quvrelo/releases/latest"><b>⬇ Download the latest release</b></a> ·
+  <a href="https://github.com/TheWarrior-tech/Quverelo/releases/latest"><b>⬇ Download the latest release</b></a> ·
   <a href="docs/USER_GUIDE.md">User guide</a> ·
   <a href="docs/ADMIN_GUIDE.md">IT admin guide</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
@@ -63,7 +63,7 @@ Quvrelo is an all-in-one creative suite in the spirit of Affinity's single-app s
 
 ## Download & install
 
-Get the installers from the [latest release](https://github.com/TheWarrior-tech/Quvrelo/releases/latest):
+Get the installers from the [latest release](https://github.com/TheWarrior-tech/Quverelo/releases/latest):
 
 | Platform | File | Notes |
 |---|---|---|

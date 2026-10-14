@@ -8,10 +8,10 @@
     "name": "Quvrelo contributors",
     "email": "finnothompson@gmail.com"
   },
-  "homepage": "https://github.com/TheWarrior-tech/Quvrelo",
+  "homepage": "https://github.com/TheWarrior-tech/Quverelo",
   "repository": {
     "type": "git",
-    "url": "https://github.com/TheWarrior-tech/Quvrelo.git"
+    "url": "https://github.com/TheWarrior-tech/Quverelo.git"
   },
   "license": "MIT",
   "private": true,
@@ -106,7 +106,7 @@
       {
         "provider": "github",
         "owner": "TheWarrior-tech",
-        "repo": "Quvrelo",
+        "repo": "Quverelo",
         "releaseType": "release"
       }
     ],

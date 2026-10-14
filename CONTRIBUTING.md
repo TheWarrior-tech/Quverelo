@@ -10,7 +10,7 @@ Thanks for helping build a creative suite schools and teams can rely on.
 
 ## Setup
 ```sh
-git clone https://github.com/TheWarrior-tech/Quvrelo.git
+git clone https://github.com/TheWarrior-tech/Quverelo.git
 cd quvrelo
 npm ci
 npm run dev

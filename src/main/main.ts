@@ -10,7 +10,7 @@ import {
 } from '../shared/api';
 
 const E2E = process.env.QUVRELO_E2E === '1';
-const REPO = 'TheWarrior-tech/Quvrelo';
+const REPO = 'TheWarrior-tech/Quverelo';
 
 if (process.env.QUVRELO_USER_DATA) app.setPath('userData', process.env.QUVRELO_USER_DATA);
 

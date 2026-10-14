@@ -28,4 +28,4 @@ Verify downloads with `SHA256SUMS.txt`.
 - Text styling applies to a whole text object/story (per-character styles are coming).
 - PSD/IDML/Affinity file import is not available yet.
 
-See the [IT admin guide](https://github.com/TheWarrior-tech/Quvrelo/blob/main/docs/ADMIN_GUIDE.md) and [user guide](https://github.com/TheWarrior-tech/Quvrelo/blob/main/docs/USER_GUIDE.md).
+See the [IT admin guide](https://github.com/TheWarrior-tech/Quverelo/blob/main/docs/ADMIN_GUIDE.md) and [user guide](https://github.com/TheWarrior-tech/Quverelo/blob/main/docs/USER_GUIDE.md).
