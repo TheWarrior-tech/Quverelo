@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Quvrelo (16-32px)</title>
+  <!-- Simplified for 16-32px: near full-bleed tile, no inner hairline, heavier ring and tail.
+       Built on a 16-unit grid (1 unit = 64): ring stroke 2u, tail 2.75u. -->
+  <rect x="0" y="0" width="1024" height="1024" rx="192" fill="#141516"/>
+  <circle cx="480" cy="480" r="288" fill="none" stroke="#ececed" stroke-width="136"/>
+  <path d="M600 600L856 856" stroke="#3cc4b0" stroke-width="176" stroke-linecap="butt"/>
+</svg>
