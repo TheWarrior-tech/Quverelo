@@ -5,6 +5,9 @@ import { editor } from '../../state/editor';
 import { runCommand } from '../../state/commands';
 import { useEditor } from '../hooks';
 import { Icon } from '../Icons';
+import { NumberField } from '../controls/NumberField';
+import { useScrollEdges } from '../controls/Panel';
+import { dropIndex, isNoopDrop } from './layerDrop';
 
 const TYPE_ICON: Record<SceneNode['type'], string> = {
   rect: 'rect', ellipse: 'ellipse', polygon: 'polygon', star: 'star', path: 'pen', text: 'text', textframe: 'textframe',
@@ -20,7 +23,7 @@ function Thumb({ n }: { n: SceneNode }) {
   }
   const color = 'fill' in n && n.fill.type === 'solid' ? n.fill.color : undefined;
   return (
-    <span className="thumb" style={{ color: color ?? '#555' }}>
+    <span className="thumb" style={color ? { ['--thumb' as string]: color } : undefined}>
       <Icon name={TYPE_ICON[n.type]} />
     </span>
   );
@@ -41,64 +44,107 @@ function thumbUrl(c: HTMLCanvasElement): string {
   return u;
 }
 
-function LayerRow({ n, depth, containerId, index, dragId, setDragId }: { n: SceneNode; depth: number; containerId: Id; index: number; dragId: Id | null; setDragId: (id: Id | null) => void }) {
+type DropPlace = 'above' | 'below';
+
+/** Move keyboard focus to the previous/next visible row. */
+function focusSibling(from: HTMLElement, d: 1 | -1 | 'first' | 'last') {
+  const rows = [...(from.closest('.layer-list')?.querySelectorAll<HTMLElement>('.layer-row') ?? [])];
+  const i = rows.indexOf(from);
+  const t = d === 'first' ? rows[0] : d === 'last' ? rows[rows.length - 1] : rows[i + d];
+  t?.focus();
+}
+
+function LayerRow({ n, depth, containerId, index, dragId, setDragId, focusable }: { n: SceneNode; depth: number; containerId: Id; index: number; dragId: Id | null; setDragId: (id: Id | null) => void; focusable: boolean }) {
   const ed = useEditor();
   const [open, setOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
-  const [over, setOver] = useState(false);
+  const [drop, setDrop] = useState<DropPlace | null>(null);
   const selected = ed.ui.selection.includes(n.id);
+  const isGroup = n.type === 'group';
+  const canDrop = depth === 0 && !!dragId && dragId !== n.id;
   const click = (e: React.MouseEvent) => {
     if (e.shiftKey || e.metaKey || e.ctrlKey) {
       ed.select(selected ? ed.ui.selection.filter((x) => x !== n.id) : [...ed.ui.selection, n.id]);
     } else ed.select([n.id]);
   };
+  const fromIndex = () => {
+    const c = ed.doc?.pages.find((p) => p.id === containerId) ?? ed.doc?.masters.find((m) => m.id === containerId);
+    return c?.nodes.findIndex((x) => x.id === dragId) ?? -1;
+  };
+  const toggleVisible = () => ed.commit('Visibility', (d) => updateNode(d, n.id, { visible: !n.visible }));
+  const toggleLock = () => ed.commit('Lock', (d) => updateNode(d, n.id, { locked: !n.locked }));
   return (
     <>
       <li
-        className={`layer-row ${selected ? 'selected' : ''} ${n.visible ? '' : 'hidden-layer'} ${over ? 'drop-before' : ''}`}
-        style={{ paddingLeft: 4 + depth * 14 }}
+        className={`layer-row${selected ? ' selected' : ''}${n.visible ? '' : ' hidden-layer'}${n.locked ? ' locked' : ''}${drop ? ` drop-${drop}` : ''}${dragId === n.id ? ' dragging' : ''}`}
+        style={{ ['--depth' as string]: depth }}
         onClick={click}
         onDoubleClick={() => setRenaming(true)}
-        draggable={depth === 0}
+        draggable={depth === 0 && !renaming}
         onDragStart={(e) => {
           setDragId(n.id);
           e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', n.name);
         }}
         onDragEnd={() => setDragId(null)}
         onDragOver={(e) => {
-          if (dragId && dragId !== n.id && depth === 0) {
-            e.preventDefault();
-            setOver(true);
-          }
+          if (!canDrop) return;
+          const r = e.currentTarget.getBoundingClientRect();
+          const place: DropPlace = e.clientY < r.top + r.height / 2 ? 'above' : 'below';
+          if (isNoopDrop(fromIndex(), index, place)) return setDrop(null);
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          if (place !== drop) setDrop(place);
         }}
-        onDragLeave={() => setOver(false)}
+        onDragLeave={() => setDrop(null)}
         onDrop={(e) => {
           e.preventDefault();
-          setOver(false);
-          if (!dragId) return;
-          // rows are listed top-first; dropping "before" a row means above it in z-order
-          ed.commit('Reorder layers', (d) => {
-            const c = d.pages.find((p) => p.id === containerId) ?? d.masters.find((m) => m.id === containerId);
-            const from = c?.nodes.findIndex((x) => x.id === dragId) ?? -1;
-            const target = from >= 0 && from < index ? index : index + 1;
-            return moveNodeTo(d, dragId, containerId, target);
-          });
+          const place = drop;
+          setDrop(null);
+          if (!dragId || !place) return;
+          const from = fromIndex();
+          ed.commit('Reorder layers', (d) => moveNodeTo(d, dragId, containerId, dropIndex(from, index, place)));
         }}
         aria-selected={selected}
         role="treeitem"
         aria-level={depth + 1}
-        aria-expanded={n.type === 'group' ? open : undefined}
-        tabIndex={0}
+        aria-expanded={isGroup ? open : undefined}
+        aria-label={`${n.name}${n.visible ? '' : ', hidden'}${n.locked ? ', locked' : ''}`}
+        tabIndex={focusable ? 0 : -1}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') ed.select([n.id]);
-          if (e.key === 'F2') setRenaming(true);
+          if (e.target !== e.currentTarget) return;
+          const el = e.currentTarget;
+          if (e.key === 'ArrowDown' && e.altKey) {
+            e.preventDefault();
+            ed.select([n.id]);
+            runCommand('arrange.backward');
+          } else if (e.key === 'ArrowUp' && e.altKey) {
+            e.preventDefault();
+            ed.select([n.id]);
+            runCommand('arrange.forward');
+          } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            focusSibling(el, e.key === 'ArrowDown' ? 1 : -1);
+          } else if (e.key === 'Home' || e.key === 'End') {
+            e.preventDefault();
+            focusSibling(el, e.key === 'Home' ? 'first' : 'last');
+          } else if (e.key === 'ArrowRight' && isGroup && !open) setOpen(true);
+          else if (e.key === 'ArrowLeft' && isGroup && open) setOpen(false);
+          else if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            ed.select([n.id]);
+          } else if (e.key === 'F2') setRenaming(true);
+          else if (e.key.toLowerCase() === 'h' && e.altKey) toggleVisible();
         }}
         data-layer-id={n.id}
       >
-        {n.type === 'group' ? (
-          <button className="twisty" aria-label={open ? 'Collapse group' : 'Expand group'} onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>{open ? '▾' : '▸'}</button>
+        <span className="indent" aria-hidden="true" />
+        {isGroup ? (
+          <button className="twisty" tabIndex={-1} aria-label={open ? 'Collapse group' : 'Expand group'} onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>
+            <Icon name={open ? 'chevron-down' : 'chevron-right'} size={16} />
+          </button>
         ) : (
-          <span style={{ width: 14 }} />
+          <span className="twisty-space" aria-hidden="true" />
         )}
         <Thumb n={n} />
         <span className="name">
@@ -109,6 +155,7 @@ function LayerRow({ n, depth, containerId, index, dragId, setDragId }: { n: Scen
               defaultValue={n.name}
               aria-label="Layer name"
               onClick={(e) => e.stopPropagation()}
+              onFocus={(e) => e.currentTarget.select()}
               onBlur={(e) => {
                 setRenaming(false);
                 const v = e.target.value.trim();
@@ -124,17 +171,17 @@ function LayerRow({ n, depth, containerId, index, dragId, setDragId }: { n: Scen
             n.name
           )}
         </span>
-        {n.mask && <span className="meta" title="Has mask"><Icon name="mask" /></span>}
-        {n.type === 'raster' && n.adjustments.length > 0 && <span className="meta" title="Live adjustments">fx</span>}
-        <button className="icon-btn sm" aria-label={n.locked ? 'Unlock layer' : 'Lock layer'} title={n.locked ? 'Unlock' : 'Lock'} onClick={(e) => { e.stopPropagation(); ed.commit('Lock', (d) => updateNode(d, n.id, { locked: !n.locked })); }}>
-          <Icon name={n.locked ? 'lock' : 'unlock'} />
+        {n.mask && <span className="meta" title="Has mask" aria-label="Has mask"><Icon name="mask" size={16} /></span>}
+        {n.type === 'raster' && n.adjustments.length > 0 && <span className="meta" title={`${n.adjustments.length} live adjustment${n.adjustments.length > 1 ? 's' : ''}`}><Icon name="adjust" size={16} /></span>}
+        <button className={`icon-btn xs toggle lock${n.locked ? ' set' : ''}`} tabIndex={-1} aria-label={n.locked ? 'Unlock layer' : 'Lock layer'} aria-pressed={n.locked} title={n.locked ? 'Unlock' : 'Lock'} onClick={(e) => { e.stopPropagation(); toggleLock(); }}>
+          <Icon name={n.locked ? 'lock' : 'unlock'} size={16} />
         </button>
-        <button className="icon-btn sm" aria-label={n.visible ? 'Hide layer' : 'Show layer'} title={n.visible ? 'Hide' : 'Show'} onClick={(e) => { e.stopPropagation(); ed.commit('Visibility', (d) => updateNode(d, n.id, { visible: !n.visible })); }}>
-          <Icon name={n.visible ? 'eye' : 'eye-off'} />
+        <button className={`icon-btn xs toggle eye${n.visible ? '' : ' set'}`} tabIndex={-1} aria-label={n.visible ? 'Hide layer' : 'Show layer'} aria-pressed={!n.visible} title={n.visible ? 'Hide (Alt+H)' : 'Show (Alt+H)'} onClick={(e) => { e.stopPropagation(); toggleVisible(); }}>
+          <Icon name={n.visible ? 'eye' : 'eye-off'} size={16} />
         </button>
       </li>
-      {n.type === 'group' && open && [...n.children].reverse().map((c, i) => (
-        <LayerRow key={c.id} n={c} depth={depth + 1} containerId={containerId} index={n.children.length - 1 - i} dragId={dragId} setDragId={setDragId} />
+      {isGroup && open && [...n.children].reverse().map((c, i) => (
+        <LayerRow key={c.id} n={c} depth={depth + 1} containerId={containerId} index={n.children.length - 1 - i} dragId={dragId} setDragId={setDragId} focusable={false} />
       ))}
     </>
   );
@@ -143,6 +190,7 @@ function LayerRow({ n, depth, containerId, index, dragId, setDragId }: { n: Scen
 export function LayersPanel() {
   const ed = useEditor();
   const [dragId, setDragId] = useState<Id | null>(null);
+  const scrollRef = useScrollEdges<HTMLDivElement>();
   const c = ed.activeContainer;
   if (!c) return null;
   const sel = ed.selectedNodes();
@@ -150,29 +198,29 @@ export function LayersPanel() {
   const doc = ed.doc!;
   const page = doc.pages.find((p) => p.id === c.id);
   const master = page?.masterId ? doc.masters.find((m) => m.id === page.masterId) : null;
+  const rows = [...c.nodes].reverse();
+  const focusId = rows.find((n) => ed.ui.selection.includes(n.id))?.id ?? rows[0]?.id;
+  const setOpacity = (v: number) => ed.commit('Opacity', (d) => updateNodes(d, ed.ui.selection, (m) => ({ ...m, opacity: v / 100 })), 'layer-opacity');
+  const mixedOpacity = sel.some((m) => m.opacity !== first?.opacity);
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', margin: '-8px -10px' }}>
-      {first && (
-        <div style={{ padding: '8px 10px 4px', borderBottom: '1px solid var(--border)' }}>
-          <div className="row">
-            <select value={first.blend} aria-label="Layer blend mode" onChange={(e) => ed.commit('Blend mode', (d) => updateNodes(d, ed.ui.selection, (m) => ({ ...m, blend: e.target.value as BlendMode })))}>
-              {BLEND_MODES.map((m) => <option key={m} value={m}>{m.replace(/-/g, ' ').replace(/\b\w/g, (x) => x.toUpperCase())}</option>)}
-            </select>
-            <input type="range" min={0} max={100} value={Math.round(first.opacity * 100)} aria-label="Layer opacity" onChange={(e) => ed.commit('Opacity', (d) => updateNodes(d, ed.ui.selection, (m) => ({ ...m, opacity: parseInt(e.target.value, 10) / 100 })), 'opacity')} />
-            <span style={{ width: 34 }}>{Math.round(first.opacity * 100)}%</span>
-          </div>
-        </div>
-      )}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '6px 6px' }}>
+    <div className="layers-panel">
+      <div className={`layers-head${first ? '' : ' disabled'}`}>
+        <select value={first?.blend ?? 'normal'} disabled={!first} aria-label="Layer blend mode" onChange={(e) => ed.commit('Blend mode', (d) => updateNodes(d, ed.ui.selection, (m) => ({ ...m, blend: e.target.value as BlendMode })))}>
+          {BLEND_MODES.map((m) => <option key={m} value={m}>{m.replace(/-/g, ' ').replace(/\b\w/g, (x) => x.toUpperCase())}</option>)}
+        </select>
+        <NumberField className="opacity-field" label="Opacity" ariaLabel="Layer opacity percent" unit="%" digits={0} min={0} max={100} value={Math.round((first?.opacity ?? 1) * 100)} mixed={mixedOpacity} disabled={!first} onChange={setOpacity} onCommit={setOpacity} />
+      </div>
+      <div className="layers-scroll" ref={scrollRef}>
         {c.nodes.length === 0 && <p className="empty-note">This page is empty. Pick a tool on the left and draw, or place an image.</p>}
         <ul className="layer-list" role="tree" aria-label="Layers" aria-multiselectable="true">
-          {[...c.nodes].reverse().map((n, i) => (
-            <LayerRow key={n.id} n={n} depth={0} containerId={c.id} index={c.nodes.length - 1 - i} dragId={dragId} setDragId={setDragId} />
+          {rows.map((n, i) => (
+            <LayerRow key={n.id} n={n} depth={0} containerId={c.id} index={c.nodes.length - 1 - i} dragId={dragId} setDragId={setDragId} focusable={n.id === focusId} />
           ))}
         </ul>
         {master && master.nodes.length > 0 && (
-          <div style={{ marginTop: 8, color: 'var(--text-faint)', fontSize: 12, padding: '0 6px' }}>
-            + {master.nodes.length} item(s) from master “{master.name}” <button className="btn ghost" style={{ height: 22 }} onClick={() => ed.setUi({ activeContainerId: master.id, selection: [] })}>Edit master</button>
+          <div className="master-note">
+            <span>{master.nodes.length} item{master.nodes.length > 1 ? 's' : ''} from master “{master.name}”</span>
+            <button className="btn ghost sm" onClick={() => ed.setUi({ activeContainerId: master.id, selection: [] })}>Edit master</button>
           </div>
         )}
       </div>
@@ -181,8 +229,8 @@ export function LayersPanel() {
         <button className="icon-btn sm" title="Group" aria-label="Group" disabled={sel.length < 2} onClick={() => runCommand('arrange.group')}><Icon name="group" /></button>
         <button className="icon-btn sm" title="Mask to selection" aria-label="Mask to pixel selection" disabled={!sel.length || !ed.ui.pixelSelection} onClick={() => runCommand('layer.mask-selection')}><Icon name="mask" /></button>
         <button className="icon-btn sm" title="Duplicate" aria-label="Duplicate" disabled={!sel.length} onClick={() => runCommand('edit.duplicate')}><Icon name="copy" /></button>
-        <button className="icon-btn sm" title="Bring forward" aria-label="Bring forward" disabled={!sel.length} onClick={() => runCommand('arrange.forward')}><Icon name="arrow-up" /></button>
-        <button className="icon-btn sm" title="Send backward" aria-label="Send backward" disabled={!sel.length} onClick={() => runCommand('arrange.backward')}><Icon name="arrow-down" /></button>
+        <button className="icon-btn sm" title="Bring forward (Alt+Up on a row)" aria-label="Bring forward" disabled={!sel.length} onClick={() => runCommand('arrange.forward')}><Icon name="arrow-up" /></button>
+        <button className="icon-btn sm" title="Send backward (Alt+Down on a row)" aria-label="Send backward" disabled={!sel.length} onClick={() => runCommand('arrange.backward')}><Icon name="arrow-down" /></button>
         <div style={{ flex: 1 }} />
         <button className="icon-btn sm" title="Delete" aria-label="Delete" disabled={!sel.length} onClick={() => runCommand('edit.delete')}><Icon name="trash" /></button>
       </div>
