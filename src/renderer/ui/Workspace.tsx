@@ -27,12 +27,43 @@ const STUDIOS: { id: StudioKind; label: string }[] = [
   { id: 'layout', label: 'Layout' },
 ];
 
+/**
+ * Segmented studio switch. Exactly one segment is active (aria-pressed); it
+ * sits in the middle column of the top bar's grid so it never moves when the
+ * right-hand icon cluster changes width. Arrow keys move between studios.
+ */
+function StudioSwitch() {
+  const ed = useEditor();
+  const studios = STUDIOS.filter((s) => ed.feature(s.id));
+  const onKey = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    const i = studios.findIndex((s) => s.id === ed.ui.studio);
+    const next = studios[(i + (e.key === 'ArrowRight' ? 1 : studios.length - 1)) % studios.length];
+    ed.setStudio(next.id);
+    (e.currentTarget.querySelector(`[data-studio="${next.id}"]`) as HTMLElement | null)?.focus();
+  };
+  return (
+    <nav className="studio-switch" aria-label="Studios" onKeyDown={onKey}>
+      {studios.map((s) => {
+        const on = ed.ui.studio === s.id;
+        return (
+          <button key={s.id} data-studio={s.id} className={on ? 'active' : undefined} aria-pressed={on} tabIndex={on ? 0 : -1} onClick={() => ed.setStudio(s.id)} title={`${s.label} Studio`}>
+            <Icon name={s.id} /> {s.label}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
 function Topbar() {
   const ed = useEditor();
   const h = ed.history;
   const sel = ed.ui.selection.length;
   return (
     <header className="topbar" role="toolbar" aria-label="Main toolbar">
+      <div className="topbar-side start">
       <div className="brand">
         <Logo className="logo" />
         <span className="doc-title" title={ed.doc?.title}>{ed.doc?.title}{h?.dirty && <i className="dirty" aria-label="Unsaved changes" />}</span>
@@ -45,15 +76,9 @@ function Topbar() {
       <div className="sep" />
       <button className="icon-btn" title="Undo (Ctrl+Z)" aria-label="Undo" disabled={!h?.canUndo} onClick={() => runCommand('edit.undo')}><Icon name="undo" /></button>
       <button className="icon-btn" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled={!h?.canRedo} onClick={() => runCommand('edit.redo')}><Icon name="redo" /></button>
-      <div className="spacer" />
-      <nav className="studio-switch" aria-label="Studios">
-        {STUDIOS.filter((s) => ed.feature(s.id)).map((s) => (
-          <button key={s.id} data-studio={s.id} className={ed.ui.studio === s.id ? 'active' : ''} aria-pressed={ed.ui.studio === s.id} onClick={() => ed.setStudio(s.id)} title={`${s.label} Studio`}>
-            <Icon name={s.id} /> {s.label}
-          </button>
-        ))}
-      </nav>
-      <div className="spacer" />
+      </div>
+      <StudioSwitch />
+      <div className="topbar-side end">
       <button className="icon-btn" title="Align left" aria-label="Align left" disabled={!sel} onClick={() => runCommand('arrange.align-left')}><Icon name="align-left" /></button>
       <button className="icon-btn" title="Align centre" aria-label="Align centre" disabled={!sel} onClick={() => runCommand('arrange.align-hcenter')}><Icon name="align-hcenter" /></button>
       <button className="icon-btn" title="Align right" aria-label="Align right" disabled={!sel} onClick={() => runCommand('arrange.align-right')}><Icon name="align-right" /></button>
@@ -73,6 +98,7 @@ function Topbar() {
       <div className="sep" />
       <button className="icon-btn" title="Keyboard shortcuts (F1)" aria-label="Keyboard shortcuts" onClick={() => runCommand('help.shortcuts')}><Icon name="keyboard" /></button>
       <button className="icon-btn" title="Preferences" aria-label="Preferences" onClick={() => runCommand('app.preferences')}><Icon name="settings" /></button>
+      </div>
     </header>
   );
 }
@@ -152,9 +178,9 @@ function StatusBar() {
   };
   return (
     <footer className="statusbar">
-      <span>{fmt(s.width)} × {fmt(s.height)} {ed.settings.units}</span>
-      <span>{ed.ui.selection.length ? `${ed.ui.selection.length} selected` : 'Nothing selected'}</span>
-      <span>{ed.ui.status}</span>
+      <span className="num">{fmt(s.width)} × {fmt(s.height)} {ed.settings.units}</span>
+      <span>{ed.ui.selection.length ? <><span className="num">{ed.ui.selection.length}</span> selected</> : 'Nothing selected'}</span>
+      <span className="num">{ed.ui.status}</span>
       <div className="spacer" />
       <label>
         Units{' '}
@@ -163,7 +189,7 @@ function StatusBar() {
         </select>
       </label>
       <button className="icon-btn sm" aria-label="Zoom out" onClick={() => runCommand('view.zoom-out')}><Icon name="minus" /></button>
-      <button className="btn ghost" style={{ height: 20, padding: '0 6px' }} onClick={() => runCommand('view.zoom-fit')} title="Zoom to fit (Ctrl+0)">{zoom}%</button>
+      <button className="btn ghost" style={{ height: 20, padding: '0 6px' }} onClick={() => runCommand('view.zoom-fit')} title="Zoom to fit (Ctrl+0)"><span className="num">{zoom}%</span></button>
       <button className="icon-btn sm" aria-label="Zoom in" onClick={() => runCommand('view.zoom-in')}><Icon name="plus" /></button>
       <span>{ed.settings.snapping ? 'Snap on' : 'Snap off'}</span>
     </footer>

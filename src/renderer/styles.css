@@ -186,20 +186,16 @@ svg.icon.sm {
   stroke-width: 1.75;
 }
 
-/* numerals stay tabular wherever numbers are read or edited */
-input,
-select,
-kbd,
-.statusbar,
-.slider-row,
-.contextbar,
-.layer-row .meta,
-.page-thumb span,
-.template-card span,
-.recent-item small,
-.num {
+/* numerals stay tabular wherever numbers are read or edited. Scoped to
+   numeric-only elements: Inter's tnum also gives punctuation (hyphens, slashes)
+   tabular width, so prose must never get it (it spaces out "5-day"). */
+input[type='number'],
+input[inputmode='decimal'],
+.num,
+.statusbar .num,
+.slider-row input[type='number'],
+.page-thumb .num {
   font-variant-numeric: tabular-nums;
-  font-feature-settings: 'calt', 'tnum';
 }
 
 /* ---------- buttons ---------- */
@@ -475,13 +471,24 @@ kbd {
 
 .topbar {
   grid-area: top;
-  display: flex;
+  /* three columns so the studio switch is truly centred and never shifts */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: 2px;
+  column-gap: 12px;
   padding: 0 8px;
   height: 44px;
   background: var(--c-app);
   border-bottom: 1px solid var(--c-line);
+}
+.topbar-side {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.topbar-side.end {
+  justify-content: flex-end;
 }
 .topbar .sep {
   width: 1px;
@@ -524,6 +531,7 @@ kbd {
 
 .studio-switch {
   display: flex;
+  height: 28px;
   background: var(--c-raised);
   border: 1px solid var(--c-line);
   border-radius: var(--r-2);
@@ -534,14 +542,15 @@ kbd {
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 24px;
+  height: 22px;
   padding: 0 12px 0 10px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--r-1);
   background: transparent;
   color: var(--c-text-2);
   cursor: pointer;
   font-weight: 500;
+  outline: none;
   transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
 }
 .studio-switch button svg.icon {
@@ -549,23 +558,33 @@ kbd {
   height: 16px;
   stroke-width: 1.75;
 }
-.studio-switch button:hover {
+/* hover is a text change only, so it can never be mistaken for the active tile */
+.studio-switch button:not([aria-pressed='true']):hover {
   color: var(--c-text);
-  background: var(--c-hover);
 }
-.studio-switch button.active {
+.studio-switch button[aria-pressed='true'] {
   background: var(--c-press);
   color: var(--c-text);
+  box-shadow: inset 0 0 0 1px var(--c-line);
 }
-.studio-switch button.active svg.icon {
+.studio-switch button[aria-pressed='true'] svg.icon {
   color: var(--c-accent);
+  opacity: 1;
 }
-:root[data-theme='high-contrast'] .studio-switch button.active {
+.studio-switch button:focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: 1px;
+}
+:root[data-theme='high-contrast'] .studio-switch button[aria-pressed='true'] {
   background: var(--c-accent);
   color: var(--c-accent-ink);
+  box-shadow: none;
 }
-:root[data-theme='high-contrast'] .studio-switch button.active svg.icon {
+:root[data-theme='high-contrast'] .studio-switch button[aria-pressed='true'] svg.icon {
   color: var(--c-accent-ink);
+}
+:root[data-theme='high-contrast'] .studio-switch button:not([aria-pressed='true']):hover {
+  text-decoration: underline;
 }
 
 .contextbar {

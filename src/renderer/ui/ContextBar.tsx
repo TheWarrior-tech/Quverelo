@@ -71,7 +71,7 @@ function Slider({ label, value, min, max, step = 1, onChange, fmt }: { label: st
     <label className="group">
       {label}
       <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(parseFloat(e.target.value))} aria-label={label} />
-      <span style={{ width: 40, color: 'var(--text-dim)' }}>{fmt ? fmt(value) : Math.round(value)}</span>
+      <span className="num" style={{ width: 40, color: 'var(--c-text-2)' }}>{fmt ? fmt(value) : Math.round(value)}</span>
     </label>
   );
 }
