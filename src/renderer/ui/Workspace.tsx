@@ -100,8 +100,8 @@ function ToolPalette() {
       ))}
       <div className="divider" />
       <div className="color-chips" style={{ ['--stroke-color' as string]: ed.ui.strokeColor }}>
-        <button className={`fill-chip ${ed.ui.fillEnabled ? '' : 'chip-none'}`} style={{ background: ed.ui.fillColor }} title="Fill colour (click to toggle none)" aria-label="Toggle fill" onClick={() => ed.setUi({ fillEnabled: !ed.ui.fillEnabled })} />
-        <button className={`stroke-chip ${ed.ui.strokeEnabled ? '' : 'chip-none'}`} title="Stroke colour (click to toggle none)" aria-label="Toggle stroke" onClick={() => ed.setUi({ strokeEnabled: !ed.ui.strokeEnabled })} />
+        <button className={`fill-chip ${ed.ui.fillEnabled ? '' : 'chip-none'}`} style={{ background: ed.ui.fillColor }} title="Fill colour: click to toggle none" aria-label="Fill colour" aria-pressed={ed.ui.fillEnabled} onClick={() => ed.setUi({ fillEnabled: !ed.ui.fillEnabled })} />
+        <button className={`stroke-chip ${ed.ui.strokeEnabled ? '' : 'chip-none'}`} title="Stroke colour: click to toggle none" aria-label="Stroke colour" aria-pressed={ed.ui.strokeEnabled} onClick={() => ed.setUi({ strokeEnabled: !ed.ui.strokeEnabled })} />
       </div>
       <button className="icon-btn sm" {...tip('Swap fill and stroke colours')} onClick={swap}><Icon name="swap" /></button>
     </aside>
