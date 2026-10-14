@@ -128,3 +128,32 @@ jobs:
           body_path: docs/RELEASE_NOTES.md
           files: dist-installers/*
           fail_on_unmatched_files: true
+
+  diagnose:
+    name: Record failure logs (ci-logs branch)
+    needs: [test, package, release]
+    if: always() && (needs.test.result == 'failure' || needs.package.result == 'failure' || needs.release.result == 'failure')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Save the tail of every failed job's log
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -u
+          mkdir -p /tmp/out
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=50" --jq '.jobs[] | select(.conclusion=="failure") | "\(.id)\t\(.name)"' > /tmp/failed.tsv || true
+          while IFS=$'\t' read -r id name; do
+            safe=$(echo "$name" | tr -c 'A-Za-z0-9' '_')
+            gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$id/logs" 2>&1 | grep -v '^\s*$' | tail -n 120 > "/tmp/out/${safe}.txt" || true
+          done < /tmp/failed.tsv
+          git config user.name "ci"; git config user.email "ci@users.noreply.github.com"
+          git fetch origin ci-logs || true
+          git checkout -B ci-logs $(git rev-parse --verify -q origin/ci-logs || echo HEAD)
+          rm -rf ci-logs-out && mkdir -p ci-logs-out
+          cp /tmp/out/* ci-logs-out/ 2>/dev/null || true
+          echo "run $GITHUB_RUN_ID sha $GITHUB_SHA" > ci-logs-out/RUN.txt
+          git add -f ci-logs-out && git commit -m "CI logs for run $GITHUB_RUN_ID" && git push origin ci-logs
