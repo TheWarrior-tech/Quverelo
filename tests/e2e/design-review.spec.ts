@@ -22,7 +22,21 @@ test.describe('design review', () => {
         await page.screenshot({ path: path.join(out!, `${theme}-${name}.png`) });
       };
       await setTheme();
+      // seed Recent with real saved files so the start screen shows thumbnails
+      for (const t of ['newsletter', 'poster-a4', 'certificate', 'worksheet']) {
+        await page.click(`[data-template="${t}"]`);
+        await expect(page.locator('.workspace')).toBeVisible();
+        await run(page, 'file.save');
+        await page.waitForTimeout(400);
+        await run(page, 'file.close');
+        await expect(page.locator('.welcome')).toBeVisible();
+      }
+      await page.mouse.move(2, 2);
+      await page.waitForTimeout(3600); // let the "Saved" toasts clear
       await snap('welcome');
+      await page.locator('.welcome').evaluate((el) => el.scrollTo(0, 640));
+      await snap('welcome-templates');
+      await page.locator('.welcome').evaluate((el) => el.scrollTo(0, 0));
       await run(page, 'file.open');
       await expect(page.locator('.workspace')).toBeVisible();
       await page.evaluate(() => {
@@ -42,11 +56,30 @@ test.describe('design review', () => {
       await page.click('.studio-switch [data-studio="layout"]');
       await page.waitForTimeout(300);
       await snap('layout');
-      for (const [cmd, name] of [['app.preferences', 'preferences'], ['file.export-png', 'export'], ['help.shortcuts', 'shortcuts'], ['file.new', 'new']] as const) {
+      const dialogs: [string, string, ((p: typeof page) => Promise<void>)?][] = [
+        ['app.preferences', 'preferences'],
+        ['app.preferences', 'preferences-general', (p) => p.click('[data-pane="general"]')],
+        ['file.export-png', 'export'],
+        ['file.export-pdf', 'export-pdf'],
+        ['help.shortcuts', 'shortcuts'],
+        ['help.shortcuts', 'shortcuts-search', (p) => p.keyboard.type('export')],
+        ['file.new', 'new'],
+        ['file.new', 'new-templates', (p) => p.click('[data-category="templates"]')],
+        ['help.about', 'about'],
+        ['file.document-setup', 'document-setup'],
+        ['file.close', 'confirm'],
+      ];
+      for (const [cmd, name, act] of dialogs) {
         await run(page, cmd);
         await page.waitForTimeout(300);
+        if (act) await act(page);
+        await page.mouse.move(2, 2);
+        await page.waitForTimeout(500);
+        // initial focus must never land on the close button
+        expect(await page.evaluate(() => document.activeElement?.getAttribute('aria-label'))).not.toBe('Close');
         await snap(name);
         await page.keyboard.press('Escape');
+        await expect(page.locator('.dialog')).toHaveCount(0);
       }
       await app.close();
     });
