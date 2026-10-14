@@ -14,6 +14,7 @@ import { NodeObject, RESIZE_TYPES } from './NodeObject';
 import { renderBounds, type DrawEnv } from './draw';
 import { createTool, type Tool, type ToolContext } from './tools';
 import { TextEditOverlay } from './textEdit';
+import { HANDLE_SIZE, SELECTION_COLOR, tuneControls } from './controls';
 
 class QuvreloCanvas extends Canvas {
   pageW = 100;
@@ -54,6 +55,15 @@ class QuvreloCanvas extends Canvas {
       ctx.restore();
     }
     ctx.restore();
+  }
+
+  /**
+   * Fabric still does hit-testing and transforms, but the selection chrome is
+   * drawn by the viewport overlay so it looks the same for every tool and
+   * stays a constant screen size at any zoom.
+   */
+  drawControls(_ctx: CanvasRenderingContext2D): void {
+    /* drawn in Viewport.drawSelectionChrome */
   }
 }
 
@@ -259,7 +269,11 @@ export class Viewport {
     this.syncingSelection = true;
     this.canvas.discardActiveObject();
     if (targets.length === 1) this.canvas.setActiveObject(targets[0]);
-    else if (targets.length > 1) this.canvas.setActiveObject(new ActiveSelection(targets, { canvas: this.canvas }));
+    else if (targets.length > 1) {
+      const a = new ActiveSelection(targets, { canvas: this.canvas });
+      tuneControls(a);
+      this.canvas.setActiveObject(a);
+    }
     this.syncingSelection = false;
   }
 
@@ -285,6 +299,12 @@ export class Viewport {
       }
       this.editor.select(ids);
     };
+    const tuneActive = () => {
+      const a = c.getActiveObject();
+      if (a) tuneControls(a);
+    };
+    c.on('selection:created', tuneActive);
+    c.on('selection:updated', tuneActive);
     c.on('selection:created', onSel);
     c.on('selection:updated', onSel);
     c.on('selection:cleared', onSel);
@@ -619,8 +639,13 @@ export class Viewport {
   // -------------------------------------------------------------------------
   // Overlay
 
+  /** The pixel selection belongs to Photo; other studios keep it in the model but never draw it. */
+  private showsPixelSelection(): boolean {
+    return this.editor.ui.studio === 'photo' && !!this.editor.ui.pixelSelection?.length;
+  }
+
   private updateAnts(): void {
-    const need = !!this.editor.ui.pixelSelection && !this.editor.settings.reduceMotion;
+    const need = this.showsPixelSelection() && !this.editor.settings.reduceMotion;
     if (need && !this.antsTimer) {
       this.antsTimer = window.setInterval(() => {
         this.antsOffset = (this.antsOffset + 1) % 16;
@@ -702,7 +727,7 @@ export class Viewport {
     this.drawFrameLinks(ctx, px);
     // pixel selection (marching ants)
     const sel = this.editor.ui.pixelSelection;
-    if (sel && sel.length) {
+    if (sel && this.showsPixelSelection()) {
       const p = new Path2D(pathToString(sel));
       ctx.lineWidth = px;
       ctx.setLineDash([4 * px, 4 * px]);
@@ -715,6 +740,99 @@ export class Viewport {
       ctx.setLineDash([]);
     }
     this.tool.drawOverlay?.(ctx, z);
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.drawSelectionChrome(ctx);
+    ctx.restore();
+  }
+
+  /** Which tools show the object bounding box. Photo shows it only for Move (like Affinity's Pixel persona). */
+  private showsObjectSelection(): boolean {
+    const t = this.toolId;
+    if (t === 'node' || t === 'crop' || this.editor.ui.editingTextId) return false;
+    if (this.editor.ui.studio === 'photo') return t === 'move';
+    return true;
+  }
+
+  /**
+   * 1px accent bounding box, 7px square handles and a rotation handle, drawn in
+   * screen space (CSS px) so they keep their size at any zoom. Positions come
+   * from fabric's own control coordinates so what you see is what you grab.
+   */
+  private drawSelectionChrome(ctx: CanvasRenderingContext2D): void {
+    const obj = this.canvas.getActiveObject();
+    if (!obj || !this.showsObjectSelection()) return;
+    const oc = obj.calcOCoords() as Record<string, { x: number; y: number }>;
+    const { tl, tr, br, bl, mt, mtr } = oc;
+    if (!tl || !tr || !br || !bl) return;
+    const crisp = (v: number) => Math.round(v) + 0.5;
+    const axisAligned = Math.abs(tl.y - tr.y) < 0.01 && Math.abs(tl.x - bl.x) < 0.01;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([]);
+    ctx.strokeStyle = SELECTION_COLOR;
+    ctx.beginPath();
+    if (axisAligned) {
+      const x0 = crisp(Math.min(tl.x, br.x));
+      const y0 = crisp(Math.min(tl.y, br.y));
+      const x1 = crisp(Math.max(tl.x, br.x));
+      const y1 = crisp(Math.max(tl.y, br.y));
+      ctx.rect(x0, y0, x1 - x0, y1 - y0);
+    } else {
+      ctx.moveTo(tl.x, tl.y);
+      ctx.lineTo(tr.x, tr.y);
+      ctx.lineTo(br.x, br.y);
+      ctx.lineTo(bl.x, bl.y);
+      ctx.closePath();
+    }
+    ctx.stroke();
+    const interactive = this.toolId === 'move' && obj.hasControls !== false;
+    const w = Math.hypot(tr.x - tl.x, tr.y - tl.y);
+    const h = Math.hypot(bl.x - tl.x, bl.y - tl.y);
+    const keys = ['tl', 'tr', 'br', 'bl'];
+    // edge handles only when there is room for them between the corners
+    if (w > HANDLE_SIZE * 4) keys.push('mt', 'mb');
+    if (h > HANDLE_SIZE * 4) keys.push('ml', 'mr');
+    if (interactive && mt && mtr && !obj.lockRotation) {
+      ctx.beginPath();
+      ctx.moveTo(mt.x, mt.y);
+      ctx.lineTo(mtr.x, mtr.y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(mtr.x, mtr.y, HANDLE_SIZE / 2, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.stroke();
+    }
+    const half = (HANDLE_SIZE - 1) / 2;
+    for (const k of keys) {
+      const p = oc[k];
+      if (!p) continue;
+      const x = Math.round(p.x) - half + 0.5;
+      const y = Math.round(p.y) - half + 0.5;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x, y, HANDLE_SIZE - 1, HANDLE_SIZE - 1);
+      ctx.strokeRect(x, y, HANDLE_SIZE - 1, HANDLE_SIZE - 1);
+    }
+    // live W×H while transforming
+    if ((this.canvas as unknown as { _currentTransform: unknown })._currentTransform) {
+      const r = obj.getBoundingRect();
+      const label = `${Math.round(r.width)} × ${Math.round(r.height)}`;
+      const ys = [tl.y, tr.y, br.y, bl.y];
+      const xs = [tl.x, tr.x, br.x, bl.x];
+      const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+      const by = Math.max(...ys) + 10;
+      ctx.font = '500 11px Inter, sans-serif';
+      (ctx as CanvasRenderingContext2D & { fontVariantNumeric?: string }).fontVariantNumeric = 'tabular-nums';
+      const tw = ctx.measureText(label).width + 12;
+      ctx.fillStyle = SELECTION_COLOR;
+      ctx.beginPath();
+      ctx.roundRect(Math.round(cx - tw / 2), Math.round(by), Math.round(tw), 18, 4);
+      ctx.fill();
+      ctx.fillStyle = '#06231e';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, Math.round(cx), Math.round(by) + 9.5);
+    }
   }
 
   private drawFrameLinks(ctx: CanvasRenderingContext2D, px: number): void {

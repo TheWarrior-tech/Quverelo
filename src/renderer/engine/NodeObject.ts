@@ -1,6 +1,7 @@
 import { FabricObject, classRegistry } from 'fabric';
 import type { SceneNode } from '../../core/types';
 import { composeTransform } from '../../core/geometry';
+import { tuneControls } from './controls';
 import { drawNodeContent, renderLocalBounds, type DrawEnv } from './draw';
 
 /** Node types whose scale is baked into their size (frames resize instead of stretching). */
@@ -25,14 +26,7 @@ export class NodeObject extends FabricObject {
     this.strokeWidth = 0;
     this.stroke = null;
     this.fill = null;
-    this.padding = 2;
-    this.borderColor = '#2fb8a6';
-    this.cornerColor = '#ffffff';
-    this.cornerStrokeColor = '#2fb8a6';
-    this.cornerStyle = 'circle';
-    this.transparentCorners = false;
-    this.cornerSize = 9;
-    this.borderScaleFactor = 1.25;
+    tuneControls(this);
     this.applyNode(node);
   }
 
