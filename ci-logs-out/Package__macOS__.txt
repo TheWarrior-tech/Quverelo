@@ -1,1 +1,120 @@
-the response contains terminal escape sequences; pass --allow-escape-sequences to output it anyway
+2026-10-14T15:56:58.0191410Z ../../dist/assets/roboto-slab-cyrillic-ext-700-normal-Buo8Zg37.woff2            12.85 kB
+2026-10-14T15:56:58.0192260Z ../../dist/assets/inter-cyrillic-ext-400-normal-DQukG94-.woff                   13.34 kB
+2026-10-14T15:56:58.0193080Z ../../dist/assets/inter-cyrillic-ext-700-normal-LO58E6JB.woff                   13.41 kB
+2026-10-14T15:56:58.0194040Z ../../dist/assets/inter-cyrillic-ext-600-normal-Bcila6Z-.woff                   13.46 kB
+2026-10-14T15:56:58.0195100Z ../../dist/assets/inter-cyrillic-ext-800-normal-Ca-gJeZY.woff                   13.48 kB
+2026-10-14T15:56:58.0196050Z ../../dist/assets/roboto-slab-latin-400-normal-DwurWVj7.woff2                   13.97 kB
+2026-10-14T15:56:58.0197110Z ../../dist/assets/atkinson-hyperlegible-latin-400-normal-BbWidj28.woff          14.02 kB
+2026-10-14T15:56:58.0198120Z ../../dist/assets/roboto-slab-latin-700-normal-WCCj9XVQ.woff2                   14.18 kB
+2026-10-14T15:56:58.0199150Z ../../dist/assets/atkinson-hyperlegible-latin-700-normal-BK6Glc0m.woff          14.29 kB
+2026-10-14T15:56:58.0200070Z ../../dist/assets/roboto-slab-cyrillic-ext-400-normal-BW1cBx1L.woff             15.81 kB
+2026-10-14T15:56:58.0201340Z ../../dist/assets/roboto-slab-cyrillic-ext-700-normal-XylpTL9P.woff             16.32 kB
+2026-10-14T15:56:58.0202420Z ../../dist/assets/atkinson-hyperlegible-latin-400-normal-BrHNak5F.woff2         17.21 kB
+2026-10-14T15:56:58.0203530Z ../../dist/assets/atkinson-hyperlegible-latin-700-normal-GZI4o3u0.woff2         17.52 kB
+2026-10-14T15:56:58.0204570Z ../../dist/assets/roboto-slab-latin-400-normal-wzK1bUc4.woff                    17.66 kB
+2026-10-14T15:56:58.0205460Z ../../dist/assets/roboto-slab-latin-700-normal-ThI0IOtl.woff                    17.90 kB
+2026-10-14T15:56:58.0206420Z ../../dist/assets/merriweather-cyrillic-ext-700-normal-Bk1p9YoV.woff2           18.56 kB
+2026-10-14T15:56:58.0207270Z ../../dist/assets/merriweather-cyrillic-ext-400-normal-D9NYhYTq.woff2           18.60 kB
+2026-10-14T15:56:58.0208170Z ../../dist/assets/caveat-latin-ext-400-normal-D7hBUiug.woff2                    18.60 kB
+2026-10-14T15:56:58.0209110Z ../../dist/assets/caveat-latin-ext-700-normal-DFbRgDry.woff2                    19.57 kB
+2026-10-14T15:56:58.0209950Z ../../dist/assets/merriweather-cyrillic-ext-700-normal-DoooT6Vg.woff            22.79 kB
+2026-10-14T15:56:58.0210790Z ../../dist/assets/merriweather-cyrillic-ext-400-normal-Di6yW_eE.woff            22.82 kB
+2026-10-14T15:56:58.0211740Z ../../dist/assets/inter-latin-400-normal-C38fXH4l.woff2                         23.66 kB
+2026-10-14T15:56:58.0212680Z ../../dist/assets/caveat-latin-ext-400-normal-DtiRFvw0.woff                     24.09 kB
+2026-10-14T15:56:58.0213540Z ../../dist/assets/caveat-cyrillic-ext-400-normal-3iEGd-c5.woff2                 24.23 kB
+2026-10-14T15:56:58.0214740Z ../../dist/assets/inter-latin-700-normal-Yt3aPRUw.woff2                         24.36 kB
+2026-10-14T15:56:58.0215540Z ../../dist/assets/inter-latin-800-normal-BYj_oED-.woff2                         24.40 kB
+2026-10-14T15:56:58.0216380Z ../../dist/assets/inter-latin-600-normal-LgqL8muc.woff2                         24.45 kB
+2026-10-14T15:56:58.0217390Z ../../dist/assets/caveat-latin-ext-700-normal-DjJQd59I.woff                     25.00 kB
+2026-10-14T15:56:58.0218220Z ../../dist/assets/caveat-cyrillic-ext-700-normal-CrK2-ngJ.woff2                 25.34 kB
+2026-10-14T15:56:58.0219250Z ../../dist/assets/merriweather-cyrillic-400-normal-AvfsDsMQ.woff2               25.48 kB
+2026-10-14T15:56:58.0220280Z ../../dist/assets/merriweather-cyrillic-700-normal-wbY04GlL.woff2               25.49 kB
+2026-10-14T15:56:58.0221230Z ../../dist/assets/caveat-cyrillic-ext-400-normal-Cg0RnRQ5.woff                  29.73 kB
+2026-10-14T15:56:58.0222200Z ../../dist/assets/caveat-cyrillic-ext-700-normal-DjFGiEhD.woff                  30.54 kB
+2026-10-14T15:56:58.0223140Z ../../dist/assets/inter-latin-400-normal-CyCys3Eg.woff                          30.70 kB
+2026-10-14T15:56:58.0223960Z ../../dist/assets/inter-latin-600-normal-CiBQ2DWP.woff                          31.26 kB
+2026-10-14T15:56:58.0224880Z ../../dist/assets/inter-latin-800-normal-D1mf63XC.woff                          31.30 kB
+2026-10-14T15:56:58.0225690Z ../../dist/assets/inter-latin-700-normal-BLAVimhd.woff                          31.32 kB
+2026-10-14T15:56:58.0226530Z ../../dist/assets/merriweather-cyrillic-700-normal-CHCcU-4a.woff                33.55 kB
+2026-10-14T15:56:58.0227380Z ../../dist/assets/merriweather-cyrillic-400-normal-DAcQ8g-H.woff                33.62 kB
+2026-10-14T15:56:58.0228360Z ../../dist/assets/inter-latin-ext-400-normal-C1nco2VV.woff2                     35.00 kB
+2026-10-14T15:56:58.0229280Z ../../dist/assets/inter-latin-ext-800-normal-DZJjya6U.woff2                     36.13 kB
+2026-10-14T15:56:58.0230160Z ../../dist/assets/inter-latin-ext-700-normal-Ca8adRJv.woff2                     36.24 kB
+2026-10-14T15:56:58.0231220Z ../../dist/assets/inter-latin-ext-600-normal-D2bJ5OIk.woff2                     36.26 kB
+2026-10-14T15:56:58.0232140Z ../../dist/assets/merriweather-latin-ext-700-normal-jHnxg2Kc.woff2              42.88 kB
+2026-10-14T15:56:58.0233030Z ../../dist/assets/merriweather-latin-ext-400-normal-CWVzVQq3.woff2              42.95 kB
+2026-10-14T15:56:58.0233870Z ../../dist/assets/caveat-cyrillic-400-normal-9cDH9rLW.woff2                     45.12 kB
+2026-10-14T15:56:58.0234690Z ../../dist/assets/caveat-cyrillic-700-normal-BIyejhEL.woff2                     45.40 kB
+2026-10-14T15:56:58.0235500Z ../../dist/assets/inter-latin-ext-400-normal-77YHD8bZ.woff                      47.56 kB
+2026-10-14T15:56:58.0236460Z ../../dist/assets/inter-latin-ext-800-normal-BOMpwxm3.woff                      48.59 kB
+2026-10-14T15:56:58.0237930Z ../../dist/assets/inter-latin-ext-700-normal-TidjK2hL.woff                      48.63 kB
+2026-10-14T15:56:58.0238910Z ../../dist/assets/merriweather-latin-700-normal-DoUP8Ce-.woff2                  48.66 kB
+2026-10-14T15:56:58.0239860Z ../../dist/assets/inter-latin-ext-600-normal-CIVaiw4L.woff                      48.67 kB
+2026-10-14T15:56:58.0240790Z ../../dist/assets/caveat-latin-400-normal-D6LQsQ_v.woff2                        48.84 kB
+2026-10-14T15:56:58.0241760Z ../../dist/assets/merriweather-latin-400-normal-G4kZaoXi.woff2                  49.17 kB
+2026-10-14T15:56:58.0242680Z ../../dist/assets/caveat-latin-700-normal-D8_1Nw6V.woff2                        51.02 kB
+2026-10-14T15:56:58.0243540Z ../../dist/assets/caveat-cyrillic-400-normal-CebvvJET.woff                      53.10 kB
+2026-10-14T15:56:58.0244490Z ../../dist/assets/caveat-cyrillic-700-normal-Bhcx9qBB.woff                      53.12 kB
+2026-10-14T15:56:58.0245490Z ../../dist/assets/merriweather-latin-ext-400-normal-CLqijLtt.woff               55.94 kB
+2026-10-14T15:56:58.0246520Z ../../dist/assets/merriweather-latin-ext-700-normal-CaBzXGOk.woff               56.10 kB
+2026-10-14T15:56:58.0247340Z ../../dist/assets/caveat-latin-400-normal-BzhAQZkN.woff                         60.11 kB
+2026-10-14T15:56:58.0248270Z ../../dist/assets/caveat-latin-700-normal-cPyBTTZN.woff                         62.18 kB
+2026-10-14T15:56:58.0249100Z ../../dist/assets/merriweather-latin-700-normal-D4-nzrAh.woff                   66.67 kB
+2026-10-14T15:56:58.0250110Z ../../dist/assets/merriweather-latin-400-normal-CvqO63Ah.woff                   67.00 kB
+2026-10-14T15:56:58.0251140Z ../../dist/assets/opendyslexic-latin-400-normal-nUhe5EwG.woff2                 115.28 kB
+2026-10-14T15:56:58.0252040Z ../../dist/assets/opendyslexic-latin-700-normal-Bnmt45Ln.woff2                 120.36 kB
+2026-10-14T15:56:58.0253170Z ../../dist/assets/opendyslexic-latin-400-normal-Cv3YY6GF.woff                  128.78 kB
+2026-10-14T15:56:58.0254000Z ../../dist/assets/opendyslexic-latin-700-normal-wYUJcbXi.woff                  135.08 kB
+2026-10-14T15:56:58.0254890Z ../../dist/assets/index-Dlf1xgBG.css                                            49.58 kB │ gzip:  13.24 kB
+2026-10-14T15:56:58.0255750Z ../../dist/assets/index-7BCXAWX5.js                                          1,442.56 kB │ gzip: 501.50 kB
+2026-10-14T15:56:58.0256210Z ✓ built in 2.39s
+2026-10-14T15:56:58.1681430Z 
+2026-10-14T15:56:58.1682120Z > quvrelo@0.1.0 build:main
+2026-10-14T15:56:58.1682820Z > node scripts/build-main.mjs
+2026-10-14T15:56:58.1684830Z 
+2026-10-14T15:56:58.2332290Z 
+2026-10-14T15:56:58.2332630Z   dist-electron/main.js  30.4kb
+2026-10-14T15:56:58.2332810Z 
+2026-10-14T15:56:58.2333010Z ⚡ Done in 5ms
+2026-10-14T15:56:58.2353790Z 
+2026-10-14T15:56:58.2355510Z   dist-electron/preload.js  2.2kb
+2026-10-14T15:56:58.2355740Z 
+2026-10-14T15:56:58.2355920Z ⚡ Done in 1ms
+2026-10-14T15:56:58.2502950Z ##[group]Run npx electron-builder --mac --publish never
+2026-10-14T15:56:58.2503260Z npx electron-builder --mac --publish never
+2026-10-14T15:56:58.2534920Z shell: /bin/bash -e {0}
+2026-10-14T15:56:58.2535060Z env:
+2026-10-14T15:56:58.2535190Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-14T15:56:58.2535350Z ##[endgroup]
+2026-10-14T15:56:58.7372060Z   • electron-builder  version=26.15.3 os=25.6.0
+2026-10-14T15:56:58.7400410Z   • loaded configuration  file=package.json ("build" field)
+2026-10-14T15:56:59.1871220Z   • executing @electron/rebuild  electronVersion=38.8.6 arch=x64 buildFromSource=false workspaceRoot=/Users/runner/work/Quverelo/Quverelo projectDir=./ appDir=./
+2026-10-14T15:56:59.1873850Z   • installing native dependencies  arch=x64
+2026-10-14T15:56:59.2900140Z   • completed installing native dependencies
+2026-10-14T15:56:59.2916900Z   • packaging       platform=darwin arch=x64 electron=38.8.6 appOutDir=release/mac
+2026-10-14T15:56:59.7998760Z   • downloaded      label=electron progress=100%
+2026-10-14T15:57:02.5375410Z   • downloaded electron zip extracted successfully  output=/Users/runner/work/Quverelo/Quverelo/release/mac
+2026-10-14T15:57:02.5543790Z   • searching for node modules  pm=npm searchDir=/Users/runner/work/Quverelo/Quverelo
+2026-10-14T15:57:02.8382900Z   • searching for node modules  pm=traversal searchDir=/Users/runner/work/Quverelo/Quverelo
+2026-10-14T15:57:02.8383510Z   • using manual traversal of node_modules to build dependency tree
+2026-10-14T15:57:02.8393760Z   • no node modules returned while searching directories  searchDirectories=[""]
+2026-10-14T15:57:03.0518650Z   • downloaded      label=icons-bundle.tar.gz progress=100%
+2026-10-14T15:57:04.8855410Z   ⨯ cannot find specified resource "icon.icns", nor relative to "/Users/runner/work/Quverelo/Quverelo/build", neither relative to project dir ("/Users/runner/work/Quverelo/Quverelo")
+2026-10-14T15:57:04.8993510Z ##[error]Process completed with exit code 1.
+2026-10-14T15:57:04.9119990Z Post job cleanup.
+2026-10-14T15:57:04.9908890Z [command]/opt/homebrew/bin/git version
+2026-10-14T15:57:04.9975600Z git version 2.55.0
+2026-10-14T15:57:04.9994380Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/99961a88-8856-4f40-a2e5-67eeb6120cd6/.gitconfig'
+2026-10-14T15:57:05.0002960Z Temporarily overriding HOME='/Users/runner/work/_temp/99961a88-8856-4f40-a2e5-67eeb6120cd6' before making global git config changes
+2026-10-14T15:57:05.0003780Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-14T15:57:05.0007450Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/Quverelo/Quverelo
+2026-10-14T15:57:05.0080190Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-14T15:57:05.0142840Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-14T15:57:05.0905910Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-14T15:57:05.0953070Z http.https://github.com/.extraheader
+2026-10-14T15:57:05.0960370Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-14T15:57:05.1023500Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-14T15:57:05.1761380Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-14T15:57:05.1816520Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-14T15:57:05.2639930Z Cleaning up orphan processes
+2026-10-14T15:57:05.3657930Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
