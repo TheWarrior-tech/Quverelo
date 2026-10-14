@@ -64,7 +64,7 @@ jobs:
             args: --win
           - name: macOS
             os: macos-latest
-            args: --mac
+            args: --mac --x64
           - name: Linux
             os: ubuntu-latest
             args: --linux
@@ -85,6 +85,9 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y rpm
       - name: Build installers
         run: npx electron-builder ${{ matrix.args }} --publish never
+      - name: Build installers (macOS arm64, separate run so the two .pkg builds don't collide)
+        if: matrix.name == 'macOS'
+        run: npx electron-builder --mac --arm64 --publish never
       - name: List artefacts
         shell: bash
         run: ls -la release
