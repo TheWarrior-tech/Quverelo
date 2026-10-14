@@ -1,0 +1,86 @@
+# Flatpak manifest for Quvrelo.
+#
+# This does not compile Electron: it repackages the unpacked Linux build that
+# electron-builder already produces (`electron-builder --linux dir`), on top of
+# the Electron BaseApp (which provides zypak, so Chromium's sandbox works inside
+# the Flatpak sandbox). CI builds it in the `flatpak` job of
+# .github/workflows/build.yml; to build locally from the repository root:
+#
+#   npm ci && npm run build && npx electron-builder --linux dir --publish never
+#   flatpak-builder --user --install-deps-from=flathub --force-clean \
+#     --repo=flatpak-repo flatpak-build packaging/flatpak/com.quvrelo.app.yml
+#   flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
+#     flatpak-repo Quvrelo-0.1.0.flatpak com.quvrelo.app
+#
+# On x86_64 electron-builder writes release/linux-unpacked; on arm64 it writes
+# release/linux-arm64-unpacked (symlink or copy it to release/linux-unpacked).
+app-id: com.quvrelo.app
+runtime: org.freedesktop.Platform
+runtime-version: '25.08'
+sdk: org.freedesktop.Sdk
+base: org.electronjs.Electron2.BaseApp
+base-version: '25.08'
+command: quvrelo
+separate-locales: false
+finish-args:
+  # Display: native Wayland, X11 only when there is no Wayland session.
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --share=ipc
+  - --device=dri
+  - --socket=pulseaudio
+  # Only used by Help > Check for Updates (the renderer is blocked from the
+  # network). Admins can remove it: flatpak override --system --unshare=network com.quvrelo.app
+  - --share=network
+  # Documents live in home folders, removable drives and mounted network shares
+  # (policy defaultSaveDirectory / handInDirectory / templateDirectories).
+  - --filesystem=home
+  - --filesystem=/media
+  - --filesystem=/mnt
+  - --filesystem=/run/media
+  - --filesystem=xdg-run/gvfs
+  # Read-only view of the host's /etc (mounted at /run/host/etc) so the
+  # machine-wide policy file /etc/quvrelo/policy.json applies inside the sandbox.
+  - --filesystem=host-etc:ro
+  - --talk-name=org.freedesktop.Notifications
+  - --env=ELECTRON_TRASH=gio
+modules:
+  - name: quvrelo
+    buildsystem: simple
+    sources:
+      - type: dir
+        path: ../../release/linux-unpacked
+        dest: app
+      - type: file
+        path: ../../build/linux/quvrelo.desktop
+      - type: file
+        path: ../../build/linux/quvrelo.xml
+      - type: file
+        path: ../linux/com.quvrelo.app.metainfo.xml
+      - type: dir
+        path: ../../build/icons
+        dest: icons
+      - type: script
+        dest-filename: quvrelo.sh
+        commands:
+          - export TMPDIR="${XDG_RUNTIME_DIR}/app/${FLATPAK_ID}"
+          - if [ -z "${QUVRELO_POLICY_PATH:-}" ] && [ -f /run/host/etc/quvrelo/policy.json ]; then
+          - '  export QUVRELO_POLICY_PATH=/run/host/etc/quvrelo/policy.json'
+          - fi
+          - exec zypak-wrapper /app/quvrelo/quvrelo "$@"
+    build-commands:
+      # Application files. zypak replaces Chromium's SUID sandbox helper.
+      - cp -a app /app/quvrelo
+      - rm -f /app/quvrelo/chrome-sandbox
+      - install -Dm755 quvrelo.sh /app/bin/quvrelo
+      # Desktop entry, renamed to the app ID; icon name must carry the app ID too.
+      - install -Dm644 quvrelo.desktop ${FLATPAK_DEST}/share/applications/${FLATPAK_ID}.desktop
+      - desktop-file-edit --set-icon=${FLATPAK_ID} --set-key=StartupWMClass --set-value=quvrelo ${FLATPAK_DEST}/share/applications/${FLATPAK_ID}.desktop
+      # Icons
+      - for s in 16 24 32 48 64 128 256 512; do install -Dm644 icons/${s}x${s}.png ${FLATPAK_DEST}/share/icons/hicolor/${s}x${s}/apps/${FLATPAK_ID}.png; done
+      - install -Dm644 icons/quvrelo.svg ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps/${FLATPAK_ID}.svg
+      # .quvrelo / .easel MIME types (file and icon names must carry the app ID)
+      - sed 's/<icon name="quvrelo"\/>/<icon name="com.quvrelo.app"\/>/' quvrelo.xml > ${FLATPAK_ID}.xml
+      - install -Dm644 ${FLATPAK_ID}.xml ${FLATPAK_DEST}/share/mime/packages/${FLATPAK_ID}.xml
+      # AppStream
+      - install -Dm644 com.quvrelo.app.metainfo.xml ${FLATPAK_DEST}/share/metainfo/${FLATPAK_ID}.metainfo.xml

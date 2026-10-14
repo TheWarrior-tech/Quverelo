@@ -104,10 +104,53 @@ jobs:
             release/*.rpm
           if-no-files-found: error
 
+  flatpak:
+    # Separate job so a Flatpak problem never fails the AppImage/deb/rpm, Windows or
+    # macOS packages. Not continue-on-error: a failure shows up red, but the release
+    # job below still publishes the other installers without it.
+    name: Package (Flatpak)
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Unpacked Linux app (input to the Flatpak manifest)
+        run: npx electron-builder --linux dir --x64 --publish never
+      - name: Install flatpak-builder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+          # Ubuntu 24.04 blocks unprivileged user namespaces, which bubblewrap needs.
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+      - name: Build Flatpak
+        run: |
+          flatpak-builder --user --install-deps-from=flathub --disable-rofiles-fuse \
+            --force-clean --repo=flatpak-repo flatpak-build packaging/flatpak/com.quvrelo.app.yml
+      - name: Bundle Quvrelo-<version>.flatpak
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
+            flatpak-repo "release/Quvrelo-${VERSION}.flatpak" com.quvrelo.app
+          ls -la release/*.flatpak
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-Flatpak
+          path: release/*.flatpak
+          if-no-files-found: error
+
   release:
     name: Publish GitHub Release
-    needs: package
-    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish)
+    needs: [package, flatpak]
+    # always(): publish even if only the Flatpak job failed; the main packages must succeed.
+    if: always() && needs.package.result == 'success' && (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -134,8 +177,8 @@ jobs:
 
   diagnose:
     name: Record failure logs (ci-logs branch)
-    needs: [test, package, release]
-    if: always() && (needs.test.result == 'failure' || needs.package.result == 'failure' || needs.release.result == 'failure')
+    needs: [test, package, flatpak, release]
+    if: always() && (needs.test.result == 'failure' || needs.package.result == 'failure' || needs.flatpak.result == 'failure' || needs.release.result == 'failure')
     runs-on: ubuntu-latest
     permissions:
       contents: write
