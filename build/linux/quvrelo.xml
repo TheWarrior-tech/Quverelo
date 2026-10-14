@@ -1,8 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  shared-mime-info definition for Quvrelo documents.
+  Installed to /usr/share/mime/packages/quvrelo.xml by the deb/rpm post-install
+  script, and (renamed com.quvrelo.app.xml) to /app/share/mime/packages in the Flatpak.
+  The canonical type is the one written into every file's "mimetype" entry
+  (src/core/serialization.ts); application/x-quvrelo is accepted as an alias.
+-->
 <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
   <mime-type type="application/vnd.quvrelo+zip">
     <comment>Quvrelo document</comment>
+    <alias type="application/x-quvrelo"/>
     <sub-class-of type="application/zip"/>
+    <generic-icon name="x-office-drawing"/>
     <icon name="quvrelo"/>
     <glob pattern="*.quvrelo"/>
     <magic priority="60">
@@ -10,8 +19,11 @@
     </magic>
   </mime-type>
   <mime-type type="application/vnd.easel-studio+zip">
-    <comment>Quvrelo document (pre-release format)</comment>
+    <comment>Quvrelo document (pre-release Easel format)</comment>
+    <alias type="application/x-easel"/>
     <sub-class-of type="application/zip"/>
+    <generic-icon name="x-office-drawing"/>
+    <icon name="quvrelo"/>
     <glob pattern="*.easel"/>
   </mime-type>
 </mime-info>

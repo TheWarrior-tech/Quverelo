@@ -1,12 +1,14 @@
 [Desktop Entry]
 Type=Application
+Version=1.5
 Name=Quvrelo
 GenericName=Creative Suite
 Comment=Photo, vector and layout design in one app
 Exec=quvrelo %F
 Icon=quvrelo
 Terminal=false
-Categories=Graphics;2DGraphics;RasterGraphics;VectorGraphics;Publishing;
-MimeType=application/vnd.quvrelo+zip;image/png;image/jpeg;image/webp;image/svg+xml;
+Categories=Graphics;2DGraphics;VectorGraphics;RasterGraphics;Publishing;
+MimeType=application/vnd.quvrelo+zip;application/x-quvrelo;application/vnd.easel-studio+zip;application/x-easel;image/png;image/jpeg;image/webp;image/svg+xml;
 Keywords=design;photo;vector;layout;illustration;publishing;
+StartupNotify=true
 StartupWMClass=Quvrelo

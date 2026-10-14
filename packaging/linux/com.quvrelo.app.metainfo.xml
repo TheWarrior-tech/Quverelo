@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AppStream metadata for Quvrelo. Installed to /app/share/metainfo in the Flatpak. -->
+<component type="desktop-application">
+  <id>com.quvrelo.app</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+
+  <name>Quvrelo</name>
+  <summary>Photo editing, vector design and page layout in one offline app</summary>
+
+  <developer id="com.quvrelo">
+    <name>Quvrelo contributors</name>
+  </developer>
+
+  <description>
+    <p>
+      Quvrelo is an offline, all-in-one creative suite built for schools and small teams.
+      Its Photo, Vector and Layout studios share one document, so students and staff can
+      move between editing a picture, drawing an illustration and laying out a poster
+      without switching apps or converting files.
+    </p>
+    <ul>
+      <li>Photo: pixel layers, brushes, selections, masks, crop and live, non-destructive adjustments</li>
+      <li>Vector: shapes, pen and pencil, node editing, gradients, boolean operations, SVG import and export</li>
+      <li>Layout: multi-page documents, master pages, linked text frames and print-ready PDF export</li>
+      <li>Classroom templates such as worksheets, certificates, timetables and name badges</li>
+      <li>High-contrast theme, scalable interface and dyslexia-friendly fonts</li>
+    </ul>
+    <p>
+      Quvrelo needs no account and sends no telemetry. Administrators can manage it for every
+      user with a machine-wide policy file.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">com.quvrelo.app.desktop</launchable>
+
+  <url type="homepage">https://github.com/TheWarrior-tech/Quverelo</url>
+  <url type="bugtracker">https://github.com/TheWarrior-tech/Quverelo/issues</url>
+  <url type="vcs-browser">https://github.com/TheWarrior-tech/Quverelo</url>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Welcome screen with templates and recent files</caption>
+      <image type="source" width="1440" height="873">https://raw.githubusercontent.com/TheWarrior-tech/Quverelo/main/docs/screenshots/01-welcome.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Photo studio</caption>
+      <image type="source" width="1440" height="873">https://raw.githubusercontent.com/TheWarrior-tech/Quverelo/main/docs/screenshots/02-photo.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Vector studio</caption>
+      <image type="source" width="1440" height="873">https://raw.githubusercontent.com/TheWarrior-tech/Quverelo/main/docs/screenshots/03-vector.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Layout studio</caption>
+      <image type="source" width="1440" height="873">https://raw.githubusercontent.com/TheWarrior-tech/Quverelo/main/docs/screenshots/04-layout.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>High-contrast theme with the keyboard shortcuts panel</caption>
+      <image type="source" width="1440" height="873">https://raw.githubusercontent.com/TheWarrior-tech/Quverelo/main/docs/screenshots/05-high-contrast-shortcuts.png</image>
+    </screenshot>
+  </screenshots>
+
+  <provides>
+    <binary>quvrelo</binary>
+    <mediatype>application/vnd.quvrelo+zip</mediatype>
+    <mediatype>application/x-quvrelo</mediatype>
+    <mediatype>application/vnd.easel-studio+zip</mediatype>
+  </provides>
+
+  <categories>
+    <category>Graphics</category>
+    <category>2DGraphics</category>
+    <category>VectorGraphics</category>
+    <category>RasterGraphics</category>
+    <category>Publishing</category>
+  </categories>
+
+  <keywords>
+    <keyword>design</keyword>
+    <keyword>photo</keyword>
+    <keyword>vector</keyword>
+    <keyword>layout</keyword>
+    <keyword>illustration</keyword>
+    <keyword>publishing</keyword>
+    <keyword>school</keyword>
+  </keywords>
+
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+  <requires>
+    <display_length compare="ge">768</display_length>
+  </requires>
+
+  <content_rating type="oars-1.1"/>
+
+  <releases>
+    <release version="0.1.0" date="2026-10-14">
+      <description>
+        <p>First public preview: Photo, Vector and Layout studios on a shared document model,
+        classroom templates, administrator policy and silent installers.</p>
+      </description>
+    </release>
+  </releases>
+</component>

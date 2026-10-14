@@ -176,7 +176,7 @@
     },
     "linux": {
       "icon": "build/icons",
-      "category": "Graphics",
+      "category": "Graphics;2DGraphics;VectorGraphics;RasterGraphics;Publishing;",
       "executableName": "quvrelo",
       "target": [
         "AppImage",
@@ -196,7 +196,8 @@
         }
       },
       "mimeTypes": [
-        "application/vnd.quvrelo+zip"
+        "application/x-quvrelo",
+        "application/x-easel"
       ],
       "artifactName": "Quvrelo-${version}-${arch}.${ext}"
     },
@@ -220,23 +221,6 @@
       "afterRemove": "build/linux/after-remove.sh"
     },
     "appImage": {
-      "artifactName": "Quvrelo-${version}-${arch}.${ext}"
-    },
-    "flatpak": {
-      "runtime": "org.freedesktop.Platform",
-      "runtimeVersion": "24.08",
-      "sdk": "org.freedesktop.Sdk",
-      "base": "org.electronjs.Electron2.BaseApp",
-      "baseVersion": "24.08",
-      "category": "Graphics",
-      "finishArgs": [
-        "--socket=wayland",
-        "--socket=x11",
-        "--share=ipc",
-        "--device=dri",
-        "--filesystem=home",
-        "--talk-name=org.freedesktop.Notifications"
-      ],
       "artifactName": "Quvrelo-${version}-${arch}.${ext}"
     }
   }
