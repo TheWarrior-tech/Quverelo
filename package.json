@@ -198,12 +198,14 @@
       "maintainer": "Quvrelo contributors <finnothompson@gmail.com>",
       "vendor": "Quvrelo",
       "synopsis": "Photo, vector and layout design in one app",
-      "description": "Quvrelo is an offline all-in-one creative suite: Photo, Vector and Layout studios in one app.",
+      "description": "Offline all-in-one creative suite: Photo, Vector and Layout studios in one app.",
       "desktop": {
-        "Name": "Quvrelo",
-        "GenericName": "Creative Suite",
-        "Keywords": "design;photo;vector;layout;illustration;publishing;",
-        "StartupWMClass": "Quvrelo"
+        "entry": {
+          "Name": "Quvrelo",
+          "GenericName": "Creative Suite",
+          "Keywords": "design;photo;vector;layout;illustration;publishing;",
+          "StartupWMClass": "Quvrelo"
+        }
       },
       "mimeTypes": [
         "application/vnd.quvrelo+zip"

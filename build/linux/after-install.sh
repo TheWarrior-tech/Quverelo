@@ -1,6 +1,9 @@
 #!/bin/sh
 # Registers the .quvrelo MIME type and refreshes desktop caches (deb/rpm post-install).
 set -e
+ln -sf /opt/Quvrelo/quvrelo /usr/bin/quvrelo
+# Chromium's SUID sandbox helper (skipped where user namespaces are available)
+chmod 4755 /opt/Quvrelo/chrome-sandbox 2>/dev/null || true
 XML=/opt/Quvrelo/resources/quvrelo-mime.xml
 if [ -f "$XML" ]; then
   mkdir -p /usr/share/mime/packages
