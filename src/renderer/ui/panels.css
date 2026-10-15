@@ -500,7 +500,7 @@ label.check {
   opacity: 0.4;
   pointer-events: none;
 }
-.contextbar .segmented {
+:is(.contextbar, .ctx-more-body) .segmented {
   flex: none;
 }
 :root[data-theme='high-contrast'] .segmented {
@@ -900,21 +900,21 @@ label.check {
   background: var(--c-hover);
   color: var(--c-text);
 }
-.contextbar .ctx-label {
+:is(.contextbar, .ctx-more-body) .ctx-label {
   color: var(--c-text-2);
 }
-.contextbar .ctx-hint {
+:is(.contextbar, .ctx-more-body) .ctx-hint {
   color: var(--c-text-3);
 }
-.contextbar .nf.ctx {
+:is(.contextbar, .ctx-more-body) .nf.ctx {
   width: auto;
   min-width: 84px;
 }
-.contextbar .nf.ctx input {
+:is(.contextbar, .ctx-more-body) .nf.ctx input {
   width: 40px;
   flex: none;
 }
-.contextbar .nf.ctx .nf-label {
+:is(.contextbar, .ctx-more-body) .nf.ctx .nf-label {
   font-size: 12px;
   font-weight: 400;
   color: var(--c-text-2);
@@ -1224,23 +1224,34 @@ label.check {
 .adjust-item header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   height: 32px;
   font-weight: 500;
 }
-.adjust-item header span {
+/* one header for every adjustment card: name · eye · ⋯ (CRITIQUE-3 N3) */
+.adjust-item header .adjust-name {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adjust-item header .adjust-name.off {
+  color: var(--c-text-3);
 }
 .adjust-item header .icon-btn {
   opacity: 0;
   transition: opacity var(--dur) var(--ease);
 }
+/* the eye stays while it carries state (hidden), the ⋯ while its menu is open */
+.adjust-item header .icon-btn.set,
+.adjust-item header .icon-btn.open,
 .adjust-item:hover header .icon-btn,
 .adjust-item:focus-within header .icon-btn {
   opacity: 1;
 }
 .adjust-item .params {
-  padding: 0 0 12px 22px;
+  padding: 0 0 12px;
 }
 
 /* ---------- pages: no cards; the thumbnail carries the selection ---------- */

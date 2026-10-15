@@ -5,7 +5,7 @@
  */
 import { DocumentHistory } from '../../core/history';
 import { findNode, getContainer, referencedAssets } from '../../core/document';
-import type { QuvreloDocument, Id, Paint, PathCommand, SceneNode, StudioKind } from '../../core/types';
+import type { QuvreloDocument, Id, Paint, PathCommand, SceneNode, StudioKind, Unit } from '../../core/types';
 import { DEFAULT_POLICY, featureEnabled, type FeatureId, type Policy } from '../../core/policy';
 import { DEFAULT_SETTINGS, type UserSettings } from '../../shared/api';
 import { AssetStore } from '../engine/assets';
@@ -144,6 +144,15 @@ export class Editor {
     return this.session?.history ?? null;
   }
 
+  /**
+   * The unit every length readout uses: the document's own unit (mm for a Print
+   * preset, px for screen and photos). Set at creation and in Document setup or
+   * the status-bar Units select; never a global preference (CRITIQUE-3 N1).
+   */
+  get unit(): Unit {
+    return this.doc?.settings.unit ?? 'px';
+  }
+
   feature(f: FeatureId): boolean {
     return featureEnabled(this.policy, f);
   }
@@ -191,6 +200,7 @@ export class Editor {
       crop: null,
       editingTextId: null,
     };
+    this.ensureActiveLayer(false);
     this.emitNow();
   }
 
@@ -244,7 +254,24 @@ export class Editor {
     // entering a studio always starts on Move, so its context bar shows the
     // studio's own controls (page setup in Layout) rather than a stale tool
     this.ui = { ...this.ui, studio, tool: 'move', crop: null, editingTextId: null };
+    this.ensureActiveLayer(false);
     this.emit();
+  }
+
+  /**
+   * Photo always has an active pixel layer, as in Photoshop and Affinity
+   * (CRITIQUE-3 N4): with nothing selected, the top-most pixel layer of the
+   * active page becomes the selection. Called on open, on entering Photo, after
+   * a crop and after the active layer is deleted. Returns true when it selected one.
+   */
+  ensureActiveLayer(emit = true): boolean {
+    if (this.ui.studio !== 'photo' || this.ui.selection.length) return false;
+    const c = this.activeContainer;
+    const top = c ? topPixelLayer(c.nodes) : null;
+    if (!top) return false;
+    this.ui = { ...this.ui, selection: [top.id] };
+    if (emit) this.emit();
+    return true;
   }
 
   setTool(tool: ToolId): void {
@@ -290,9 +317,12 @@ export class Editor {
     if (!d) return;
     let { activeContainerId, selection, editingTextId } = this.ui;
     if (!activeContainerId || !getContainer(d, activeContainerId)) activeContainerId = d.pages[0].id;
+    const had = selection.length;
     selection = selection.filter((id) => !!findNode(d, id));
     if (editingTextId && !findNode(d, editingTextId)) editingTextId = null;
     this.ui = { ...this.ui, activeContainerId, selection, editingTextId };
+    // the active layer was deleted (or undone away): activate the top pixel layer
+    if (had && !selection.length) this.ensureActiveLayer(false);
   }
 
   /** Free pixel buffers that no history entry references any more. */
@@ -311,6 +341,30 @@ export class Editor {
     }
     this.assets.gc(keep);
   }
+}
+
+/** Top-most pixel layer in a stack (nodes are bottom-to-top; groups are searched too). Visible layers win. */
+export function topPixelLayer(nodes: SceneNode[]): SceneNode | null {
+  let fallback: SceneNode | null = null;
+  const walk = (list: SceneNode[]): SceneNode | null => {
+    for (let i = list.length - 1; i >= 0; i--) {
+      const n = list[i];
+      if (n.type === 'group') {
+        const hit = walk(n.children);
+        if (hit) return hit;
+      } else if (n.type === 'raster') {
+        if (n.visible) return n;
+        fallback ??= n;
+      }
+    }
+    return null;
+  };
+  return walk(nodes) ?? fallback;
+}
+
+/** True when a page holds any pixel layer (the Adjust empty state depends on it). */
+export function hasPixelLayers(c: { nodes: SceneNode[] } | null): boolean {
+  return !!c && topPixelLayer(c.nodes) !== null;
 }
 
 export const editor = new Editor();

@@ -17,6 +17,7 @@ const END_KNOB = 7;
 /** inset of the plot inside the graph, CSS px */
 const PAD = 6;
 const LABEL: Record<CurveChannel, string> = { rgb: 'RGB', r: 'R', g: 'G', b: 'B' };
+const CHANNEL_NAME: Record<CurveChannel, string> = { rgb: 'RGB', r: 'Red', g: 'Green', b: 'Blue' };
 const TINT: Record<CurveChannel, string> = { rgb: '', r: '#ff6b6b', g: '#5fd47c', b: '#6ba4ff' };
 
 type Hist = { r: Uint32Array; g: Uint32Array; b: Uint32Array; l: Uint32Array };
@@ -325,8 +326,8 @@ export function CurvesEditor({ node, adj, onChange, onBegin, onEnd }: {
         <button
           type="button"
           className="icon-btn sm curves-reset"
-          aria-label={`Reset the ${LABEL[channel]} curve`}
-          data-tip={`Reset the ${LABEL[channel]} curve`}
+          aria-label={`Reset ${CHANNEL_NAME[channel]} curve`}
+          data-tip={`Reset ${CHANNEL_NAME[channel]} curve`}
           disabled={identity}
           onClick={() => { commit([{ x: 0, y: 0 }, { x: 255, y: 255 }], `curves:${adj.id}:reset`); setSelected(null); }}
         >

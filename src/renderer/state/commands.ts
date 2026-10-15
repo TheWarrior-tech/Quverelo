@@ -136,6 +136,7 @@ reg('edit.cut', () => {
   editor.clipboard = c;
   editor.commit('Cut', (d) => removeNodes(d, sel()));
   editor.select([]);
+  editor.ensureActiveLayer();
 });
 reg('edit.paste', async () => {
   if (editingText()) return window.quvrelo.nativeEdit('paste');
@@ -192,6 +193,7 @@ reg('edit.delete', () => {
   }
   editor.commit('Delete', (d) => removeNodes(d, sel()));
   editor.select([]);
+  editor.ensureActiveLayer();
 });
 reg('edit.select-all', () => {
   if (editingText()) return window.quvrelo.nativeEdit('selectAll');
@@ -420,10 +422,13 @@ reg('select.crop', () => {
   const b = pathBounds(s);
   editor.commit('Crop to selection', (d) => cropDocument(d, b));
   editor.setUi({ pixelSelection: null });
+  editor.ensureActiveLayer();
   viewport?.zoomToFit();
 });
 reg('crop.apply', () => {
-  if (applyCrop(() => viewport?.zoomToFit())) toast('Cropped', 'info', { action: { label: 'Undo', run: () => void runCommand('edit.undo') } });
+  if (!applyCrop(() => viewport?.zoomToFit())) return;
+  editor.ensureActiveLayer();
+  toast('Cropped', 'info', { action: { label: 'Undo', run: () => void runCommand('edit.undo') } });
 });
 reg('crop.cancel', () => cancelCrop());
 reg('select.fill', () => {
