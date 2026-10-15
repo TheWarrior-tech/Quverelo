@@ -1,4 +1,4 @@
-## Unreleased
+## Quvrelo v0.3.0 — over-the-air updates
 
 ### Over-the-air updates
 - **Automatic updates:** Quvrelo checks 30 seconds after launch and every 4 hours, downloads in the background (delta downloads on Windows and AppImage), verifies each update's SHA-512, and shows *"Quvrelo x.y.z is ready — Restart"*. Otherwise it installs when you quit. Unsaved work always gets the save prompt first.
