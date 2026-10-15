@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { hairline } from '../../engine/hairline';
 import { CURVE_CHANNELS, curvesOf, monotoneCurve, normalizePoints, type CurveChannel, type CurvePoint, type CurvesData } from '../../../core/curves';
 import { histogram } from '../../../core/pixels';
 import type { Adjustment, RasterNode } from '../../../core/types';
@@ -114,10 +115,12 @@ export function CurvesEditor({ node, adj, onChange, onBegin, onEnd }: {
     // 4x4 hairline grid + identity diagonal: plot tokens, dim in every theme (high contrast
     // included), so the grid never reads as solid white bars through the histogram
     ctx.strokeStyle = cssVar('--c-plot-grid', 'rgba(255,255,255,.08)');
-    ctx.lineWidth = 1;
+    // hairlines on whole device pixels (PAD included: the plot is translated by it)
+    const hl = hairline(dpr);
+    ctx.lineWidth = hl.width;
     ctx.beginPath();
     for (let i = 1; i < 4; i++) {
-      const p = Math.round((size * i) / 4) + 0.5;
+      const p = hl.line(PAD + (size * i) / 4) - PAD;
       ctx.moveTo(p, 0);
       ctx.lineTo(p, size);
       ctx.moveTo(0, p);

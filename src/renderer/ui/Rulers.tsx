@@ -3,6 +3,7 @@ import { addGuide } from '../../core/commands';
 import { PX_PER } from '../../core/units';
 import { editor } from '../state/editor';
 import type { Viewport } from '../engine/Viewport';
+import { hairline } from '../engine/hairline';
 
 function niceStep(pxPerUnit: number): number {
   // choose a major tick spacing that is >= 60 screen px
@@ -22,6 +23,8 @@ function drawRuler(c: HTMLCanvasElement, vp: Viewport, orientation: 'h' | 'v') {
   }
   const ctx = c.getContext('2d')!;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // ticks and band edges on whole device pixels: a 1px tick at 150 % would be 1.5 device px (blurred)
+  const hl = hairline(dpr);
   const css = getComputedStyle(document.documentElement);
   const tok = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback;
   ctx.fillStyle = tok('--c-app', '#131415');
@@ -38,7 +41,10 @@ function drawRuler(c: HTMLCanvasElement, vp: Viewport, orientation: 'h' | 'v') {
   const startUnit = Math.floor(-offset / pxPerUnit / major) * major;
   const endUnit = (len - offset) / pxPerUnit;
   const doc = editor.doc;
-  const span = (a: number, b: number) => (orientation === 'h' ? ctx.fillRect(a, 0, b - a, h) : ctx.fillRect(0, a, w, b - a));
+  const span = (a: number, b: number) => {
+    const [p, q] = [hl.edge(a), hl.edge(b)];
+    return orientation === 'h' ? ctx.fillRect(p, 0, q - p, h) : ctx.fillRect(0, p, w, q - p);
+  };
   if (doc) {
     const s = doc.settings;
     const extent = orientation === 'h' ? s.width : s.height;
@@ -49,10 +55,12 @@ function drawRuler(c: HTMLCanvasElement, vp: Viewport, orientation: 'h' | 'v') {
       // Layout: margins as coral bands at the ruler's inner edge, bleed as a faint band outside the page
       const m = s.margins;
       const [m0, m1] = orientation === 'h' ? [m.left, m.right] : [m.top, m.bottom];
+      const bw = hl.size(3);
       const band = (a: number, b: number, color: string) => {
+        const [p, q] = [hl.edge(a), hl.edge(b)];
         ctx.fillStyle = color;
-        if (orientation === 'h') ctx.fillRect(a, h - 3, b - a, 3);
-        else ctx.fillRect(w - 3, a, 3, b - a);
+        if (orientation === 'h') ctx.fillRect(p, h - bw, q - p, bw);
+        else ctx.fillRect(w - bw, p, bw, q - p);
       };
       if (s.bleed > 0) {
         band(offset - s.bleed * z, offset, 'rgba(230,57,70,0.55)');
@@ -64,17 +72,17 @@ function drawRuler(c: HTMLCanvasElement, vp: Viewport, orientation: 'h' | 'v') {
   }
   ctx.strokeStyle = text;
   ctx.fillStyle = text;
-  ctx.lineWidth = 1;
+  ctx.lineWidth = hl.width;
   ctx.font = '500 9px Inter, sans-serif';
   (ctx as CanvasRenderingContext2D & { fontVariantNumeric?: string }).fontVariantNumeric = 'tabular-nums';
   ctx.textBaseline = 'alphabetic';
   ctx.beginPath();
   const cross = orientation === 'h' ? h : w;
   for (let u = startUnit; u <= endUnit; u += minor) {
-    const p = Math.round(offset + u * pxPerUnit) + 0.5;
+    const p = hl.line(offset + u * pxPerUnit);
     const isMajor = Math.abs(u / major - Math.round(u / major)) < 1e-6;
     const isHalf = !isMajor && Math.abs((u * 2) / major - Math.round((u * 2) / major)) < 1e-6;
-    const tick = isMajor ? cross : isHalf ? 7 : 4;
+    const tick = isMajor ? cross : hl.size(isHalf ? 7 : 4);
     if (orientation === 'h') {
       ctx.moveTo(p, h);
       ctx.lineTo(p, h - tick);

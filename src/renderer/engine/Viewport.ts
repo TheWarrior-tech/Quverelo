@@ -4,6 +4,7 @@
  * tool feedback. All edits go back through the Editor as undoable commits.
  */
 import { ActiveSelection, Canvas, Point, type FabricObject, type TPointerEventInfo } from 'fabric';
+import { hairline, sceneLine } from './hairline';
 import { decompose, multiply, scale as scaleM, type Matrix, type Rect } from '../../core/geometry';
 import { findNode, getContainer } from '../../core/document';
 import { transformPath, pathToString } from '../../core/path';
@@ -750,19 +751,23 @@ export class Viewport {
     const v = this.vpt;
     ctx.setTransform(dpr * v[0], 0, 0, dpr * v[3], dpr * v[4], dpr * v[5]);
     const z = v[0];
-    const px = 1 / z;
-    if (this.editor.ui.studio === 'layout') this.drawPageGuides(ctx, px);
+    // hairlines are whole device pixels at any display scale (1 CSS px at 150 % would blur)
+    const hl = hairline(dpr);
+    const px = hl.width / z;
+    const sx = (x: number) => sceneLine(hl, x, v[0], v[4]);
+    const sy = (y: number) => sceneLine(hl, y, v[3], v[5]);
+    if (this.editor.ui.studio === 'layout') this.drawPageGuides(ctx, px, sx, sy);
     // ruler guides
     ctx.strokeStyle = 'rgba(56,189,230,0.9)';
     ctx.lineWidth = px;
     for (const g of doc.guides) {
       ctx.beginPath();
       if (g.orientation === 'v') {
-        ctx.moveTo(g.position, -1e5);
-        ctx.lineTo(g.position, 1e5);
+        ctx.moveTo(sx(g.position), -1e5);
+        ctx.lineTo(sx(g.position), 1e5);
       } else {
-        ctx.moveTo(-1e5, g.position);
-        ctx.lineTo(1e5, g.position);
+        ctx.moveTo(-1e5, sy(g.position));
+        ctx.lineTo(1e5, sy(g.position));
       }
       ctx.stroke();
     }
@@ -771,11 +776,11 @@ export class Viewport {
     for (const s of this.snapLines) {
       ctx.beginPath();
       if (s.orientation === 'v') {
-        ctx.moveTo(s.position, -1e5);
-        ctx.lineTo(s.position, 1e5);
+        ctx.moveTo(sx(s.position), -1e5);
+        ctx.lineTo(sx(s.position), 1e5);
       } else {
-        ctx.moveTo(-1e5, s.position);
-        ctx.lineTo(1e5, s.position);
+        ctx.moveTo(-1e5, sy(s.position));
+        ctx.lineTo(1e5, sy(s.position));
       }
       ctx.stroke();
     }
@@ -821,14 +826,15 @@ export class Viewport {
     if (!obj || obj.isMaster || !obj.visible) return;
     const { tl, tr, br, bl } = obj.calcOCoords() as Record<string, { x: number; y: number }>;
     if (!tl || !tr || !br || !bl) return;
-    ctx.lineWidth = 1;
+    const hl = hairline();
+    ctx.lineWidth = hl.width;
     ctx.setLineDash([]);
     ctx.strokeStyle = this.ov.selection;
     ctx.beginPath();
-    ctx.moveTo(Math.round(tl.x) + 0.5, Math.round(tl.y) + 0.5);
-    ctx.lineTo(Math.round(tr.x) + 0.5, Math.round(tr.y) + 0.5);
-    ctx.lineTo(Math.round(br.x) + 0.5, Math.round(br.y) + 0.5);
-    ctx.lineTo(Math.round(bl.x) + 0.5, Math.round(bl.y) + 0.5);
+    ctx.moveTo(hl.line(tl.x), hl.line(tl.y));
+    ctx.lineTo(hl.line(tr.x), hl.line(tr.y));
+    ctx.lineTo(hl.line(br.x), hl.line(br.y));
+    ctx.lineTo(hl.line(bl.x), hl.line(bl.y));
     ctx.closePath();
     ctx.stroke();
   }
@@ -852,9 +858,11 @@ export class Viewport {
     const oc = obj.calcOCoords() as Record<string, { x: number; y: number }>;
     const { tl, tr, br, bl, mt, mtr } = oc;
     if (!tl || !tr || !br || !bl) return;
-    const crisp = (v: number) => Math.round(v) + 0.5;
+    // whole device pixels at 125–200 % too: a 1px CSS line at 150 % would be 1.5 device px
+    const hl = hairline();
+    const crisp = hl.line;
     const axisAligned = Math.abs(tl.y - tr.y) < 0.01 && Math.abs(tl.x - bl.x) < 0.01;
-    ctx.lineWidth = 1;
+    ctx.lineWidth = hl.width;
     ctx.setLineDash([]);
     ctx.strokeStyle = this.ov.selection;
     ctx.beginPath();
@@ -882,7 +890,7 @@ export class Viewport {
         const q = [c.tl, c.tr, c.br, c.bl];
         if (q.some((p) => !p)) continue;
         ctx.beginPath();
-        q.forEach((p, i) => (i ? ctx.lineTo(Math.round(p.x) + 0.5, Math.round(p.y) + 0.5) : ctx.moveTo(Math.round(p.x) + 0.5, Math.round(p.y) + 0.5)));
+        q.forEach((p, i) => (i ? ctx.lineTo(crisp(p.x), crisp(p.y)) : ctx.moveTo(crisp(p.x), crisp(p.y))));
         ctx.closePath();
         ctx.stroke();
       }
@@ -909,15 +917,17 @@ export class Viewport {
       ctx.strokeStyle = this.ov.selection;
     }
     // accent handles with a 1px white ring: read on dark, light and photographic content alike
-    const H = HANDLE_SIZE;
-    const half = Math.floor(H / 2);
+    // handle squares centred on the outline's device pixel, sizes in whole device pixels with the
+    // outline's parity so the square stays symmetric about the line
+    const H = hl.stroke(HANDLE_SIZE);
+    const one = hl.width;
     for (const k of keys) {
       const p = oc[k];
       if (!p) continue;
-      const x = Math.round(p.x) - half;
-      const y = Math.round(p.y) - half;
+      const x = crisp(p.x) - H / 2;
+      const y = crisp(p.y) - H / 2;
       ctx.fillStyle = this.ov.ring;
-      ctx.fillRect(x - 1, y - 1, H + 2, H + 2);
+      ctx.fillRect(x - one, y - one, H + 2 * one, H + 2 * one);
       ctx.fillStyle = this.ov.handle;
       ctx.fillRect(x, y, H, H);
     }
@@ -949,22 +959,24 @@ export class Viewport {
    * box and column guides (coral, DESIGN.md section 3). Photo and Vector never
    * show them, which is part of what makes Layout read as its own studio.
    */
-  private drawPageGuides(ctx: CanvasRenderingContext2D, px: number): void {
+  private drawPageGuides(ctx: CanvasRenderingContext2D, px: number, sx: (x: number) => number = (x) => x, sy: (y: number) => number = (y) => y): void {
     const doc = this.editor.doc!;
     const { width: W, height: H, margins, bleed, columns, columnGutter } = doc.settings;
-        ctx.lineWidth = px;
+    // edges snapped to crisp device-pixel hairlines (sx/sy)
+    const box = (x0: number, y0: number, x1: number, y1: number) => ctx.strokeRect(sx(x0), sy(y0), sx(x1) - sx(x0), sy(y1) - sy(y0));
+    ctx.lineWidth = px;
     ctx.setLineDash([]);
     ctx.strokeStyle = 'rgba(0,0,0,0.28)';
-    ctx.strokeRect(0, 0, W, H);
+    box(0, 0, W, H);
     if (bleed > 0) {
       ctx.strokeStyle = 'rgba(230,57,70,0.75)';
       ctx.setLineDash([4 * px, 3 * px]);
-      ctx.strokeRect(-bleed, -bleed, W + 2 * bleed, H + 2 * bleed);
+      box(-bleed, -bleed, W + bleed, H + bleed);
       ctx.setLineDash([]);
     }
     if (margins.top || margins.left || margins.right || margins.bottom) {
       ctx.strokeStyle = 'rgba(255,107,74,0.6)';
-      ctx.strokeRect(margins.left, margins.top, W - margins.left - margins.right, H - margins.top - margins.bottom);
+      box(margins.left, margins.top, W - margins.right, H - margins.bottom);
     }
     if (columns > 1) {
       const inner = W - margins.left - margins.right;
@@ -973,10 +985,10 @@ export class Viewport {
       ctx.beginPath();
       for (let i = 1; i < columns; i++) {
         const x = margins.left + i * cw + (i - 1) * columnGutter;
-        ctx.moveTo(x, margins.top);
-        ctx.lineTo(x, H - margins.bottom);
-        ctx.moveTo(x + columnGutter, margins.top);
-        ctx.lineTo(x + columnGutter, H - margins.bottom);
+        ctx.moveTo(sx(x), margins.top);
+        ctx.lineTo(sx(x), H - margins.bottom);
+        ctx.moveTo(sx(x + columnGutter), margins.top);
+        ctx.lineTo(sx(x + columnGutter), H - margins.bottom);
       }
       ctx.stroke();
     }

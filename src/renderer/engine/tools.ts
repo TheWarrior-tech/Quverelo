@@ -3,6 +3,7 @@
  * viewport and turns gestures into model commits.
  */
 import { apply, invert, boundsOfPoints, type Point } from '../../core/geometry';
+import { hairline } from './hairline';
 import { findNode, make, makeStroke, solid, NO_PAINT, worldMatrix, nodeToPath } from '../../core/document';
 import { addNodes, indexAbove, addTextFrame, convertToCurves, updateNode, removeNodes } from '../../core/commands';
 import {
@@ -880,16 +881,19 @@ class CropTool implements Tool {
     const vp = this.c.viewport;
     const a = vp.sceneToScreen(r.x, r.y);
     const b = vp.sceneToScreen(r.x + r.w, r.y + r.h);
-    const crisp = (v: number) => Math.round(v) + 0.5;
+    // whole device pixels at any display scale (a 1px line at 150 % would blur)
+    const hl = hairline();
+    const crisp = hl.line;
     const x0 = crisp(a.x);
     const y0 = crisp(a.y);
     const x1 = crisp(b.x);
     const y1 = crisp(b.y);
+    const one = hl.width;
     ctx.save();
     ctx.setLineDash([]);
-    ctx.lineWidth = 1;
+    ctx.lineWidth = one;
     ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-    ctx.strokeRect(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2);
+    ctx.strokeRect(x0 - one, y0 - one, x1 - x0 + 2 * one, y1 - y0 + 2 * one);
     const oc = vp.overlayColors;
     ctx.strokeStyle = oc.ring;
     ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
@@ -902,9 +906,9 @@ class CropTool implements Tool {
     const pts = handlePoints({ x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y });
     const shapes = new Path2D();
     for (const [cx, cy, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x1, y1, -1, -1], [x0, y1, 1, -1]]) {
-      shapes.moveTo(cx - sx * 1, cy + sy * L);
-      shapes.lineTo(cx - sx * 1, cy - sy * 1);
-      shapes.lineTo(cx + sx * L, cy - sy * 1);
+      shapes.moveTo(cx - sx * one, cy + sy * L);
+      shapes.lineTo(cx - sx * one, cy - sy * one);
+      shapes.lineTo(cx + sx * L, cy - sy * one);
     }
     for (const h of CROP_HANDLES) {
       if (h.length === 2) continue; // corners are the brackets
@@ -912,8 +916,8 @@ class CropTool implements Tool {
       if ((h === 'e' || h === 'w') && y1 - y0 < BAR * 3) continue;
       const q = pts[h];
       const horiz = h === 'n' || h === 's';
-      const cx = Math.round(q.x) + (horiz ? 0 : 0.5);
-      const cy = Math.round(q.y) + (horiz ? 0.5 : 0);
+      const cx = horiz ? Math.round(q.x) : crisp(q.x);
+      const cy = horiz ? crisp(q.y) : Math.round(q.y);
       if (horiz) {
         shapes.moveTo(cx - BAR / 2, cy);
         shapes.lineTo(cx + BAR / 2, cy);
@@ -923,10 +927,11 @@ class CropTool implements Tool {
       }
     }
     ctx.lineCap = 'square';
-    ctx.lineWidth = 5;
+    const core = hl.stroke(3);
+    ctx.lineWidth = core + 2 * one;
     ctx.strokeStyle = ov.ring;
     ctx.stroke(shapes);
-    ctx.lineWidth = 3;
+    ctx.lineWidth = core;
     ctx.strokeStyle = ov.handle;
     ctx.stroke(shapes);
     ctx.lineCap = 'butt';
