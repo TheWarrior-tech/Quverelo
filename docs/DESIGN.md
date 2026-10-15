@@ -43,12 +43,15 @@ Neutrals are near-grey with ~0 chroma so photography never fights the chrome. Th
 | `--c-accent-hover` | `#58d3c0` | `#096558` | `#ffe766` | |
 | `--c-accent-ink` | `#06231e` | `#ffffff` | `#000` | text on solid accent |
 | `--c-accent-wash` | accent 14 % | accent 12 % | accent 25 % | selected row fill |
+| `--c-accent-wash-strong` | accent 32 % | accent 24 % | `#ffd400` | text selection (`::selection`), never the OS blue |
+| `--c-selection-ink` | `#ececed` | `#18191b` | `#000` | text on `--c-accent-wash-strong` |
+| `--c-seg-track` · `--c-seg-on` · `--c-seg-ring` | see §8 Segmented | | | segmented control |
 | `--c-focus` | `#58d3c0` | `#096558` | `#ffd400` | 2px focus ring, offset 1px |
 | `--c-danger` | `#ff6b6b` | `#c92a2a` | `#ff8080` | destructive text/icons only |
 
-Contrast (WCAG 2.2 AA minimum, checked): text on panel ≥ 12:1; text-2 ≥ 7:1; text-3 ≥ 4.5:1; accent-ink on accent ≥ 7:1; accent as text on panel ≥ 4.5:1; focus ring, accent fills and `--c-line-strong` boundaries ≥ 3:1 on every surface. `--c-line` hairlines are decorative and exempt. Enforced by `npm run audit:contrast` (scripts/contrast-audit.mjs, also run by vitest) for all three themes — change a token, run it.
+Contrast (WCAG 2.2 AA minimum, checked; also selected text on the selection wash, and the segmented active tile against its track): text on panel ≥ 12:1; text-2 ≥ 7:1; text-3 ≥ 4.5:1; accent-ink on accent ≥ 7:1; accent as text on panel ≥ 4.5:1; focus ring, accent fills and `--c-line-strong` boundaries ≥ 3:1 on every surface. `--c-line` hairlines are decorative and exempt. Enforced by `npm run audit:contrast` (scripts/contrast-audit.mjs, also run by vitest) for all three themes — change a token, run it.
 
-Canvas overlays (selection, handles, hover, guides) use accent `#2fb8a6` for selection and hover, coral `#ff6b4a` for snapping and margins, cyan for ruler guides, so they stay legible on photographs. Handles are solid accent with a 1px white ring, so they read on dark, light and photographic content alike.
+Canvas overlays (selection, handles, hover, guides) use accent `#2fb8a6` for selection and hover, coral `#ff6b4a` for snapping and margins, cyan for ruler guides, so they stay legible on photographs. Handles are solid accent with a 1px white ring, so they read on dark, light and photographic content alike. The selection colours are tokens the viewport reads from CSS on every theme change (`engine/controls.ts` `readOverlayColors`): `--c-canvas-selection`, `--c-canvas-handle`, `--c-canvas-handle-ring` = `#2fb8a6` / `#2fb8a6` / `#fff` in dark and light, and `#ffd400` / `#ffd400` / `#000` in high contrast, so canvas selection is yellow like every other high-contrast selection.
 
 ## 4. Type
 
@@ -172,6 +175,8 @@ Disabled never means translucent accent. The contrast audit checks that the acti
 **Menus.** `role="menu"`, `--c-popover`, `--e-1`, 4px padding, 28px rows (13px label, optional 11px `text-3` detail line, shortcut right in 11px `text-3`), hairline separators, micro-label headings; icon column only when an item has an icon. ↑/↓/Home/End, Enter, Esc returns focus to the anchor.
 
 **Scrollbars.** Themed everywhere: 10px hit area, 6px thumb in `--c-line-strong` (hover `text-3`), transparent track.
+
+**New document presets.** Grid of 124px-min tiles: page thumbnail on pasteboard tone (84 high), name 12/500, meta 11 `text-3`. Every page is drawn as paper in every theme: `#fff` at 88 % opacity with a 1px `--c-line-strong` edge, never a grey slab. Selection is the tile's accent-wash fill and 1px accent outline only; the selected page goes to full opacity and shows its margins as a faint coral inset (`#ff6b4a` at 60 %).
 
 **Export / preferences.** Dialog with a left list (grouped, 4px-radius active row) and a form on the right; labels 12 `text-2`; dividers hairline; preview thumbnail on pasteboard tone with filename + dimensions as tabular text.
 
