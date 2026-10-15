@@ -14,6 +14,20 @@ const TOOL_LABELS: Record<ToolId, string> = {
   text: 'Artistic Text (T)', textframe: 'Frame Text (X)', imageframe: 'Picture Frame (F)',
 };
 
+/** Second tooltip line: how to use the tool (≤ 60 characters, "Drag to … · Shift …"). */
+export const TOOL_HINTS: Partial<Record<ToolId, string>> = {
+  move: 'Click to select · Drag to move', node: 'Drag points and handles to reshape',
+  hand: 'Drag to pan · Or hold Space', zoom: 'Click to zoom in · Alt-click to zoom out',
+  'marquee-rect': 'Drag to select · Shift for a square', 'marquee-ellipse': 'Drag to select · Shift for a circle',
+  lasso: 'Drag around an area to select it', 'object-select': 'Click an object to select it · Alt-click removes',
+  crop: 'Drag the area to keep · Enter to apply',
+  brush: 'Drag to paint · [ and ] change the size', eraser: 'Drag to erase pixels', fill: 'Click to fill an area of similar colour',
+  eyedropper: 'Click to pick a colour', pen: 'Click for corners · Drag for curves', pencil: 'Drag to draw freehand',
+  rect: 'Drag to draw · Shift for a square', ellipse: 'Drag to draw · Shift for a circle', polygon: 'Drag to draw · Shift to keep it upright',
+  star: 'Drag to draw · Shift to keep it upright', line: 'Drag to draw · Shift snaps to 45°', text: 'Click to type a heading or label',
+  textframe: 'Drag a box for flowing text', imageframe: 'Drag a frame, then place an image in it',
+};
+
 export function toolLabel(t: ToolId): string {
   return TOOL_LABELS[t];
 }
@@ -66,6 +80,7 @@ export function RailGroup({ group }: { group: ToolGroup }) {
         type="button"
         className={`icon-btn has-flyout ${active ? 'active' : ''}`}
         {...tip(name, key)}
+        data-tip-hint={TOOL_HINTS[shown]}
         aria-pressed={active}
         aria-haspopup="menu"
         aria-expanded={open !== null}

@@ -8,6 +8,9 @@ import { useEditor } from './hooks';
 import { Welcome } from './Welcome';
 import { Workspace } from './Workspace';
 import { DialogHost } from './dialogs/DialogHost';
+import { CommandPalette } from './CommandPalette';
+import { TooltipHost } from './Tooltip';
+import { openPalette } from '../state/palette';
 
 function applyAppearance() {
   const s = editor.settings;
@@ -89,6 +92,12 @@ export function App() {
     const offMenu = window.quvrelo.onMenuCommand((id) => void runCommand(id));
     const offOpen = window.quvrelo.onOpenPath((p) => void openPath(p));
     const onKey = (e: KeyboardEvent) => {
+      // Ctrl/⌘+K and Ctrl/⌘+/ open the command palette anywhere (also a menu accelerator; opening is idempotent)
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key.toLowerCase() === 'k' || e.key === '/')) {
+        e.preventDefault();
+        openPalette();
+        return;
+      }
       if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && editor.session && !(e.target as HTMLElement)?.closest('input,textarea,select,button,[role="tab"],.panels,.left-rail,.selection-toolbar,.dialog')) {
         e.preventDefault();
         document.querySelector('.workspace')?.classList.toggle('hide-panels');
@@ -129,6 +138,8 @@ export function App() {
     <>
       {ed.session ? <Workspace /> : <Welcome />}
       <DialogHost />
+      <CommandPalette />
+      <TooltipHost />
       <ToastStack toasts={toasts} onDismiss={(id) => setToasts((list) => list.filter((x) => x.id !== id))} />
     </>
   );

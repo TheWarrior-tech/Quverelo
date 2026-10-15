@@ -625,6 +625,7 @@ export async function setSetting(patch: Partial<typeof editor.settings>): Promis
 // ---------------------------------------------------------------------------
 // Help
 
+reg('help.command-palette', () => import('./palette').then((m) => m.openPalette()));
 reg('help.shortcuts', () => openDialog('shortcuts'));
 reg('help.guide', () => openDialog('guide'));
 reg('help.about', () => openDialog('about'));

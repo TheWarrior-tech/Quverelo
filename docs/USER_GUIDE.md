@@ -13,6 +13,7 @@ Press <kbd>F1</kbd> at any time to see every keyboard shortcut.
 2. Use the **tools** on the left. A tool with a small triangle in its corner hides related tools: right-click it or hold it down to choose one (or press <kbd>Shift</kbd> with its shortcut key to step through them). The one you used last stays on the rail. The **context bar** under the top toolbar shows options for the current tool.
 3. The **panels** on the right show properties, colours, layers, pages and history. Press <kbd>Tab</kbd> to hide/show them.
 4. Save with <kbd>Ctrl/⌘</kbd>+<kbd>S</kbd>. Everything — including photos — is stored in one `.quvrelo` file.
+5. Can't find something? Press <kbd>Ctrl/⌘</kbd>+<kbd>K</kbd> (or <kbd>Ctrl/⌘</kbd>+<kbd>/</kbd>) for the **command palette**: type what you want ("crop", "pdf", "remove background", "circle"), use <kbd>↑</kbd>/<kbd>↓</kbd> and press <kbd>Enter</kbd>. It finds every menu command, every tool (in any studio), templates and recent files, shows each shortcut, and tells you why something can't run yet ("Needs a pixel selection"). Hover or tab to any button to see its name and shortcut.
 
 ## Moving around
 | Action | How |

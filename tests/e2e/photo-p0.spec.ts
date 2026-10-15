@@ -38,7 +38,8 @@ test.describe('photo P0', () => {
     const tools = await page.locator('.toolpalette [data-tool]').evaluateAll((els) => els.map((e) => e.getAttribute('data-tool')));
     expect(tools.indexOf('object-select')).toBe(tools.indexOf('lasso') + 1);
     await expect(page.locator('.toolpalette [data-tool="object-select"]')).toHaveAttribute('aria-label', 'Object Select');
-    await expect(page.locator('.toolpalette [data-tool="object-select"]')).toHaveAttribute('title', 'Object Select (W)');
+    await expect(page.locator('.toolpalette [data-tool="object-select"]')).toHaveAttribute('data-tip', 'Object Select');
+    await expect(page.locator('.toolpalette [data-tool="object-select"]')).toHaveAttribute('data-keys', 'W');
 
     await page.keyboard.press('w');
     await expect(page.locator('.toolpalette [data-tool="object-select"]')).toHaveClass(/active/);

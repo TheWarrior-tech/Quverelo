@@ -23,7 +23,8 @@ test.describe('tool rail flyouts', () => {
     await expect(shapes).toHaveAttribute('aria-haspopup', 'menu');
     await expect(shapes).toHaveAttribute('aria-expanded', 'false');
     await expect(shapes).toHaveAttribute('data-tool', 'rect');
-    await expect(shapes).toHaveAttribute('title', 'Rectangle (M)');
+    await expect(shapes).toHaveAttribute('data-tip', 'Rectangle');
+    await expect(shapes).toHaveAttribute('data-keys', 'M');
     await expect(shapes).toHaveAttribute('aria-label', 'Rectangle');
     await expect(shapes).toHaveAttribute('aria-keyshortcuts', 'M');
     await expect(shapes.locator('.flyout-mark')).toHaveCount(1);
@@ -162,7 +163,8 @@ test.describe('tool rail flyouts', () => {
     expect(await state<string>(page, 'editor.ui.tool')).toBe('marquee-ellipse');
     await expect(marquee).toHaveAttribute('data-tool', 'marquee-ellipse');
     // a member without a key of its own advertises the cycle shortcut
-    await expect(marquee).toHaveAttribute('title', /^Ellipse Marquee \((Shift\+M|⇧M)\)$/);
+    await expect(marquee).toHaveAttribute('data-tip', 'Ellipse Marquee');
+    await expect(marquee).toHaveAttribute('data-keys', 'Shift+M');
     await expect(marquee).toHaveAttribute('aria-keyshortcuts', 'Shift+M');
     await page.keyboard.press('Shift+M'); // wraps
     expect(await state<string>(page, 'editor.ui.tool')).toBe('marquee-rect');

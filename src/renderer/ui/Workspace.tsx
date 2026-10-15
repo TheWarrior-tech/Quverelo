@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { StudioKind } from '../../core/types';
 import { editor } from '../state/editor';
 import { STUDIO_RAIL, groupOf, isGroup } from '../state/toolGroups';
-import { RailGroup, toolParts } from './ToolFlyout';
+import { RailGroup, TOOL_HINTS, toolParts } from './ToolFlyout';
 import { runCommand, setViewport, setSetting } from '../state/commands';
 import { Viewport } from '../engine/Viewport';
 import { useEditor } from './hooks';
@@ -94,11 +94,11 @@ function DocIdentity() {
           }}
         />
       ) : (
-        <button type="button" className="doc-title" title={`${title} · click to rename`} aria-label={`Document name: ${title}. Click to rename`} onClick={() => setEditing(true)}>
+        <button type="button" className="doc-title" data-tip={`${title} · click to rename`} aria-label={`Document name: ${title}. Click to rename`} onClick={() => setEditing(true)}>
           {title}
         </button>
       )}
-      <span className={`doc-state${dirty ? ' dirty' : ''}`} title={stateTip} role="status">
+      <span className={`doc-state${dirty ? ' dirty' : ''}`} data-tip={stateTip} role="status">
         <i aria-hidden="true" />
         {state}
       </span>
@@ -182,14 +182,14 @@ function ToolPalette() {
   const ed = useEditor();
   const rail = STUDIO_RAIL[ed.ui.studio];
   return (
-    <aside className="toolpalette" role="toolbar" aria-label="Tools" aria-orientation="vertical">
+    <aside className="toolpalette" role="toolbar" aria-label="Tools" aria-orientation="vertical" data-tip-side="right">
       {rail.map((e, i) =>
         e === '|' ? (
           <div key={`d${i}`} className="divider" />
         ) : isGroup(e) ? (
           <RailGroup key={e.id} group={e} />
         ) : (
-          <button key={e} className={`icon-btn ${ed.ui.tool === e ? 'active' : ''}`} {...tip(...toolParts(e, groupOf(ed.ui.studio, e)))} aria-pressed={ed.ui.tool === e} data-tool={e} onClick={() => ed.setTool(e)}>
+          <button key={e} className={`icon-btn ${ed.ui.tool === e ? 'active' : ''}`} {...tip(...toolParts(e, groupOf(ed.ui.studio, e)))} data-tip-hint={TOOL_HINTS[e]} aria-pressed={ed.ui.tool === e} data-tool={e} onClick={() => ed.setTool(e)}>
             <Icon name={e} />
           </button>
         ),
@@ -219,7 +219,7 @@ function CanvasArea() {
   const master = doc.masters.find((m) => m.id === ed.ui.activeContainerId);
   return (
     <section className={`canvas-area ${ed.settings.showRulers ? '' : 'no-rulers'}`} aria-label="Canvas">
-      <div className="ruler-corner" title="Toggle rulers" onDoubleClick={() => setSetting({ showRulers: false })} />
+      <div className="ruler-corner" data-tip="Toggle rulers" onDoubleClick={() => setSetting({ showRulers: false })} />
       {vp && <Rulers viewport={vp} />}
       <div className="viewport" ref={hostRef} />
       {vp && <SelectionToolbar viewport={vp} />}
@@ -247,7 +247,7 @@ function UpdateIndicator() {
   const line = statusLine(u);
   if (!line) return null;
   return (
-    <button type="button" className="update-ind" data-update-status={u!.status} onClick={() => openDialog('updates')} aria-label={`${line}. Open Software Update`} title="Software Update">
+    <button type="button" className="update-ind" data-update-status={u!.status} onClick={() => openDialog('updates')} aria-label={`${line}. Open Software Update`} data-tip="Software Update">
       <Icon name="update" size={16} />
       <span>{line}</span>
     </button>
@@ -278,7 +278,7 @@ function StatusBar() {
         </select>
       </label>
       <button className="icon-btn sm" {...tip('Zoom out', 'view.zoom-out')} onClick={() => runCommand('view.zoom-out')}><Icon name="minus" /></button>
-      <button className="btn ghost zoom-value" onClick={() => runCommand('view.zoom-fit')} title={tip('Zoom to fit', 'view.zoom-fit').title} aria-label={`Zoom ${zoom}%, fit to window`}><span className="num">{zoom}%</span></button>
+      <button className="btn ghost zoom-value" onClick={() => runCommand('view.zoom-fit')} {...tip('Zoom to fit', 'view.zoom-fit')} aria-label={`Zoom ${zoom}%, fit to window`}><span className="num">{zoom}%</span></button>
       <button className="icon-btn sm" {...tip('Zoom in', 'view.zoom-in')} onClick={() => runCommand('view.zoom-in')}><Icon name="plus" /></button>
       <span>{ed.settings.snapping ? 'Snap on' : 'Snap off'}</span>
     </footer>

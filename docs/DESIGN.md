@@ -88,7 +88,7 @@ Custom set drawn for Quvrelo (`src/renderer/ui/Icons.tsx`), no third-party glyph
 
 App icon / logo: graphite tile, off-white ring, one accent bar forming the Q tail. Flat, no gradient, no shadow. Source `build/icon.svg`; `build/icon-small.svg` is the 16–32px variant (near full-bleed tile, no inner hairline, heavier ring and tail). Re-render every raster with `scripts/render-icons.cjs` (each size rasterised from vector).
 
-Icon buttons: use `tip(label, commandId | key)` from `ui/tooltip.ts` — `aria-label` is the name, the tooltip is name + shortcut read from the app menu, `aria-keyshortcuts` is set.
+Icon buttons: use `tip(label, commandId | key)` from `ui/tooltip.ts` — `aria-label` is the name, `data-tip` is the tooltip text and `data-keys` the shortcut read from the app menu (drawn as keycaps by `ui/Tooltip.tsx`), `aria-keyshortcuts` is set. Never use the native `title` attribute; any left over is taken over by the tooltip host on hover.
 
 ## 8. Components
 
@@ -142,6 +142,10 @@ Nothing selected: Document (title, size, pages, background chip) and *New object
 **Colour picker.** Saturation/value box (152 high, 8px radius) or hue wheel (152, brightness strip under it); preview tile 28 (checkerboard under alpha), hue strip and alpha strip 10px with 12px knobs filled with the current colour, eyedropper (system EyeDropper, else the canvas picker tool). Model segmented control Hex · RGB · HSL · CMYK (device CMYK, uncalibrated) and Box · Wheel; channel fields are number fields in one row (+ A for alpha). Document palette and Recent (12, most-recent-first) as 16px swatches, 4px radius, hairline; the swatch matching the current colour has an accent ring. Every strip and the box are keyboard sliders (arrows, Shift ×10). **Fill/stroke chips:** overlapping 28px squares (22 on the tool rail), fill top-left, stroke as a 4px ring bottom-right, 1px surface-coloured gap so they read on any theme; none = hairline square with a danger diagonal; the active target sits on top with a `text-2` ring; swap button beside. Context-bar colour controls are a chip + chevron that opens the picker in a popover.
 
 **Dialogs.** 8px radius, `--c-popover`, `--e-2`, backdrop `rgba(0,0,0,.55)` (no blur). Header 48 with title (14/600) and close icon; body 16 padding; footer separated by hairline, buttons right-aligned, primary last. Width 480 default, 840 wide. Esc closes, focus trapped, focus returns.
+
+**Tooltips** (`ui/Tooltip.tsx`, one host for the whole app). `--c-popover`, `--r-1`, `--e-1`, 4×8 padding, 12/16 text at 500, keycaps 16 high, optional second line in `text-2` (≤ 60 chars, "Drag to … · Shift …"). 6px from the trigger, below by default, `data-tip-side` overrides (tool rail opens right); flips and clamps 8px inside the window. 400 ms hover delay, instant between neighbours for 800 ms, shown on `:focus-visible`; hoverable, persistent, Esc dismisses (WCAG 1.4.13). 120 ms fade + 2px slide from the trigger side. `aria-describedby` only when the tooltip adds to the accessible name.
+
+**Command palette** (`ui/CommandPalette.tsx`, Ctrl/⌘+K and Ctrl/⌘+/). 560 wide, top at 20 % of the window, `--c-popover`, `--r-2`, `--e-2` on the dialog backdrop. 48px search row (16px search glyph `text-3`, borderless 14px input), 32px rows inset 4px: 16px icon `text-2` · label (matched letters 600) · group or disabled reason (12 `text-3`) · keycaps. Active row = `--c-press` (high contrast: 2px accent inset). Browse mode lists Recent (last 5 run), Commands, Tools, Templates, Recent files under micro-label headers; a query gives one ranked list. Footer hairline with ↑/↓ · Enter · Esc keycaps. ARIA combobox + listbox with `aria-activedescendant`; synonyms live in `MenuCommand.keywords` (`shared/menu.ts`).
 
 **Menus / selects.** `--c-popover`, 8px radius, items 28 high with 4px inner radius, keycaps right-aligned in `text-3`.
 

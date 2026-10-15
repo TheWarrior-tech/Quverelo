@@ -125,6 +125,11 @@ const paths: Record<string, ReactElement> = {
   'text-justify': P('M3.5 5h13M3.5 8.3h13M3.5 11.7h13M3.5 15h13'),
 };
 
+/** True when the set has a glyph called `name` (unknown names fall back to a square). */
+export function hasIcon(name: string): boolean {
+  return name in paths;
+}
+
 export function Icon({ name, title, size }: { name: string; title?: string; size?: 16 | 20 }) {
   return (
     <svg className={`icon${size === 16 ? ' sm' : ''}`} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden={title ? undefined : true} role={title ? 'img' : undefined}>

@@ -163,7 +163,7 @@ export function AboutDialog() {
       <p>Photo, vector and layout design for schools and teams. Works entirely offline: no account, no analytics and no telemetry. Your files never leave this computer unless you save them somewhere else.</p>
       <dl className="about-rows">
         {rows.map(([k, v]) => (
-          <div key={k}><dt>{k}</dt><dd title={v}>{v}</dd></div>
+          <div key={k}><dt>{k}</dt><dd data-tip={v}>{v}</dd></div>
         ))}
       </dl>
       {info && info.policyWarnings.length > 0 && <p className="fineprint">Policy warnings: {info.policyWarnings.join('; ')}</p>}

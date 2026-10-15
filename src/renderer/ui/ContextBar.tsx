@@ -99,7 +99,7 @@ function LayoutPageControls() {
         <UnitNum label="Bleed" title="Bleed" px={s.bleed} onChange={(v) => setDocSettings({ bleed: v }, 'Bleed', 'bleed')} />
         <CountNum label="Columns" title="Columns" value={s.columns} onChange={(v) => setDocSettings({ columns: v }, 'Columns', 'columns')} />
         <UnitNum label="Gutter" title="Column gutter" px={s.columnGutter} onChange={(v) => setDocSettings({ columnGutter: v }, 'Gutter', 'gutter')} />
-        <button className={`btn ${s.facingPages ? 'selected' : ''}`} aria-pressed={s.facingPages} title="Show pages as two-page spreads" onClick={() => setDocSettings({ facingPages: !s.facingPages }, 'Facing pages', 'facing')}><Icon name="pages" /> Facing pages</button>
+        <button className={`btn ${s.facingPages ? 'selected' : ''}`} aria-pressed={s.facingPages} data-tip="Show pages as two-page spreads" onClick={() => setDocSettings({ facingPages: !s.facingPages }, 'Facing pages', 'facing')}><Icon name="pages" /> Facing pages</button>
       </div>
       <div className="group">
         <button className="btn" onClick={() => runCommand('file.document-setup')}>Document setup…</button>
@@ -121,7 +121,7 @@ function TextFrameControls({ frames }: { frames: TextFrameNode[] }) {
       <CountNum label="Columns" title="Frame columns" value={f.columns} onChange={(v) => set({ columns: v }, 'Frame columns', 'fcol')} />
       <UnitNum label="Gap" title="Column gap" px={f.columnGap} onChange={(v) => set({ columnGap: v }, 'Column gap', 'fgap')} />
       <UnitNum label="Inset" title="Text inset" px={f.padding} onChange={(v) => set({ padding: v }, 'Text inset', 'finset')} />
-      <button className="icon-btn sm" {...tip('Link text frames')} title="Link frames: continue the story from the first selected frame into the second" disabled={frames.length !== 2} onClick={() => runCommand('text.link')}><Icon name="link" /></button>
+      <button className="icon-btn sm" {...tip('Link text frames')} data-tip-hint="Continue the story from the first selected frame into the second" disabled={frames.length !== 2} onClick={() => runCommand('text.link')}><Icon name="link" /></button>
       {linked && <button className="btn" onClick={() => runCommand('text.unlink')}>Unlink</button>}
     </div>
   );
@@ -164,7 +164,7 @@ export function SelectSubjectButton() {
   const ed = useEditor();
   const busy = ed.ui.mlBusy;
   return (
-    <button className="btn" data-action="select-subject" onClick={() => runCommand('select.subject')} disabled={busy} aria-busy={busy} title={tip('Select subject', 'select.subject').title} aria-keyshortcuts={tip('Select subject', 'select.subject')['aria-keyshortcuts']}>
+    <button className="btn" data-action="select-subject" onClick={() => runCommand('select.subject')} disabled={busy} aria-busy={busy} {...tip('Select subject', 'select.subject')}>
       {busy ? <span className="ml-spinner" aria-hidden="true" /> : <Icon name="subject" />} Select subject
     </button>
   );
