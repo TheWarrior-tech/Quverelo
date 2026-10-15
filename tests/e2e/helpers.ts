@@ -10,10 +10,11 @@ export interface Launched {
   userData: string;
 }
 
-export async function launch(env: Record<string, string> = {}): Promise<Launched> {
+/** `extraArgs` go to Electron before the app path (e.g. --force-device-scale-factor=1.5). */
+export async function launch(env: Record<string, string> = {}, extraArgs: string[] = []): Promise<Launched> {
   const saveDir = fs.mkdtempSync(path.join(os.tmpdir(), 'quvrelo-save-'));
   const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'quvrelo-ud-'));
-  const args = ['.'];
+  const args = [...extraArgs, '.'];
   if (process.platform === 'linux') args.unshift('--no-sandbox');
   const app = await electron.launch({
     args,
