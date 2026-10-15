@@ -1,0 +1,8 @@
+# downloaded / derived data and training artefacts are reproducible from scripts; never commit them
+data/
+checkpoints/
+logs/
+.ortweb/
+__pycache__/
+*.pyc
+# the shipped model (ml/models/*.onnx, < 10 MB) IS committed
