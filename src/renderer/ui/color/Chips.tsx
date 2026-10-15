@@ -31,7 +31,10 @@ export function colourPopoverGeometry(anchor: HTMLElement): { anchorRect: Rect; 
   const insp = inspectorEl && (inspectorEl as HTMLElement).offsetWidth > 0 ? rectOf(inspectorEl.getBoundingClientRect()) : null;
   const inInspector = !!inspectorEl?.contains(anchor);
   const sel = selectionScreenRect();
-  const avoid = [...(insp ? [insp] : []), ...(sel ? [sel] : [])];
+  // the top bar and context bar are chrome a popover never rides over (CRITIQUE-4 P2-19):
+  // it opens below the context bar or beside the selection, sliding horizontally instead
+  const chrome = ['.topbar', '.contextbar'].map((q) => document.querySelector(q)).filter((el): el is Element => !!el && (el as HTMLElement).offsetHeight > 0).map((el) => rectOf(el.getBoundingClientRect()));
+  const avoid = [...(insp ? [insp] : []), ...(sel ? [sel] : []), ...chrome];
   return { anchorRect: inInspector && insp ? { left: insp.left, top: a.top, right: insp.left, bottom: a.bottom } : a, avoid };
 }
 

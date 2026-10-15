@@ -290,23 +290,25 @@ export function CurvesEditor({ node, adj, onChange, onBegin, onEnd }: {
     }
   };
 
-  // the fields edit the selected point; with none selected they show (and edit) the black point
-  const shown = sel ?? 0;
+  // the fields edit the selected point; with none picked they are disabled and read "–" (CRITIQUE-4 P2-23)
   const field = (axis: 'x' | 'y', label: string) => (
     <label className="curves-field">
       <span>{label}</span>
       <NumberField
         ariaLabel={`Curve point ${label.toLowerCase()}`}
-        value={Math.round(points[shown]?.[axis] ?? 0)}
+        value={sel === null ? 0 : Math.round(points[sel]?.[axis] ?? 0)}
+        emptyText={sel === null ? 'No point selected' : undefined}
+        disabled={sel === null}
+        title={sel === null ? 'Click the curve or press an arrow key to pick a point' : undefined}
         min={0}
         max={255}
         step={1}
         digits={0}
         onCommit={(v) => {
-          const p = points[shown];
+          if (sel === null) return;
+          const p = points[sel];
           if (!p) return;
-          setSelected(shown);
-          commit(moved(points, shown, axis === 'x' ? v : p.x, axis === 'y' ? v : p.y), `curves:${adj.id}:field`);
+          commit(moved(points, sel, axis === 'x' ? v : p.x, axis === 'y' ? v : p.y), `curves:${adj.id}:field`);
         }}
       />
     </label>

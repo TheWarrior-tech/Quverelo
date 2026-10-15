@@ -27,18 +27,19 @@ interface Preset {
 
 type CategoryId = NewDocCategory;
 
-const mm = (id: string, name: string, w: number, h: number, extra: Partial<Preset> = {}): Preset => ({ id, name, w, h, unit: 'mm', dpi: 300, margins: 12.7, bleed: 3, ...extra });
+// ISO sizes get metric margins (15 mm), never ½ in leaking in as 12.7 mm (CRITIQUE-4 P2-24)
+const mm = (id: string, name: string, w: number, h: number, extra: Partial<Preset> = {}): Preset => ({ id, name, w, h, unit: 'mm', dpi: 300, margins: 15, bleed: 3, ...extra });
 const inch = (id: string, name: string, w: number, h: number, extra: Partial<Preset> = {}): Preset => ({ id, name, w, h, unit: 'in', dpi: 300, margins: 0.5, bleed: 0.125, ...extra });
 const px = (id: string, name: string, w: number, h: number, extra: Partial<Preset> = {}): Preset => ({ id, name, w, h, unit: 'px', dpi: 72, margins: 0, bleed: 0, ...extra });
 
-const PRESETS: Record<Exclude<CategoryId, 'templates'>, Preset[]> = {
+export const PRESETS: Record<Exclude<CategoryId, 'templates'>, Preset[]> = {
   print: [
     mm('a4', 'A4', 210, 297),
     mm('a3', 'A3', 297, 420),
     mm('a5', 'A5', 148, 210),
-    mm('a6', 'A6 Postcard', 105, 148, { margins: 6 }),
-    mm('dl', 'DL Flyer', 99, 210, { margins: 8 }),
-    mm('card', 'Business Card', 85, 55, { margins: 4 }),
+    mm('a6', 'A6 postcard', 105, 148, { margins: 6 }),
+    mm('dl', 'DL flyer', 99, 210, { margins: 8 }),
+    mm('card', 'Business card', 85, 55, { margins: 4 }),
     inch('letter', 'US Letter', 8.5, 11),
     inch('legal', 'US Legal', 8.5, 14),
     inch('tabloid', 'Tabloid', 11, 17),
@@ -48,28 +49,28 @@ const PRESETS: Record<Exclude<CategoryId, 'templates'>, Preset[]> = {
     px('4k', '4K UHD', 3840, 2160),
     px('slide', 'Slides 16:9', 1920, 1080, { margins: 80 }),
     px('slide43', 'Slides 4:3', 1024, 768, { margins: 48 }),
-    px('square', 'Square Post', 1080, 1080),
+    px('square', 'Square post', 1080, 1080),
     px('story', 'Story', 1080, 1920),
     px('desktop', 'Desktop', 1440, 1024),
     px('mobile', 'Mobile', 390, 844),
-    px('banner', 'Web Banner', 1500, 500),
+    px('banner', 'Web banner', 1500, 500),
   ],
   photo: [
     px('photo32', 'Photo 3:2', 6000, 4000, { dpi: 300 }),
     px('photo43', 'Photo 4:3', 4032, 3024, { dpi: 300 }),
     px('photo-sq', 'Square', 3000, 3000, { dpi: 300 }),
-    inch('print46', '6 × 4 Print', 6, 4, { margins: 0, bleed: 0 }),
-    inch('print57', '7 × 5 Print', 7, 5, { margins: 0, bleed: 0 }),
-    inch('print108', '10 × 8 Print', 10, 8, { margins: 0, bleed: 0 }),
+    inch('print46', '6 × 4 print', 6, 4, { margins: 0, bleed: 0 }),
+    inch('print57', '7 × 5 print', 7, 5, { margins: 0, bleed: 0 }),
+    inch('print108', '10 × 8 print', 10, 8, { margins: 0, bleed: 0 }),
   ],
   school: [
     mm('worksheet', 'Worksheet', 210, 297, { margins: 15 }),
-    mm('booklet', 'A5 Booklet', 148, 210, { margins: 12, pages: 8 }),
-    mm('poster', 'Classroom Poster', 297, 420, { margins: 15 }),
-    mm('display', 'Display Banner', 420, 297, { margins: 15 }),
+    mm('booklet', 'A5 booklet', 148, 210, { margins: 12, pages: 8 }),
+    mm('poster', 'Classroom poster', 297, 420, { margins: 15 }),
+    mm('display', 'Display banner', 420, 297, { margins: 15 }),
     mm('cert', 'Certificate', 297, 210, { margins: 15 }),
     mm('flash', 'Flashcards', 105, 74, { margins: 6, pages: 2 }),
-    px('school-slide', 'Lesson Slides', 1920, 1080, { margins: 80, pages: 6 }),
+    px('school-slide', 'Lesson slides', 1920, 1080, { margins: 80, pages: 6 }),
   ],
 };
 
@@ -189,7 +190,7 @@ export function NewDocumentDialog({ category, preset: presetArg }: { category?: 
   const [h, setH] = useState(initial?.h ?? 297);
   const [dpi, setDpi] = useState(initial?.dpi ?? 300);
   const [pages, setPages] = useState(initial?.pages ?? 1);
-  const [margins, setMargins] = useState(initial?.margins ?? 12.7);
+  const [margins, setMargins] = useState(initial?.margins ?? 15);
   const [bleed, setBleed] = useState(initial?.bleed ?? 3);
   const [transparent, setTransparent] = useState(!!initial?.transparent);
   /** Studio picked by hand under More options; null = inferred. */

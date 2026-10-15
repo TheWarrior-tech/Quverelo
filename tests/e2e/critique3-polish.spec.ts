@@ -187,7 +187,10 @@ test.describe('critique 3: polish', () => {
     await expect(page.getByTestId('shortcuts-summary')).toContainText(`${n} shortcut`);
     await expect(dlg.locator('.sc-row')).toHaveCount(n);
     await expect(dlg.locator('.sc-hit').first()).toHaveText(/zoom/i);
-    await expect(dlg.locator('.nav-item.no-match').first()).toBeVisible();
+    // groups with no match leave the nav while searching (CRITIQUE-4 P2-21): every visible count is > 0
+    const counts = await dlg.locator('.nav-item .count').allTextContents();
+    expect(counts.every((c) => parseInt(c, 10) > 0)).toBe(true);
+    await expect(dlg.locator('.nav-item', { hasText: /^Arrange/ })).toHaveCount(0);
     await shot(page, 'c3-shortcuts-search');
   });
 });

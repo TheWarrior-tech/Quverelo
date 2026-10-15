@@ -53,14 +53,14 @@ test.describe('critique 3: UI', () => {
     await expect(page.getByLabel('Document units')).toHaveValue('mm');
     await expect(page.getByTestId('doc-size')).toContainText('210 × 297 mm');
     await expect(page.getByTestId('doc-size')).toContainText('2480 × 3508 px at 300 dpi');
-    // Layout context bar margins in mm (12.7 mm preset), never px
-    await expect(page.getByRole('spinbutton', { name: 'Top margin (mm)' })).toHaveValue('12.7');
-    // typing 15 means 15 mm
+    // Layout context bar margins in mm (an ISO preset is 15 mm, never ½ in as 12.7, CRITIQUE-4 P2-24), never px
+    await expect(page.getByRole('spinbutton', { name: 'Top margin (mm)' })).toHaveValue('15');
+    // typing 20 means 20 mm
     const top = page.getByRole('spinbutton', { name: 'Top margin (mm)' });
-    await top.fill('15');
+    await top.fill('20');
     await top.press('Enter');
-    await expect(top).toHaveValue('15');
-    expect(await state<number>(page, 'editor.doc.settings.margins.top')).toBeCloseTo((15 * 96) / 25.4, 3);
+    await expect(top).toHaveValue('20');
+    expect(await state<number>(page, 'editor.doc.settings.margins.top')).toBeCloseTo((20 * 96) / 25.4, 3);
 
     // an object the size of the page: the inspector W field reads 210
     await page.evaluate(() => {
@@ -78,7 +78,7 @@ test.describe('critique 3: UI', () => {
     await run(page, 'file.document-setup');
     const dlg = page.locator('.dialog');
     await expect(dlg.getByLabel('Document units')).toHaveValue('mm');
-    await expect(dlg.getByRole('spinbutton', { name: 'top margin' })).toHaveValue('15');
+    await expect(dlg.getByRole('spinbutton', { name: 'Top margin' })).toHaveValue('20');
     await page.keyboard.press('Escape');
 
     // PDF export: page size in mm, pt in the tooltip

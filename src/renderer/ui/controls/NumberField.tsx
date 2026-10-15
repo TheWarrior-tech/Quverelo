@@ -24,6 +24,8 @@ export interface NumberFieldProps {
   pxPerStep?: number;
   /** several objects with different values selected */
   mixed?: boolean;
+  /** nothing to show yet (no point picked): an empty field with an en dash placeholder; this text is read to AT */
+  emptyText?: string;
   disabled?: boolean;
   className?: string;
   title?: string;
@@ -44,7 +46,8 @@ export interface NumberFieldProps {
  * The input is the accessible spinbutton; the scrub label is decorative for AT.
  */
 export function NumberField(p: NumberFieldProps) {
-  const { value, onCommit, onChange, ariaLabel, label, min, max, step = 1, digits = 2, unit, lengthUnit, pxPerStep = 1, mixed, disabled, className, title, unitInline, trailing } = p;
+  const { value, onCommit, onChange, ariaLabel, label, min, max, step = 1, digits = 2, unit, lengthUnit, pxPerStep = 1, disabled, className, title, unitInline, trailing, emptyText } = p;
+  const mixed = p.mixed || emptyText !== undefined;
   const fmt = (v: number) => (mixed ? '' : formatNumber(v, digits));
   const [text, setText] = useState(fmt(value));
   const [scrubbing, setScrubbing] = useState(false);
@@ -146,8 +149,8 @@ export function NumberField(p: NumberFieldProps) {
         aria-valuenow={numericNow}
         aria-valuemin={min}
         aria-valuemax={max}
-        aria-valuetext={mixed ? 'Mixed' : `${formatNumber(value, digits)}${unit ? ' ' + unit : ''}`}
-        placeholder={mixed ? 'Mixed' : undefined}
+        aria-valuetext={emptyText ?? (mixed ? 'Mixed' : `${formatNumber(value, digits)}${unit ? ' ' + unit : ''}`)}
+        placeholder={emptyText !== undefined ? '–' : mixed ? 'Mixed' : undefined}
         disabled={disabled}
         value={text}
         onFocus={(e) => {

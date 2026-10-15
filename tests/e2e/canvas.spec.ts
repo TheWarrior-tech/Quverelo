@@ -134,10 +134,10 @@ test.describe('canvas chrome', () => {
     await expect(page.locator('input[aria-label="Curve point output"]')).toHaveValue(String(rgb[1].y));
     // channel switch edits the red curve only
     await page.getByRole('radio', { name: 'R', exact: true }).click();
-    // no point selected: the fields show the black point instead of sitting empty (critique 2 P1-2)
-    await expect(page.locator('input[aria-label="Curve point input"]')).toHaveValue('0');
-    await expect(page.locator('input[aria-label="Curve point output"]')).toHaveValue('0');
-    await expect(page.locator('input[aria-label="Curve point output"]')).toBeEnabled();
+    // no point selected: the fields are disabled and read "–", never a misleading 0 (CRITIQUE-4 P2-23)
+    await expect(page.locator('input[aria-label="Curve point input"]')).toHaveValue('');
+    await expect(page.locator('input[aria-label="Curve point input"]')).toHaveAttribute('placeholder', '–');
+    await expect(page.locator('input[aria-label="Curve point output"]')).toBeDisabled();
     // Reset sits beside the channel switch, not inside it, and is off while the curve is straight
     const reset = page.getByRole('button', { name: 'Reset Red curve' });
     await expect(reset).toBeDisabled();
@@ -159,7 +159,10 @@ test.describe('canvas chrome', () => {
     await graph.focus();
     await page.keyboard.press('Delete');
     expect(await state<number>(page, 'editor.doc.pages[0].nodes[0].adjustments[0].curves.r.length')).toBe(2);
-    // the black point can be set from the fields with nothing selected
+    await expect(out).toBeDisabled();
+    // an arrow key picks the black point; the fields then edit it
+    await page.keyboard.press('ArrowRight');
+    await expect(out).toBeEnabled();
     await out.fill('20');
     await out.press('Enter');
     await expect.poll(() => state<string>(page, 'JSON.stringify(editor.doc.pages[0].nodes[0].adjustments[0].curves.r[0])')).toBe('{"x":0,"y":20}');

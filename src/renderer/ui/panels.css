@@ -1310,7 +1310,16 @@ label.check {
   opacity: 0;
   transition: opacity var(--dur) var(--ease);
 }
-/* the eye stays while it carries state (hidden), the ⋯ while its menu is open */
+/* visibility is state, not an action: the eye is always there, quiet in text-3
+   (CRITIQUE-4 P2-18); the ⋯ appears on hover/focus and while its menu is open */
+.adjust-item header .icon-btn.eye {
+  opacity: 1;
+  color: var(--c-text-3);
+}
+.adjust-item header .icon-btn.eye:hover,
+.adjust-item header .icon-btn.eye.set {
+  color: var(--c-text-2);
+}
 .adjust-item header .icon-btn.set,
 .adjust-item header .icon-btn.open,
 .adjust-item:hover header .icon-btn,

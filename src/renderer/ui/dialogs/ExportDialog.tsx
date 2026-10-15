@@ -84,7 +84,7 @@ export function ExportDialog({ format: initial }: { format: Format }) {
 
   // areas each format offers
   const areaOptions: { value: Area; label: string; disabled?: boolean }[] = [
-    ...(isPdf || multi ? [{ value: 'all' as Area, label: multi ? `All ${doc.pages.length}` : 'Whole document' }] : []),
+    ...(isPdf || multi ? [{ value: 'all' as Area, label: multi ? `All (${doc.pages.length})` : 'Whole document' }] : []),
     ...(multi || !isPdf ? [{ value: 'current' as Area, label: multi ? 'Current' : 'Current page' }] : []),
     ...(isPdf && multi ? [{ value: 'range' as Area, label: 'Range' }] : []),
     ...(raster ? [{ value: 'selection' as Area, label: 'Selection', disabled: !selBox }] : []),
