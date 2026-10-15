@@ -101,8 +101,7 @@ export function CurvesEditor({ node, adj, onChange, onBegin, onEnd }: {
       for (let i = 0; i < 256; i++) max = Math.max(max, arr[i]);
       // soften spikes so the shape stays readable
       const norm = (v: number) => Math.sqrt(v / max);
-      const light = document.documentElement.dataset.theme === 'light';
-      ctx.globalAlpha = light ? 0.12 : 0.18;
+      ctx.globalAlpha = parseFloat(cssVar('--plot-ghost-alpha', '0.18')) || 0.18;
       ctx.fillStyle = TINT[channel] || cssVar('--c-text-3', '#8b8d93');
       ctx.beginPath();
       ctx.moveTo(0, size);
@@ -112,8 +111,9 @@ export function CurvesEditor({ node, adj, onChange, onBegin, onEnd }: {
       ctx.fill();
       ctx.globalAlpha = 1;
     }
-    // 4x4 hairline grid + identity diagonal
-    ctx.strokeStyle = cssVar('--c-line', 'rgba(255,255,255,.08)');
+    // 4x4 hairline grid + identity diagonal: plot tokens, dim in every theme (high contrast
+    // included), so the grid never reads as solid white bars through the histogram
+    ctx.strokeStyle = cssVar('--c-plot-grid', 'rgba(255,255,255,.08)');
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let i = 1; i < 4; i++) {
@@ -124,7 +124,7 @@ export function CurvesEditor({ node, adj, onChange, onBegin, onEnd }: {
       ctx.lineTo(size, p);
     }
     ctx.stroke();
-    ctx.strokeStyle = cssVar('--c-line-strong', 'rgba(255,255,255,.15)');
+    ctx.strokeStyle = cssVar('--c-plot-diagonal', 'rgba(255,255,255,.15)');
     ctx.beginPath();
     ctx.moveTo(0, size);
     ctx.lineTo(size, 0);
