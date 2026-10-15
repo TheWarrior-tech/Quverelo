@@ -42,6 +42,8 @@ test.describe('critique 2: shell', () => {
     const search = page.getByRole('button', { name: 'Search commands' });
     await expect(search).toBeVisible();
     await expect(search).toContainText('Search commands');
+    // the label fits in full at 200px (no ellipsis)
+    expect(await search.locator('.topbar-search-label').evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
     await expect(search.locator('kbd')).toHaveText([/Ctrl|⌘/, 'K']);
     await expect(search).toHaveAttribute('aria-keyshortcuts', /K$/);
     const sb = (await search.boundingBox())!;
