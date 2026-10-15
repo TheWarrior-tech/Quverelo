@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { moveNodeTo, updateNode, updateNodes } from '../../../core/commands';
 import { BLEND_MODES, type BlendMode, type Id, type SceneNode } from '../../../core/types';
 import { editor } from '../../state/editor';
-import { runCommand } from '../../state/commands';
+import { getViewport, runCommand } from '../../state/commands';
 import { useEditor } from '../hooks';
 import { Icon } from '../Icons';
 import { NumberField } from '../controls/NumberField';
 import { useScrollEdges } from '../controls/Panel';
+import { EmptyState } from '../controls/EmptyState';
+import { tip } from '../tooltip';
 import { dropIndex, isNoopDrop } from './layerDrop';
 
 const TYPE_ICON: Record<SceneNode['type'], string> = {
@@ -79,6 +81,8 @@ function LayerRow({ n, depth, containerId, index, dragId, setDragId, focusable }
         className={`layer-row${selected ? ' selected' : ''}${n.visible ? '' : ' hidden-layer'}${n.locked ? ' locked' : ''}${drop ? ` drop-${drop}` : ''}${dragId === n.id ? ' dragging' : ''}`}
         style={{ ['--depth' as string]: depth }}
         onClick={click}
+        onMouseEnter={() => getViewport()?.setHover(n.id)}
+        onMouseLeave={() => getViewport()?.setHover(null)}
         onDoubleClick={() => setRenaming(true)}
         draggable={depth === 0 && !renaming}
         onDragStart={(e) => {
@@ -202,16 +206,18 @@ export function LayersPanel() {
   const focusId = rows.find((n) => ed.ui.selection.includes(n.id))?.id ?? rows[0]?.id;
   const setOpacity = (v: number) => ed.commit('Opacity', (d) => updateNodes(d, ed.ui.selection, (m) => ({ ...m, opacity: v / 100 })), 'layer-opacity');
   const mixedOpacity = sel.some((m) => m.opacity !== first?.opacity);
+  const photo = ed.ui.studio === 'photo';
   return (
     <div className="layers-panel">
-      <div className={`layers-head${first ? '' : ' disabled'}`}>
+      {/* Photo keeps Photoshop's blend · opacity header; Vector and Layout edit these in the inspector */}
+      {photo && <div className={`layers-head${first ? '' : ' disabled'}`}>
         <select value={first?.blend ?? 'normal'} disabled={!first} aria-label="Layer blend mode" onChange={(e) => ed.commit('Blend mode', (d) => updateNodes(d, ed.ui.selection, (m) => ({ ...m, blend: e.target.value as BlendMode })))}>
           {BLEND_MODES.map((m) => <option key={m} value={m}>{m.replace(/-/g, ' ').replace(/\b\w/g, (x) => x.toUpperCase())}</option>)}
         </select>
         <NumberField className="opacity-field" label="Opacity" ariaLabel="Layer opacity percent" unit="%" digits={0} min={0} max={100} value={Math.round((first?.opacity ?? 1) * 100)} mixed={mixedOpacity} disabled={!first} onChange={setOpacity} onCommit={setOpacity} />
-      </div>
+      </div>}
       <div className="layers-scroll" ref={scrollRef}>
-        {c.nodes.length === 0 && <p className="empty-note">This page is empty. Pick a tool on the left and draw, or place an image.</p>}
+        {c.nodes.length === 0 && <LayersEmpty />}
         <ul className="layer-list" role="tree" aria-label="Layers" aria-multiselectable="true">
           {rows.map((n, i) => (
             <LayerRow key={n.id} n={n} depth={0} containerId={c.id} index={c.nodes.length - 1 - i} dragId={dragId} setDragId={setDragId} focusable={n.id === focusId} />
@@ -225,15 +231,45 @@ export function LayersPanel() {
         )}
       </div>
       <div className="layer-actions" role="toolbar" aria-label="Layer actions">
-        <button className="icon-btn sm" title="New pixel layer" aria-label="New pixel layer" onClick={() => runCommand('layer.new-pixel')}><Icon name="plus" /></button>
-        <button className="icon-btn sm" title="Group" aria-label="Group" disabled={sel.length < 2} onClick={() => runCommand('arrange.group')}><Icon name="group" /></button>
-        <button className="icon-btn sm" title="Mask to selection" aria-label="Mask to pixel selection" disabled={!sel.length || !ed.ui.pixelSelection} onClick={() => runCommand('layer.mask-selection')}><Icon name="mask" /></button>
-        <button className="icon-btn sm" title="Duplicate" aria-label="Duplicate" disabled={!sel.length} onClick={() => runCommand('edit.duplicate')}><Icon name="copy" /></button>
-        <button className="icon-btn sm" title="Bring forward (Alt+Up on a row)" aria-label="Bring forward" disabled={!sel.length} onClick={() => runCommand('arrange.forward')}><Icon name="arrow-up" /></button>
-        <button className="icon-btn sm" title="Send backward (Alt+Down on a row)" aria-label="Send backward" disabled={!sel.length} onClick={() => runCommand('arrange.backward')}><Icon name="arrow-down" /></button>
-        <div style={{ flex: 1 }} />
-        <button className="icon-btn sm" title="Delete" aria-label="Delete" disabled={!sel.length} onClick={() => runCommand('edit.delete')}><Icon name="trash" /></button>
+        <button className="icon-btn sm" {...tip('New pixel layer', 'layer.new-pixel')} onClick={() => runCommand('layer.new-pixel')}><Icon name="plus" /></button>
+        <button className="icon-btn sm" {...tip('Group', 'arrange.group')} disabled={sel.length < 2} onClick={() => runCommand('arrange.group')}><Icon name="group" /></button>
+        <button className="icon-btn sm" {...tip('Mask to pixel selection', 'layer.mask-selection')} disabled={!sel.length || !ed.ui.pixelSelection} onClick={() => runCommand('layer.mask-selection')}><Icon name="mask" /></button>
+        <button className="icon-btn sm" {...tip('Duplicate', 'edit.duplicate')} disabled={!sel.length} onClick={() => runCommand('edit.duplicate')}><Icon name="copy" /></button>
+        <button className="icon-btn sm" {...tip('Bring forward', 'arrange.forward')} disabled={!sel.length} onClick={() => runCommand('arrange.forward')}><Icon name="arrow-up" /></button>
+        <button className="icon-btn sm" {...tip('Send backward', 'arrange.backward')} disabled={!sel.length} onClick={() => runCommand('arrange.backward')}><Icon name="arrow-down" /></button>
+        <span className="row-spacer" />
+        <button className="icon-btn sm" {...tip('Delete', 'edit.delete')} disabled={!sel.length} onClick={() => runCommand('edit.delete')}><Icon name="trash" /></button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Empty Layers panel teaches the model instead of saying "nothing here"
+ * (UX gap list, MOBBIN #8): what this list is, and the three ways to start.
+ */
+function LayersEmpty() {
+  const ed = useEditor();
+  const photo = ed.ui.studio === 'photo';
+    return (
+    <EmptyState
+      icon="layers"
+      title="No layers yet"
+      className="layers-empty"
+      actions={
+        <>
+          <button type="button" className="btn ghost sm" onClick={() => runCommand('file.place')}><Icon name="image" /> Place image</button>
+          {photo ? (
+            <button type="button" className="btn ghost sm" onClick={() => ed.setTool('brush')}><Icon name="brush" /> Paint</button>
+          ) : (
+            <button type="button" className="btn ghost sm" onClick={() => ed.setTool('rect')}><Icon name="rect" /> Draw a shape</button>
+          )}
+          <button type="button" className="btn ghost sm" onClick={() => ed.setTool('text')}><Icon name="text" /> Add text</button>
+        </>
+      }
+      footnote="Or drop an image file onto the canvas."
+    >
+      Everything you add to this page stacks here, top to bottom. Drag rows to reorder, click the eye to hide.
+    </EmptyState>
   );
 }

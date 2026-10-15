@@ -1,5 +1,5 @@
 import { tip } from '../tooltip';
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { Icon } from '../Icons';
 import { Popover } from '../controls/Panel';
 import { ColorPicker } from './ColorPicker';
@@ -74,26 +74,45 @@ export function FillStrokeChips({ fill, stroke, target, onTarget, onSwap, size =
   );
 }
 
-/** Context-bar colour control: chip + chevron, opens a picker popover. */
-export function ColorChipButton({ kind, label, color, enabled, onChange, onCommit, onToggle }: {
+/**
+ * The colour control (DESIGN.md §8, UX P1-3). Every colour in the chrome is
+ * edited through this one trigger: a chip (optionally with a chevron) that
+ * opens the shared picker in a popover. Context bar, selection toolbar,
+ * inspector paint rows and document background all use it; there are no native
+ * native colour inputs anywhere in the shell.
+ *
+ * `popover` swaps the default solid picker for a custom body (the inspector
+ * passes the full paint editor with gradients).
+ */
+export function ColorChipButton({ kind, label, color, enabled, onChange, onCommit, onToggle, popover, chevron = true, paint, className, disabled, placement = 'below' }: {
   kind: ChipTarget;
   label: string;
   color: string;
   enabled: boolean;
-  onChange: (c: string) => void;
+  onChange?: (c: string) => void;
   onCommit?: () => void;
   onToggle?: (enabled: boolean) => void;
+  /** custom popover body (e.g. the inspector's paint editor) */
+  popover?: ReactNode;
+  chevron?: boolean;
+  /** CSS paint for the chip when it is not a flat colour (gradients) */
+  paint?: string;
+  className?: string;
+  disabled?: boolean;
+  /** 'left' opens beside the inspector instead of over it */
+  placement?: 'below' | 'left';
 }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const desc = enabled ? (paint && paint !== color ? 'gradient' : color.toUpperCase()) : 'none';
   return (
     <>
-      <button type="button" className={`chip-select${anchor ? ' open' : ''}`} aria-label={`${label} colour`} aria-haspopup="dialog" aria-expanded={!!anchor} title={`${label}: ${enabled ? color.toUpperCase() : 'none'}`} onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}>
-        <Chip kind={kind} color={color} enabled={enabled} />
-        <Icon name="chevron-down" size={16} />
+      <button type="button" className={`chip-select${chevron ? '' : ' bare'}${anchor ? ' open' : ''}${className ? ' ' + className : ''}`} aria-label={`${label} colour`} aria-haspopup="dialog" aria-expanded={!!anchor} title={`${label}: ${desc}`} disabled={disabled} onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}>
+        <Chip kind={kind} color={paint ?? color} enabled={enabled} />
+        {chevron && <Icon name="chevron-down" size={16} />}
       </button>
       {anchor && (
-        <Popover anchor={anchor} label={`${label} colour`} onClose={() => setAnchor(null)}>
-          <ColorPopoverBody label={label} color={color} enabled={enabled} onChange={onChange} onCommit={onCommit} onToggle={onToggle} />
+        <Popover anchor={anchor} label={`${label} colour`} placement={placement} onClose={() => setAnchor(null)}>
+          {popover ?? <ColorPopoverBody label={label} color={color} enabled={enabled} onChange={(c) => onChange?.(c)} onCommit={onCommit} onToggle={onToggle} />}
         </Popover>
       )}
     </>

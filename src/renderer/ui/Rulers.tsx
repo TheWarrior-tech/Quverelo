@@ -139,8 +139,8 @@ export function Rulers({ viewport }: { viewport: Viewport }) {
 
   return (
     <>
-      <canvas ref={hRef} className="ruler h" style={{ width: '100%', height: '100%' }} onPointerDown={startGuide('h')} title="Drag down to add a horizontal guide" aria-hidden="true" />
-      <canvas ref={vRef} className="ruler v" style={{ width: '100%', height: '100%' }} onPointerDown={startGuide('v')} title="Drag right to add a vertical guide" aria-hidden="true" />
+      <canvas ref={hRef} className="ruler h" onPointerDown={startGuide('h')} title="Drag down to add a horizontal guide" aria-hidden="true" />
+      <canvas ref={vRef} className="ruler v" onPointerDown={startGuide('v')} title="Drag right to add a vertical guide" aria-hidden="true" />
     </>
   );
 }

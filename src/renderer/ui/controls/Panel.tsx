@@ -25,17 +25,25 @@ function writeCollapsed() {
  */
 export function Section({ id, title, actions, children, className }: { id?: string; title: ReactNode; actions?: ReactNode; children: ReactNode; className?: string }) {
   const [open, setOpen] = useState(() => !id || !collapsed.has(id));
+  const ref = useRef<HTMLElement>(null);
+  const opened = useRef(false);
   const bodyId = id ? `section-${id}` : undefined;
+  // a section the user just expanded scrolls fully into view (UX P1-11)
+  useEffect(() => {
+    if (open && opened.current) ref.current?.scrollIntoView?.({ block: 'nearest' });
+    opened.current = false;
+  }, [open]);
   const toggle = () => {
     if (!id) return;
     const next = !open;
+    opened.current = next;
     setOpen(next);
     if (next) collapsed.delete(id);
     else collapsed.add(id);
     writeCollapsed();
   };
   return (
-    <section className={`section${open ? '' : ' collapsed'}${className ? ' ' + className : ''}`} data-section={id}>
+    <section ref={ref} className={`section${open ? '' : ' collapsed'}${className ? ' ' + className : ''}`} data-section={id}>
       <header className="section-head">
         {id ? (
           <button type="button" className="section-toggle" aria-expanded={open} aria-controls={bodyId} onClick={toggle}>
@@ -52,38 +60,7 @@ export function Section({ id, title, actions, children, className }: { id?: stri
   );
 }
 
-/** Segmented control (radio group) with roving focus: arrows move and select. */
-export function Segmented<T extends string>({ value, options, onChange, ariaLabel, className, size = 'sm' }: { value: T; options: { value: T; label: ReactNode; title?: string }[]; onChange: (v: T) => void; ariaLabel: string; className?: string; size?: 'sm' | 'md' }) {
-  const refs = useRef<(HTMLButtonElement | null)[]>([]);
-  const idx = Math.max(0, options.findIndex((o) => o.value === value));
-  return (
-    <div className={`segmented ${size}${className ? ' ' + className : ''}`} role="radiogroup" aria-label={ariaLabel}>
-      {options.map((o, i) => (
-        <button
-          key={o.value}
-          ref={(el) => (refs.current[i] = el)}
-          type="button"
-          role="radio"
-          aria-checked={o.value === value}
-          tabIndex={i === idx ? 0 : -1}
-          title={o.title}
-          className={o.value === value ? 'on' : ''}
-          onClick={() => onChange(o.value)}
-          onKeyDown={(e) => {
-            const d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
-            if (!d) return;
-            e.preventDefault();
-            const n = (i + d + options.length) % options.length;
-            onChange(options[n].value);
-            refs.current[n]?.focus();
-          }}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
+export { Segmented } from './Segmented';
 
 /** Marks a scroll container with data-scroll-top / data-scroll-bottom while content is hidden past either edge. */
 export function useScrollEdges<T extends HTMLElement>() {
@@ -114,7 +91,7 @@ export function useScrollEdges<T extends HTMLElement>() {
  * Anchored popover (non-modal): portals to <body> so scrolling toolbars don't clip it,
  * closes on Escape or an outside press and hands focus back to the anchor.
  */
-export function Popover({ anchor, onClose, children, label, placement = 'below' }: { anchor: HTMLElement; onClose: () => void; children: ReactNode; label: string; placement?: 'below' | 'right' }) {
+export function Popover({ anchor, onClose, children, label, placement = 'below', className, role = 'dialog' }: { anchor: HTMLElement; onClose: () => void; children: ReactNode; label: string; placement?: 'below' | 'above' | 'right' | 'left'; className?: string; role?: 'dialog' | 'menu' | 'listbox' }) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   useLayoutEffect(() => {
@@ -122,24 +99,37 @@ export function Popover({ anchor, onClose, children, label, placement = 'below' 
     const el = ref.current;
     const w = el?.offsetWidth ?? 248;
     const h = el?.offsetHeight ?? 320;
-    let left = placement === 'right' ? r.right + 8 : r.left;
-    let top = placement === 'right' ? r.top - 8 : r.bottom + 6;
+    let left = placement === 'right' ? r.right + 8 : placement === 'left' ? r.left - w - 8 : r.left;
+    let top = placement === 'right' || placement === 'left' ? r.top - 8 : placement === 'above' ? r.top - h - 6 : r.bottom + 6;
+    // flip when the preferred side has no room
+    if (placement === 'below' && top + h > window.innerHeight - 8 && r.top - h - 6 >= 8) top = r.top - h - 6;
+    if (placement === 'above' && top < 8) top = r.bottom + 6;
     left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
     top = Math.max(8, Math.min(top, window.innerHeight - h - 8));
     setPos({ left, top });
   }, [anchor, placement]);
+  // focus the first control once, after the popover is placed (a hidden element can't take focus);
+  // never again on re-render, or typing in a field would lose focus when the value commits
+  const focused = useRef(false);
   useEffect(() => {
-    const first = ref.current?.querySelector<HTMLElement>('[data-autofocus], [tabindex="0"], input, button');
+    if (!pos || focused.current) return;
+    focused.current = true;
+    const root = ref.current;
+    const first = ['[data-autofocus]', '[tabindex="0"]', 'input', 'button:not(:disabled)'].map((q) => root?.querySelector<HTMLElement>(q)).find(Boolean);
     first?.focus();
+  }, [pos]);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
     const down = (e: PointerEvent) => {
       const t = e.target as Node;
       if (ref.current?.contains(t) || anchor.contains(t)) return;
-      onClose();
+      closeRef.current();
     };
     const key = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        onClose();
+        closeRef.current();
         anchor.focus();
       }
     };
@@ -149,9 +139,9 @@ export function Popover({ anchor, onClose, children, label, placement = 'below' 
       document.removeEventListener('pointerdown', down, true);
       document.removeEventListener('keydown', key, true);
     };
-  }, [anchor, onClose]);
+  }, [anchor]);
   return createPortal(
-    <div ref={ref} className="popover" role="dialog" aria-label={label} style={pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }}>
+    <div ref={ref} className={`popover${className ? ' ' + className : ''}`} role={role} aria-label={label} style={pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }}>
       {children}
     </div>,
     document.body,

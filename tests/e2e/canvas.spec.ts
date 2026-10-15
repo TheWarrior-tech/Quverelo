@@ -171,6 +171,7 @@ test.describe('canvas chrome', () => {
     await page.evaluate(() => (window as any).__quvrelo.editor.select([]));
     await expect(page.locator('.contextbar [aria-label="Top margin"]')).toBeVisible();
     await page.locator('.contextbar [aria-label="Top margin"]').fill('40');
+    await page.locator('.contextbar [aria-label="Top margin"]').press('Enter');
     expect(await state<number>(page, 'Math.round(editor.doc.settings.margins.top)')).toBe(40);
     await page.locator('.contextbar [aria-label="Add page"]').click();
     await page.locator('.contextbar button[aria-pressed]', { hasText: 'Facing pages' }).click();

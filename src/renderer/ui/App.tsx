@@ -89,7 +89,7 @@ export function App() {
     const offMenu = window.quvrelo.onMenuCommand((id) => void runCommand(id));
     const offOpen = window.quvrelo.onOpenPath((p) => void openPath(p));
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && editor.session && !(e.target as HTMLElement)?.closest('input,textarea,select,button,[role="tab"],.panels,.dialog')) {
+      if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && editor.session && !(e.target as HTMLElement)?.closest('input,textarea,select,button,[role="tab"],.panels,.left-rail,.selection-toolbar,.dialog')) {
         e.preventDefault();
         document.querySelector('.workspace')?.classList.toggle('hide-panels');
         return;

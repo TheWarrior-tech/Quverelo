@@ -85,10 +85,10 @@ export function PagesPanel() {
           Master pages
           <button className="icon-btn sm" title="Add master page" aria-label="Add master page" onClick={() => runCommand('master.add')}><Icon name="plus" /></button>
         </div>
-        {live.masters.length === 0 && <p className="empty-note" style={{ padding: 4 }}>Masters hold headers, footers and backgrounds shared by many pages.</p>}
+        {live.masters.length === 0 && <p className="empty-note">Masters hold headers, footers and backgrounds shared by many pages.</p>}
         {live.masters.map((m) => (
           <div className="row" key={m.id}>
-            <span style={{ flex: 1, fontWeight: active === m.id ? 600 : 400 }}>{m.name}</span>
+            <span className={`master-name${active === m.id ? ' on' : ''}`}>{m.name}</span>
             <button className="btn sm ghost" onClick={() => ed.setUi({ activeContainerId: m.id, selection: [] })}>{active === m.id ? 'Editing' : 'Edit'}</button>
             <button className="icon-btn sm" aria-label={`Delete ${m.name}`} title="Delete master" onClick={() => {
               ed.commit('Delete master', (d) => removeMaster(d, m.id));

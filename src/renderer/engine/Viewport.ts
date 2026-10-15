@@ -14,7 +14,7 @@ import { NodeObject, RESIZE_TYPES } from './NodeObject';
 import { renderBounds, type DrawEnv } from './draw';
 import { createTool, type Tool, type ToolContext } from './tools';
 import { TextEditOverlay } from './textEdit';
-import { HANDLE_SIZE, SELECTION_COLOR, tuneControls } from './controls';
+import { HANDLE_RING, HANDLE_SIZE, SELECTION_COLOR, tuneControls } from './controls';
 
 class QuvreloCanvas extends Canvas {
   pageW = 100;
@@ -96,6 +96,10 @@ export class Viewport {
   livePaint: DrawEnv['livePaint'] = null;
   private envCache: DrawEnv | null = null;
   onViewChange: (() => void) | null = null;
+  /** node under the pointer (canvas) or under a hovered layer row; drawn as a 1px outline */
+  private hoverId: Id | null = null;
+  private pointerDown = false;
+  private chromeListeners = new Set<() => void>();
 
   constructor(host: HTMLElement, editor: Editor) {
     this.host = host;
@@ -135,7 +139,54 @@ export class Viewport {
     this.zoomToFit();
   }
 
+  private onWindowPointerUp = (): void => {
+    if (!this.pointerDown) return;
+    this.pointerDown = false;
+    this.notifyChrome();
+  };
+
+  /** Subscribe to selection-chrome changes (render, pan, zoom, drag start/end). */
+  onChrome(fn: () => void): () => void {
+    this.chromeListeners.add(fn);
+    return () => this.chromeListeners.delete(fn);
+  }
+
+  private notifyChrome(): void {
+    for (const fn of this.chromeListeners) fn();
+  }
+
+  /** True while the user is dragging on the canvas or transforming the selection. */
+  get interacting(): boolean {
+    return this.pointerDown || !!(this.canvas as unknown as { _currentTransform: unknown })._currentTransform || !!this.panning;
+  }
+
+  /**
+   * Screen rect (CSS px, relative to the viewport host) of the selection
+   * bounding box while it is drawn with handles, else null.
+   */
+  selectionRect(): { x: number; y: number; w: number; h: number } | null {
+    const obj = this.canvas.getActiveObject();
+    if (!obj || !this.showsObjectSelection()) return null;
+    const oc = obj.calcOCoords() as Record<string, { x: number; y: number }>;
+    const pts = ['tl', 'tr', 'br', 'bl'].map((k) => oc[k]).filter(Boolean);
+    if (pts.length < 4) return null;
+    const xs = pts.map((p) => p.x);
+    const ys = pts.map((p) => p.y);
+    const x = Math.min(...xs);
+    const y = Math.min(...ys);
+    return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
+  }
+
+  /** Highlight a node with the hover outline (from the canvas or a layer row). */
+  setHover(id: Id | null): void {
+    if (id === this.hoverId) return;
+    this.hoverId = id;
+    this.drawOverlay();
+  }
+
   destroy(): void {
+    window.removeEventListener('pointerup', this.onWindowPointerUp, { capture: true });
+    this.chromeListeners.clear();
     this.unsub();
     this.resizeObs.disconnect();
     if (this.antsTimer) window.clearInterval(this.antsTimer);
@@ -317,6 +368,14 @@ export class Viewport {
       }
     });
     c.on('after:render', () => this.drawOverlay());
+    c.on('mouse:over', (e) => {
+      const t = e.target as NodeObject | undefined;
+      if (t instanceof NodeObject && !t.isMaster) this.setHover(t.nodeId);
+    });
+    c.on('mouse:out', (e) => {
+      const t = e.target as NodeObject | undefined;
+      if (t instanceof NodeObject && t.nodeId === this.hoverId) this.setHover(null);
+    });
     c.on('mouse:dblclick', (e) => this.tool.onDblClick?.(e.scenePoint, e.e as MouseEvent, this.targetNode(e)));
 
     c.on('mouse:down', (e: TPointerEventInfo) => {
@@ -336,6 +395,12 @@ export class Viewport {
 
     const upper = this.host;
     upper.addEventListener('wheel', (ev) => this.onWheel(ev), { passive: false });
+    // the floating selection toolbar hides while the pointer is down on the canvas
+    upper.addEventListener('pointerdown', () => {
+      this.pointerDown = true;
+      this.notifyChrome();
+    }, { capture: true });
+    window.addEventListener('pointerup', this.onWindowPointerUp, { capture: true });
     upper.addEventListener('pointerdown', (ev) => {
       if (this.isPanGesture(ev)) {
         ev.preventDefault();
@@ -717,8 +782,37 @@ export class Viewport {
     this.tool.drawOverlay?.(ctx, z);
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.drawHover(ctx);
     this.drawSelectionChrome(ctx);
     ctx.restore();
+    this.notifyChrome();
+  }
+
+  /**
+   * Hover: a 1px accent outline and nothing else, so it can never be read as a
+   * selection (which adds handles). Skipped for selected nodes and while dragging.
+   */
+  private drawHover(ctx: CanvasRenderingContext2D): void {
+    const id = this.hoverId;
+    if (!id || this.editor.ui.selection.includes(id) || this.interacting || !this.showsObjectSelection()) return;
+    let obj = this.objects.get(id);
+    if (!obj && this.editor.doc) {
+      const loc = findNode(this.editor.doc, id);
+      if (loc?.ancestors.length) obj = this.objects.get(loc.ancestors[0].id);
+    }
+    if (!obj || obj.isMaster || !obj.visible) return;
+    const { tl, tr, br, bl } = obj.calcOCoords() as Record<string, { x: number; y: number }>;
+    if (!tl || !tr || !br || !bl) return;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([]);
+    ctx.strokeStyle = SELECTION_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(Math.round(tl.x) + 0.5, Math.round(tl.y) + 0.5);
+    ctx.lineTo(Math.round(tr.x) + 0.5, Math.round(tr.y) + 0.5);
+    ctx.lineTo(Math.round(br.x) + 0.5, Math.round(br.y) + 0.5);
+    ctx.lineTo(Math.round(bl.x) + 0.5, Math.round(bl.y) + 0.5);
+    ctx.closePath();
+    ctx.stroke();
   }
 
   /** Which tools show the object bounding box. Photo shows it only for Move (like Affinity's Pixel persona). */
@@ -760,6 +854,22 @@ export class Viewport {
       ctx.closePath();
     }
     ctx.stroke();
+    // multi-selection: each member gets a quiet outline so it is clear what is included
+    const members = (obj as unknown as { getObjects?: () => FabricObject[] }).getObjects?.() ?? [];
+    if (members.length > 1) {
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      for (const m of members) {
+        const c = m.calcOCoords() as Record<string, { x: number; y: number }>;
+        const q = [c.tl, c.tr, c.br, c.bl];
+        if (q.some((p) => !p)) continue;
+        ctx.beginPath();
+        q.forEach((p, i) => (i ? ctx.lineTo(Math.round(p.x) + 0.5, Math.round(p.y) + 0.5) : ctx.moveTo(Math.round(p.x) + 0.5, Math.round(p.y) + 0.5)));
+        ctx.closePath();
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
     const interactive = this.toolId === 'move' && obj.hasControls !== false;
     const w = Math.hypot(tr.x - tl.x, tr.y - tl.y);
     const h = Math.hypot(bl.x - tl.x, bl.y - tl.y);
@@ -774,20 +884,26 @@ export class Viewport {
       ctx.stroke();
       ctx.beginPath();
       ctx.arc(mtr.x, mtr.y, HANDLE_SIZE / 2, 0, Math.PI * 2);
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = SELECTION_COLOR;
       ctx.fill();
+      ctx.strokeStyle = HANDLE_RING;
       ctx.stroke();
+      ctx.strokeStyle = SELECTION_COLOR;
     }
-    const half = (HANDLE_SIZE - 1) / 2;
+    // accent handles with a 1px white ring: read on dark, light and photographic content alike
+    const H = HANDLE_SIZE;
+    const half = Math.floor(H / 2);
     for (const k of keys) {
       const p = oc[k];
       if (!p) continue;
-      const x = Math.round(p.x) - half + 0.5;
-      const y = Math.round(p.y) - half + 0.5;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(x, y, HANDLE_SIZE - 1, HANDLE_SIZE - 1);
-      ctx.strokeRect(x, y, HANDLE_SIZE - 1, HANDLE_SIZE - 1);
+      const x = Math.round(p.x) - half;
+      const y = Math.round(p.y) - half;
+      ctx.fillStyle = HANDLE_RING;
+      ctx.fillRect(x - 1, y - 1, H + 2, H + 2);
+      ctx.fillStyle = SELECTION_COLOR;
+      ctx.fillRect(x, y, H, H);
     }
+    ctx.strokeStyle = SELECTION_COLOR;
     // live W×H while transforming
     if ((this.canvas as unknown as { _currentTransform: unknown })._currentTransform) {
       const r = obj.getBoundingRect();

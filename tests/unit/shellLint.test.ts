@@ -1,0 +1,58 @@
+/**
+ * Shell v3 guard rails (docs/DESIGN.md §2, §8; UX P1-3, P1-5):
+ * - no native <input type="color"> in the shell: colour goes through ColorChipButton
+ * - inline styles in ui/ only carry runtime values (CSS custom properties,
+ *   positions, sizes of virtualised rows, font previews), never design values
+ * - one segmented control implementation
+ * Dialogs and the Welcome screen are owned by other work and excluded here.
+ */
+import { describe, expect, it } from 'vitest';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+
+const UI = path.resolve('src/renderer/ui');
+const EXCLUDE = [/^dialogs\//, /^Welcome\.tsx$/];
+
+function files(dir = UI, rel = ''): string[] {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const r = rel ? `${rel}/${e.name}` : e.name;
+    if (e.isDirectory()) return files(path.join(dir, e.name), r);
+    return e.name.endsWith('.tsx') && !EXCLUDE.some((x) => x.test(r)) ? [r] : [];
+  });
+}
+
+/** keys an inline style may set: runtime geometry and data-driven paint only */
+const RUNTIME_KEYS = new Set(['left', 'top', 'height', 'width', 'fontFamily', 'background', 'backgroundImage', 'backgroundSize', 'backgroundPosition', 'visibility']);
+
+describe('shell lint', () => {
+  const list = files();
+
+  it('has no native colour inputs', () => {
+    const bad = list.filter((f) => /<input[^>]*type=["']color["']/.test(fs.readFileSync(path.join(UI, f), 'utf8')));
+    expect(bad).toEqual([]);
+  });
+
+  it('keeps design values out of inline styles', () => {
+    const bad: string[] = [];
+    for (const f of list) {
+      const src = fs.readFileSync(path.join(UI, f), 'utf8');
+      for (const m of src.matchAll(/style=\{\{([^}]*)\}\}/g)) {
+        const body = m[1];
+        // split top-level "key: value" pairs
+        for (const pair of body.split(/,(?![^(]*\))/)) {
+          const key = pair.split(':')[0].trim();
+          if (!key || key.startsWith("['--") || key.startsWith('[`--') || key.startsWith('...')) continue;
+          if (key === 'display' && /'contents'/.test(pair)) continue; // layout-neutral wrapper
+          if (!RUNTIME_KEYS.has(key)) bad.push(`${f}: ${pair.trim()}`);
+          else if (/:\s*['"][^'"]*var\(--/.test(pair) || /:\s*['"]#[0-9a-f]{3,8}['"]/i.test(pair)) bad.push(`${f}: ${pair.trim()} (token or colour literal)`);
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it('has one Segmented implementation', () => {
+    const defs = list.filter((f) => /export function Segmented\b/.test(fs.readFileSync(path.join(UI, f), 'utf8')));
+    expect(defs).toEqual(['controls/Segmented.tsx']);
+  });
+});

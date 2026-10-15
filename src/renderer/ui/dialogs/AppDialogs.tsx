@@ -356,6 +356,9 @@ export function PreferencesDialog() {
             <PrefRow title="Snapping" description="Snap to page edges, margins, guides and other objects." htmlFor="pref-snap">
               <Check id="pref-snap" checked={s.snapping} onChange={(v) => setSetting({ snapping: v })} />
             </PrefRow>
+            <PrefRow title="Floating selection toolbar" description="Shows the most useful actions next to what you select. F6 moves focus into it." htmlFor="pref-stb">
+              <Check id="pref-stb" checked={s.showSelectionToolbar !== false} onChange={(v) => setSetting({ showSelectionToolbar: v })} />
+            </PrefRow>
           </PrefSection>
         )}
 

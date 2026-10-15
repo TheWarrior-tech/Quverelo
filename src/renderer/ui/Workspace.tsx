@@ -17,6 +17,8 @@ import { Popover } from './controls/Panel';
 import { solid } from '../../core/document';
 import { statusLine, useUpdateState } from '../state/updates';
 import { openDialog } from '../state/bus';
+import { LeftRail } from './panels/LeftRail';
+import { SelectionToolbar } from './SelectionToolbar';
 
 export { toolLabel } from './ToolFlyout';
 
@@ -56,47 +58,81 @@ function StudioSwitch() {
   );
 }
 
+/**
+ * Document identity (top-bar zone 1): the name, renamed in place (click, type,
+ * Enter; Esc cancels), and the save state as quiet text with a dot.
+ */
+function DocIdentity() {
+  const ed = useEditor();
+  const [editing, setEditing] = useState(false);
+  const title = ed.doc?.title ?? '';
+  const dirty = !!ed.history?.dirty;
+  const saved = !!ed.session?.filePath;
+  const state = dirty ? 'Edited' : saved ? 'Saved' : 'Not saved';
+  const stateTip = dirty ? 'Unsaved changes' : saved ? 'All changes saved' : 'This document has not been saved yet';
+  return (
+    <div className="doc-identity">
+      <Logo className="logo" />
+      {editing ? (
+        <input
+          className="doc-title-input"
+          type="text"
+          aria-label="Document name"
+          autoFocus
+          defaultValue={title}
+          onFocus={(e) => e.currentTarget.select()}
+          onBlur={(e) => {
+            setEditing(false);
+            const v = e.target.value.trim();
+            if (v && v !== title) ed.commit('Rename document', (x) => ({ ...x, title: v }));
+          }}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === 'Enter') e.currentTarget.blur();
+            if (e.key === 'Escape') setEditing(false);
+          }}
+        />
+      ) : (
+        <button type="button" className="doc-title" title={`${title} · click to rename`} aria-label={`Document name: ${title}. Click to rename`} onClick={() => setEditing(true)}>
+          {title}
+        </button>
+      )}
+      <span className={`doc-state${dirty ? ' dirty' : ''}`} title={stateTip} role="status">
+        <i aria-hidden="true" />
+        {state}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Top bar in three semantic zones (DESIGN.md §8 v3, MOBBIN #4):
+ * document identity | studio switch + tools | outbound actions, with Export as
+ * the single filled (primary) button in the bar.
+ */
 function Topbar() {
   const ed = useEditor();
   const h = ed.history;
-  const sel = ed.ui.selection.length;
   return (
     <header className="topbar" role="toolbar" aria-label="Main toolbar">
-      <div className="topbar-side start">
-      <div className="brand">
-        <Logo className="logo" />
-        <span className="doc-title" title={ed.doc?.title}>{ed.doc?.title}{h?.dirty && <i className="dirty" aria-label="Unsaved changes" />}</span>
+      <div className="topbar-zone identity">
+        <DocIdentity />
       </div>
-      <button className="icon-btn" {...tip('New document', 'file.new')} onClick={() => runCommand('file.new')}><Icon name="new" /></button>
-      <button className="icon-btn" {...tip('Open', 'file.open')} onClick={() => runCommand('file.open')}><Icon name="open" /></button>
-      <button className="icon-btn" {...tip('Save', 'file.save')} onClick={() => runCommand('file.save')}><Icon name="save" /></button>
-      <button className="icon-btn" {...tip('Export PNG', 'file.export-png')} onClick={() => runCommand('file.export-png')}><Icon name="export" /></button>
-      <button className="icon-btn" {...tip('Place image', 'file.place')} onClick={() => runCommand('file.place')}><Icon name="image" /></button>
-      <div className="sep" />
-      <button className="icon-btn" {...tip('Undo', 'edit.undo')} disabled={!h?.canUndo} onClick={() => runCommand('edit.undo')}><Icon name="undo" /></button>
-      <button className="icon-btn" {...tip('Redo', 'edit.redo')} disabled={!h?.canRedo} onClick={() => runCommand('edit.redo')}><Icon name="redo" /></button>
+      <div className="topbar-zone centre">
+        <StudioSwitch />
+        <span className="sep" aria-hidden="true" />
+        <button className="icon-btn" {...tip('Undo', 'edit.undo')} disabled={!h?.canUndo} onClick={() => runCommand('edit.undo')}><Icon name="undo" /></button>
+        <button className="icon-btn" {...tip('Redo', 'edit.redo')} disabled={!h?.canRedo} onClick={() => runCommand('edit.redo')}><Icon name="redo" /></button>
+        <button className="icon-btn" {...tip('Place image…', 'file.place')} onClick={() => runCommand('file.place')}><Icon name="image" /></button>
       </div>
-      <StudioSwitch />
-      <div className="topbar-side end">
-      <button className="icon-btn" {...tip('Align left')} disabled={!sel} onClick={() => runCommand('arrange.align-left')}><Icon name="align-left" /></button>
-      <button className="icon-btn" {...tip('Align centre')} disabled={!sel} onClick={() => runCommand('arrange.align-hcenter')}><Icon name="align-hcenter" /></button>
-      <button className="icon-btn" {...tip('Align right')} disabled={!sel} onClick={() => runCommand('arrange.align-right')}><Icon name="align-right" /></button>
-      <button className="icon-btn" {...tip('Align top')} disabled={!sel} onClick={() => runCommand('arrange.align-top')}><Icon name="align-top" /></button>
-      <button className="icon-btn" {...tip('Align middle')} disabled={!sel} onClick={() => runCommand('arrange.align-vcenter')}><Icon name="align-vcenter" /></button>
-      <button className="icon-btn" {...tip('Align bottom')} disabled={!sel} onClick={() => runCommand('arrange.align-bottom')}><Icon name="align-bottom" /></button>
-      {ed.ui.studio === 'vector' && (
-        <>
-          <div className="sep" />
-          <button className="icon-btn" {...tip('Boolean add')} disabled={sel < 2} onClick={() => runCommand('layer.bool-add')}><Icon name="bool-add" /></button>
-          <button className="icon-btn" {...tip('Boolean subtract')} disabled={sel < 2} onClick={() => runCommand('layer.bool-subtract')}><Icon name="bool-subtract" /></button>
-          <button className="icon-btn" {...tip('Boolean intersect')} disabled={sel < 2} onClick={() => runCommand('layer.bool-intersect')}><Icon name="bool-intersect" /></button>
-          <button className="icon-btn" {...tip('Boolean exclude')} disabled={sel < 2} onClick={() => runCommand('layer.bool-exclude')}><Icon name="bool-exclude" /></button>
-          <button className="icon-btn" {...tip('Boolean divide')} disabled={sel < 2} onClick={() => runCommand('layer.bool-divide')}><Icon name="bool-divide" /></button>
-        </>
-      )}
-      <div className="sep" />
-      <button className="icon-btn" {...tip('Keyboard shortcuts', 'help.shortcuts')} onClick={() => runCommand('help.shortcuts')}><Icon name="keyboard" /></button>
-      <button className="icon-btn" {...tip('Preferences', 'app.preferences')} onClick={() => runCommand('app.preferences')}><Icon name="settings" /></button>
+      <div className="topbar-zone actions">
+        <button className="icon-btn" {...tip('Open…', 'file.open')} onClick={() => runCommand('file.open')}><Icon name="open" /></button>
+        <button className="icon-btn" {...tip('Save', 'file.save')} onClick={() => runCommand('file.save')}><Icon name="save" /></button>
+        <button className="icon-btn" {...tip('Keyboard shortcuts', 'help.shortcuts')} onClick={() => runCommand('help.shortcuts')}><Icon name="keyboard" /></button>
+        <button className="icon-btn" {...tip('Preferences', 'app.preferences')} onClick={() => runCommand('app.preferences')}><Icon name="settings" /></button>
+        <button className="btn primary export-btn" {...tip('Export…', 'file.export-png')} aria-label="Export" onClick={() => runCommand('file.export-png')}>
+          <Icon name="export" /> Export
+        </button>
       </div>
     </header>
   );
@@ -185,14 +221,15 @@ function CanvasArea() {
       <div className="ruler-corner" title="Toggle rulers" onDoubleClick={() => setSetting({ showRulers: false })} />
       {vp && <Rulers viewport={vp} />}
       <div className="viewport" ref={hostRef} />
+      {vp && <SelectionToolbar viewport={vp} />}
       {master && (
-        <div className="master-banner" style={{ gridArea: '2 / 2' }}>
+        <div className="master-banner">
           Editing master “{master.name}”
           <button onClick={() => ed.setUi({ activeContainerId: doc.pages[0].id, selection: [] })}>Done</button>
         </div>
       )}
       {doc.pages.length > 1 && pageIndex >= 0 && (
-        <div className="page-indicator" style={{ gridArea: '2 / 2' }}>
+        <div className="page-indicator">
           <button className="icon-btn sm" {...tip('Previous page', 'PageUp')} disabled={pageIndex === 0} onClick={() => runCommand('page.prev')}><Icon name="chevron-left" /></button>
           <span>Page {pageIndex + 1} of {doc.pages.length}</span>
           <button className="icon-btn sm" {...tip('Next page', 'PageDown')} disabled={pageIndex === doc.pages.length - 1} onClick={() => runCommand('page.next')}><Icon name="chevron-right" /></button>
@@ -239,7 +276,7 @@ function StatusBar() {
         </select>
       </label>
       <button className="icon-btn sm" {...tip('Zoom out', 'view.zoom-out')} onClick={() => runCommand('view.zoom-out')}><Icon name="minus" /></button>
-      <button className="btn ghost" style={{ height: 20, padding: '0 6px' }} onClick={() => runCommand('view.zoom-fit')} title={tip('Zoom to fit', 'view.zoom-fit').title} aria-label={`Zoom ${zoom}%, fit to window`}><span className="num">{zoom}%</span></button>
+      <button className="btn ghost zoom-value" onClick={() => runCommand('view.zoom-fit')} title={tip('Zoom to fit', 'view.zoom-fit').title} aria-label={`Zoom ${zoom}%, fit to window`}><span className="num">{zoom}%</span></button>
       <button className="icon-btn sm" {...tip('Zoom in', 'view.zoom-in')} onClick={() => runCommand('view.zoom-in')}><Icon name="plus" /></button>
       <span>{ed.settings.snapping ? 'Snap on' : 'Snap off'}</span>
     </footer>
@@ -256,6 +293,7 @@ export function Workspace() {
       <Topbar />
       <ContextBar />
       <ToolPalette />
+      <LeftRail />
       <CanvasArea />
       <Panels />
       <StatusBar />

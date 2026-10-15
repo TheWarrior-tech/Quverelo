@@ -1,5 +1,5 @@
 /**
- * Panel controls: scrub labels, arrow-key steps, colour fields, layer rows, splitters.
+ * Panel controls: scrub labels, arrow-key steps, colour fields, layer rows, rail tabs.
  * Set QUVRELO_REVIEW_DIR to also capture close-ups for design review.
  */
 import { test, expect } from '@playwright/test';
@@ -8,7 +8,7 @@ import { docToScreen, drag, launch, state, pickTool } from './helpers';
 
 const out = process.env.QUVRELO_REVIEW_DIR;
 
-test('numeric fields, colour picker, layers and panel splitters', async () => {
+test('numeric fields, colour picker, layers and rail tabs', async () => {
   const { app, page } = await launch();
   await page.click('[data-template="social"]');
   await expect(page.locator('.workspace')).toBeVisible();
@@ -44,8 +44,13 @@ test('numeric fields, colour picker, layers and panel splitters', async () => {
   await expect.poll(async () => Number(await y.getAttribute('aria-valuenow'))).toBeGreaterThan(y0 + 5);
   expect(await state<number>(page, 'editor.history.list.length')).toBe(undoBefore + 1);
 
-  // colour: hex entry recolours the selection, model switch shows RGB channels
-  await page.click('[data-panel="colour"]');
+  // colour: the inspector's fill row takes a hex directly...
+  const fillHex = page.getByRole('textbox', { name: 'Fill hex' });
+  await fillHex.fill('ff0000');
+  await fillHex.press('Enter');
+  await expect.poll(() => state<string>(page, 'editor.selectedNodes()[0].fill.color')).toBe('#ff0000');
+  // ...and its chip opens the shared picker: hex entry recolours, model switch shows RGB channels
+  await page.locator('[data-paint="fill"] .chip-select').click();
   const hex = page.getByRole('textbox', { name: 'Hex colour' });
   await hex.fill('3366CC');
   await hex.press('Enter');
@@ -81,18 +86,22 @@ test('numeric fields, colour picker, layers and panel splitters', async () => {
   await row.locator('button[aria-label="Show layer"]').click();
   await expect(row).not.toHaveClass(/hidden-layer/);
 
-  // splitter: keyboard resize changes the Layers group height
-  const group = page.locator('[data-group="structure"]');
-  const h1 = (await group.boundingBox())!.height;
-  const split = page.getByRole('separator', { name: /Resize Inspector/ });
-  await split.focus();
-  await page.keyboard.press('Shift+ArrowUp');
-  await expect.poll(async () => Math.round((await group.boundingBox())!.height - h1)).toBe(32);
-  // collapse / expand a group
-  await page.getByRole('button', { name: 'Collapse Library' }).click();
-  await expect(page.locator('[data-group="library"] .panel-body')).toHaveCount(0);
-  if (out) await page.screenshot({ path: path.join(out, 'controls-collapsed.png') });
-  await page.getByRole('button', { name: 'Expand Library' }).click();
-  await expect(page.locator('[data-group="library"] .panel-body')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+
+  // left rail: Layers · Pages · Assets tabs, arrow keys move between them
+  const layersTab = page.getByRole('tab', { name: 'Layers' });
+  await layersTab.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('tab', { name: 'Pages' })).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('tab', { name: 'Assets' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('listbox', { name: 'Swatches' })).toBeVisible();
+  if (out) await page.screenshot({ path: path.join(out, 'controls-assets.png') });
+  await page.keyboard.press('Home');
+  await expect(layersTab).toHaveAttribute('aria-selected', 'true');
+  // inspector tabs: Design and History
+  await page.getByRole('tab', { name: 'History' }).click();
+  await expect(page.getByRole('list', { name: 'History' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Design' }).click();
   await app.close();
 });

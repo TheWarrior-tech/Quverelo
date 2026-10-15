@@ -53,10 +53,11 @@ test.describe('design review', () => {
       await pickTool(page, 'rect');
       await drag(page, { x: 640, y: 320 }, { x: 800, y: 420 });
       await snap('vector');
-      await page.click('[data-panel="colour"]');
-      await page.locator('.layer-row').first().hover();
-      await snap('colour');
       await page.click('[data-panel="properties"]');
+      await page.locator('.layer-row').first().hover();
+      await page.locator('[data-paint="fill"] .chip-select').click();
+      await snap('colour');
+      await page.keyboard.press('Escape');
       await page.click('.contextbar .chip-select >> nth=0');
       await snap('colour-popover');
       await page.keyboard.press('Escape');
