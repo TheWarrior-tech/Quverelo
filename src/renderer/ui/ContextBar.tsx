@@ -201,11 +201,10 @@ function CropControls() {
           options={([['thirds', 'Thirds'], ['grid', 'Grid'], ['none', 'None']] as [CropOverlay, string][]).map(([value, label]) => ({ value, label }))}
         />
       </div>
-      <CtxHint>Drag handles · Shift keeps proportions · Enter applies · Esc cancels</CtxHint>
       <div className="ctx-spacer" />
       <div className="group ctx-commit">
-        <button className="btn" data-action="crop-cancel" onClick={() => runCommand('crop.cancel')} disabled={!changed} aria-keyshortcuts="Escape">Cancel</button>
-        <button className="btn primary" data-action="crop-apply" onClick={() => runCommand('crop.apply')} disabled={!changed} aria-keyshortcuts="Enter"><Icon name="check" /> Apply</button>
+        <button className="btn" data-action="crop-cancel" onClick={() => runCommand('crop.cancel')} disabled={!changed} {...tip('Cancel', 'Escape')} data-tip-hint="Reset the crop box">Cancel</button>
+        <button className="btn primary" data-action="crop-apply" onClick={() => runCommand('crop.apply')} disabled={!changed} {...tip('Apply', 'Enter')} data-tip-hint="Drag handles to adjust · Shift keeps proportions"><Icon name="check" /> Apply</button>
       </div>
     </>
   );
