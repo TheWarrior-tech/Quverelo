@@ -8,6 +8,7 @@ import { runCommand } from '../state/commands';
 import { useEditor } from './hooks';
 import { Icon } from './Icons';
 import { tip, shortcutFor } from './tooltip';
+import { pixelStripActive } from './SelectionActions';
 import { ColorChipButton } from './color/Chips';
 import { MenuButton, type MenuItem } from './controls/Menu';
 import { NumberField } from './controls/NumberField';
@@ -123,7 +124,7 @@ export function SelectionToolbar({ viewport }: { viewport: Viewport }) {
   const [pos, setPos] = useState<{ left: number; top: number; above: boolean } | null>(null);
   const nodes = ed.selectedNodes();
   const enabled = ed.settings.showSelectionToolbar !== false;
-  const show = enabled && !!sel && !!area && !busy && ed.ui.tool === 'move' && nodes.length > 0 && !ed.ui.editingTextId;
+  const show = enabled && !!sel && !!area && !busy && ed.ui.tool === 'move' && nodes.length > 0 && !ed.ui.editingTextId && !pixelStripActive(ed.ui);
 
   useLayoutEffect(() => {
     if (!show || !ref.current || !sel || !area) return setPos(null);

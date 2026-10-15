@@ -12,7 +12,7 @@ describe('tool rail groups', () => {
       expect(tools[0], s).toBe('move');
     }
     // the tools each studio offered before flyouts are all still reachable
-    expect(new Set(studioTools('photo'))).toEqual(new Set(['move', 'marquee-rect', 'marquee-ellipse', 'lasso', 'crop', 'brush', 'eraser', 'fill', 'eyedropper', 'text', 'hand', 'zoom']));
+    expect(new Set(studioTools('photo'))).toEqual(new Set(['move', 'marquee-rect', 'marquee-ellipse', 'lasso', 'object-select', 'crop', 'brush', 'eraser', 'fill', 'eyedropper', 'text', 'hand', 'zoom']));
     expect(new Set(studioTools('vector'))).toEqual(new Set(['move', 'node', 'pen', 'pencil', 'rect', 'ellipse', 'polygon', 'star', 'line', 'text', 'eyedropper', 'hand', 'zoom']));
     expect(new Set(studioTools('layout'))).toEqual(new Set(['move', 'node', 'textframe', 'imageframe', 'text', 'rect', 'ellipse', 'line', 'eyedropper', 'hand', 'zoom']));
   });

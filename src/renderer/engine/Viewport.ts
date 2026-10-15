@@ -100,6 +100,8 @@ export class Viewport {
   private hoverId: Id | null = null;
   private pointerDown = false;
   private chromeListeners = new Set<() => void>();
+  /** additional view-change listeners (pan/zoom/pointer move), for canvas-anchored UI */
+  readonly viewListeners = new Set<() => void>();
 
   constructor(host: HTMLElement, editor: Editor) {
     this.host = host;
@@ -387,6 +389,7 @@ export class Viewport {
       this.tool.onMove?.(e.scenePoint, e.e as MouseEvent);
       this.editor.ui.status = `${Math.round(e.scenePoint.x)}, ${Math.round(e.scenePoint.y)} px`;
       this.onViewChange?.();
+      for (const l of this.viewListeners) l();
     });
     c.on('mouse:up', (e: TPointerEventInfo) => {
       if (this.panning) return;
@@ -633,6 +636,7 @@ export class Viewport {
     this.canvas.requestRenderAll();
     this.textEdit.sync();
     this.onViewChange?.();
+    for (const l of this.viewListeners) l();
   }
 
   get vpt(): Matrix {
@@ -784,6 +788,8 @@ export class Viewport {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.drawHover(ctx);
     this.drawSelectionChrome(ctx);
+    // tool chrome that must stay crisp and fixed-size at any zoom (crop handles, click markers)
+    this.tool.drawScreenOverlay?.(ctx);
     ctx.restore();
     this.notifyChrome();
   }

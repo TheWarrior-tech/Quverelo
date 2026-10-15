@@ -15,6 +15,8 @@ import { Segmented } from './controls/Segmented';
 import { CtxHint } from './controls/CtxHint';
 import { FontPicker } from './controls/FontPicker';
 import { FIT_OPTIONS } from './panels/PropertiesPanel';
+import { CROP_RATIOS, isFullCrop, roundCrop, type CropOverlay, type CropRatioId } from '../../core/crop';
+import { currentCrop, setCropDimension, setCropOverlay, setCropRatio, toggleCropOrientation } from '../state/crop';
 
 export { BUNDLED_FONTS, SYSTEM_FONTS, fontOptions, loadLocalFonts, primaryFamily } from './fonts';
 
@@ -157,6 +159,58 @@ export function TextControls() {
   );
 }
 
+/** "Select subject": runs the on-device model on the photo layer (also Ctrl/Cmd+Alt+S). */
+export function SelectSubjectButton() {
+  const ed = useEditor();
+  const busy = ed.ui.mlBusy;
+  return (
+    <button className="btn" data-action="select-subject" onClick={() => runCommand('select.subject')} disabled={busy} aria-busy={busy} title={tip('Select subject', 'select.subject').title} aria-keyshortcuts={tip('Select subject', 'select.subject')['aria-keyshortcuts']}>
+      {busy ? <span className="ml-spinner" aria-hidden="true" /> : <Icon name="subject" />} Select subject
+    </button>
+  );
+}
+
+/** Crop tool: ratio preset, orientation, W/H, guide overlay, then Cancel / Apply on the right. */
+function CropControls() {
+  const ed = useEditor();
+  const o = ed.ui.toolOptions;
+  const box = currentCrop();
+  const doc = ed.doc!;
+  const q = box ? roundCrop(box) : { x: 0, y: 0, w: 0, h: 0 };
+  const changed = !!box && !isFullCrop(box, doc.settings.width, doc.settings.height);
+  return (
+    <>
+      <div className="group">
+        <label className="group">
+          <span className="field-label">Ratio</span>
+          <select aria-label="Crop ratio" data-crop-ratio value={o.cropRatio} onChange={(e) => setCropRatio(e.target.value as CropRatioId)} style={{ width: 108 }}>
+            {CROP_RATIOS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+          </select>
+        </label>
+        <button className="icon-btn sm" {...tip(o.cropRatio === 'free' ? 'Swap width and height' : o.cropPortrait ? 'Landscape' : 'Portrait')} aria-pressed={o.cropPortrait} onClick={toggleCropOrientation}><Icon name="orientation" /></button>
+      </div>
+      <div className="group" role="group" aria-label="Crop size">
+        <NumberField className="ctx" label="W" ariaLabel="Crop width (px)" unit="px" digits={0} value={q.w} min={1} max={doc.settings.width} onCommit={(v) => setCropDimension('w', v)} />
+        <NumberField className="ctx" label="H" ariaLabel="Crop height (px)" unit="px" digits={0} value={q.h} min={1} max={doc.settings.height} onCommit={(v) => setCropDimension('h', v)} />
+      </div>
+      <div className="group">
+        <Segmented
+          ariaLabel="Crop overlay"
+          value={o.cropOverlay}
+          onChange={(v: CropOverlay) => setCropOverlay(v)}
+          options={([['thirds', 'Thirds'], ['grid', 'Grid'], ['none', 'None']] as [CropOverlay, string][]).map(([value, label]) => ({ value, label }))}
+        />
+      </div>
+      <CtxHint>Drag handles · Shift keeps proportions · Enter applies · Esc cancels</CtxHint>
+      <div className="ctx-spacer" />
+      <div className="group ctx-commit">
+        <button className="btn" data-action="crop-cancel" onClick={() => runCommand('crop.cancel')} disabled={!changed} aria-keyshortcuts="Escape">Cancel</button>
+        <button className="btn primary" data-action="crop-apply" onClick={() => runCommand('crop.apply')} disabled={!changed} aria-keyshortcuts="Enter"><Icon name="check" /> Apply</button>
+      </div>
+    </>
+  );
+}
+
 export function ContextBar() {
   const ed = useEditor();
   const t = ed.ui.tool;
@@ -183,29 +237,30 @@ export function ContextBar() {
           <CtxHint>[ and ] change size · paints on the selected pixel layer</CtxHint>
         </>
       )}
-      {(t === 'marquee-rect' || t === 'marquee-ellipse' || t === 'lasso') && (
+      {(t === 'marquee-rect' || t === 'marquee-ellipse' || t === 'lasso' || t === 'object-select') && (
         <>
           <div className="group">
-            <Segmented
-              ariaLabel="Selection mode"
-              value={o.selectionMode}
-              onChange={(m) => ed.setToolOptions({ selectionMode: m })}
-              options={(['new', 'add', 'subtract', 'intersect'] as const).map((m) => ({ value: m, label: m[0].toUpperCase() + m.slice(1) }))}
-            />
+            <SelectSubjectButton />
           </div>
+          {t !== 'object-select' && (
+            <div className="group">
+              <Segmented
+                ariaLabel="Selection mode"
+                value={o.selectionMode}
+                onChange={(m) => ed.setToolOptions({ selectionMode: m })}
+                options={(['new', 'add', 'subtract', 'intersect'] as const).map((m) => ({ value: m, label: m[0].toUpperCase() + m.slice(1) }))}
+              />
+            </div>
+          )}
           <div className="group">
             <button className="icon-btn sm" {...tip('Select all', 'select.all-pixels')} onClick={() => runCommand('select.all-pixels')}><Icon name="select-all" /></button>
             <button className="icon-btn sm" {...tip('Deselect', 'select.none')} onClick={() => runCommand('select.none')} disabled={!ed.ui.pixelSelection}><Icon name="deselect" /></button>
             <button className="icon-btn sm" {...tip('Invert selection', 'select.invert')} onClick={() => runCommand('select.invert')} disabled={!ed.ui.pixelSelection}><Icon name="select-invert" /></button>
           </div>
-          <div className="group">
-            <button className="btn" onClick={() => runCommand('select.crop')} disabled={!ed.ui.pixelSelection}><Icon name="crop" /> Crop to selection</button>
-            <button className="icon-btn sm" {...tip('Copy selection to a new layer', 'select.copy-to-layer')} onClick={() => runCommand('select.copy-to-layer')} disabled={!ed.ui.pixelSelection}><Icon name="copy" /></button>
-            <button className="btn" onClick={() => runCommand('layer.mask-selection')} disabled={!ed.ui.pixelSelection || !sel.length}><Icon name="mask" /> Mask layer</button>
-          </div>
+          {t === 'object-select' && <CtxHint>Click an object · click again to add · Alt-click to remove</CtxHint>}
         </>
       )}
-      {t === 'crop' && <CtxHint>Drag to set the crop area, then press Enter or double-click. Esc cancels.</CtxHint>}
+      {t === 'crop' && <CropControls />}
       {t === 'fill' && (
         <>
           <Slider label="Tolerance" value={o.fillTolerance} min={0} max={255} onChange={(v) => ed.setToolOptions({ fillTolerance: v })} />

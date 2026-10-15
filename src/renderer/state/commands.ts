@@ -25,6 +25,7 @@ import { activeRaster, commitRasterCanvas, createPixelLayer, editRaster, selecti
 import { createCanvas, ctx2d, cloneCanvas } from '../engine/assets';
 import { rasterView, resultToWorldPath, runSelectSubject } from '../engine/mlSelect';
 import { drawNodeTransformed } from '../engine/draw';
+import { applyCrop, cancelCrop } from './crop';
 
 let viewport: Viewport | null = null;
 export function setViewport(v: Viewport | null): void {
@@ -313,9 +314,23 @@ reg('layer.merge-down', () => {
   });
   editor.select([below.id]);
 });
+/** The layer pixel-selection actions apply to: the selected layer, else the topmost visible photo layer. */
+function selectionTargetLayer(): SceneNode | null {
+  const n = editor.selectedNodes()[0];
+  if (n) return n;
+  const c = editor.activeContainer;
+  return (c && [...c.nodes].reverse().find((x) => x.type === 'raster' && x.visible !== false)) || null;
+}
+/** The photo layer for pixel commands: the selected pixel layer, else the topmost visible one. */
+function photoLayer(): RasterNode | null {
+  const r = activeRaster(editor);
+  if (r) return r;
+  const c = editor.activeContainer;
+  return ((c && [...c.nodes].reverse().find((x) => x.type === 'raster' && x.visible !== false)) as RasterNode | undefined) ?? null;
+}
 reg('layer.mask-selection', () => {
   const s = editor.ui.pixelSelection;
-  const n = editor.selectedNodes()[0];
+  const n = selectionTargetLayer();
   if (!s || !n) {
     toast('Make a pixel selection and select a layer first');
     return;
@@ -400,6 +415,10 @@ reg('select.crop', () => {
   editor.setUi({ pixelSelection: null });
   viewport?.zoomToFit();
 });
+reg('crop.apply', () => {
+  if (applyCrop(() => viewport?.zoomToFit())) toast('Cropped', 'info', { action: { label: 'Undo', run: () => void runCommand('edit.undo') } });
+});
+reg('crop.cancel', () => cancelCrop());
 reg('select.fill', () => {
   const doc = editor.doc;
   const s = editor.ui.pixelSelection;
@@ -427,30 +446,55 @@ reg('select.clear', () => {
   });
 });
 // Select Subject: on-device QuvSelect model (ml/), with a non-ML fallback
-reg('select.subject', async () => {
+let subjectBusy = false;
+async function selectSubject(): Promise<boolean> {
   const doc = editor.doc;
   const container = editor.activeContainer;
-  if (!doc || !container) return;
-  const r =
-    activeRaster(editor) ??
-    ([...container.nodes].reverse().find((n) => n.type === 'raster' && n.visible !== false) as RasterNode | undefined) ??
-    null;
-  if (!r) return toast('Add or select a photo layer first');
-  const view = rasterView(editor, r);
-  if (!view) return;
-  editor.setUi({ status: 'Selecting subject…' });
-  const res = await runSelectSubject(view);
-  const path = resultToWorldPath(view, res);
-  if (!path) {
-    editor.setUi({ status: '' });
-    return toast('No clear subject found');
+  if (!doc || !container || subjectBusy || editor.ui.mlBusy) return false;
+  const r = photoLayer();
+  if (!r) {
+    toast('Add or select a photo layer first');
+    return false;
   }
-  editor.setUi({ pixelSelection: path, status: `Subject selected (${res.source === 'ml' ? 'on-device model' : 'basic fallback'}, ${Math.round(res.ms)} ms)` });
+  const view = rasterView(editor, r);
+  if (!view) return false;
+  subjectBusy = true;
+  editor.setUi({ status: 'Selecting subject…', mlBusy: true });
+  try {
+    const res = await runSelectSubject(view);
+    const path = resultToWorldPath(view, res);
+    if (!path) {
+      editor.setUi({ status: '' });
+      toast('No clear subject found');
+      return false;
+    }
+    editor.setUi({ pixelSelection: path, status: `Subject selected (${res.source === 'ml' ? 'on-device model' : 'basic fallback'}, ${Math.round(res.ms)} ms)` });
+    return true;
+  } finally {
+    subjectBusy = false;
+    editor.setUi({ mlBusy: false });
+  }
+}
+reg('select.subject', () => selectSubject());
+/**
+ * Remove background: keep the subject (the current selection, or Select
+ * Subject when there is none) and hide the rest with a layer mask, so it can
+ * be undone or the mask edited/released later. Non-destructive.
+ */
+reg('select.remove-background', async () => {
+  if (!editor.ui.pixelSelection && !(await selectSubject())) return;
+  const s = editor.ui.pixelSelection;
+  const r = photoLayer();
+  if (!s || !r) return toast('Add or select a photo layer first');
+  editor.commit('Remove background', (d) => setMaskFromWorldPath(d, r.id, s));
+  editor.setUi({ pixelSelection: null });
+  editor.select([r.id]);
+  toast('Background removed', 'success', { action: { label: 'Undo', run: () => void runCommand('edit.undo') } });
 });
 reg('select.copy-to-layer', () => {
   const doc = editor.doc;
   const s = editor.ui.pixelSelection;
-  const r = activeRaster(editor);
+  const r = photoLayer();
   if (!doc || !s || !r) return toast('Select a pixel layer and make a selection');
   const base = editor.assets.rendered(r.assetId, r.adjustments, false);
   const p = selectionInPixels(doc, r.id, s);
@@ -592,7 +636,7 @@ reg('dialog.close', () => closeDialog());
 
 const TOOL_KEYS: Record<string, Record<string, string>> = {
   common: { v: 'move', h: 'hand', z: 'zoom', t: 'text', i: 'eyedropper' },
-  photo: { m: 'marquee-rect', l: 'lasso', b: 'brush', e: 'eraser', g: 'fill', c: 'crop' },
+  photo: { m: 'marquee-rect', l: 'lasso', w: 'object-select', b: 'brush', e: 'eraser', g: 'fill', c: 'crop' },
   vector: { a: 'node', p: 'pen', n: 'pencil', m: 'rect', e: 'ellipse', l: 'line', s: 'star', y: 'polygon' },
   layout: { a: 'node', f: 'imageframe', m: 'rect', e: 'ellipse', l: 'line', x: 'textframe' },
 };
@@ -614,7 +658,8 @@ export function shortcutTable(): { group: string; items: [string, string][] }[] 
       items: [
         ['Space + drag', 'Pan'], ['Ctrl/⌘ + scroll', 'Zoom at pointer'], ['Arrow keys', 'Nudge 1 px'], ['Shift + arrows', 'Nudge 10 px'],
         ['Shift + drag', 'Constrain proportions / angle'], ['Alt + drag', 'Draw from centre / disable snapping'],
-        ['Double-click', 'Edit text, place image, or edit nodes'], ['Enter (pen/crop)', 'Finish'], ['Esc', 'Cancel / leave text editing'],
+        ['Double-click', 'Edit text, place image, or edit nodes'], ['Enter (pen/crop)', 'Finish / apply crop'], ['Esc', 'Cancel / leave text editing / reset crop'],
+        ['Alt + click (Object Select)', 'Remove part of the selection'], ['Ctrl/⌘ + Alt + S', 'Select subject'],
         ['[ / ]', 'Brush size'], ['Page Up / Down', 'Previous / next page'], ['Tab', 'Hide / show panels'],
         ['Shift + tool key', 'Cycle the tools in that flyout group'], ['Right-click / hold a tool', 'Open its flyout'],
       ],
@@ -630,6 +675,12 @@ export function handleKeydown(e: KeyboardEvent): boolean {
     return true;
   }
   const mod = e.ctrlKey || e.metaKey;
+  // Ctrl/Cmd+Alt+S: Select Subject. Also a menu accelerator; handled here so it
+  // works wherever the native menu is hidden (and the page consumes it first).
+  if (mod && e.altKey && !e.shiftKey && e.code === 'KeyS' && editor.ui.studio === 'photo') {
+    void runCommand('select.subject');
+    return true;
+  }
   if (!mod && !e.altKey) {
     switch (e.key) {
       case 'Delete':

@@ -20,6 +20,8 @@ const paths: Record<string, ReactElement> = {
   'marquee-rect': R(3.5, 4.5, 13, 11, 1, DASH),
   'marquee-ellipse': <ellipse cx="10" cy="10" rx="7" ry="5.5" {...DASH} />,
   lasso: P('M6 14.2C3.2 13 2.7 9.6 4.8 7.3 7.3 4.6 13 4 15.6 6.4c2 1.9.9 5-2 6.5-2.2 1.1-5 1.5-7.6 1.3zM6 14.2c-.7 1.2-.4 2.6.9 3.3'),
+  // dashed region being picked by the pointer
+  'object-select': <><path d="M8 15.5H4.5a1 1 0 01-1-1v-10a1 1 0 011-1h10a1 1 0 011 1V8" {...DASH} />{P('M10.5 10.5l6 2.4-2.6.9-.9 2.6z')}</>,
   crop: P('M6 2.5V14h11.5M2.5 6H14v11.5'),
   brush: P('M16.4 3.6a1.5 1.5 0 010 2.1L10 12.1 7.9 10l6.4-6.4a1.5 1.5 0 012.1 0zM7.9 10.4c-2 0-3.4 1.4-3.4 3.2 0 1-.6 1.9-1.5 2.4 3.2.7 6.6.1 7-3.2'),
   eraser: P('M8 16.5h8.5M4.3 11.7l6.8-6.8a1.5 1.5 0 012.1 0l2.9 2.9a1.5 1.5 0 010 2.1L11 16.5H7.4L4.3 13.4a1.5 1.5 0 010-1.7zM7.6 8.5l5 5'),
@@ -39,6 +41,12 @@ const paths: Record<string, ReactElement> = {
   // pixel selection commands (dashed frame = selection, as the marquee tools)
   'select-all': <>{R(3.5, 3.5, 13, 13, 1, DASH)}{P('M7 10.2l2 2 4-4.2')}</>,
   deselect: <>{R(3.5, 3.5, 13, 13, 1, DASH)}{P('M7.5 7.5l5 5M12.5 7.5l-5 5')}</>,
+  // landscape tile with a turn arrow: swap crop orientation
+  orientation: <>{R(3.5, 8.5, 9, 7, 1.5)}{P('M8.5 4.5h4a2 2 0 012 2v5')}{P('M12.5 9.5l2 2 2-2')}</>,
+  // a figure inside a dashed frame: Select Subject
+  subject: <>{R(3, 3, 14, 14, 1.5, DASH)}<circle cx="10" cy="8.2" r="2.2" />{P('M6 14.5c.7-2 2.2-3.2 4-3.2s3.3 1.2 4 3.2')}</>,
+  // the figure kept, its surroundings hatched away
+  'remove-bg': <>{P('M3.5 7l3.5-3.5M3.5 10.5l7-7M13 3.5l3.5 3.5M3.5 16.5l2.5-2.5M16.5 16.5L14 14')}<circle cx="10" cy="9" r="2.2" />{P('M6 16c.7-2 2.2-3.2 4-3.2s3.3 1.2 4 3.2')}</>,
   'select-invert': <>{R(3.5, 3.5, 13, 13, 1, DASH)}{R(7, 7, 6, 6, 1)}</>,
 
   // file + edit

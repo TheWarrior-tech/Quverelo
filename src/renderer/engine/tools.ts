@@ -4,7 +4,7 @@
  */
 import { apply, invert, boundsOfPoints, type Point } from '../../core/geometry';
 import { findNode, make, makeStroke, solid, NO_PAINT, worldMatrix, nodeToPath } from '../../core/document';
-import { addNodes, addTextFrame, convertToCurves, cropDocument, updateNode, removeNodes } from '../../core/commands';
+import { addNodes, addTextFrame, convertToCurves, updateNode, removeNodes } from '../../core/commands';
 import {
   centrePath, ellipsePath, pathToString, pathToSubpaths, polygonPoints, pointsToPath, rectPath, starPoints,
   subpathsToPath, transformPath, translatePath, type Anchor, type Subpath,
@@ -20,6 +20,12 @@ import {
 } from './pixelOps';
 import { drawPage } from './draw';
 import { runCommand } from '../state/commands';
+import {
+  CROP_HANDLES, cursorFor, handlePoints, hitCrop, moveWithin, rectFromDrag, resizeCrop, roundCrop, type CropHit, type CropRect,
+} from '../../core/crop';
+import { currentCrop, currentRatio, docBounds, setCropBox } from '../state/crop';
+import { HANDLE_SIZE, SELECTION_COLOR } from './controls';
+import { objectSelectClick, objectSelectMarkers } from './objectSelect';
 
 export interface ToolContext {
   viewport: Viewport;
@@ -34,6 +40,8 @@ export interface Tool {
   onDblClick?(p: Point, e: MouseEvent, target: SceneNode | null): void;
   onKey?(e: KeyboardEvent): boolean;
   drawOverlay?(ctx: CanvasRenderingContext2D, zoom: number): void;
+  /** Draw in screen space (CSS px, origin at the viewport's top-left). */
+  drawScreenOverlay?(ctx: CanvasRenderingContext2D): void;
   deactivate?(): void;
 }
 
@@ -745,75 +753,245 @@ class MarqueeTool implements Tool {
   }
 }
 
+/**
+ * Crop: an adjustable box over the canvas. Drag a handle (8: corners + edges)
+ * to resize, drag inside to move, drag outside to draw a new box. Shift locks
+ * the current proportions; a ratio preset (context bar) locks them too.
+ * Enter or double-click applies, Esc resets the box and stays in Crop.
+ * The box lives in editor.ui.crop so the context bar's W/H fields stay in sync.
+ */
 class CropTool implements Tool {
   cursor = CROSS;
-  private start: Point | null = null;
-  private rect: { x: number; y: number; w: number; h: number } | null = null;
-  constructor(private c: ToolContext) {
-    const doc = c.editor.doc;
-    if (doc) this.rect = { x: 0, y: 0, w: doc.settings.width, h: doc.settings.height };
+  private drag: { hit: CropHit | 'new'; start: Point; box: CropRect; ratio: number | null } | null = null;
+  constructor(private c: ToolContext) {}
+
+  private tol(): number {
+    return (HANDLE_SIZE + 3) / this.c.viewport.canvas.getZoom();
   }
-  onDown(p: Point) {
-    this.start = p;
+
+  private setCursor(cur: string) {
+    const fc = this.c.viewport.canvas;
+    fc.defaultCursor = cur;
+    fc.setCursor(cur);
   }
-  onMove(p: Point) {
-    if (!this.start) return;
-    this.rect = boundsOfPoints([this.start, p]);
+
+  onDown(p: Point, e: MouseEvent) {
+    const box = currentCrop();
+    if (!box) return;
+    const hit = hitCrop(box, p, this.tol());
+    let ratio = currentRatio();
+    if (!ratio && e.shiftKey && box.w > 0 && box.h > 0) ratio = box.w / box.h;
+    this.drag = { hit: hit ?? 'new', start: p, box, ratio };
+  }
+
+  onMove(p: Point, e: MouseEvent) {
+    const d = this.drag;
+    if (!d) {
+      const box = currentCrop();
+      this.setCursor(cursorFor(box ? hitCrop(box, p, this.tol()) : null));
+      return;
+    }
+    const bounds = docBounds();
+    let ratio = d.ratio;
+    // Shift during a free drag locks to the proportions the box had at mouse-down
+    if (!currentRatio()) ratio = e.shiftKey ? d.box.w / d.box.h : null;
+    let next: CropRect;
+    if (d.hit === 'move') {
+      next = bounds ? moveWithin({ ...d.box, x: d.box.x + p.x - d.start.x, y: d.box.y + p.y - d.start.y }, bounds) : d.box;
+    } else if (d.hit === 'new') {
+      const z = this.c.viewport.canvas.getZoom();
+      if (Math.hypot(p.x - d.start.x, p.y - d.start.y) * z < 3) return;
+      next = rectFromDrag(d.start, p, currentRatio() ?? (e.shiftKey ? 1 : null), bounds);
+    } else {
+      next = resizeCrop(d.box, d.hit, p.x - d.start.x, p.y - d.start.y, ratio, bounds);
+    }
+    setCropBox(next);
     this.c.viewport.drawOverlay();
   }
+
   onUp() {
-    this.start = null;
+    this.drag = null;
+    this.c.viewport.drawOverlay();
   }
-  onDblClick() {
-    this.apply();
+
+  onDblClick(p: Point) {
+    const box = currentCrop();
+    if (box && hitCrop(box, p, this.tol())) void runCommand('crop.apply');
   }
+
   onKey(e: KeyboardEvent) {
     if (e.key === 'Enter') {
-      this.apply();
+      void runCommand('crop.apply');
       return true;
     }
     if (e.key === 'Escape') {
-      this.c.editor.setTool('move');
+      void runCommand('crop.cancel');
       return true;
     }
     return false;
   }
-  apply() {
-    const r = this.rect;
-    const ed = this.c.editor;
-    const doc = ed.doc;
-    if (!r || !doc || r.w < 2 || r.h < 2) return;
-    ed.commit('Crop', (d) => cropDocument(d, r));
-    ed.setUi({ pixelSelection: null });
-    this.rect = { x: 0, y: 0, w: Math.round(r.w), h: Math.round(r.h) };
-    this.c.viewport.zoomToFit();
-    ed.setTool('move');
+
+  deactivate() {
+    this.drag = null;
   }
+
+  /** Shade outside the box and the composition guides, in document space. */
   drawOverlay(ctx: CanvasRenderingContext2D, z: number) {
-    const r = this.rect;
+    const r = currentCrop();
     if (!r) return;
     ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillStyle = this.drag ? 'rgba(0,0,0,0.42)' : 'rgba(0,0,0,0.58)';
     const p = new Path2D();
     p.rect(-1e5, -1e5, 2e5, 2e5);
     p.rect(r.x, r.y, r.w, r.h);
     ctx.fill(p, 'evenodd');
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 1.5 / z;
-    ctx.strokeRect(r.x, r.y, r.w, r.h);
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-    ctx.lineWidth = 1 / z;
-    for (let i = 1; i < 3; i++) {
+    const overlay = this.c.editor.ui.toolOptions.cropOverlay;
+    const n = overlay === 'thirds' ? 3 : overlay === 'grid' ? 6 : 0;
+    if (n) {
+      ctx.lineWidth = 1 / z;
+      // a dark under-stroke keeps the guides legible on bright photos
+      for (const [style, off] of [['rgba(0,0,0,0.28)', 1 / z], [this.drag ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.45)', 0]] as const) {
+        ctx.strokeStyle = style;
+        ctx.beginPath();
+        for (let i = 1; i < n; i++) {
+          const x = r.x + (r.w * i) / n + off;
+          const y = r.y + (r.h * i) / n + off;
+          ctx.moveTo(x, r.y);
+          ctx.lineTo(x, r.y + r.h);
+          ctx.moveTo(r.x, y);
+          ctx.lineTo(r.x + r.w, y);
+        }
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  /** Frame, 8 handles and the live W x H pill, in screen space so they never scale with zoom. */
+  drawScreenOverlay(ctx: CanvasRenderingContext2D) {
+    const r = currentCrop();
+    if (!r) return;
+    const vp = this.c.viewport;
+    const a = vp.sceneToScreen(r.x, r.y);
+    const b = vp.sceneToScreen(r.x + r.w, r.y + r.h);
+    const crisp = (v: number) => Math.round(v) + 0.5;
+    const x0 = crisp(a.x);
+    const y0 = crisp(a.y);
+    const x1 = crisp(b.x);
+    const y1 = crisp(b.y);
+    ctx.save();
+    ctx.setLineDash([]);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.strokeRect(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2);
+    ctx.strokeStyle = '#ffffff';
+    ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    // Lightroom-style corner brackets make the corners read as grabbable
+    const L = Math.min(16, (x1 - x0) / 3, (y1 - y0) / 3);
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'butt';
+    ctx.beginPath();
+    for (const [cx, cy, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x1, y1, -1, -1], [x0, y1, 1, -1]]) {
+      ctx.moveTo(cx - sx * 1, cy + sy * L);
+      ctx.lineTo(cx - sx * 1, cy - sy * 1);
+      ctx.lineTo(cx + sx * L, cy - sy * 1);
+    }
+    ctx.stroke();
+    // 8 square handles, as the selection chrome (DESIGN.md section 8)
+    const pts = handlePoints({ x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y });
+    const half = (HANDLE_SIZE - 1) / 2;
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = SELECTION_COLOR;
+    ctx.fillStyle = '#ffffff';
+    for (const h of CROP_HANDLES) {
+      if ((h === 'n' || h === 's') && x1 - x0 < HANDLE_SIZE * 4) continue;
+      if ((h === 'e' || h === 'w') && y1 - y0 < HANDLE_SIZE * 4) continue;
+      const q = pts[h];
+      const x = Math.round(q.x) - half + 0.5;
+      const y = Math.round(q.y) - half + 0.5;
+      ctx.fillRect(x, y, HANDLE_SIZE - 1, HANDLE_SIZE - 1);
+      ctx.strokeRect(x, y, HANDLE_SIZE - 1, HANDLE_SIZE - 1);
+    }
+    if (this.drag) {
+      const q = roundCrop(r);
+      const label = `${q.w} × ${q.h}`;
+      ctx.font = '500 11px Inter, sans-serif';
+      (ctx as CanvasRenderingContext2D & { fontVariantNumeric?: string }).fontVariantNumeric = 'tabular-nums';
+      const tw = ctx.measureText(label).width + 12;
+      const cx = (x0 + x1) / 2;
+      const by = Math.min(y1 + 10, vp.canvas.getHeight() - 24);
+      ctx.fillStyle = SELECTION_COLOR;
       ctx.beginPath();
-      ctx.moveTo(r.x + (r.w * i) / 3, r.y);
-      ctx.lineTo(r.x + (r.w * i) / 3, r.y + r.h);
-      ctx.moveTo(r.x, r.y + (r.h * i) / 3);
-      ctx.lineTo(r.x + r.w, r.y + (r.h * i) / 3);
+      ctx.roundRect(Math.round(cx - tw / 2), Math.round(by), Math.round(tw), 18, 4);
+      ctx.fill();
+      ctx.fillStyle = '#06231e';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, Math.round(cx), Math.round(by) + 9.5);
+    }
+    ctx.restore();
+  }
+}
+
+/**
+ * Object Select (W): click an object in a photo and the on-device model selects
+ * it. Click again to add to the selection, Alt-click to take a part away. Each
+ * click refines the previous result (runSelectObject with the last mask).
+ * While the model runs a small "Selecting" chip sits by the pointer.
+ */
+class ObjectSelectTool implements Tool {
+  cursor = CROSS;
+  private chip: HTMLElement | null = null;
+  constructor(private c: ToolContext) {}
+
+  onDown(p: Point, e: MouseEvent) {
+    const vp = this.c.viewport;
+    const sp = vp.sceneToScreen(p.x, p.y);
+    void objectSelectClick(this.c.editor, p, !e.altKey, {
+      onStart: () => this.showChip(sp.x, sp.y),
+      onEnd: () => this.hideChip(),
+      redraw: () => vp.drawOverlay(),
+    });
+  }
+
+  private showChip(x: number, y: number) {
+    this.hideChip();
+    const el = document.createElement('div');
+    el.className = 'ml-chip';
+    el.setAttribute('role', 'status');
+    el.innerHTML = '<span class="ml-spinner" aria-hidden="true"></span><span>Selecting…</span>';
+    el.style.left = `${Math.round(x + 14)}px`;
+    el.style.top = `${Math.round(y + 14)}px`;
+    this.c.viewport.host.appendChild(el);
+    this.chip = el;
+  }
+
+  private hideChip() {
+    this.chip?.remove();
+    this.chip = null;
+  }
+
+  deactivate() {
+    this.hideChip();
+  }
+
+  /** Click markers (accent = include, coral = exclude) for the current refinement. */
+  drawScreenOverlay(ctx: CanvasRenderingContext2D) {
+    const ed = this.c.editor;
+    const marks = objectSelectMarkers(ed);
+    if (!marks.length) return;
+    const vp = this.c.viewport;
+    ctx.save();
+    for (const m of marks) {
+      const q = vp.sceneToScreen(m.x, m.y);
+      ctx.beginPath();
+      ctx.arc(Math.round(q.x) + 0.5, Math.round(q.y) + 0.5, 4.5, 0, Math.PI * 2);
+      ctx.fillStyle = m.positive ? SELECTION_COLOR : '#ff6b4a';
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#ffffff';
       ctx.stroke();
     }
-    ctx.fillStyle = '#fff';
-    ctx.font = `${12 / z}px Inter, sans-serif`;
-    ctx.fillText(`${Math.round(r.w)} × ${Math.round(r.h)} — Enter to crop`, r.x, r.y - 6 / z);
     ctx.restore();
   }
 }
@@ -1036,6 +1214,7 @@ export function createTool(id: ToolId, c: ToolContext): Tool {
     case 'marquee-rect': return new MarqueeTool(c, 'rect');
     case 'marquee-ellipse': return new MarqueeTool(c, 'ellipse');
     case 'lasso': return new MarqueeTool(c, 'lasso');
+    case 'object-select': return new ObjectSelectTool(c);
     case 'crop': return new CropTool(c);
     case 'brush': return new BrushTool(c, false);
     case 'eraser': return new BrushTool(c, true);

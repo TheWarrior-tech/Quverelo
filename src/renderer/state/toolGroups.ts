@@ -29,7 +29,7 @@ const g = (id: string, label: string, key: string, tools: ToolId[]): ToolGroup =
 
 export const STUDIO_RAIL: Record<StudioKind, RailEntry[]> = {
   photo: [
-    'move', g('photo-marquee', 'Marquee tools', 'M', ['marquee-rect', 'marquee-ellipse']), 'lasso', 'crop',
+    'move', g('photo-marquee', 'Marquee tools', 'M', ['marquee-rect', 'marquee-ellipse']), 'lasso', 'object-select', 'crop',
     '|', 'brush', 'eraser', 'fill', 'eyedropper',
     '|', 'text',
     '|', 'hand', 'zoom',

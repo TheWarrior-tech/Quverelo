@@ -8,6 +8,7 @@ import { Viewport } from '../engine/Viewport';
 import { useEditor } from './hooks';
 import { Icon, Logo } from './Icons';
 import { ContextBar } from './ContextBar';
+import { SelectionActions } from './SelectionActions';
 import { Rulers } from './Rulers';
 import { Panels } from './panels/Panels';
 import { tip } from './tooltip';
@@ -222,6 +223,7 @@ function CanvasArea() {
       {vp && <Rulers viewport={vp} />}
       <div className="viewport" ref={hostRef} />
       {vp && <SelectionToolbar viewport={vp} />}
+      {vp && <SelectionActions viewport={vp} />}
       {master && (
         <div className="master-banner">
           Editing master “{master.name}”
