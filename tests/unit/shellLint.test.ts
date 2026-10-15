@@ -87,4 +87,12 @@ describe('shell lint', () => {
     }
     expect(bad).toEqual([]);
   });
+
+  it('keeps the themed WebKit scrollbar: standard scrollbar-width/-color only inside @supports not selector(::-webkit-scrollbar)', () => {
+    const css = fs.readFileSync(path.resolve('src/renderer/styles.css'), 'utf8');
+    expect(css).toContain('::-webkit-scrollbar-thumb');
+    const stripped = css.replace(/@supports not selector\(::-webkit-scrollbar\)\s*\{[\s\S]*?\n\}/g, '');
+    const bad = stripped.split('\n').filter((l) => /scrollbar-(color|width)\s*:/.test(l) && !/scrollbar-width:\s*none/.test(l));
+    expect(bad).toEqual([]);
+  });
 });

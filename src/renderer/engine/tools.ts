@@ -21,11 +21,11 @@ import {
 import { drawPage } from './draw';
 import { runCommand } from '../state/commands';
 import {
-  CROP_HANDLES, cursorFor, handlePoints, hitCrop, moveWithin, rectFromDrag, resizeCrop, roundCrop, type CropHit, type CropRect,
+  cursorFor, hitCrop, moveWithin, rectFromDrag, resizeCrop, roundCrop, type CropHit, type CropRect,
 } from '../../core/crop';
 import { currentCrop, currentRatio, docBounds, setCropBox } from '../state/crop';
 import { uiPaint } from '../state/uiPaint';
-import { HANDLE_SIZE, SELECTION_COLOR } from './controls';
+import { HANDLE_SIZE } from './controls';
 import { objectSelectClick, objectSelectMarkers } from './objectSelect';
 
 export interface ToolContext {
@@ -846,7 +846,9 @@ class CropTool implements Tool {
     ctx.save();
     ctx.fillStyle = this.drag ? 'rgba(0,0,0,0.42)' : 'rgba(0,0,0,0.58)';
     const p = new Path2D();
-    p.rect(-1e5, -1e5, 2e5, 2e5);
+    // shade the image outside the box only; the pasteboard stays untouched
+    const page = docBounds() ?? { x: -1e5, y: -1e5, w: 2e5, h: 2e5 };
+    p.rect(page.x, page.y, page.w, page.h);
     p.rect(r.x, r.y, r.w, r.h);
     ctx.fill(p, 'evenodd');
     const overlay = this.c.editor.ui.toolOptions.cropOverlay;
@@ -888,33 +890,42 @@ class CropTool implements Tool {
     ctx.lineWidth = 1;
     ctx.strokeStyle = 'rgba(0,0,0,0.35)';
     ctx.strokeRect(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2);
-    ctx.strokeStyle = '#ffffff';
+    const oc = vp.overlayColors;
+    ctx.strokeStyle = oc.ring;
     ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
-    // Lightroom-style corner brackets make the corners read as grabbable
+    // one handle vocabulary (theme handle token): L-brackets on the corners, short bars on the edges
     const L = Math.min(16, (x1 - x0) / 3, (y1 - y0) / 3);
-    ctx.lineWidth = 3;
+    const bar = (cx: number, cy: number, horizontal: boolean) => {
+      const len = 12;
+      const th = 3;
+      const w = horizontal ? len : th;
+      const h = horizontal ? th : len;
+      ctx.fillStyle = oc.ring;
+      ctx.fillRect(Math.round(cx - w / 2) - 1, Math.round(cy - h / 2) - 1, w + 2, h + 2);
+      ctx.fillStyle = oc.handle;
+      ctx.fillRect(Math.round(cx - w / 2), Math.round(cy - h / 2), w, h);
+    };
     ctx.lineCap = 'butt';
-    ctx.beginPath();
     for (const [cx, cy, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x1, y1, -1, -1], [x0, y1, 1, -1]]) {
-      ctx.moveTo(cx - sx * 1, cy + sy * L);
-      ctx.lineTo(cx - sx * 1, cy - sy * 1);
-      ctx.lineTo(cx + sx * L, cy - sy * 1);
+      ctx.beginPath();
+      ctx.moveTo(cx - sx, cy + sy * L);
+      ctx.lineTo(cx - sx, cy - sy);
+      ctx.lineTo(cx + sx * L, cy - sy);
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = oc.ring;
+      ctx.stroke();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = oc.handle;
+      ctx.stroke();
     }
-    ctx.stroke();
-    // 8 square handles, as the selection chrome (DESIGN.md section 8)
-    const pts = handlePoints({ x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y });
-    const half = (HANDLE_SIZE - 1) / 2;
     ctx.lineWidth = 1;
-    ctx.strokeStyle = SELECTION_COLOR;
-    ctx.fillStyle = '#ffffff';
-    for (const h of CROP_HANDLES) {
-      if ((h === 'n' || h === 's') && x1 - x0 < HANDLE_SIZE * 4) continue;
-      if ((h === 'e' || h === 'w') && y1 - y0 < HANDLE_SIZE * 4) continue;
-      const q = pts[h];
-      const x = Math.round(q.x) - half + 0.5;
-      const y = Math.round(q.y) - half + 0.5;
-      ctx.fillRect(x, y, HANDLE_SIZE - 1, HANDLE_SIZE - 1);
-      ctx.strokeRect(x, y, HANDLE_SIZE - 1, HANDLE_SIZE - 1);
+    if (x1 - x0 >= HANDLE_SIZE * 4) {
+      bar((x0 + x1) / 2, y0, true);
+      bar((x0 + x1) / 2, y1, true);
+    }
+    if (y1 - y0 >= HANDLE_SIZE * 4) {
+      bar(x0, (y0 + y1) / 2, false);
+      bar(x1, (y0 + y1) / 2, false);
     }
     if (this.drag) {
       const q = roundCrop(r);
@@ -924,11 +935,11 @@ class CropTool implements Tool {
       const tw = ctx.measureText(label).width + 12;
       const cx = (x0 + x1) / 2;
       const by = Math.min(y1 + 10, vp.canvas.getHeight() - 24);
-      ctx.fillStyle = SELECTION_COLOR;
+      ctx.fillStyle = oc.handle;
       ctx.beginPath();
       ctx.roundRect(Math.round(cx - tw / 2), Math.round(by), Math.round(tw), 18, 4);
       ctx.fill();
-      ctx.fillStyle = '#06231e';
+      ctx.fillStyle = oc.ring === '#000000' ? '#000000' : '#06231e';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(label, Math.round(cx), Math.round(by) + 9.5);
@@ -986,14 +997,15 @@ class ObjectSelectTool implements Tool {
     if (!marks.length) return;
     const vp = this.c.viewport;
     ctx.save();
+    const oc = vp.overlayColors;
     for (const m of marks) {
       const q = vp.sceneToScreen(m.x, m.y);
       ctx.beginPath();
       ctx.arc(Math.round(q.x) + 0.5, Math.round(q.y) + 0.5, 4.5, 0, Math.PI * 2);
-      ctx.fillStyle = m.positive ? SELECTION_COLOR : '#ff6b4a';
+      ctx.fillStyle = m.positive ? oc.handle : '#ff6b4a';
       ctx.fill();
       ctx.lineWidth = 1.5;
-      ctx.strokeStyle = '#ffffff';
+      ctx.strokeStyle = oc.ring;
       ctx.stroke();
     }
     ctx.restore();

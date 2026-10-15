@@ -72,8 +72,9 @@ function setDocSettings(patch: Partial<DocumentSettings>, label: string, key: st
 }
 
 /**
- * Layout with nothing selected: page navigation and page setup (margins, bleed,
- * columns, facing pages) right in the context bar, as in a DTP app.
+ * Layout with nothing selected: page navigation, margins and the facing-pages
+ * toggle in the context bar. Bleed, columns and gutter live in Document setup so
+ * the bar never overflows (CRITIQUE-3 N2).
  */
 function LayoutPageControls() {
   const ed = useEditor();
@@ -98,13 +99,8 @@ function LayoutPageControls() {
         <UnitNum label="R" title={s.facingPages ? 'Outside margin' : 'Right margin'} px={m.right} onChange={setMargin('right')} />
       </div>
       <div className="group">
-        <UnitNum label="Bleed" title="Bleed" px={s.bleed} onChange={(v) => setDocSettings({ bleed: v }, 'Bleed', 'bleed')} />
-        <CountNum label="Columns" title="Columns" value={s.columns} onChange={(v) => setDocSettings({ columns: v }, 'Columns', 'columns')} />
-        <UnitNum label="Gutter" title="Column gutter" px={s.columnGutter} onChange={(v) => setDocSettings({ columnGutter: v }, 'Gutter', 'gutter')} />
         <button className={`btn ${s.facingPages ? 'selected' : ''}`} aria-pressed={s.facingPages} data-tip="Show pages as two-page spreads" onClick={() => setDocSettings({ facingPages: !s.facingPages }, 'Facing pages', 'facing')}><Icon name="pages" /> Facing pages</button>
-      </div>
-      <div className="group">
-        <button className="btn" onClick={() => runCommand('file.document-setup')}>Document setup…</button>
+        <button className="btn ghost" data-tip="Bleed, columns and gutter" onClick={() => runCommand('file.document-setup')}>Margins &amp; columns…</button>
       </div>
     </>
   );

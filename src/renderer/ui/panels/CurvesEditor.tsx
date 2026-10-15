@@ -325,8 +325,8 @@ export function CurvesEditor({ node, adj, onChange, onBegin, onEnd }: {
         <button
           type="button"
           className="icon-btn sm curves-reset"
-          aria-label={`Reset the ${LABEL[channel]} curve`}
-          data-tip={`Reset the ${LABEL[channel]} curve`}
+          aria-label={`Reset ${LABEL[channel]} curve`}
+          data-tip={`Reset ${LABEL[channel]} curve`}
           disabled={identity}
           onClick={() => { commit([{ x: 0, y: 0 }, { x: 255, y: 255 }], `curves:${adj.id}:reset`); setSelected(null); }}
         >

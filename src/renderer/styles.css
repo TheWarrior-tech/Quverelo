@@ -882,8 +882,21 @@ kbd {
   font-weight: 400;
 }
 :root[data-theme='high-contrast'] .flyout-item.on {
-  background: #000;
-  box-shadow: inset 0 0 0 2px var(--c-accent);
+  /* checked = filled, focused = outlined: never the same treatment */
+  background: var(--c-accent);
+  color: #000;
+  box-shadow: none;
+}
+:root[data-theme='high-contrast'] .flyout-item.on svg.icon,
+:root[data-theme='high-contrast'] .flyout-item.on kbd {
+  color: #000;
+}
+:root[data-theme='high-contrast'] .flyout-item:focus-visible {
+  outline: 3px solid var(--c-focus);
+  outline-offset: 2px;
+}
+:root[data-theme='high-contrast'] .flyout-item.on:focus-visible {
+  outline-color: #fff;
 }
 @keyframes flyout-in {
   from {
@@ -1229,23 +1242,15 @@ kbd {
 .canvas-area > .ruler.v { grid-area: 2 / 1; }
 .canvas-area > .viewport { grid-area: 2 / 2; }
 
-/* thin, quiet scrollbars */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--c-line-strong) transparent;
-}
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--c-line-strong);
-  border-radius: var(--r-full);
-  border: 3px solid transparent;
-  background-clip: content-box;
-}
-::-webkit-scrollbar-corner {
-  background: transparent;
+/* Themed scrollbars live in the "scrollbars (themed)" block below. The standard
+   scrollbar-width/-color properties would override ::-webkit-scrollbar in
+   Chromium 121+ and bring back the native arrows, so only engines without the
+   WebKit pseudo-element get them. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--c-line-strong) transparent;
+  }
 }
 
 /* ---------- curves editor ---------- */

@@ -111,7 +111,7 @@ function poster(size: { w: number; h: number }, unit: 'mm' | 'in', title: string
     b.frame(p, x, H * 0.07, W - 2 * x, 24, 'NORTHFIELD ACADEMY PRESENTS', { fontFamily: SANS, fontSize: W * 0.022, fontWeight: 600, letterSpacing: 120, fill: solid('#aab4c8') });
     b.frame(p, x, H * 0.2, W - 2 * x, H * 0.34, 'Year 8\nScience\nFair', { fontFamily: SANS, fontSize: W * 0.135, fontWeight: 700, lineHeight: 0.98, fill: solid('#ffffff') });
     b.rect(p, x, H * 0.6 - 8, W * 0.18, 16, solid(CORAL), { name: 'Rule' });
-    b.frame(p, x, H * 0.65, W - 2 * x, H * 0.05, 'Thursday 14 March', { fontFamily: SANS, fontSize: W * 0.055, fontWeight: 700, fill: solid(NAVY) });
+    b.frame(p, x, H * 0.65, W - 2 * x, H * 0.058, 'Thursday 14 March', { fontFamily: SANS, fontSize: W * 0.055, fontWeight: 700, fill: solid(NAVY) });
     b.frame(p, x, H * 0.71, W - 2 * x, H * 0.035, '3:30 – 5:30 pm  ·  Main Hall', { fontFamily: SANS, fontSize: W * 0.032, fill: solid(NAVY) });
     b.frame(p, x, H * 0.77, W * 0.62, H * 0.12, 'Thirty projects from Year 8, from water filters to wind turbines. Families are welcome; judging starts at 5 pm.', { fontFamily: SANS, fontSize: W * 0.024, lineHeight: 1.45, fill: solid(INK_2) });
     b.line(p, x, H - M * 2 - 30, W - x, H - M * 2 - 30, '#c9c3b6', 1);
@@ -170,7 +170,7 @@ function certificate(): QuvreloDocument {
   b.frame(p, 80, 96, W - 160, 20, 'NORTHFIELD ACADEMY', { fontFamily: SANS, fontSize: 13, fontWeight: 600, letterSpacing: 200, align: 'center', fill: solid(GOLD) });
   b.frame(p, 80, 128, W - 160, 64, 'Certificate of Achievement', { fontFamily: SERIF, fontSize: 48, align: 'center', fill: solid(NAVY) });
   b.frame(p, 80, 214, W - 160, 28, 'awarded to', { fontFamily: SERIF, fontSize: 18, italic: true, align: 'center', fill: solid(INK_2) });
-  b.frame(p, 80, 250, W - 160, 64, 'Alex Morgan', { fontFamily: SERIF, fontSize: 50, align: 'center', fill: solid(NAVY) });
+  b.frame(p, 80, 246, W - 160, 72, 'Alex Morgan', { fontFamily: SERIF, fontSize: 50, align: 'center', fill: solid(NAVY) });
   b.line(p, W * 0.3, 326, W * 0.7, 326, GOLD, 1);
   b.frame(p, 140, 344, W - 280, 56, 'for outstanding work in Year 9 Art\nSpring term 2026', { fontFamily: SERIF, fontSize: 17, lineHeight: 1.5, align: 'center', fill: solid(INK_2) });
   b.ellipse(p, W / 2, H - 128, 76, 76, { type: 'none' }, { stroke: makeStroke(GOLD, 1.5), name: 'Seal' });
@@ -238,7 +238,7 @@ function slide(): QuvreloDocument {
   b.rect(p, 0, 0, 1920, 1080, solid('#14171c'), { name: 'Background' });
   b.frame(p, 120, 120, 1200, 40, 'YEAR 9 BIOLOGY  ·  LESSON 4 OF 6', { fontFamily: SANS, fontSize: 26, fontWeight: 600, letterSpacing: 120, fill: solid(AMBER) });
   b.frame(p, 120, 360, 1500, 150, 'Photosynthesis', { fontFamily: SANS, fontSize: 132, fontWeight: 700, lineHeight: 1.0, fill: solid('#f4f4f2') });
-  b.frame(p, 120, 530, 1300, 60, 'How plants turn light, water and carbon dioxide into food', { fontFamily: SANS, fontSize: 40, fill: solid('#a7adb7') });
+  b.frame(p, 120, 530, 1560, 64, 'How plants turn light, water and carbon dioxide into food', { fontFamily: SANS, fontSize: 40, fill: solid('#a7adb7') });
   b.line(p, 120, 900, 1800, 900, '#3a3f48', 2);
   b.frame(p, 120, 930, 900, 40, 'Mr D. Evans  ·  9C', { fontFamily: SANS, fontSize: 26, fill: solid('#a7adb7') });
   b.frame(p, 1000, 930, 800, 40, 'Tuesday 3 November', { fontFamily: SANS, fontSize: 26, align: 'right', fill: solid('#a7adb7') });

@@ -139,7 +139,7 @@ test.describe('canvas chrome', () => {
     await expect(page.locator('input[aria-label="Curve point output"]')).toHaveValue('0');
     await expect(page.locator('input[aria-label="Curve point output"]')).toBeEnabled();
     // Reset sits beside the channel switch, not inside it, and is off while the curve is straight
-    const reset = page.getByRole('button', { name: 'Reset the R curve' });
+    const reset = page.getByRole('button', { name: 'Reset R curve' });
     await expect(reset).toBeDisabled();
     expect(await page.locator('[role="radiogroup"][aria-label="Curve channel"] button').count()).toBe(4);
     await graph.click({ position: { x: box.width * 0.25, y: box.height * 0.75 } });

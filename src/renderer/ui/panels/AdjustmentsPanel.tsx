@@ -144,7 +144,8 @@ export function AdjustmentsPanel() {
             <header>
               <input type="checkbox" checked={a.enabled} aria-label={`Enable ${spec.label}`} onChange={(e) => update(a.id, { enabled: e.target.checked })} />
               <span>{spec.label}</span>
-              <button className="icon-btn sm" aria-label={`Reset ${spec.label}`} data-tip="Reset" onClick={() => update(a.id, { params: defaultParams(a.type), curves: undefined })}><Icon name="undo" /></button>
+              {/* Curves keeps its reset beside the channel switch, so there is one reset per scope */}
+              {a.type !== 'curves' && <button className="icon-btn sm" aria-label={`Reset ${spec.label}`} data-tip="Reset" onClick={() => update(a.id, { params: defaultParams(a.type), curves: undefined })}><Icon name="undo" /></button>}
               <button className="icon-btn sm" aria-label={`Remove ${spec.label}`} data-tip="Remove" onClick={() => setAdjustments(n, n.adjustments.filter((x) => x.id !== a.id))}><Icon name="trash" /></button>
             </header>
             {a.type === 'curves' && (
