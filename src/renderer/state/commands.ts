@@ -14,7 +14,7 @@ import { composeTransform, invert } from '../../core/geometry';
 import { cloneNode, findNode, getContainer, make } from '../../core/document';
 import { pathBounds, rectPath, translatePath } from '../../core/path';
 import { newId } from '../../core/ids';
-import type { QuvreloDocument, Id, PathNode, SceneNode } from '../../core/types';
+import type { QuvreloDocument, Id, PathNode, RasterNode, SceneNode } from '../../core/types';
 import { editor } from './editor';
 import { closeDialog, openDialog, toast } from './bus';
 import * as io from './io';
@@ -22,6 +22,7 @@ import type { Viewport } from '../engine/Viewport';
 import { isEditable } from '../engine/Viewport';
 import { activeRaster, commitRasterCanvas, createPixelLayer, editRaster, selectionInPixels } from '../engine/pixelOps';
 import { createCanvas, ctx2d, cloneCanvas } from '../engine/assets';
+import { rasterView, resultToWorldPath, runSelectSubject } from '../engine/mlSelect';
 import { drawNodeTransformed } from '../engine/draw';
 
 let viewport: Viewport | null = null;
@@ -423,6 +424,27 @@ reg('select.clear', () => {
     ctx.fill(p, 'evenodd');
     ctx.restore();
   });
+});
+// Select Subject: on-device QuvSelect model (ml/), with a non-ML fallback
+reg('select.subject', async () => {
+  const doc = editor.doc;
+  const container = editor.activeContainer;
+  if (!doc || !container) return;
+  const r =
+    activeRaster(editor) ??
+    ([...container.nodes].reverse().find((n) => n.type === 'raster' && n.visible !== false) as RasterNode | undefined) ??
+    null;
+  if (!r) return toast('Add or select a photo layer first');
+  const view = rasterView(editor, r);
+  if (!view) return;
+  editor.setUi({ status: 'Selecting subject…' });
+  const res = await runSelectSubject(view);
+  const path = resultToWorldPath(view, res);
+  if (!path) {
+    editor.setUi({ status: '' });
+    return toast('No clear subject found');
+  }
+  editor.setUi({ pixelSelection: path, status: `Subject selected (${res.source === 'ml' ? 'on-device model' : 'basic fallback'}, ${Math.round(res.ms)} ms)` });
 });
 reg('select.copy-to-layer', () => {
   const doc = editor.doc;

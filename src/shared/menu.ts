@@ -109,6 +109,7 @@ export const APP_MENU: MenuSection[] = [
       { id: 'select.all-pixels', label: 'Select All (Pixels)' },
       { id: 'select.none', label: 'Deselect Pixels', accel: 'CmdOrCtrl+Shift+D' },
       { id: 'select.invert', label: 'Invert Pixel Selection', accel: 'CmdOrCtrl+Shift+I' },
+      { id: 'select.subject', label: 'Select Subject' },
       '-',
       { id: 'select.crop', label: 'Crop to Selection' },
       { id: 'select.fill', label: 'Fill Selection' },

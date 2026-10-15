@@ -1,0 +1,13 @@
+{
+  "checkpoint_step": 3500,
+  "n_subject": 388,
+  "subject_mIoU": 0.4579,
+  "centre_box_baseline_mIoU": 0.3423,
+  "n_click": 455,
+  "click1_mIoU": 0.3914,
+  "click3_mIoU": 0.481,
+  "subject_IoU_ge_0.8_frac": 0.0438,
+  "click3_IoU_ge_0.8_frac": 0.0703,
+  "model": "models/quvselect.onnx (onnxruntime CPU)",
+  "eval_resolution": 256
+}

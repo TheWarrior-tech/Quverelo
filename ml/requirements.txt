@@ -1,0 +1,6 @@
+torch==2.14.1  # CPU wheel: pip install torch --index-url https://download.pytorch.org/whl/cpu
+numpy
+pillow
+onnx
+onnxscript
+onnxruntime
