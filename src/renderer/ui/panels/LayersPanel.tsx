@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { moveNodeTo, updateNode } from '../../../core/commands';
 import { layerDisplayName } from '../../../core/document';
-import { type Id, type SceneNode } from '../../../core/types';
+import type { Adjustment, AdjustmentType, Id, RasterNode, SceneNode } from '../../../core/types';
+import { ADJUSTMENTS, defaultParams } from '../../../core/pixels';
+import { newId } from '../../../core/ids';
+import { Menu, useMenu, type MenuEntry } from '../controls/Menu';
 import { editor } from '../../state/editor';
 import { getViewport, runCommand } from '../../state/commands';
 import { useEditor } from '../hooks';
 import { Icon } from '../Icons';
 import { useScrollEdges } from '../controls/Panel';
 import { EmptyState } from '../controls/EmptyState';
-import { tip } from '../tooltip';
+import { shortcutFor, tip } from '../tooltip';
 import { dropIndex, isNoopDrop } from './layerDrop';
 
 const TYPE_ICON: Record<SceneNode['type'], string> = {
@@ -223,7 +226,7 @@ export function LayersPanel() {
         )}
       </div>
       <div className="layer-actions" role="toolbar" aria-label="Layer actions">
-        <button className="icon-btn sm" {...tip('New pixel layer', 'layer.new-pixel')} onClick={() => runCommand('layer.new-pixel')}><Icon name="plus" /></button>
+        <AddLayerMenu />
         <button className="icon-btn sm" {...tip('Group', 'arrange.group')} disabled={sel.length < 2} onClick={() => runCommand('arrange.group')}><Icon name="group" /></button>
         <button className="icon-btn sm" {...tip('Mask to pixel selection', 'layer.mask-selection')} disabled={!sel.length || !ed.ui.pixelSelection} onClick={() => runCommand('layer.mask-selection')}><Icon name="mask" /></button>
         <button className="icon-btn sm" {...tip('Duplicate', 'edit.duplicate')} disabled={!sel.length} onClick={() => runCommand('edit.duplicate')}><Icon name="copy" /></button>
@@ -233,6 +236,51 @@ export function LayersPanel() {
         <button className="icon-btn sm" {...tip('Delete', 'edit.delete')} disabled={!sel.length} onClick={() => runCommand('edit.delete')}><Icon name="trash" /></button>
       </div>
     </div>
+  );
+}
+
+const FILTER_TYPES = new Set<AdjustmentType>(['blur', 'sharpen', 'noise', 'vignette']);
+
+/** Menu entries behind the Layers footer "+" (UX audit P1-8). */
+export function addLayerItems(opts: { studio: string; selection: SceneNode[]; canPlace: boolean }): MenuEntry[] {
+  const raster = opts.selection.find((n): n is RasterNode => n.type === 'raster');
+  const items: MenuEntry[] = [
+    { id: 'pixel', label: 'Pixel layer', icon: 'pixel', keys: shortcutFor('layer.new-pixel'), run: () => runCommand('layer.new-pixel') },
+    { id: 'group', label: 'Group selection', icon: 'group', keys: shortcutFor('arrange.group'), disabled: opts.selection.length < 2, detail: opts.selection.length < 2 ? 'Select two or more layers' : undefined, run: () => runCommand('arrange.group') },
+  ];
+  if (opts.canPlace) items.push({ id: 'place', label: 'Place image…', icon: 'image', keys: shortcutFor('file.place'), run: () => runCommand('file.place') });
+  if (opts.studio === 'photo') {
+    items.push('-', { heading: 'Adjustment' });
+    ADJUSTMENTS.filter((x) => !FILTER_TYPES.has(x.type)).forEach((a, i) => {
+      items.push({
+        id: `adj-${a.type}`,
+        label: a.label,
+        icon: 'adjust',
+        disabled: !raster,
+        detail: !raster && i === 0 ? 'Select a pixel layer first' : undefined,
+        run: () => {
+          if (!raster) return;
+          const adj: Adjustment = { id: newId('adj'), type: a.type, enabled: true, params: defaultParams(a.type) };
+          editor.commit('Adjustment', (d) => updateNode(d, raster.id, { adjustments: [...raster.adjustments, adj] } as Partial<SceneNode>));
+        },
+      });
+    });
+  }
+  return items;
+}
+
+/** Footer "+": opens the add menu (Pixel layer · Group · Place image… · Adjustment). */
+function AddLayerMenu() {
+  const ed = useEditor();
+  const [anchor, toggle, close] = useMenu();
+  const items = addLayerItems({ studio: ed.ui.studio, selection: ed.selectedNodes(), canPlace: ed.feature('import-images') });
+  return (
+    <>
+      <button type="button" className="icon-btn sm layer-add" {...tip('Add layer')} aria-haspopup="menu" aria-expanded={!!anchor} onClick={(e) => toggle(e.currentTarget)}>
+        <Icon name="plus" />
+      </button>
+      {anchor && <Menu anchor={anchor} label="Add layer" items={items} side="above" minWidth={208} onClose={close} />}
+    </>
   );
 }
 
