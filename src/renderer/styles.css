@@ -20,6 +20,17 @@
   --c-accent-hover: #58d3c0;
   --c-accent-ink: #06231e;
   --c-accent-wash: rgba(60, 196, 176, 0.14);
+  --c-accent-wash-strong: rgba(60, 196, 176, 0.32); /* text selection (::selection) */
+  --c-selection-ink: #ececed; /* text on --c-accent-wash-strong */
+  /* segmented control (DESIGN.md §8): track, active tile, its text and boundary */
+  --c-seg-track: #1e1f21;
+  --c-seg-on: #222326;
+  --c-seg-on-text: #ececed;
+  --c-seg-ring: rgba(255, 255, 255, 0.34);
+  /* canvas overlays, read by engine/Viewport.ts (DESIGN.md §3) */
+  --c-canvas-selection: #2fb8a6;
+  --c-canvas-handle: #2fb8a6;
+  --c-canvas-handle-ring: #ffffff;
   --c-focus: #58d3c0;
   --c-danger: #ff6b6b;
   --c-backdrop: rgba(0, 0, 0, 0.55);
@@ -81,6 +92,12 @@
   --c-accent-hover: #096558;
   --c-accent-ink: #ffffff;
   --c-accent-wash: rgba(12, 122, 107, 0.16);
+  --c-accent-wash-strong: rgba(12, 122, 107, 0.24);
+  --c-selection-ink: #18191b;
+  --c-seg-track: rgba(0, 0, 0, 0.06);
+  --c-seg-on: #ffffff;
+  --c-seg-on-text: #18191b;
+  --c-seg-ring: rgba(0, 0, 0, 0.43);
   --c-focus: #096558;
   --c-danger: #c92a2a;
   --c-backdrop: rgba(20, 22, 24, 0.4);
@@ -106,6 +123,15 @@
   --c-accent-hover: #ffe766;
   --c-accent-ink: #000000;
   --c-accent-wash: rgba(255, 212, 0, 0.25);
+  --c-accent-wash-strong: #ffd400;
+  --c-selection-ink: #000000;
+  --c-seg-track: #000000;
+  --c-seg-on: #ffd400;
+  --c-seg-on-text: #000000;
+  --c-seg-ring: #ffd400;
+  --c-canvas-selection: #ffd400;
+  --c-canvas-handle: #ffd400;
+  --c-canvas-handle-ring: #000000;
   --c-focus: #ffd400;
   --c-danger: #ff8080;
   --c-backdrop: rgba(0, 0, 0, 0.8);
@@ -154,6 +180,12 @@ body,
   font-feature-settings: 'calt';
   -webkit-font-smoothing: antialiased;
   user-select: none;
+}
+
+/* text selection: the accent wash, never the OS blue (critique 2 P1-5) */
+::selection {
+  background: var(--c-accent-wash-strong);
+  color: var(--c-selection-ink);
 }
 
 button,

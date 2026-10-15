@@ -54,5 +54,26 @@ describe('shell lint', () => {
   it('has one Segmented implementation', () => {
     const defs = list.filter((f) => /export function Segmented\b/.test(fs.readFileSync(path.join(UI, f), 'utf8')));
     expect(defs).toEqual(['controls/Segmented.tsx']);
+    // dialogs keep a sized adapter, which must render the shared component
+    const dlg = fs.readFileSync(path.join(UI, 'dialogs/controls.tsx'), 'utf8');
+    expect(dlg).toMatch(/<SharedSegmented\b/);
+  });
+
+  it('has no hand-rolled segmented styles (.seg, .choice-row) outside the shared control', () => {
+    const css = [path.resolve('src/renderer/styles.css'), ...fs.readdirSync(UI, { recursive: true }).map(String).filter((f) => f.endsWith('.css')).map((f) => path.join(UI, f))];
+    const bad: string[] = [];
+    for (const f of css) {
+      const src = fs.readFileSync(f, 'utf8');
+      if (/\.seg[\s.{[:,]/.test(src)) bad.push(`${path.relative(process.cwd(), f)}: .seg`);
+    }
+    // TODO(curves owner): CurvesEditor's channel switch still uses .choice-row; it moves to <Segmented> with critique-2 P1-2.
+    const ALLOW_CHOICE_ROW = ['panels/CurvesEditor.tsx'];
+    const allTsx = fs.readdirSync(UI, { recursive: true }).map(String).filter((f) => f.endsWith('.tsx'));
+    for (const f of allTsx) {
+      if (ALLOW_CHOICE_ROW.includes(f)) continue;
+      const src = fs.readFileSync(path.join(UI, f), 'utf8');
+      if (/className=["'`{][^>]*(?<![\w-])(seg|choice-row)(?![\w-])/.test(src)) bad.push(`${f}: seg/choice-row class`);
+    }
+    expect(bad).toEqual([]);
   });
 });

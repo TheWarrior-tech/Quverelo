@@ -36,6 +36,9 @@ export const PAIRS = [
   { fg: 'c-accent', on: ['c-app', 'c-panel', 'c-raised', 'c-popover'], kind: 'text', note: 'links / accent text' },
   { fg: 'c-danger', on: ['c-panel', 'c-raised', 'c-popover'], kind: 'text', note: 'destructive text' },
   { fg: 'c-accent-ink', on: ['c-accent', 'c-accent-hover'], kind: 'text', note: 'text/icon on solid accent' },
+  { fg: 'c-selection-ink', on: ['c-accent-wash-strong@c-raised', 'c-accent-wash-strong@c-popover', 'c-accent-wash-strong@c-panel'], kind: 'text', note: 'selected text (::selection)' },
+  { fg: 'c-seg-on-text', on: ['c-seg-on'], kind: 'text', note: 'segmented: active segment label' },
+  { fg: 'c-text-2', on: ['c-seg-track@c-panel', 'c-seg-track@c-popover'], kind: 'text', note: 'segmented: inactive segment label' },
   // non-text UI (3:1)
   { fg: 'c-focus', on: SURFACES, kind: 'ui', note: 'focus ring' },
   { fg: 'c-accent', on: ['c-app', 'c-panel', 'c-raised', 'c-popover'], kind: 'ui', note: 'active tool fill, checkbox on, selection outline' },
@@ -45,6 +48,33 @@ export const PAIRS = [
 ];
 
 export const MIN = { text: 4.5, ui: 3, decorative: 0 };
+
+/**
+ * Segmented control (critique 2 P1-1): the active tile must read as different
+ * from the track at a glance. It passes when the tile fill differs from the track
+ * by >= 1.4:1 luminance, or its boundary ring is >= 3:1 against the track
+ * (WCAG 1.4.11). Checked on both surfaces a control sits on (panels, dialogs).
+ */
+export const SEGMENTED = { track: 'c-seg-track', tile: 'c-seg-on', ring: 'c-seg-ring', on: ['c-panel', 'c-popover'], fill: 1.4, ring3: 3 };
+
+function segmentedRows(theme, tokens) {
+  return SEGMENTED.on.map((surface) => {
+    const track = resolve(tokens, `${SEGMENTED.track}@${surface}`);
+    const tile = resolve(tokens, `${SEGMENTED.tile}@${surface}`);
+    const ringRaw = parseColor(tokens[SEGMENTED.ring] ?? '');
+    if (!ringRaw) throw new Error(`token --${SEGMENTED.ring} missing`);
+    const ring = ringRaw.a < 1 ? composite(ringRaw, track) : ringRaw;
+    const fillR = ratio(tile, track);
+    const ringR = ratio(ring, track);
+    const pass = fillR >= SEGMENTED.fill || ringR >= SEGMENTED.ring3;
+    const r = pass && fillR >= SEGMENTED.fill ? fillR : ringR;
+    return {
+      theme, fg: SEGMENTED.tile, bg: `${SEGMENTED.track}@${surface}`, kind: 'ui',
+      note: `segmented active tile (fill ${fillR.toFixed(2)}:1 >= ${SEGMENTED.fill} or ring ${ringR.toFixed(2)}:1 >= 3)`,
+      ratio: Math.round(r * 100) / 100, min: pass && fillR >= SEGMENTED.fill ? SEGMENTED.fill : SEGMENTED.ring3, pass, fgHex: toHex(tile), bgHex: toHex(track),
+    };
+  });
+}
 
 export function parseColor(v) {
   v = v.trim().toLowerCase();
@@ -122,6 +152,7 @@ export function audit(css) {
         rows.push({ theme, fg: p.fg, bg: bgSpec, kind: p.kind, note: p.note, ratio: Math.round(r * 100) / 100, min, pass: r >= min, fgHex: toHex(fg), bgHex: toHex(bg) });
       }
     }
+    rows.push(...segmentedRows(theme, tokens));
   }
   return rows;
 }

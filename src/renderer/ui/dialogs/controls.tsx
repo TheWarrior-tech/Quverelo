@@ -1,6 +1,7 @@
 /** Small building blocks shared by the dialogs (see docs/DESIGN.md §8). */
-import { useRef, type ReactNode, type KeyboardEvent } from 'react';
+import { type ReactNode, type KeyboardEvent } from 'react';
 import { Icon } from '../Icons';
+import { Segmented as SharedSegmented } from '../controls/Segmented';
 
 export interface SegOption<T extends string | number> {
   value: T;
@@ -10,7 +11,11 @@ export interface SegOption<T extends string | number> {
   disabled?: boolean;
 }
 
-/** Segmented control: a radiogroup with roving focus (arrow keys move and select). */
+/**
+ * Dialog-sized segmented control. A thin adapter over the shared
+ * `controls/Segmented` (DESIGN.md §8) so every one-of-few choice in the app is
+ * the same component with the same active tile; dialogs use the 28px track.
+ */
 export function Segmented<T extends string | number>({ value, options, onChange, label, disabled, full }: {
   value: T;
   options: SegOption<T>[];
@@ -19,38 +24,21 @@ export function Segmented<T extends string | number>({ value, options, onChange,
   disabled?: boolean;
   full?: boolean;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const enabled = options.filter((o) => !o.disabled && !disabled);
-  const onKey = (e: KeyboardEvent) => {
-    const dir = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
-    if (!dir || !enabled.length) return;
-    e.preventDefault();
-    const i = Math.max(0, enabled.findIndex((o) => o.value === value));
-    const next = enabled[(i + dir + enabled.length) % enabled.length];
-    onChange(next.value);
-    requestAnimationFrame(() => ref.current?.querySelector<HTMLElement>('[aria-checked="true"]')?.focus());
-  };
   return (
-    <div className={`seg${full ? ' full' : ''}`} role="radiogroup" aria-label={label} ref={ref} onKeyDown={onKey}>
-      {options.map((o) => {
-        const on = o.value === value;
-        return (
-          <button
-            key={String(o.value)}
-            type="button"
-            role="radio"
-            aria-checked={on}
-            tabIndex={on ? 0 : -1}
-            data-tip={o.title}
-            disabled={disabled || o.disabled}
-            onClick={() => onChange(o.value)}
-          >
-            {o.icon && <Icon name={o.icon} size={16} />}
-            {o.label}
-          </button>
-        );
-      })}
-    </div>
+    <SharedSegmented
+      size="md"
+      ariaLabel={label}
+      value={value}
+      onChange={onChange}
+      disabled={disabled}
+      full={full}
+      options={options.map((o) => ({
+        value: o.value,
+        title: o.title,
+        disabled: o.disabled,
+        label: o.icon ? (<>{<Icon name={o.icon} size={16} />}{o.label}</>) : o.label,
+      }))}
+    />
   );
 }
 

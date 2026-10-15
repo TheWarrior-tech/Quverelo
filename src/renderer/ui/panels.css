@@ -430,13 +430,19 @@ label.check {
   background: linear-gradient(90deg, var(--c-line-strong) var(--a, 0%), var(--c-accent) var(--a, 0%), var(--c-accent) var(--b, 0%), var(--c-line-strong) var(--b, 0%));
 }
 
-/* ---------- segmented control ---------- */
+/* ---------- segmented control (the one implementation: controls/Segmented.tsx) ----------
+ * Track: --c-seg-track with a hairline. Active tile: --c-seg-on + a --c-seg-ring
+ * boundary (>= 3:1 against the track in dark/light) or a solid accent fill in high
+ * contrast. Tokens per theme live in styles.css and are checked by
+ * scripts/contrast-audit.mjs. Disabled never means translucent accent. */
 
 .segmented {
   display: inline-flex;
+  align-items: center;
   gap: 2px;
-  padding: 2px;
-  background: var(--c-raised);
+  padding: 1px;
+  height: 24px;
+  background: var(--c-seg-track);
   border: 1px solid var(--c-line);
   border-radius: var(--r-1);
   max-width: 100%;
@@ -447,6 +453,10 @@ label.check {
 }
 .segmented button {
   flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   height: 20px;
   padding: 0 8px;
   border: none;
@@ -459,32 +469,61 @@ label.check {
   white-space: nowrap;
   transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
 }
+.segmented button svg.icon {
+  width: 16px;
+  height: 16px;
+}
 .segmented button:hover {
   background: var(--c-hover);
   color: var(--c-text);
 }
-.segmented button.on {
-  background: var(--c-press);
-  color: var(--c-text);
+.segmented button.on,
+.segmented button.on:hover {
+  background: var(--c-seg-on);
+  color: var(--c-seg-on-text);
+  box-shadow: 0 0 0 1px var(--c-seg-ring);
 }
-:root[data-theme='light'] .segmented {
-  background: var(--c-press);
-  border-color: transparent;
+.segmented.md {
+  height: 28px;
 }
-:root[data-theme='light'] .segmented button.on {
-  background: var(--c-raised);
-  box-shadow: 0 0 0 1px var(--c-line);
+.segmented.md button {
+  height: 24px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+.segmented button.icon-seg {
+  flex: none;
+  width: 28px;
+  padding: 0;
+}
+.segmented button:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.contextbar .segmented {
+  flex: none;
 }
 :root[data-theme='high-contrast'] .segmented {
-  background: #000;
   border-color: #fff;
 }
 :root[data-theme='high-contrast'] .segmented button {
   color: #fff;
 }
 :root[data-theme='high-contrast'] .segmented button.on {
-  background: var(--c-accent);
-  color: var(--c-accent-ink);
+  color: var(--c-seg-on-text);
+}
+/* high contrast disabled: no opacity wash. Text drops to text-3; the active
+ * segment is a black tile with a dashed white outline instead of yellow. */
+:root[data-theme='high-contrast'] .segmented button:disabled {
+  opacity: 1;
+  color: var(--c-text-3);
+}
+:root[data-theme='high-contrast'] .segmented button.on:disabled {
+  background: #000;
+  color: var(--c-text-3);
+  box-shadow: none;
+  outline: 1px dashed #fff;
+  outline-offset: -1px;
 }
 
 /* ---------- layers ---------- */
