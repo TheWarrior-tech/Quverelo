@@ -770,6 +770,84 @@ kbd {
   background: var(--c-line-strong);
   margin: 6px 0;
 }
+
+/* tool-rail flyouts (CRITIQUE #21): a 4px corner triangle marks a button with sub-tools */
+.toolpalette .icon-btn.has-flyout {
+  position: relative;
+}
+.flyout-mark {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 4px;
+  height: 4px;
+  background: currentColor;
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  opacity: 0.8;
+  pointer-events: none;
+}
+.tool-flyout {
+  position: fixed;
+  z-index: 900;
+  min-width: 208px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  background: var(--c-popover);
+  border-radius: var(--r-2);
+  box-shadow: var(--e-1);
+  animation: flyout-in var(--dur) var(--ease);
+}
+.flyout-item {
+  display: grid;
+  grid-template-columns: 16px 16px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--r-1);
+  background: transparent;
+  color: var(--c-text-2);
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.flyout-item:hover,
+.flyout-item:focus-visible {
+  background: var(--c-hover);
+  color: var(--c-text);
+}
+.flyout-item.on {
+  background: var(--c-press);
+  color: var(--c-text);
+  font-weight: 500;
+}
+.flyout-item .flyout-check {
+  display: inline-flex;
+}
+.flyout-item svg.icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.75;
+}
+.flyout-item kbd {
+  color: var(--c-text-3);
+  font-weight: 400;
+}
+:root[data-theme='high-contrast'] .flyout-item.on {
+  background: #000;
+  box-shadow: inset 0 0 0 2px var(--c-accent);
+}
+@keyframes flyout-in {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+}
 .canvas-area {
   grid-area: canvas;
   position: relative;

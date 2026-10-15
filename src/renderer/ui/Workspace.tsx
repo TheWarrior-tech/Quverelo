@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { StudioKind } from '../../core/types';
-import { STUDIO_TOOLS, editor, type ToolId } from '../state/editor';
+import { editor } from '../state/editor';
+import { STUDIO_RAIL, groupOf, isGroup } from '../state/toolGroups';
+import { RailGroup, toolParts } from './ToolFlyout';
 import { runCommand, setViewport, setSetting } from '../state/commands';
 import { Viewport } from '../engine/Viewport';
 import { useEditor } from './hooks';
@@ -16,23 +18,7 @@ import { solid } from '../../core/document';
 import { statusLine, useUpdateState } from '../state/updates';
 import { openDialog } from '../state/bus';
 
-const TOOL_LABELS: Record<ToolId, string> = {
-  move: 'Move (V)', node: 'Node (A)', hand: 'Hand (H)', zoom: 'Zoom (Z)',
-  'marquee-rect': 'Rectangle Marquee (M)', 'marquee-ellipse': 'Ellipse Marquee', lasso: 'Freehand Selection (L)',
-  brush: 'Paint Brush (B)', eraser: 'Eraser (E)', fill: 'Flood Fill (G)', eyedropper: 'Colour Picker (I)', crop: 'Crop (C)',
-  pen: 'Pen (P)', pencil: 'Pencil (N)', rect: 'Rectangle (M)', ellipse: 'Ellipse (E)', polygon: 'Polygon (Y)', star: 'Star (S)', line: 'Line (L)',
-  text: 'Artistic Text (T)', textframe: 'Frame Text (X)', imageframe: 'Picture Frame (F)',
-};
-
-export function toolLabel(t: ToolId): string {
-  return TOOL_LABELS[t];
-}
-
-/** Tool name without the shortcut suffix, and the shortcut key ('V'), if any. */
-function toolParts(t: ToolId): [string, string | undefined] {
-  const m = /^(.*) \((.+)\)$/.exec(TOOL_LABELS[t]);
-  return m ? [m[1], m[2]] : [TOOL_LABELS[t], undefined];
-}
+export { toolLabel } from './ToolFlyout';
 
 const STUDIOS: { id: StudioKind; label: string }[] = [
   { id: 'photo', label: 'Photo' },
@@ -151,19 +137,26 @@ function RailChips() {
   );
 }
 
+/**
+ * Tool rail. Related tools share one button with a flyout (toolGroups.ts);
+ * dividers come from the rail layout.
+ */
 function ToolPalette() {
   const ed = useEditor();
-  const tools = STUDIO_TOOLS[ed.ui.studio];
+  const rail = STUDIO_RAIL[ed.ui.studio];
   return (
     <aside className="toolpalette" role="toolbar" aria-label="Tools" aria-orientation="vertical">
-      {tools.map((t, i) => (
-        <span key={t} style={{ display: 'contents' }}>
-          {(t === 'hand' || (i > 0 && ['brush', 'pen', 'rect', 'text', 'textframe'].includes(t) && tools[i - 1] !== 'textframe')) && <div className="divider" />}
-          <button className={`icon-btn ${ed.ui.tool === t ? 'active' : ''}`} {...tip(...toolParts(t))} aria-pressed={ed.ui.tool === t} data-tool={t} onClick={() => ed.setTool(t)}>
-            <Icon name={t} />
+      {rail.map((e, i) =>
+        e === '|' ? (
+          <div key={`d${i}`} className="divider" />
+        ) : isGroup(e) ? (
+          <RailGroup key={e.id} group={e} />
+        ) : (
+          <button key={e} className={`icon-btn ${ed.ui.tool === e ? 'active' : ''}`} {...tip(...toolParts(e, groupOf(ed.ui.studio, e)))} aria-pressed={ed.ui.tool === e} data-tool={e} onClick={() => ed.setTool(e)}>
+            <Icon name={e} />
           </button>
-        </span>
-      ))}
+        ),
+      )}
       <div className="divider" />
       <RailChips />
     </aside>
