@@ -17,5 +17,6 @@
   "lockUiScale": false,
   "templateDirectories": ["\\\\fileserver\\templates$\\Quvrelo"],
   "showWelcomeScreen": true,
+  "disableOnboarding": false,
   "maxUndoSteps": 250
 }

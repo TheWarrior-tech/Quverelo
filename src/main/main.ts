@@ -224,6 +224,7 @@ function registerIpc() {
     policySource: policyResult.source,
     policyWarnings: policyResult.warnings,
     userDataPath: app.getPath('userData'),
+    homePath: app.getPath('home'),
     e2e: E2E,
   }));
   ipcMain.handle('settings:get', () => getSettings());

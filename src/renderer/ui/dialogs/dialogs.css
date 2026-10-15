@@ -1129,3 +1129,33 @@
   margin-top: 4px;
   height: 24px;
 }
+
+/* ---------- New Document: inferred studio + More options (UX audit P1-7) ---------- */
+
+.nd-more {
+  margin-top: 12px;
+  border-top: 1px solid var(--c-line);
+  padding-top: 8px;
+}
+.nd-more-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  margin-left: -4px;
+  padding: 0 6px 0 2px;
+  border: none;
+  border-radius: var(--r-1);
+  background: none;
+  color: var(--c-text-2);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.nd-more-toggle:hover {
+  background: var(--c-hover);
+  color: var(--c-text);
+}
+.nd-more .fgrid {
+  margin-top: 8px;
+}

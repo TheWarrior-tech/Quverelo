@@ -1,7 +1,21 @@
 ## Unreleased
 
+### Command palette and tooltips
 - **Command palette.** <kbd>Ctrl/⌘</kbd>+<kbd>K</kbd> (or <kbd>Ctrl/⌘</kbd>+<kbd>/</kbd>) searches and runs every menu command, tool, template and recent file, with synonyms ("cutout" finds Select Subject, "print" finds Export PDF), shortcut keycaps, a Recent section and a one-line reason when a command can't run yet. Fully keyboard operable and screen-reader friendly.
 - **New tooltips.** Faster (400 ms), drawn in the app's own style with the shortcut as keycaps and a how-to line on tools; they also appear on keyboard focus, can be hovered, and close with <kbd>Esc</kbd>.
+
+### Getting started
+- **Welcome, redesigned:** uses the full window width, with a search box (press <kbd>/</kbd>) that filters templates and recent files, Recent as a compact list with the full folder shown and the whole path in a tooltip, and themed scrollbars in every theme.
+- **Edit a photo…** on the welcome screen opens a picture straight into the Photo studio. **Poster or social post** and **A4 page** open New Document with the size already chosen.
+- **One way to start a blank document:** New Document picks the studio from the category (Photo → Photo, Screen → Vector, Print and School → Layout; multi-page documents → Layout). *Open in* moved under **More options**.
+- **Get started checklist:** five first steps that tick themselves as you go and link straight to each action. IT can turn it off with the new `policy.json` key `disableOnboarding`.
+- **Drag and drop, visible:** dragging a file over the window shows *Drop to open* (welcome screen) or *Drop to place* (over the canvas).
+- **Empty pages** show *Place image…*, *Draw a shape* and *Add text*.
+
+### Export
+- The top bar has an **Export ▾** button. Export… opens on PDF for Layout documents and remembers the last format per document; the menu lists every format, **Hand in…** and **Export again** (<kbd>Ctrl/⌘</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd>), which repeats the last export without the dialog. <kbd>Ctrl/⌘</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> now opens Export… (it used to open Export PNG).
+
+---
 
 ## Quvrelo v0.3.0 — over-the-air updates
 

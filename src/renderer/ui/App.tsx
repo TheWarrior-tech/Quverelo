@@ -4,6 +4,9 @@ import { handleKeydown, runCommand } from '../state/commands';
 import { hookTitle, openPath, startAutosave } from '../state/io';
 import { onToast, type Toast } from '../state/bus';
 import { startUpdates } from '../state/updates';
+import { startOnboardingWatcher } from '../state/onboarding';
+import { Icon } from './Icons';
+import { dropModeFor, type DropMode } from '../../core/dropMode';
 import { useEditor } from './hooks';
 import { Welcome } from './Welcome';
 import { Workspace } from './Workspace';
@@ -81,9 +84,27 @@ function ToastStack({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: nu
   );
 }
 
+
+/**
+ * Window-wide drop affordance (UX audit P0-3b): a 2px dashed accent inset over
+ * the canvas area (or the whole Welcome screen) with "Drop to open" / "Drop to
+ * place". Purely visual: pointer-events none, the window handles the drop.
+ */
+function DropOverlay({ mode, rect }: { mode: DropMode; rect: { left: number; top: number; width: number; height: number } | null }) {
+  return (
+    <div className="drop-overlay" data-drop-mode={mode} style={rect ?? undefined} aria-hidden="true">
+      <div className="drop-label">
+        <Icon name="drop" size={16} />
+        {mode === 'place' ? 'Drop to place' : 'Drop to open'}
+      </div>
+    </div>
+  );
+}
+
 export function App() {
   const ed = useEditor();
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [drop, setDrop] = useState<{ mode: DropMode; rect: { left: number; top: number; width: number; height: number } | null } | null>(null);
 
   useEffect(() => {
     hookTitle();
@@ -107,8 +128,27 @@ export function App() {
     };
     window.addEventListener('keydown', onKey);
     const offToast = onToast((t) => setToasts((list) => [...list.slice(-2), t]));
+    let dragDepth = 0;
+    const hasFiles = (e: DragEvent) => [...(e.dataTransfer?.types ?? [])].includes('Files');
+    const onDragEnter = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      dragDepth++;
+      const types = [...(e.dataTransfer?.items ?? [])].filter((i) => i.kind === 'file').map((i) => i.type);
+      const area = editor.session ? document.querySelector('.canvas-area .viewport')?.getBoundingClientRect() : null;
+      setDrop({ mode: dropModeFor(types, !!editor.session), rect: area ? { left: area.left, top: area.top, width: area.width, height: area.height } : null });
+    };
+    const onDragLeave = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      dragDepth = Math.max(0, dragDepth - 1);
+      if (!dragDepth) setDrop(null);
+    };
+    const endDrag = () => {
+      dragDepth = 0;
+      setDrop(null);
+    };
     const onDrop = async (e: DragEvent) => {
       e.preventDefault();
+      endDrag();
       const files = [...(e.dataTransfer?.files ?? [])];
       if (!files.length) return;
       const io = await import('../state/io');
@@ -119,6 +159,10 @@ export function App() {
     const onDragOver = (e: DragEvent) => e.preventDefault();
     window.addEventListener('drop', onDrop);
     window.addEventListener('dragover', onDragOver);
+    window.addEventListener('dragenter', onDragEnter);
+    window.addEventListener('dragleave', onDragLeave);
+    window.addEventListener('dragend', endDrag);
+    const offOnboarding = startOnboardingWatcher();
     // test hook: lets end-to-end tests drive commands and inspect state
     (window as unknown as { __quvrelo: unknown }).__quvrelo = { editor, runCommand };
     return () => {
@@ -129,6 +173,10 @@ export function App() {
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('drop', onDrop);
       window.removeEventListener('dragover', onDragOver);
+      window.removeEventListener('dragenter', onDragEnter);
+      window.removeEventListener('dragleave', onDragLeave);
+      window.removeEventListener('dragend', endDrag);
+      offOnboarding();
     };
   }, []);
 
@@ -137,6 +185,7 @@ export function App() {
   return (
     <>
       {ed.session ? <Workspace /> : <Welcome />}
+      {drop && <DropOverlay mode={drop.mode} rect={drop.rect} />}
       <DialogHost />
       <CommandPalette />
       <TooltipHost />

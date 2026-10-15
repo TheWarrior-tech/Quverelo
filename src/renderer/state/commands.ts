@@ -24,6 +24,7 @@ import { cycleTool, groupOf } from './toolGroups';
 import { activeRaster, commitRasterCanvas, createPixelLayer, editRaster, selectionInPixels } from '../engine/pixelOps';
 import { createCanvas, ctx2d, cloneCanvas } from '../engine/assets';
 import { rasterView, resultToWorldPath, runSelectSubject } from '../engine/mlSelect';
+import { markStep } from './onboarding';
 import { drawNodeTransformed } from '../engine/draw';
 import { applyCrop, cancelCrop } from './crop';
 
@@ -96,6 +97,12 @@ reg('file.save-and-quit', async () => {
 });
 reg('file.place', () => io.placeImages());
 reg('file.import-svg', () => io.importSvgFile());
+reg('file.export', () => {
+  if (!needDoc()) return;
+  if (!io.enabledExportFormats().length) return toast('Export is turned off by your administrator');
+  openDialog('export', { format: io.exportFormatFor() });
+});
+reg('file.export-again', () => needDoc() && io.exportAgain());
 for (const f of ['png', 'jpg', 'svg', 'pdf'] as const) reg(`file.export-${f}`, () => needDoc() && openDialog('export', { format: f }));
 reg('file.document-setup', () => needDoc() && openDialog('document-setup'));
 reg('file.assignment', () => needDoc() && openDialog('assignment'));
@@ -468,6 +475,7 @@ async function selectSubject(): Promise<boolean> {
       toast('No clear subject found');
       return false;
     }
+    markStep('subject');
     editor.setUi({ pixelSelection: path, status: `Subject selected (${res.source === 'ml' ? 'on-device model' : 'basic fallback'}, ${Math.round(res.ms)} ms)` });
     return true;
   } finally {

@@ -121,16 +121,39 @@
   background: var(--c-accent);
   box-shadow: none;
 }
-.topbar .export-btn {
-  margin-left: 8px;
-  height: 28px;
-  padding: 0 12px 0 10px;
-}
 .topbar .export-btn svg.icon {
   width: 16px;
   height: 16px;
 }
-:root[data-theme='high-contrast'] .topbar .export-btn:not(:focus-visible) {
+/*
+ * Export ▾ (welcome-export's split button) is the one filled primary in the
+ * actions zone: the main half is .btn.primary, the chevron half matches it
+ * with a 1px divider in the accent ink.
+ */
+.topbar .split-btn.primary {
+  margin-left: 8px;
+  border: none;
+  background: var(--c-accent);
+}
+.topbar .split-btn.primary > .split-main {
+  height: 28px;
+  padding: 0 10px 0 10px;
+  border: none;
+  border-radius: var(--r-1) 0 0 var(--r-1);
+  background: var(--c-accent);
+  color: var(--c-accent-ink);
+  font-weight: 600;
+}
+.topbar .split-btn.primary > .split-more {
+  width: 24px;
+  border-left: 1px solid color-mix(in srgb, var(--c-accent-ink) 35%, transparent) !important;
+  background: var(--c-accent);
+  color: var(--c-accent-ink) !important;
+}
+.topbar .split-btn.primary > button:hover {
+  background: var(--c-accent-hover);
+}
+:root[data-theme='high-contrast'] .topbar .split-btn.primary:not(:focus-within) {
   outline: 1px solid var(--c-accent);
 }
 
@@ -476,56 +499,7 @@
   background: var(--c-hover);
   color: var(--c-text);
 }
-.popover.menu-popover {
-  padding: 4px;
-  min-width: 184px;
-  display: flex;
-  flex-direction: column;
-}
-.menu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 28px;
-  padding: 0 8px;
-  border: none;
-  border-radius: var(--r-1);
-  background: transparent;
-  color: var(--c-text);
-  text-align: left;
-  cursor: pointer;
-  font-size: 13px;
-}
-.menu-item:hover,
-.menu-item:focus-visible {
-  background: var(--c-hover);
-  outline: none;
-}
-:root[data-theme='high-contrast'] .menu-item:focus-visible {
-  outline: 2px solid var(--c-focus);
-  outline-offset: -2px;
-}
-.menu-item:disabled {
-  opacity: 0.4;
-  pointer-events: none;
-}
-.menu-item svg.icon {
-  width: 16px;
-  height: 16px;
-  color: var(--c-text-2);
-}
-.menu-icon-space {
-  width: 16px;
-  flex: none;
-}
-.menu-label {
-  flex: 1;
-}
-.menu-keys {
-  color: var(--c-text-3);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
+/* menu popup and items: .menu in styles.css (one Menu component) */
 
 /* ---------- font picker ---------- */
 
