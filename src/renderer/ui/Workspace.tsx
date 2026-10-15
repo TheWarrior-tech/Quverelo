@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { StudioKind } from '../../core/types';
 import { editor, STUDIO_TOOLS } from '../state/editor';
-import { STUDIO_RAIL, groupOf, isGroup } from '../state/toolGroups';
+import { STUDIO_RAIL, groupOf, isGroup, toolKeyIn } from '../state/toolGroups';
 import { RailGroup, TOOL_HINTS, toolParts } from './ToolFlyout';
 import { runCommand, setViewport, setSetting } from '../state/commands';
 import { Viewport } from '../engine/Viewport';
@@ -272,7 +272,7 @@ function ToolPalette() {
         ) : isGroup(e) ? (
           <RailGroup key={e.id} group={e} />
         ) : (
-          <button key={e} className={`icon-btn ${ed.ui.tool === e ? 'active' : ''}`} {...tip(...toolParts(e, groupOf(ed.ui.studio, e)))} data-tip-hint={TOOL_HINTS[e]} aria-pressed={ed.ui.tool === e} data-tool={e} onClick={() => ed.setTool(e)}>
+          <button key={e} className={`icon-btn ${ed.ui.tool === e ? 'active' : ''}`} {...tip(...toolParts(e, groupOf(ed.ui.studio, e), ed.ui.studio))} data-tip-hint={TOOL_HINTS[e]} aria-pressed={ed.ui.tool === e} data-tool={e} onClick={() => ed.setTool(e)}>
             <Icon name={e} />
           </button>
         ),
@@ -319,7 +319,7 @@ function CanvasEmptyState() {
             <button type="button" className="ce-action" onClick={drawShape} data-empty-action="shape">
               <Icon name="rect" size={16} />
               <span>Draw a shape</span>
-              <span className="ce-keys">{shapesHere ? 'M' : ''}</span>
+              <span className="ce-keys">{shapesHere ? toolKeyIn(ed.ui.studio, 'rect') : ''}</span>
             </button>
           )}
           <button type="button" className="ce-action" onClick={addText} data-empty-action="text">

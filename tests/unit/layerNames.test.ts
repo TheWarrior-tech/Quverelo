@@ -56,3 +56,17 @@ describe('text frame guide (critique 2 P1-7)', () => {
     expect(frameGuideVisible(make.imageframe(), { doc, hiddenNodeId: null })).toBe(true);
   });
 });
+
+import { indexAbove } from '../../src/core/commands';
+
+describe('Photo shapes insert above the active layer', () => {
+  const a = make.rect(), b = make.rect(), c = make.rect();
+  it('goes directly above the topmost selected top-level layer', () => {
+    expect(indexAbove([a, b, c], [a.id])).toBe(1);
+    expect(indexAbove([a, b, c], [a.id, b.id])).toBe(2);
+  });
+  it('goes on top when nothing top-level is selected', () => {
+    expect(indexAbove([a, b, c], [])).toBeUndefined();
+    expect(indexAbove([a, b, c], ['nope'])).toBeUndefined();
+  });
+});

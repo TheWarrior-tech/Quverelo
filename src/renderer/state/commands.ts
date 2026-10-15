@@ -20,7 +20,7 @@ import { closeDialog, openDialog, toast } from './bus';
 import * as io from './io';
 import type { Viewport } from '../engine/Viewport';
 import { isEditable } from '../engine/Viewport';
-import { cycleTool, groupOf } from './toolGroups';
+import { cycleTool, groupOf, toolForKeyIn, TOOL_KEYS } from './toolGroups';
 import { activeRaster, commitRasterCanvas, createPixelLayer, editRaster, selectionInPixels } from '../engine/pixelOps';
 import { createCanvas, ctx2d, cloneCanvas } from '../engine/assets';
 import { rasterView, resultToWorldPath, runSelectSubject } from '../engine/mlSelect';
@@ -643,16 +643,8 @@ reg('dialog.close', () => closeDialog());
 // ---------------------------------------------------------------------------
 // Keyboard shortcuts that are not menu accelerators (tool keys, nudges)
 
-const TOOL_KEYS: Record<string, Record<string, string>> = {
-  common: { v: 'move', h: 'hand', z: 'zoom', t: 'text', i: 'eyedropper' },
-  photo: { m: 'marquee-rect', l: 'lasso', w: 'object-select', b: 'brush', e: 'eraser', g: 'fill', c: 'crop' },
-  vector: { a: 'node', p: 'pen', n: 'pencil', m: 'rect', e: 'ellipse', l: 'line', s: 'star', y: 'polygon' },
-  layout: { a: 'node', f: 'imageframe', m: 'rect', e: 'ellipse', l: 'line', x: 'textframe' },
-};
-
 export function toolForKey(key: string): string | null {
-  const k = key.toLowerCase();
-  return TOOL_KEYS[editor.ui.studio][k] ?? TOOL_KEYS.common[k] ?? null;
+  return toolForKeyIn(editor.ui.studio, key);
 }
 
 export function shortcutTable(): { group: string; items: [string, string][] }[] {
