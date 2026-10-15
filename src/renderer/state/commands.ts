@@ -20,7 +20,7 @@ import { closeDialog, openDialog, toast } from './bus';
 import * as io from './io';
 import type { Viewport } from '../engine/Viewport';
 import { isEditable } from '../engine/Viewport';
-import { cycleTool, groupOf, toolForKeyIn, TOOL_KEYS } from './toolGroups';
+import { cycleTool, groupOf, toolForKeyIn, toolName, TOOL_KEYS } from './toolGroups';
 import { activeRaster, commitRasterCanvas, createPixelLayer, editRaster, selectionInPixels } from '../engine/pixelOps';
 import { createCanvas, ctx2d, cloneCanvas } from '../engine/assets';
 import { rasterView, resultToWorldPath, runSelectSubject } from '../engine/mlSelect';
@@ -78,8 +78,9 @@ reg('file.close', async () => {
   if (!editor.session) return;
   if (editor.history?.dirty) {
     openDialog('confirm', {
-      title: 'Close document?',
-      message: 'You have unsaved changes. Save before closing?',
+      // name the object in the question (Figma / macOS pattern, critique 3 P2-7)
+      title: `Save changes to “${editor.doc?.title || 'Untitled'}” before closing?`,
+      message: "Your changes will be lost if you don't save them.",
       actions: [
         { label: 'Save', primary: true, run: async () => { if (await io.save()) editor.closeSession(); } },
         { label: "Don't save", run: () => { void window.quvrelo.deleteRecovery(editor.session!.recoveryId); editor.closeSession(); } },
@@ -648,12 +649,11 @@ export function toolForKey(key: string): string | null {
 }
 
 export function shortcutTable(): { group: string; items: [string, string][] }[] {
-  const toolName = (t: string) => t.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   return [
-    { group: 'Tools (all studios)', items: Object.entries(TOOL_KEYS.common).map(([k, t]) => [k.toUpperCase(), toolName(t)]) },
-    { group: 'Photo studio tools', items: Object.entries(TOOL_KEYS.photo).map(([k, t]) => [k.toUpperCase(), toolName(t)]) },
-    { group: 'Vector studio tools', items: Object.entries(TOOL_KEYS.vector).map(([k, t]) => [k.toUpperCase(), toolName(t)]) },
-    { group: 'Layout studio tools', items: Object.entries(TOOL_KEYS.layout).map(([k, t]) => [k.toUpperCase(), toolName(t)]) },
+    { group: 'Tools (all studios)', items: Object.entries(TOOL_KEYS.common).map(([k, t]) => [k.toUpperCase(), toolName(t as ToolId)]) },
+    { group: 'Photo studio tools', items: Object.entries(TOOL_KEYS.photo).map(([k, t]) => [k.toUpperCase(), toolName(t as ToolId)]) },
+    { group: 'Vector studio tools', items: Object.entries(TOOL_KEYS.vector).map(([k, t]) => [k.toUpperCase(), toolName(t as ToolId)]) },
+    { group: 'Layout studio tools', items: Object.entries(TOOL_KEYS.layout).map(([k, t]) => [k.toUpperCase(), toolName(t as ToolId)]) },
     {
       group: 'Canvas',
       items: [

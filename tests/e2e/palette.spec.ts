@@ -71,7 +71,7 @@ test.describe('command palette', () => {
     // tool in the current studio, with its key as a keycap
     await openPalette(page);
     await input(page).fill('circle');
-    await expect(activeRow(page)).toContainText('Ellipse Tool');
+    await expect(activeRow(page)).toContainText('Ellipse tool');
     await expect(activeRow(page).locator('kbd')).toHaveText(['E']);
     await page.keyboard.press('Enter');
     await expect(palette(page)).toBeHidden();
@@ -97,7 +97,7 @@ test.describe('command palette', () => {
     // a tool from another studio switches studio first
     await openPalette(page);
     await input(page).fill('marquee rect');
-    await expect(activeRow(page)).toContainText('Rectangle Marquee Tool');
+    await expect(activeRow(page)).toContainText('Rectangle marquee tool');
     await expect(activeRow(page).locator('.cmdk-meta')).toHaveText('Photo tool');
     await page.keyboard.press('Enter');
     await expect.poll(() => state<string>(page, 'editor.ui.studio')).toBe('photo');

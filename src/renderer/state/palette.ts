@@ -12,6 +12,7 @@ import { hasCommand, runCommand } from './commands';
 import { openDialog } from './bus';
 import { newFromTemplate, openPath } from './io';
 import { disabledReason, pushRecent, TOOL_KEYWORDS, type PaletteContext } from './paletteModel';
+import { toolName } from './toolGroups';
 
 export interface PaletteEntry {
   /** Stable id: `cmd:file.save`, `tool:pen`, `template:worksheet`, `file:/path`. */
@@ -93,8 +94,8 @@ const TOOL_NAMES: Record<ToolId, [string, string?]> = {
   text: ['Artistic Text', 'T'], textframe: ['Frame Text', 'X'], imageframe: ['Picture Frame', 'F'],
 };
 
-/** Icon for a menu command, where the set has a fitting glyph. */
-function commandIcon(id: string): string | undefined {
+/** Icon for a menu command; every command has one (tests/unit/paletteIcons.test.ts). */
+export function commandIcon(id: string): string | undefined {
   const direct: Record<string, string> = {
     'file.new': 'new', 'file.open': 'open', 'file.close': 'close', 'file.save': 'save', 'file.save-as': 'save', 'file.place': 'image',
     'file.import-svg': 'vector', 'file.hand-in': 'handin', 'file.assignment': 'handin', 'file.document-setup': 'pages', 'app.preferences': 'settings',
@@ -109,9 +110,12 @@ function commandIcon(id: string): string | undefined {
     'master.add': 'pages', 'text.link': 'link', 'text.unlink': 'link', 'doc.resize': 'rect', 'view.zoom-in': 'zoom', 'view.zoom-out': 'zoom',
     'view.zoom-fit': 'zoom', 'view.zoom-100': 'zoom', 'help.shortcuts': 'keyboard', 'help.command-palette': 'keyboard', 'help.check-updates': 'update',
     'help.guide': 'help', 'help.about': 'help',
+    // every command has an icon, so no row reads as a gap (critique 3 P2-5)
+    'doc.clear-guides': 'close', 'view.rulers': 'layout', 'view.snapping': 'magnet', 'view.theme-dark': 'adjust', 'view.theme-light': 'adjust',
+    'view.theme-contrast': 'adjust', 'view.ui-bigger': 'plus', 'view.ui-smaller': 'minus', 'view.ui-reset': 'undo', 'view.devtools': 'settings',
   };
   if (direct[id]) return direct[id];
-  if (id.startsWith('file.export-')) return 'export';
+  if (id === 'file.export' || id.startsWith('file.export-')) return 'export';
   if (id.startsWith('studio.')) return id.slice(7);
   const tail = id.split('.')[1];
   if (/^(align-|distribute-|flip-|bool-)/.test(tail)) return tail;
@@ -141,8 +145,8 @@ function replacingDocument(run: () => void | Promise<void>): void {
     return;
   }
   openDialog('confirm', {
-    title: 'Replace this document?',
-    message: 'The open document has unsaved changes. Save it first?',
+    title: `Save changes to “${editor.doc?.title || 'Untitled'}” first?`,
+    message: "Opening something else replaces it. Your changes will be lost if you don't save them.",
     actions: [
       { label: 'Save', primary: true, run: async () => { await runCommand('file.save'); if (!editor.history?.dirty) void run(); } },
       { label: "Don't save", run: () => void run() },
@@ -183,11 +187,12 @@ export function buildEntries(recentFiles: readonly RecentFile[] = []): PaletteEn
     for (const t of STUDIO_TOOLS[st]) {
       if (seen.has(t)) continue;
       seen.add(t);
-      const [name, key] = TOOL_NAMES[t];
+      const [, key] = TOOL_NAMES[t];
+      const name = toolName(t);
       const here = st === editor.ui.studio;
       out.push({
         key: `tool:${t}`,
-        label: `${name} Tool`,
+        label: `${name} tool`,
         group: here ? 'Tool' : `${STUDIO_NAME[st]} tool`,
         keywords: TOOL_KEYWORDS[t],
         icon: t,

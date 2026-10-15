@@ -1,19 +1,12 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { editor, type ToolId } from '../state/editor';
-import { studioOfGroup, toolKeyIn, visibleTool, type ToolGroup } from '../state/toolGroups';
+import { TOOL_LABELS, studioOfGroup, toolKeyIn, visibleTool, type ToolGroup } from '../state/toolGroups';
 import type { StudioKind } from '../../core/types';
 import { useEditor } from './hooks';
 import { Icon } from './Icons';
 import { formatAccel, tip } from './tips';
 
-const TOOL_LABELS: Record<ToolId, string> = {
-  move: 'Move (V)', node: 'Node (A)', hand: 'Hand (H)', zoom: 'Zoom (Z)',
-  'marquee-rect': 'Rectangle marquee (M)', 'marquee-ellipse': 'Ellipse marquee', lasso: 'Freehand selection (L)', 'object-select': 'Object select (W)',
-  brush: 'Paint brush (B)', eraser: 'Eraser (E)', fill: 'Flood fill (G)', eyedropper: 'Colour picker (I)', crop: 'Crop (C)',
-  pen: 'Pen (P)', pencil: 'Pencil (N)', rect: 'Rectangle (M)', ellipse: 'Ellipse (E)', polygon: 'Polygon (Y)', star: 'Star (S)', line: 'Line (L)',
-  text: 'Artistic text (T)', textframe: 'Frame text (X)', imageframe: 'Picture frame (F)',
-};
 
 /** Second tooltip line: how to use the tool (≤ 60 characters, "Drag to … · Shift …"). */
 export const TOOL_HINTS: Partial<Record<ToolId, string>> = {
