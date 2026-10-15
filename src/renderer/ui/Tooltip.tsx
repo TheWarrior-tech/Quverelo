@@ -76,11 +76,14 @@ export function TooltipHost() {
     let pending: HTMLElement | null = null;
     /** Dismissed (Esc / click) trigger: stays hidden until pointer and focus have left it. */
     let suppressed: HTMLElement | null = null;
+    /** A hide is scheduled (pointer left; grace period for reaching the tooltip). */
+    let leaving = false;
 
     const clearTimers = () => {
       window.clearTimeout(showTimer);
       window.clearTimeout(hideTimer);
       pending = null;
+      leaving = false;
     };
     const hide = () => {
       clearTimers();
@@ -91,6 +94,7 @@ export function TooltipHost() {
     const show = (el: HTMLElement, source: Shown['source']) => {
       if (el === suppressed) return;
       window.clearTimeout(hideTimer);
+      leaving = false;
       if (cur.current?.el === el) return;
       window.clearTimeout(showTimer);
       const now = performance.now();
@@ -110,6 +114,7 @@ export function TooltipHost() {
       window.clearTimeout(showTimer);
       pending = null;
       window.clearTimeout(hideTimer);
+      leaving = true;
       hideTimer = window.setTimeout(hide, HIDE_GRACE);
     };
 
@@ -118,9 +123,12 @@ export function TooltipHost() {
       const t = e.target as Element | null;
       if (t?.closest?.(`#${TIP_ID}`)) {
         window.clearTimeout(hideTimer); // hoverable: pointer moved onto the tooltip
+        leaving = false;
         return;
       }
       const el = triggerFor(e.target);
+      // a dismissed trigger re-arms once the pointer is elsewhere and it isn't focused
+      if (suppressed && el !== suppressed && document.activeElement !== suppressed) suppressed = null;
       if (el) show(el, 'hover');
       else if (cur.current?.source === 'hover' || pending) scheduleHide();
     };
@@ -161,13 +169,13 @@ export function TooltipHost() {
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (cur.current) {
+        if (cur.current && !leaving) {
           // dismiss without moving pointer or focus, and don't let Esc do anything else
           suppressed = cur.current.el;
           hide();
           e.preventDefault();
           e.stopPropagation();
-        } else if (pending) clearTimers();
+        } else if (pending || leaving) hide();
         return;
       }
       if (['Shift', 'Control', 'Alt', 'Meta', 'Tab'].includes(e.key)) return;

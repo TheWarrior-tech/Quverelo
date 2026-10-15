@@ -1246,7 +1246,7 @@ kbd {
 .cmdk-search .icon {
   flex: none;
 }
-.cmdk-input {
+.cmdk .cmdk-search input.cmdk-input[type='text'] {
   flex: 1;
   min-width: 0;
   height: 40px;
@@ -1257,11 +1257,12 @@ kbd {
   font: inherit;
   font-size: 14px;
   line-height: 20px;
+  border-radius: 0;
   outline: none;
   box-shadow: none;
 }
-.cmdk-input:focus,
-.cmdk-input:focus-visible {
+.cmdk .cmdk-search input.cmdk-input[type='text']:focus,
+.cmdk .cmdk-search input.cmdk-input[type='text']:focus-visible {
   outline: none;
   box-shadow: none;
   border: 0;

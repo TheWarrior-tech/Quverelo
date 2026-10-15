@@ -71,7 +71,7 @@ function matchLabel(term: string, label: string): Match | null {
   if (j < term.length) return null;
   // a scatter of single letters inside words is noise, not a match
   const starts = ranges.filter(([s]) => isWordStart(l, s)).length;
-  if (starts === 0 && ranges.length > 1) return null;
+  if (!isWordStart(l, ranges[0][0])) return null;
   if (ranges.length > Math.max(2, Math.ceil(term.length / 2)) && starts < ranges.length - 1) return null;
   return { score: 300 + bonus - ranges.length * 8 - l.length / 10, ranges };
 }
