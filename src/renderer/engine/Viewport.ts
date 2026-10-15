@@ -82,7 +82,7 @@ export class Viewport {
   private lastTheme = '';
   /** canvas overlay colours for the current theme (refreshed on theme change in sync) */
   private ov: OverlayColors = readOverlayColors();
-  /** current theme's canvas overlay colours (tools draw crop handles and click markers with these) */
+  /** Theme overlay colours (re-read on theme change); tools draw their canvas chrome with these. */
   get overlayColors(): OverlayColors {
     return this.ov;
   }

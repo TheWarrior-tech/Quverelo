@@ -3,6 +3,8 @@
  * value(x, y) = max_k exp(-d_k^2 / (2 sigma^2)),  sigma = CLICK_SIGMA_FRAC * max(H, W)
  * Any change here must be mirrored in Python and the model retrained.
  */
+import { imageToModel } from './coords';
+
 export const CLICK_SIGMA_FRAC = 0.02;
 
 export interface SelectionClick {
@@ -31,8 +33,7 @@ export function encodeClicks(
   const r = Math.ceil(s * 4); // exp(-8) ~ 3e-4: negligible beyond 4 sigma
   for (const p of points) {
     // map source pixel centre -> model grid (align_corners=False style)
-    const cx = ((p.x + 0.5) * w) / srcW - 0.5;
-    const cy = ((p.y + 0.5) * h) / srcH - 0.5;
+    const { x: cx, y: cy } = imageToModel(p.x, p.y, srcW, srcH, w, h);
     const x0 = Math.max(0, Math.floor(cx - r));
     const x1 = Math.min(w - 1, Math.ceil(cx + r));
     const y0 = Math.max(0, Math.floor(cy - r));

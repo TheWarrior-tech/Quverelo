@@ -21,7 +21,7 @@ import {
 import { drawPage } from './draw';
 import { runCommand } from '../state/commands';
 import {
-  cursorFor, hitCrop, moveWithin, rectFromDrag, resizeCrop, roundCrop, type CropHit, type CropRect,
+  CROP_HANDLES, cursorFor, handlePoints, hitCrop, moveWithin, rectFromDrag, resizeCrop, roundCrop, type CropHit, type CropRect,
 } from '../../core/crop';
 import { currentCrop, currentRatio, docBounds, setCropBox } from '../state/crop';
 import { uiPaint } from '../state/uiPaint';
@@ -893,40 +893,43 @@ class CropTool implements Tool {
     const oc = vp.overlayColors;
     ctx.strokeStyle = oc.ring;
     ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
-    // one handle vocabulary (theme handle token): L-brackets on the corners, short bars on the edges
+    // One handle vocabulary in every theme (critique 3, N10): L-brackets at the corners and
+    // 12x3 bars mid-edge, all in the theme's canvas-handle colour over a 1 px ring, so they
+    // read on any photo and turn yellow-on-black in high contrast like every other handle.
+    const ov = vp.overlayColors;
     const L = Math.min(16, (x1 - x0) / 3, (y1 - y0) / 3);
-    const bar = (cx: number, cy: number, horizontal: boolean) => {
-      const len = 12;
-      const th = 3;
-      const w = horizontal ? len : th;
-      const h = horizontal ? th : len;
-      ctx.fillStyle = oc.ring;
-      ctx.fillRect(Math.round(cx - w / 2) - 1, Math.round(cy - h / 2) - 1, w + 2, h + 2);
-      ctx.fillStyle = oc.handle;
-      ctx.fillRect(Math.round(cx - w / 2), Math.round(cy - h / 2), w, h);
-    };
-    ctx.lineCap = 'butt';
+    const BAR = 12;
+    const pts = handlePoints({ x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y });
+    const shapes = new Path2D();
     for (const [cx, cy, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x1, y1, -1, -1], [x0, y1, 1, -1]]) {
-      ctx.beginPath();
-      ctx.moveTo(cx - sx, cy + sy * L);
-      ctx.lineTo(cx - sx, cy - sy);
-      ctx.lineTo(cx + sx * L, cy - sy);
-      ctx.lineWidth = 5;
-      ctx.strokeStyle = oc.ring;
-      ctx.stroke();
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = oc.handle;
-      ctx.stroke();
+      shapes.moveTo(cx - sx * 1, cy + sy * L);
+      shapes.lineTo(cx - sx * 1, cy - sy * 1);
+      shapes.lineTo(cx + sx * L, cy - sy * 1);
     }
-    ctx.lineWidth = 1;
-    if (x1 - x0 >= HANDLE_SIZE * 4) {
-      bar((x0 + x1) / 2, y0, true);
-      bar((x0 + x1) / 2, y1, true);
+    for (const h of CROP_HANDLES) {
+      if (h.length === 2) continue; // corners are the brackets
+      if ((h === 'n' || h === 's') && x1 - x0 < BAR * 3) continue;
+      if ((h === 'e' || h === 'w') && y1 - y0 < BAR * 3) continue;
+      const q = pts[h];
+      const horiz = h === 'n' || h === 's';
+      const cx = Math.round(q.x) + (horiz ? 0 : 0.5);
+      const cy = Math.round(q.y) + (horiz ? 0.5 : 0);
+      if (horiz) {
+        shapes.moveTo(cx - BAR / 2, cy);
+        shapes.lineTo(cx + BAR / 2, cy);
+      } else {
+        shapes.moveTo(cx, cy - BAR / 2);
+        shapes.lineTo(cx, cy + BAR / 2);
+      }
     }
-    if (y1 - y0 >= HANDLE_SIZE * 4) {
-      bar(x0, (y0 + y1) / 2, false);
-      bar(x1, (y0 + y1) / 2, false);
-    }
+    ctx.lineCap = 'square';
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = ov.ring;
+    ctx.stroke(shapes);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = ov.handle;
+    ctx.stroke(shapes);
+    ctx.lineCap = 'butt';
     if (this.drag) {
       const q = roundCrop(r);
       const label = `${q.w} × ${q.h}`;
@@ -935,7 +938,7 @@ class CropTool implements Tool {
       const tw = ctx.measureText(label).width + 12;
       const cx = (x0 + x1) / 2;
       const by = Math.min(y1 + 10, vp.canvas.getHeight() - 24);
-      ctx.fillStyle = oc.handle;
+      ctx.fillStyle = vp.overlayColors.handle;
       ctx.beginPath();
       ctx.roundRect(Math.round(cx - tw / 2), Math.round(by), Math.round(tw), 18, 4);
       ctx.fill();
@@ -990,22 +993,22 @@ class ObjectSelectTool implements Tool {
     this.hideChip();
   }
 
-  /** Click markers (accent = include, coral = exclude) for the current refinement. */
+  /** Click markers (theme canvas-handle colour = include, coral = exclude) for the current refinement. */
   drawScreenOverlay(ctx: CanvasRenderingContext2D) {
     const ed = this.c.editor;
     const marks = objectSelectMarkers(ed);
     if (!marks.length) return;
     const vp = this.c.viewport;
+    const ov = vp.overlayColors; // yellow on a black ring in high contrast (critique 3, N10)
     ctx.save();
-    const oc = vp.overlayColors;
     for (const m of marks) {
       const q = vp.sceneToScreen(m.x, m.y);
       ctx.beginPath();
       ctx.arc(Math.round(q.x) + 0.5, Math.round(q.y) + 0.5, 4.5, 0, Math.PI * 2);
-      ctx.fillStyle = m.positive ? oc.handle : '#ff6b4a';
+      ctx.fillStyle = m.positive ? ov.handle : '#ff6b4a';
       ctx.fill();
       ctx.lineWidth = 1.5;
-      ctx.strokeStyle = oc.ring;
+      ctx.strokeStyle = ov.ring;
       ctx.stroke();
     }
     ctx.restore();
