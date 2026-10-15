@@ -1,6 +1,6 @@
 # Quvrelo design system
 
-Status: v1 (2026-10-14). Source of truth for every screen. Tokens live in `src/renderer/styles.css` (`:root`, `[data-theme]`); icons in `src/renderer/ui/Icons.tsx`. If a screen needs a value that is not here, add it here first.
+Status: v3 shell (2026-10-15; v1 2026-10-14). Source of truth for every screen. Tokens live in `src/renderer/styles.css` (`:root`, `[data-theme]`); icons in `src/renderer/ui/Icons.tsx`. If a screen needs a value that is not here, add it here first.
 
 ## 1. Intent
 
@@ -48,7 +48,7 @@ Neutrals are near-grey with ~0 chroma so photography never fights the chrome. Th
 
 Contrast (WCAG 2.2 AA minimum, checked): text on panel ≥ 12:1; text-2 ≥ 7:1; text-3 ≥ 4.5:1; accent-ink on accent ≥ 7:1; accent as text on panel ≥ 4.5:1; focus ring, accent fills and `--c-line-strong` boundaries ≥ 3:1 on every surface. `--c-line` hairlines are decorative and exempt. Enforced by `npm run audit:contrast` (scripts/contrast-audit.mjs, also run by vitest) for all three themes — change a token, run it.
 
-Canvas overlays (selection, handles, guides) use accent `#2fb8a6` for selection, coral `#ff6b4a` for snapping and margins, cyan for ruler guides, so they stay legible on photographs.
+Canvas overlays (selection, handles, hover, guides) use accent `#2fb8a6` for selection and hover, coral `#ff6b4a` for snapping and margins, cyan for ruler guides, so they stay legible on photographs. Handles are solid accent with a 1px white ring, so they read on dark, light and photographic content alike.
 
 ## 4. Type
 
@@ -69,7 +69,7 @@ Weights: 400 body, 500 labels/controls in active state, 600 titles. Never 700+.
 
 ## 5. Space, size, grid
 
-4px base; allowed steps 4 · 8 · 12 · 16 · 24 · 32 · 48. Control heights: `24` (compact: panel inputs, segmented, small buttons), `28` (default buttons, top bar), `32` (dialog actions). Tool rail buttons `32×32` on a `44px` rail. Panel row height `28`, layer row `28`. Top bar `44`, context bar `36`, status bar `24`, panels `288` wide. All hairlines are 1 device-independent px drawn as `box-shadow`/`border` so they stay crisp at 150 %/200 %.
+4px base; allowed steps 4 · 8 · 12 · 16 · 24 · 32 · 48. Control heights: `24` (compact: panel inputs, segmented, small buttons), `28` (default buttons, top bar), `32` (dialog actions). Tool rail buttons `32×32` on a `44px` rail. Panel row height `28`, layer row `28`. Top bar `44` (`--h-top`), context bar `36`, status bar `24`. Shell columns (v3): tool rail `44` (`--w-tools`) · left rail `248` (`--w-rail`) · canvas · inspector `288` (`--w-inspector`). The rails run full height between top bar and status bar; the context bar sits over the canvas column only. All hairlines are 1 device-independent px drawn as `box-shadow`/`border` so they stay crisp at 150 %/200 %.
 
 ## 6. Radius, elevation, motion
 
@@ -92,7 +92,12 @@ Icon buttons: use `tip(label, commandId | key)` from `ui/tooltip.ts` — `aria-l
 
 ## 8. Components
 
-**Top bar (44).** App mark, document title (500, truncates) with unsaved dot (4px, accent), file/undo icon buttons (28×28), studio switch centred in the bar's grid, align/boolean/arrange icon group right, then help and preferences. Hairline below.
+**Shell v3 layout.** Four columns under the top bar: tool rail · left rail (document structure) · canvas (context bar on top) · inspector. Tab (outside a field) hides both rails. Grid and geometry live in `ui/shell.css`; nothing in the shell is positioned with inline styles except runtime geometry (popover/toolbar coordinates, virtualised rows, font-face previews), which `tests/unit/shellLint.test.ts` enforces.
+
+**Top bar (44), three semantic zones** (Mobbin cross-app pattern 4). The outer columns are equal width so the centre zone is truly centred.
+1. *Identity* (left): app mark · document name (500, truncates at 280; click to rename in place, Enter commits, Esc cancels) · save state as quiet 11px text with a 6px dot: `Saved` (hollow `text-3` dot), `Edited` (accent dot, `text-2`), `Not saved` (never saved).
+2. *Studio + tools* (centre): studio switch, a 16px hairline, then Undo · Redo · Place image (28×28 icon buttons).
+3. *Outbound* (right): Open · Save · Keyboard shortcuts · Preferences icon buttons, then **Export** as the only filled primary button in the bar (icon + label, 28 high). Align and boolean actions moved to the inspector and the selection toolbar.
 
 **Studio switch.** Segmented control: 28 high, 4px inner padding, `--c-raised` track with hairline, active segment `--c-press` fill + text primary, icon in accent. Neither colour-coded nor underlined. Keyboard: arrow keys move, Enter selects.
 
@@ -100,9 +105,33 @@ Icon buttons: use `tip(label, commandId | key)` from `ui/tooltip.ts` — `aria-l
 
 **Context bar (36).** Tool name at 500, then controls in groups separated by a 16px hairline. Sliders show label, 96px track, tabular value. Modes (New/Add/Subtract/Intersect) are a segmented control. Hint text is `text-3`, never competes with controls.
 
-**Panels (288).** Stack of three groups (Inspector · Document structure · Library). Group header 36: collapse chevron, then tabs (text buttons, active = primary text + `--c-press` fill, 4px radius; no underline; arrow keys move between tabs). The first expanded group takes the free space; the others keep a persisted height, resized by dragging the hairline between groups (7px hit area, accent while hovered/dragged; keyboard: arrows 8px, Shift 32px, Enter resets). Min heights 160 / 120 / 84. Sections are flat: micro-label header (28, disclosure chevron, remembered per section), hairline between sections, no nested cards or bordered boxes. Rows 28, label column 72, input fills.
+**Left rail (248).** Tabs **Layers · Pages · Assets** (Figma/Framer pattern), 36px header with a hairline below. Tabs are text buttons (active = primary text on `--c-press`, 4px radius, no underline; arrow keys/Home/End move and select). Default tab: Layers in Photo and Vector, Pages in Layout; the choice is remembered per studio. Assets holds document swatches + recent colours, then Shapes & symbols, then placed Images (with a teaching empty state).
 
-**Layers.** Header 36: blend select · Opacity number field (scrub label). Row 28, full bleed: 16px indent per group level, chevron twisty, 24×20 thumbnail (4px radius, hairline; vector thumbnails tint the type glyph with the fill), name (12), status icons (mask, live adjustments) in `text-3`, then lock/eye toggles that appear on hover, keyboard focus or selection, and stay visible while they carry state (hidden, locked). Selected = accent-wash fill + flush 2px inset accent bar; high contrast = black fill + 2px yellow inset outline, no washes. Drag: the dragged row dims, insertion = 2px accent line with a 6px ring at its start, above or below the hovered row. Keyboard: ↑/↓ move focus, ←/→ collapse/expand, Enter selects, F2 renames, Alt+↑/↓ reorders, Alt+H toggles visibility. Footer actions are 24×24 icon buttons.
+**Inspector (288).** Tabs **Design · Adjust (Photo only) · History**, remembered per studio. The Design tab is grouped by concern, in this order:
+1. Header 32: object name (13/600) and, when it differs from the name, its kind in `text-3` 11/500.
+2. Align bar 36: six align buttons, hairline, distribute H/V (enabled at 3+), Boolean menu (Vector, 2+).
+3. **Appearance**: Fill row · Stroke row (+ width · dash · cap · join when on) · Opacity slider · Blend. Text and text frames show *Colour* in place of Fill.
+4. **Transform** (unit in the header): one 4-up row X · Y · W · H (no unit suffix, so five digits fit), then R · S · flip H · flip V.
+5. The object's own section last (Rectangle radius, Polygon sides, Star points/inner, Text frame columns + frame fill + linking, Picture frame fit/zoom/offset/replace, Pixels), then Mask.
+Nothing selected: Document (title, size, pages, background chip) and *New objects* (default fill/stroke rows). Rows use a 56px label column; sections are flat with a micro-label disclosure (remembered per section), hairline between, and a section you expand scrolls itself into view.
+
+**Colour control (one everywhere).** `ColorChipButton` is the only colour trigger in the shell: a 20px chip (optionally with a chevron in the context bar) that opens the shared picker in a popover. The inspector's `PaintRow` is chip · hex field · add/remove; its chip opens the full paint editor (None · Solid · Linear · Radial + picker) to the *left* of the inspector so it never covers the panel. Context bar (shape tools, brush, flood fill), selection toolbar and document background all use it. No native `<input type="color">` anywhere in the shell.
+
+**Layers.** Header 36: blend select · Opacity number field (scrub label). Row 28, full bleed: 16px indent per group level, chevron twisty, 24×20 thumbnail (4px radius, hairline; vector thumbnails tint the type glyph with the fill), name (12), status icons (mask, live adjustments) in `text-3`, then lock/eye toggles that appear on hover, keyboard focus or selection, and stay visible while they carry state (hidden, locked). Rows are inset 4px with a 4px radius. Hover = `--c-hover` fill only; selected = accent-wash fill + 2px inset accent bar + name at 500 (hover on a selected row keeps the wash, never the grey hover). Hovering a row draws the hover outline on the canvas. High contrast = black fill + 2px yellow inset outline when selected, 1px white outline on hover, no washes. Photo keeps the blend · opacity header (36); Vector and Layout edit those in the inspector. **Empty state:** a teaching block, never a bare line: 32px glyph tile, “No layers yet” (13/600), one line on what lives here, then ghost actions *Place image* · *Draw a shape* (Photo: *Paint*) · *Add text*, and “Or drop an image file onto the canvas.” in `text-3`. Drag: the dragged row dims, insertion = 2px accent line with a 6px ring at its start, above or below the hovered row. Keyboard: ↑/↓ move focus, ←/→ collapse/expand, Enter selects, F2 renames, Alt+↑/↓ reorders, Alt+H toggles visibility. Footer actions are 24×24 icon buttons.
+
+**Segmented control (shared).** `ui/controls/Segmented.tsx` is the one implementation (radio group, roving focus, arrows move and select; optional icon-only segments with an accessible name; disabled segments skipped). `sm` = 24 track / 20 tiles, `md` = 28 / 22. Used for paint type, colour model, selection mode, frame fit, curves channel.
+
+**Context-bar hint (`CtxHint`).** One quiet line in `text-3`, ≤ 60 characters, pattern “Drag to … · Shift …”, truncates with an ellipsis (full text in the tooltip) and hides below 1280px. Never a coloured span.
+
+**Menus (`MenuButton`).** Ghost trigger (icon and/or label + 12px chevron), opens an 8px-radius popover of 28px items (16px icon, label 13, keycaps right in `text-3`); arrows/Home/End move, Enter runs, Esc closes and returns focus.
+
+**Popovers.** Portal to body, placement below/above/right/left with flip-on-overflow, close on Esc or outside press and return focus to the anchor. Focus moves to the first control once, after placement (`[data-autofocus]`, else the roving tab stop, else the first input/button) and never again on re-render, so committing a value never steals focus.
+
+**Font picker.** Trigger shows the family set in its own face (168 wide in the context bar, 136 borderless in the selection toolbar). Popover 264 wide: search field (36 high, autofocused, a combobox), then sections Recent (5) · Bundled · System · Installed (Local Font Access, policy `local-fonts`), each row 28 high set in its own face at 13px, current font ticked in accent. Arrow keys live-preview, Enter commits (and records Recent), Esc or an outside click reverts to the font the list opened with. The list is windowed.
+
+**Selection toolbar (floating).** `--c-popover`, 8px radius, `--e-1`, 36 high, 4px padding. Anchored 8px below the selection bounds, centred, clamped 8px inside the canvas; flips above when there is no room. Shown after pointer-up with the Move tool; hidden while the pointer is down, while transforming or panning, for 160ms after a wheel zoom, and while editing text. Fades in 100ms with a 4px slide (none under reduced motion). Content by selection: shapes = Fill chip · Stroke chip; text = font · size · bold · italic · colour; picture frame = Fit menu · Replace…; pixel layer = flip H · flip V · rotate; then hairline · Arrange menu (front/forward/backward/back with keycaps) · Boolean menu (Vector, 2+ shapes) · Group/Ungroup · Duplicate · Delete. F6 moves focus in (and back to the canvas), arrows move between buttons, Esc returns to the canvas. Preferences ▸ Canvas ▸ “Floating selection toolbar” turns it off (`showSelectionToolbar`).
+
+**Empty states (`EmptyState`).** 32px glyph tile (`--c-raised`, hairline, 8px radius, 20px icon in `text-3`), title 13/600, one body line `text-2`, ghost actions stacked full width, optional footnote 11px `text-3`. Left-aligned, no illustration. Used by Layers and Assets ▸ Images.
 
 **Inputs.** 24 high, `--c-raised`, 1px line-strong, 4px radius, text 12 tabular. Focus = border accent + 2px ring. **Number fields** (`NumberField`): scrub label on the left (letter or word, `text-3`, `ew-resize` cursor; drag 1px = 1 step, Shift ×10, Alt ×0.1, pointer-locked so drags never run out), value, unit suffix inside the field in `text-3`. Arrow keys step with the same modifiers, Enter commits, Esc reverts, typed units convert (`10mm` in a px field) and simple arithmetic evaluates (`100+20`). The input is the accessible `spinbutton`; the label is decorative. A live scrub is one undo step. Selects: custom chevron icon. Checkbox 14px, radius 3, accent when on. Radio group = segmented.
 
@@ -126,7 +155,7 @@ Icon buttons: use `tip(label, commandId | key)` from `ui/tooltip.ts` — `aria-l
 
 **Rulers.** 20px, `--c-app`, page extent one tone up (`--c-raised`), minor ticks 4/7px, labels 9px tabular `text-3` inset 3px. Layout adds margin (coral) and bleed bands on the ruler's inner edge.
 
-**Canvas selection.** 1px `#2fb8a6` box, 7×7 white handles with 1px accent stroke (edge handles only when the box is wider than 28px), rotation knob 20px above the top edge; drawn in screen space so they never scale with zoom. Same in Vector and Layout for every tool except Node/Crop; Photo shows it with Move only. The pixel selection (marching ants) is drawn only in Photo.
+**Canvas selection and hover.** Selection = 1px `#2fb8a6` box + 7×7 solid accent handles with a 1px white ring (edge handles only when the box is wider than 28px) + accent rotation knob 20px above the top edge; in a multi-selection each member also gets a 1px outline at 55 %. Hover = the same 1px accent outline with *no* handles, never drawn on a selected node or while dragging, and also shown when a layer row is hovered. So hover vs selected is unambiguous: handles mean selected. Drawn in screen space so they never scale with zoom. Same in Vector and Layout for every tool except Node/Crop; Photo shows it with Move only. The pixel selection (marching ants) is drawn only in Photo.
 
 **Layout canvas.** Page edge hairline, dashed bleed, coral margins at 60 %, column guides at 40 %; none of these appear in Photo or Vector.
 
