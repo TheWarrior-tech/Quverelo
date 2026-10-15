@@ -940,7 +940,7 @@
 .orient {
   display: inline-block;
   border: 1.5px solid currentColor;
-  border-radius: 1px;
+  border-radius: var(--r-hairline);
 }
 .orient.p { width: 9px; height: 12px; }
 .orient.l { width: 12px; height: 9px; }

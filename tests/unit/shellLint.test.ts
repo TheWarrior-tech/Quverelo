@@ -76,4 +76,17 @@ describe('shell lint', () => {
     }
     expect(bad).toEqual([]);
   });
+
+  it('uses radius tokens only (DESIGN.md §6): no literal px border-radius in CSS', () => {
+    const css = [path.resolve('src/renderer/styles.css'), ...fs.readdirSync(UI, { recursive: true }).map(String).filter((f) => f.endsWith('.css')).map((f) => path.join(UI, f))];
+    const bad: string[] = [];
+    for (const f of css) {
+      fs.readFileSync(f, 'utf8').split('\n').forEach((line, i) => {
+        // values derived from a radius token (calc(var(--r-1) - 1px)) are allowed; bare px are not
+        const v = line.replace(/calc\([^)]*var\(--r-[\w-]+\)[^)]*\)/g, 'token');
+        if (/border-radius\s*:[^;]*\b\d*\.?\d+px/.test(v) && !/^\s*--/.test(line)) bad.push(`${path.relative(process.cwd(), f)}:${i + 1}: ${line.trim()}`);
+      });
+    }
+    expect(bad).toEqual([]);
+  });
 });

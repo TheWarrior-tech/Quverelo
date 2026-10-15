@@ -78,7 +78,7 @@ Weights: 400 body, 500 labels/controls in active state, 600 titles. Never 700+.
 
 ## 6. Radius, elevation, motion
 
-- Radius: `--r-1: 4px` (buttons, inputs, rows, tiles) · `--r-2: 8px` (dialogs, popovers, cards, thumbnails) · `--r-full: 999px` (knobs, count pills). One derived value, `--r-tile: calc(var(--r-1) - 1px)`, for tiles inset inside a 4px track (segmented controls) and checkboxes. No literal radii anywhere else.
+- Radius: `--r-1: 4px` (buttons, inputs, rows, tiles) · `--r-2: 8px` (dialogs, popovers, cards, thumbnails) · `--r-full: 999px` (knobs, count pills). One derived value, `--r-tile: calc(var(--r-1) - 1px)`, for tiles inset inside a 4px track (segmented controls) and checkboxes, and `--r-hairline: 1px` for 2px tracks, ticks and insertion bars (slider track, checklist progress, layer drop line, orientation glyph, spread page corners). No literal radii anywhere else (`tests/unit/shellLint.test.ts` rejects a px `border-radius` outside the tokens).
 - Elevation: `--e-0` none · scroll edges (the one exception on resting chrome): a hairline plus a short soft shade appears at the top/bottom of a scrolling panel only while content is hidden past that edge · `--e-1` popover `0 0 0 1px line, 0 4px 16px rgba(0,0,0,.28)` · `--e-2` dialog `0 0 0 1px line, 0 16px 48px rgba(0,0,0,.4)`.
 - Motion: `--dur: 120ms`, `--ease: cubic-bezier(.2,.7,.3,1)`. Allowed: background/colour/opacity fades, 4px toast slide, dialog 4px rise. No bouncing, no scaling on hover.
 

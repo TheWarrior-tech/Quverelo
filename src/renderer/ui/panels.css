@@ -609,7 +609,7 @@ label.check {
   right: 4px;
   height: 2px;
   background: var(--c-accent);
-  border-radius: 1px;
+  border-radius: var(--r-hairline);
   pointer-events: none;
 }
 .layer-row.drop-above::after {
@@ -1340,7 +1340,7 @@ label.check {
 }
 /* spread pages meet at the spine: square inner corners */
 .spread .page-thumb canvas {
-  border-radius: 2px;
+  border-radius: var(--r-hairline);
 }
 
 /* ---------- high contrast: no translucent washes ---------- */

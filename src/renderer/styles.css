@@ -40,6 +40,8 @@
   --r-full: 999px;
   /* derived: tiles inset 2px inside a --r-1 track (segmented controls), checkboxes */
   --r-tile: calc(var(--r-1) - 1px);
+  /* 2px tracks, ticks and insertion bars (slider track, checklist progress, drop line, orientation glyph) */
+  --r-hairline: 1px;
   --e-1: 0 0 0 1px var(--c-line), 0 4px 16px rgba(0, 0, 0, 0.28);
   --e-2: 0 0 0 1px var(--c-line), 0 16px 48px rgba(0, 0, 0, 0.4);
   --dur: 120ms;
@@ -413,7 +415,7 @@ input[type='range'] {
 }
 input[type='range']::-webkit-slider-runnable-track {
   height: 2px;
-  border-radius: 1px;
+  border-radius: var(--r-hairline);
   background: var(--c-line-strong);
 }
 input[type='range']::-webkit-slider-thumb {
