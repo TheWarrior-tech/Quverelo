@@ -6,6 +6,7 @@ import { Viewport } from '../engine/Viewport';
 import { useEditor } from './hooks';
 import { Icon, Logo } from './Icons';
 import { ContextBar } from './ContextBar';
+import { SelectionActions } from './SelectionActions';
 import { Rulers } from './Rulers';
 import { Panels } from './panels/Panels';
 import { tip } from './tooltip';
@@ -18,7 +19,7 @@ import { openDialog } from '../state/bus';
 
 const TOOL_LABELS: Record<ToolId, string> = {
   move: 'Move (V)', node: 'Node (A)', hand: 'Hand (H)', zoom: 'Zoom (Z)',
-  'marquee-rect': 'Rectangle Marquee (M)', 'marquee-ellipse': 'Ellipse Marquee', lasso: 'Freehand Selection (L)',
+  'marquee-rect': 'Rectangle Marquee (M)', 'marquee-ellipse': 'Ellipse Marquee', lasso: 'Freehand Selection (L)', 'object-select': 'Object Select (W)',
   brush: 'Paint Brush (B)', eraser: 'Eraser (E)', fill: 'Flood Fill (G)', eyedropper: 'Colour Picker (I)', crop: 'Crop (C)',
   pen: 'Pen (P)', pencil: 'Pencil (N)', rect: 'Rectangle (M)', ellipse: 'Ellipse (E)', polygon: 'Polygon (Y)', star: 'Star (S)', line: 'Line (L)',
   text: 'Artistic Text (T)', textframe: 'Frame Text (X)', imageframe: 'Picture Frame (F)',
@@ -192,6 +193,7 @@ function CanvasArea() {
       <div className="ruler-corner" title="Toggle rulers" onDoubleClick={() => setSetting({ showRulers: false })} />
       {vp && <Rulers viewport={vp} />}
       <div className="viewport" ref={hostRef} />
+      {vp && <SelectionActions viewport={vp} />}
       {master && (
         <div className="master-banner" style={{ gridArea: '2 / 2' }}>
           Editing master “{master.name}”

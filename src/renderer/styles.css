@@ -734,6 +734,130 @@ kbd {
   flex-wrap: wrap;
 }
 
+/* context bar: commit actions sit at the far right (crop Apply / Cancel) */
+.contextbar .ctx-spacer {
+  flex: 1 0 8px;
+}
+.contextbar .ctx-commit {
+  gap: 4px;
+}
+.contextbar .ctx-commit::before {
+  display: none;
+}
+.contextbar .btn.primary {
+  background: var(--c-accent);
+  color: var(--c-accent-ink);
+  font-weight: 600;
+  padding: 0 10px;
+}
+.contextbar .btn.primary:hover {
+  background: var(--c-accent-hover);
+  color: var(--c-accent-ink);
+}
+.contextbar .btn.primary svg.icon {
+  stroke-width: 2;
+}
+:root[data-theme='high-contrast'] .contextbar .btn.primary {
+  outline: 1px solid var(--c-accent);
+}
+
+/* on-device model progress: a quiet ring, removed under reduced motion */
+.ml-spinner {
+  display: inline-block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  margin: 2px;
+  border-radius: var(--r-full);
+  border: 1.5px solid var(--c-line-strong);
+  border-top-color: var(--c-accent);
+  animation: ml-spin 700ms linear infinite;
+}
+@keyframes ml-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* "Selecting…" chip beside the pointer while Object Select runs */
+.ml-chip {
+  position: absolute;
+  z-index: 8;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 8px 0 6px;
+  border-radius: var(--r-1);
+  background: var(--c-popover);
+  box-shadow: var(--e-1);
+  color: var(--c-text-2);
+  font-size: 12px;
+  pointer-events: none;
+  animation: fade-in var(--dur) var(--ease);
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* pixel-selection action strip, anchored under the selection (UX audit P0-2d) */
+.sel-actions {
+  position: absolute;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 36px;
+  padding: 0 4px;
+  border-radius: var(--r-2);
+  background: var(--c-popover);
+  box-shadow: var(--e-1);
+  white-space: nowrap;
+}
+.sel-actions[data-placed] {
+  animation: fade-in var(--dur) var(--ease);
+}
+.sel-actions-item {
+  display: contents;
+}
+.sel-actions .btn {
+  height: 28px;
+  padding: 0 8px;
+  gap: 6px;
+  background: transparent;
+  border: 0;
+  color: var(--c-text);
+  font-weight: 500;
+  font-size: 12px;
+}
+.sel-actions .btn svg.icon,
+.sel-actions .icon-btn svg.icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.75;
+  color: var(--c-text-2);
+}
+.sel-actions .btn:hover {
+  background: var(--c-hover);
+}
+.sel-actions .btn:hover svg.icon {
+  color: var(--c-text);
+}
+.sel-actions .btn:active {
+  background: var(--c-press);
+}
+.sel-actions-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: var(--c-line-strong);
+  flex: none;
+}
+:root[data-theme='high-contrast'] .sel-actions {
+  outline: 1px solid var(--c-line-strong);
+}
+
 .toolpalette {
   grid-area: tools;
   display: flex;
