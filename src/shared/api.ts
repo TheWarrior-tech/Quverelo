@@ -29,6 +29,11 @@ export interface RecoveryEntry {
 export interface UserSettings {
   theme: 'dark' | 'light' | 'high-contrast' | 'system';
   uiScale: number;
+  /**
+   * @deprecated No longer read: lengths show in each document's own unit
+   * (settings.unit, set by its preset, Document setup or the status bar). Kept so
+   * older settings files still parse.
+   */
   units: 'px' | 'mm' | 'cm' | 'in' | 'pt';
   showRulers: boolean;
   snapping: boolean;

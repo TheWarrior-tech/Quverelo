@@ -291,13 +291,6 @@ export function PreferencesDialog() {
 
         {pane === 'general' && (
           <>
-            <PrefSection title="Units">
-              <PrefRow title="Display units" description="Rulers, the status bar and panels use these units." htmlFor="pref-units">
-                <select id="pref-units" value={s.units} onChange={(e) => setSetting({ units: e.target.value as UserSettings['units'] })} data-autofocus>
-                  {(['px', 'mm', 'cm', 'in', 'pt'] as const).map((u) => <option key={u} value={u}>{{ px: 'Pixels', mm: 'Millimetres', cm: 'Centimetres', in: 'Inches', pt: 'Points' }[u]}</option>)}
-                </select>
-              </PrefRow>
-            </PrefSection>
             <PrefSection title="Files">
               <PrefRow title="Recent documents" description="The list on the start screen. Files themselves are not touched.">
                 <button className="btn" onClick={async () => { await window.quvrelo.clearRecent(); toast('Recent documents cleared', 'success'); }} disabled={!editor.feature('recent-files' as never)}>Clear list</button>

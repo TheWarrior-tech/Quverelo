@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import type { StudioKind } from '../../core/types';
+import type { StudioKind, Unit } from '../../core/types';
+import { UNITS, formatSize } from '../../core/units';
+import { pathBounds } from '../../core/path';
 import { editor, STUDIO_TOOLS } from '../state/editor';
 import { STUDIO_RAIL, groupOf, isGroup, toolKeyIn } from '../state/toolGroups';
 import { RailGroup, TOOL_HINTS, toolParts } from './ToolFlyout';
@@ -390,27 +392,34 @@ function UpdateIndicator() {
   );
 }
 
+/** Change the document's unit (what every length readout shows); one undo step. */
+export function setDocumentUnit(u: Unit): void {
+  if (!editor.doc || editor.doc.settings.unit === u) return;
+  editor.commit('Units', (d) => ({ ...d, settings: { ...d.settings, unit: u } }), 'units');
+}
+
 function StatusBar() {
   const ed = useEditor();
   const doc = ed.doc!;
   const zoom = Math.round(ed.ui.zoom * 100);
   const s = doc.settings;
-  const fmt = (px: number) => {
-    const u = ed.settings.units;
-    const k = { px: 1, mm: 25.4 / 96, cm: 2.54 / 96, in: 1 / 96, pt: 72 / 96 }[u];
-    return `${Math.round(px * k * 10) / 10}`;
-  };
+  const u = ed.unit;
+  const pix = ed.ui.studio === 'photo' && ed.ui.pixelSelection?.length ? pathBounds(ed.ui.pixelSelection) : null;
   return (
     <footer className="statusbar">
-      <span className="num">{fmt(s.width)} × {fmt(s.height)} {ed.settings.units}</span>
-      <span>{ed.ui.selection.length ? <><span className="num">{ed.ui.selection.length}</span> selected</> : 'Nothing selected'}</span>
+      <span className="num" data-testid="status-size">{formatSize(s.width, s.height, u)}</span>
+      <span data-testid="status-selection">
+        {pix
+          ? <>Selection <span className="num">{formatSize(pix.w, pix.h, 'px', 0)}</span></>
+          : ed.ui.selection.length ? <><span className="num">{ed.ui.selection.length}</span> selected</> : 'Nothing selected'}
+      </span>
       <span className="num">{ed.ui.status}</span>
       <div className="spacer" />
       <UpdateIndicator />
       <label>
         Units{' '}
-        <select value={ed.settings.units} onChange={(e) => setSetting({ units: e.target.value as never })} aria-label="Display units">
-          {['px', 'mm', 'cm', 'in', 'pt'].map((u) => <option key={u}>{u}</option>)}
+        <select value={u} onChange={(e) => setDocumentUnit(e.target.value as Unit)} aria-label="Document units" data-tip="Document units: rulers, the inspector and dialogs use these">
+          {UNITS.map((x) => <option key={x} value={x}>{x}</option>)}
         </select>
       </label>
       <button className="icon-btn sm" {...tip('Zoom out', 'view.zoom-out')} onClick={() => runCommand('view.zoom-out')}><Icon name="minus" /></button>

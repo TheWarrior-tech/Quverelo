@@ -3,7 +3,11 @@ import { updateNode } from '../../../core/commands';
 import { newId } from '../../../core/ids';
 import { ADJUSTMENTS, adjustmentSpec, defaultParams, histogram } from '../../../core/pixels';
 import type { Adjustment, AdjustmentType, RasterNode, SceneNode } from '../../../core/types';
-import { editor } from '../../state/editor';
+import { editor, topPixelLayer } from '../../state/editor';
+import { layerDisplayName } from '../../../core/document';
+import { EmptyState } from '../controls/EmptyState';
+import { Menu, useMenu } from '../controls/Menu';
+import { tip } from '../tips';
 import { runCommand } from '../../state/commands';
 import { canvasToPixels, createCanvas, ctx2d } from '../../engine/assets';
 import { useEditor } from '../hooks';
@@ -100,17 +104,81 @@ function Histogram({ node }: { node: RasterNode }) {
   );
 }
 
+/**
+ * One header for every adjustment card (CRITIQUE-3 N3): name, visibility (eye)
+ * and a ⋯ menu holding Reset and Delete. Per-channel resets live inside the
+ * card (Curves' channel row), so there is exactly one reset per scope.
+ */
+function AdjustmentHeader({ label, enabled, curves, onToggle, onReset, onDelete }: { label: string; enabled: boolean; curves: boolean; onToggle: () => void; onReset: () => void; onDelete: () => void }) {
+  const [anchor, toggle, close] = useMenu();
+  return (
+    <header>
+      <span className={`adjust-name${enabled ? '' : ' off'}`}>{label}</span>
+      <button
+        type="button"
+        className={`icon-btn sm toggle eye${enabled ? '' : ' set'}`}
+        aria-pressed={!enabled}
+        {...tip(enabled ? `Hide ${label}` : `Show ${label}`)}
+        onClick={onToggle}
+      >
+        <Icon name={enabled ? 'eye' : 'eye-off'} size={16} />
+      </button>
+      <button
+        type="button"
+        className={`icon-btn sm adjust-more${anchor ? ' open' : ''}`}
+        aria-haspopup="menu"
+        aria-expanded={!!anchor}
+        {...tip(`${label} options`)}
+        onClick={(e) => toggle(e.currentTarget)}
+      >
+        <Icon name="more" size={16} />
+      </button>
+      {anchor && (
+        <Menu
+          anchor={anchor}
+          label={`${label} options`}
+          align="end"
+          minWidth={184}
+          onClose={close}
+          items={[
+            { id: 'reset', label: curves ? 'Reset all channels' : `Reset ${label.toLowerCase()}`, icon: 'undo', run: onReset },
+            { id: 'delete', label: 'Delete adjustment', icon: 'trash', run: onDelete },
+          ]}
+        />
+      )}
+    </header>
+  );
+}
+
 export function AdjustmentsPanel() {
   const ed = useEditor();
   const n = ed.selectedNodes().find((x): x is RasterNode => x.type === 'raster');
   if (!n) {
+    // Photo keeps an active layer (CRITIQUE-3 N4); this only shows when the user
+    // deselected, or the page truly has no pixels yet.
+    const top = topPixelLayer(ed.activeContainer?.nodes ?? []);
+    if (top) {
+      const name = layerDisplayName(top, ed.doc);
+      return (
+        <EmptyState
+          icon="adjust"
+          title="Select a layer to adjust"
+          className="adjust-empty"
+          actions={<button className="btn ghost" onClick={() => editor.select([top.id])}><Icon name="layers" size={16} /> Select {name}</button>}
+        >
+          Adjustments and filters stay live on the layer you pick, until you apply them.
+        </EmptyState>
+      );
+    }
     return (
-      <div className="empty-note">
-        Select a pixel layer to add live, non-destructive adjustments and filters.
-        <br />
-        <br />
-        <button className="btn" onClick={() => runCommand('file.place')}><Icon name="image" /> Place a photo…</button>
-      </div>
+      <EmptyState
+        icon="adjust"
+        title="No photo yet"
+        className="adjust-empty"
+        actions={<button className="btn ghost" onClick={() => runCommand('file.place')}><Icon name="image" size={16} /> Place a photo…</button>}
+      >
+        Place a photo to add live, non-destructive adjustments and filters.
+      </EmptyState>
     );
   }
   const add = (type: AdjustmentType) => setAdjustments(n, [...n.adjustments, { id: newId('adj'), type, enabled: true, params: defaultParams(type) }]);
@@ -141,13 +209,14 @@ export function AdjustmentsPanel() {
         const spec = adjustmentSpec(a.type);
         return (
           <div className="adjust-item" key={a.id}>
-            <header>
-              <input type="checkbox" checked={a.enabled} aria-label={`Enable ${spec.label}`} onChange={(e) => update(a.id, { enabled: e.target.checked })} />
-              <span>{spec.label}</span>
-              {/* Curves keeps its reset beside the channel switch, so there is one reset per scope */}
-              {a.type !== 'curves' && <button className="icon-btn sm" aria-label={`Reset ${spec.label}`} data-tip="Reset" onClick={() => update(a.id, { params: defaultParams(a.type), curves: undefined })}><Icon name="undo" /></button>}
-              <button className="icon-btn sm" aria-label={`Remove ${spec.label}`} data-tip="Remove" onClick={() => setAdjustments(n, n.adjustments.filter((x) => x.id !== a.id))}><Icon name="trash" /></button>
-            </header>
+            <AdjustmentHeader
+              label={spec.label}
+              enabled={a.enabled}
+              curves={a.type === 'curves'}
+              onToggle={() => update(a.id, { enabled: !a.enabled })}
+              onReset={() => update(a.id, { params: defaultParams(a.type), curves: undefined })}
+              onDelete={() => setAdjustments(n, n.adjustments.filter((x) => x.id !== a.id))}
+            />
             {a.type === 'curves' && (
               <CurvesEditor node={n} adj={a} onChange={(curves, merge) => update(a.id, { curves }, merge)} onBegin={beginDrag} onEnd={endDrag} />
             )}

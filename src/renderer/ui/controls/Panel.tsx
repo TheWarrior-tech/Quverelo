@@ -62,29 +62,54 @@ export function Section({ id, title, actions, children, className }: { id?: stri
 
 export { Segmented } from './Segmented';
 
+/** Marks `el` with data-scroll-top / data-scroll-bottom while content is hidden past either edge; returns a cleanup. */
+export function watchScrollEdges(el: HTMLElement): () => void {
+  const update = () => {
+    el.toggleAttribute('data-scroll-top', el.scrollTop > 0);
+    el.toggleAttribute('data-scroll-bottom', el.scrollTop + el.clientHeight < el.scrollHeight - 1);
+  };
+  update();
+  el.addEventListener('scroll', update, { passive: true });
+  const ro = new ResizeObserver(update);
+  ro.observe(el);
+  const mo = new MutationObserver(update);
+  mo.observe(el, { childList: true, subtree: true, characterData: true });
+  return () => {
+    el.removeEventListener('scroll', update);
+    ro.disconnect();
+    mo.disconnect();
+  };
+}
+
 /** Marks a scroll container with data-scroll-top / data-scroll-bottom while content is hidden past either edge. */
 export function useScrollEdges<T extends HTMLElement>() {
   const ref = useRef<T>(null);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const update = () => {
-      el.toggleAttribute('data-scroll-top', el.scrollTop > 0);
-      el.toggleAttribute('data-scroll-bottom', el.scrollTop + el.clientHeight < el.scrollHeight - 1);
-    };
-    update();
-    el.addEventListener('scroll', update, { passive: true });
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    const mo = new MutationObserver(update);
-    mo.observe(el, { childList: true, subtree: true });
-    return () => {
-      el.removeEventListener('scroll', update);
-      ro.disconnect();
-      mo.disconnect();
-    };
+    return watchScrollEdges(el);
   }, []);
   return ref;
+}
+
+/**
+ * Scroll edges for every scrolling region inside `root` (dialog body, side
+ * list, main pane, aside), including regions that mount later, such as a
+ * Preferences pane switch (CRITIQUE-3 N7: a clipped row reads as "more below").
+ */
+export function watchScrollRegions(root: HTMLElement, selector: string): () => void {
+  const seen = new Map<HTMLElement, () => void>();
+  const scan = () => {
+    for (const el of root.querySelectorAll<HTMLElement>(selector)) if (!seen.has(el)) seen.set(el, watchScrollEdges(el));
+    for (const [el, off] of seen) if (!root.contains(el)) { off(); seen.delete(el); }
+  };
+  scan();
+  const mo = new MutationObserver(scan);
+  mo.observe(root, { childList: true, subtree: true });
+  return () => {
+    mo.disconnect();
+    for (const off of seen.values()) off();
+  };
 }
 
 /**

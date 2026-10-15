@@ -8,6 +8,7 @@ import { DocumentSetupDialog, ResizeDialog } from './DocumentDialogs';
 import { AboutDialog, GuideDialog, PreferencesDialog, ShortcutsDialog } from './AppDialogs';
 import { AssignmentDialog, HandInDialog } from './AssignmentDialogs';
 import { UpdatesDialog } from './UpdatesDialog';
+import { watchScrollRegions } from '../controls/Panel';
 import './dialogs.css';
 
 export type DialogSize = 'sm' | 'md' | 'lg' | 'xl';
@@ -45,6 +46,9 @@ export interface DialogProps {
  * footer with right-aligned actions. Esc closes, Enter submits, Tab is trapped
  * and focus returns to where it was.
  */
+/** Scrolling regions that get the §6 scroll-edge shade. */
+const SCROLL_REGIONS = '.dialog-body:not(.split), .dlg-side, .dlg-main, .dlg-aside';
+
 export function Dialog({ title, children, footer, footerStart, size, wide, split, onSubmit, onClose, alert, className }: DialogProps) {
   const ref = useRef<HTMLDivElement>(null);
   const id = useId();
@@ -106,7 +110,9 @@ export function Dialog({ title, children, footer, footerStart, size, wide, split
       }
     };
     window.addEventListener('keydown', onKey, true);
+    const offEdges = root ? watchScrollRegions(root, SCROLL_REGIONS) : null;
     return () => {
+      offEdges?.();
       window.removeEventListener('keydown', onKey, true);
       if (prev && document.contains(prev)) prev.focus?.();
     };

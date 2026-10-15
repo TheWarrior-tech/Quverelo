@@ -12,6 +12,7 @@ import type { QuvreloDocument, Id, SceneNode } from '../../core/types';
 import type { Editor } from '../state/editor';
 import { NodeObject, RESIZE_TYPES } from './NodeObject';
 import { renderBounds, type DrawEnv } from './draw';
+import { formatLength } from '../../core/units';
 import { createTool, type Tool, type ToolContext } from './tools';
 import { TextEditOverlay } from './textEdit';
 import { HANDLE_SIZE, readOverlayColors, tuneControls, type OverlayColors } from './controls';
@@ -395,7 +396,10 @@ export class Viewport {
     c.on('mouse:move', (e: TPointerEventInfo) => {
       if (this.panning) return;
       this.tool.onMove?.(e.scenePoint, e.e as MouseEvent);
-      this.editor.ui.status = `${Math.round(e.scenePoint.x)}, ${Math.round(e.scenePoint.y)} px`;
+      // cursor position in the document unit; whole pixels in a px document
+      const u = this.editor.unit;
+      const digits = u === 'px' ? 0 : undefined;
+      this.editor.ui.status = `${formatLength(e.scenePoint.x, u, { digits, suffix: false })}, ${formatLength(e.scenePoint.y, u, { digits })}`;
       this.onViewChange?.();
       for (const l of this.viewListeners) l();
     });

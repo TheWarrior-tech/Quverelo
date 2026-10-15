@@ -4,7 +4,7 @@ import { closeDialog, toast } from '../../state/bus';
 import { runExport, takePdfNote, type ExportRequest } from '../../state/io';
 import { exportSvg, pagesHaveImages, renderPageCanvas, renderSelectionCanvas, selectionBounds } from '../../engine/export';
 import { createCanvas, ctx2d } from '../../engine/assets';
-import { formatUnit } from '../../../core/units';
+import { formatSize } from '../../../core/units';
 import { parsePageRange } from '../../../core/pageRange';
 import { NumberField } from '../controls/NumberField';
 import { Dialog } from './DialogHost';
@@ -97,8 +97,10 @@ export function ExportDialog({ format: initial }: { format: Format }) {
     : `${title} - ${pages.length} files.${ext}`;
   const hasImages = useMemo(() => pagesHaveImages(doc, pages), [doc, pages.join(',')]);
   const showQuality = format === 'jpg' || kind === 'pdf-image' || (kind === 'pdf' && hasImages);
-  const unit = doc.settings.unit === 'px' ? null : doc.settings.unit;
-  const physical = unit ? `${formatUnit(baseW, unit).replace(` ${unit}`, '')} × ${formatUnit(baseH, unit)}` : null;
+  // a PDF page is physical: show it in the document unit (mm for a px document), pt in the tooltip (CRITIQUE-3 N1)
+  const pageUnit = doc.settings.unit === 'px' ? 'mm' : doc.settings.unit;
+  const physical = formatSize(baseW, baseH, pageUnit);
+  const physicalPt = formatSize(baseW, baseH, 'pt', 0);
 
   // preview canvas of the current page or the selection
   const preview = useMemo(() => {
@@ -315,10 +317,10 @@ export function ExportDialog({ format: initial }: { format: Format }) {
         <div className="ex-file" data-tip={outName}>{outName}</div>
         <dl className="kv">
           <dt>{isPdf ? 'Page size' : 'Dimensions'}</dt>
-          <dd data-testid="export-dims">
-            {isPdf && physical ? physical : format === 'svg' || kind === 'pdf' ? `${Math.round(baseW)} × ${Math.round(baseH)} px` : `${pxW} × ${pxH} px`}
+          <dd data-testid="export-dims" data-tip={isPdf ? physicalPt : undefined}>
+            {isPdf ? physical : format === 'svg' ? `${Math.round(baseW)} × ${Math.round(baseH)} px` : `${pxW} × ${pxH} px`}
           </dd>
-          {isPdf && physical && kind === 'pdf-image' && (<><dt>Pixels</dt><dd>{`${pxW} × ${pxH} px`}</dd></>)}
+          {isPdf && kind === 'pdf-image' && (<><dt>Pixels</dt><dd>{`${pxW} × ${pxH} px`}</dd></>)}
           <dt>{isPdf ? 'Pages' : 'Files'}</dt>
           <dd>{useSel ? 1 : pages.length}</dd>
           <dt>Estimated size</dt>
