@@ -8,6 +8,7 @@ import { useEditor } from './hooks';
 import { Welcome } from './Welcome';
 import { Workspace } from './Workspace';
 import { DialogHost } from './dialogs/DialogHost';
+import { TooltipHost } from './Tooltip';
 
 function applyAppearance() {
   const s = editor.settings;
@@ -129,6 +130,7 @@ export function App() {
     <>
       {ed.session ? <Workspace /> : <Welcome />}
       <DialogHost />
+      <TooltipHost />
       <ToastStack toasts={toasts} onDismiss={(id) => setToasts((list) => list.filter((x) => x.id !== id))} />
     </>
   );

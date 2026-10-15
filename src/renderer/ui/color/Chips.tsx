@@ -41,7 +41,7 @@ export function FillStrokeChips({ fill, stroke, target, onTarget, onSwap, size =
         tabIndex={target === t ? 0 : -1}
         className={`chip-btn ${t}${target === t ? ' on' : ''}`}
         aria-label={`${t === 'fill' ? 'Fill' : 'Stroke'}: ${v.enabled ? v.color.toUpperCase() : 'none'}`}
-        title={`${t === 'fill' ? 'Fill' : 'Stroke'}: ${v.enabled ? v.color.toUpperCase() : 'none'}`}
+        data-tip={`${t === 'fill' ? 'Fill' : 'Stroke'}: ${v.enabled ? v.color.toUpperCase() : 'none'}`}
         onClick={(e) => {
           onTarget(t);
           onOpen?.(t, e.currentTarget);
@@ -87,7 +87,7 @@ export function ColorChipButton({ kind, label, color, enabled, onChange, onCommi
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   return (
     <>
-      <button type="button" className={`chip-select${anchor ? ' open' : ''}`} aria-label={`${label} colour`} aria-haspopup="dialog" aria-expanded={!!anchor} title={`${label}: ${enabled ? color.toUpperCase() : 'none'}`} onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}>
+      <button type="button" className={`chip-select${anchor ? ' open' : ''}`} aria-label={`${label} colour`} aria-haspopup="dialog" aria-expanded={!!anchor} data-tip={`${label}: ${enabled ? color.toUpperCase() : 'none'}`} onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}>
         <Chip kind={kind} color={color} enabled={enabled} />
         <Icon name="chevron-down" size={16} />
       </button>

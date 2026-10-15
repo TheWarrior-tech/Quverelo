@@ -112,7 +112,7 @@ function RecentCard({ r }: { r: RecentFile }) {
   }, [r.path]);
   const name = r.name.replace(/\.(quvrelo|easel)$/i, '');
   return (
-    <button className="tile" onClick={() => void openPath(r.path)} title={r.path} data-recent={r.name}>
+    <button className="tile" onClick={() => void openPath(r.path)} data-tip={r.path} data-recent={r.name}>
       <span className="tile-thumb">
         {src ? <img src={src} alt="" draggable={false} /> : src === null ? <Icon name="layout" /> : null}
       </span>
@@ -221,7 +221,7 @@ export function Welcome() {
             <SectionHead title="School templates" count={external.length}><span className="w-note">From your IT team</span></SectionHead>
             <div className="ext-list">
               {external.map((t) => (
-                <button key={t.path} className="ext-item" onClick={() => void openPath(t.path)} title={t.path}>
+                <button key={t.path} className="ext-item" onClick={() => void openPath(t.path)} data-tip={t.path}>
                   <Icon name="folder" size={16} />
                   <span className="name">{t.name}</span>
                   <span className="where">{t.folder}</span>

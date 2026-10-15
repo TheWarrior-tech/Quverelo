@@ -66,7 +66,7 @@ export function Segmented<T extends string>({ value, options, onChange, ariaLabe
           role="radio"
           aria-checked={o.value === value}
           tabIndex={i === idx ? 0 : -1}
-          title={o.title}
+          data-tip={o.title}
           className={o.value === value ? 'on' : ''}
           onClick={() => onChange(o.value)}
           onKeyDown={(e) => {

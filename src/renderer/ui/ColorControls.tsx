@@ -87,12 +87,12 @@ export function PaintEditor({ paint, onChange, onCommit, allowNone = true }: { p
                 onCommit={(v) => { onChange({ ...grad, angle: v }); onCommit?.(); }} />
             ) : <span />}
             <div className="gradient-actions">
-              <button type="button" className="icon-btn sm" aria-label="Add stop" title="Add stop" onClick={() => {
+              <button type="button" className="icon-btn sm" aria-label="Add stop" data-tip="Add stop" onClick={() => {
                 const stops = [...grad.stops, { offset: 0.5, color: '#888888' }].sort((a, b) => a.offset - b.offset);
                 setStop(stops.findIndex((s) => s.offset === 0.5 && s.color === '#888888'));
                 setStops(stops, true);
               }}><Icon name="plus" /></button>
-              <button type="button" className="icon-btn sm" aria-label="Remove stop" title="Remove stop" disabled={grad.stops.length <= 2} onClick={() => {
+              <button type="button" className="icon-btn sm" aria-label="Remove stop" data-tip="Remove stop" disabled={grad.stops.length <= 2} onClick={() => {
                 const stops = grad.stops.filter((_, i) => i !== cur);
                 setStop(0);
                 setStops(stops, true);

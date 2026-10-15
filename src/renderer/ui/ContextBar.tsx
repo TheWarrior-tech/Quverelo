@@ -73,7 +73,7 @@ function UnitNum({ label, title, px, onChange, width = 44 }: { label: string; ti
   const u = editor.settings.units;
   const k = PX_PER[u];
   return (
-    <label className="group" title={title}>
+    <label className="group" data-tip={title}>
       <span className="field-label">{label}</span>
       <input type="number" aria-label={title} value={Math.round((px / k) * 100) / 100} min={0} step={u === 'px' ? 1 : 0.5} style={{ width }} onChange={(e) => {
         const v = parseFloat(e.target.value);
@@ -115,7 +115,7 @@ function LayoutPageControls() {
       </div>
       <div className="group">
         <UnitNum label="Bleed" title="Bleed" px={s.bleed} onChange={(v) => setDocSettings({ bleed: v }, 'Bleed', 'bleed')} />
-        <label className="group" title="Columns">
+        <label className="group" data-tip="Columns">
           <span className="field-label">Columns</span>
           <input type="number" aria-label="Columns" value={s.columns} min={1} max={12} step={1} style={{ width: 40 }} onChange={(e) => {
             const v = parseInt(e.target.value, 10);
@@ -123,7 +123,7 @@ function LayoutPageControls() {
           }} />
         </label>
         <UnitNum label="Gutter" title="Column gutter" px={s.columnGutter} onChange={(v) => setDocSettings({ columnGutter: v }, 'Gutter', 'gutter')} />
-        <button className={`btn ${s.facingPages ? 'selected' : ''}`} aria-pressed={s.facingPages} title="Show pages as two-page spreads" onClick={() => setDocSettings({ facingPages: !s.facingPages }, 'Facing pages', 'facing')}><Icon name="pages" /> Facing pages</button>
+        <button className={`btn ${s.facingPages ? 'selected' : ''}`} aria-pressed={s.facingPages} data-tip="Show pages as two-page spreads" onClick={() => setDocSettings({ facingPages: !s.facingPages }, 'Facing pages', 'facing')}><Icon name="pages" /> Facing pages</button>
       </div>
       <div className="group">
         <button className="btn" onClick={() => runCommand('file.document-setup')}>Document setup…</button>
@@ -142,7 +142,7 @@ function TextFrameControls({ frames }: { frames: TextFrameNode[] }) {
   const linked = !!story && story.chain.length > 1;
   return (
     <div className="group" role="group" aria-label="Text frame">
-      <label className="group" title="Frame columns">
+      <label className="group" data-tip="Frame columns">
         <span className="field-label">Columns</span>
         <input type="number" aria-label="Frame columns" value={f.columns} min={1} max={12} step={1} style={{ width: 40 }} onChange={(e) => {
           const v = parseInt(e.target.value, 10);
@@ -151,7 +151,7 @@ function TextFrameControls({ frames }: { frames: TextFrameNode[] }) {
       </label>
       <UnitNum label="Gap" title="Column gap" px={f.columnGap} onChange={(v) => set({ columnGap: v }, 'Column gap', 'fgap')} />
       <UnitNum label="Inset" title="Text inset" px={f.padding} onChange={(v) => set({ padding: v }, 'Text inset', 'finset')} />
-      <button className="icon-btn sm" {...tip('Link text frames')} title="Link frames: continue the story from the first selected frame into the second" disabled={frames.length !== 2} onClick={() => runCommand('text.link')}><Icon name="link" /></button>
+      <button className="icon-btn sm" {...tip('Link text frames')} data-tip-hint="Continue the story from the first selected frame into the second" disabled={frames.length !== 2} onClick={() => runCommand('text.link')}><Icon name="link" /></button>
       {linked && <button className="btn" onClick={() => runCommand('text.unlink')}>Unlink</button>}
     </div>
   );

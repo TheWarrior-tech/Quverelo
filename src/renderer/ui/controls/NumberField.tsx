@@ -110,7 +110,7 @@ export function NumberField(p: NumberFieldProps) {
 
   const numericNow = mixed ? undefined : value;
   return (
-    <div className={`nf${scrubbing ? ' scrubbing' : ''}${disabled ? ' disabled' : ''}${label === undefined ? ' no-label' : ''}${className ? ' ' + className : ''}`} title={title ?? ariaLabel}>
+    <div className={`nf${scrubbing ? ' scrubbing' : ''}${disabled ? ' disabled' : ''}${label === undefined ? ' no-label' : ''}${className ? ' ' + className : ''}`} data-tip={title ?? ariaLabel}>
       {label !== undefined && (
         <span className="nf-label" aria-hidden="true" onPointerDown={startScrub}>
           {label}
@@ -225,7 +225,7 @@ export function SliderField(p: SliderFieldProps) {
   };
   return (
     <div className={`slider-row${p.compact ? ' compact' : ''}`}>
-      <label className="sf-label" onPointerDown={startScrub} title="Drag to adjust">
+      <label className="sf-label" onPointerDown={startScrub} data-tip="Drag to adjust">
         {label}
       </label>
       <input

@@ -24,6 +24,19 @@ const TOOL_LABELS: Record<ToolId, string> = {
   text: 'Artistic Text (T)', textframe: 'Frame Text (X)', imageframe: 'Picture Frame (F)',
 };
 
+/** Second tooltip line: how to use the tool (≤ 60 characters, "Drag to … · Shift …"). */
+const TOOL_HINTS: Partial<Record<ToolId, string>> = {
+  move: 'Click to select · Drag to move', node: 'Drag points and handles to reshape',
+  hand: 'Drag to pan · Or hold Space', zoom: 'Click to zoom in · Alt-click to zoom out',
+  'marquee-rect': 'Drag to select · Shift for a square', 'marquee-ellipse': 'Drag to select · Shift for a circle',
+  lasso: 'Drag around an area to select it', crop: 'Drag the area to keep · Enter to apply',
+  brush: 'Drag to paint · [ and ] change the size', eraser: 'Drag to erase pixels', fill: 'Click to fill an area of similar colour',
+  eyedropper: 'Click to pick a colour', pen: 'Click for corners · Drag for curves', pencil: 'Drag to draw freehand',
+  rect: 'Drag to draw · Shift for a square', ellipse: 'Drag to draw · Shift for a circle', polygon: 'Drag to draw · Shift to keep it upright',
+  star: 'Drag to draw · Shift to keep it upright', line: 'Drag to draw · Shift snaps to 45°', text: 'Click to type a heading or label',
+  textframe: 'Drag a box for flowing text', imageframe: 'Drag a frame, then place an image in it',
+};
+
 export function toolLabel(t: ToolId): string {
   return TOOL_LABELS[t];
 }
@@ -79,7 +92,7 @@ function Topbar() {
       <div className="topbar-side start">
       <div className="brand">
         <Logo className="logo" />
-        <span className="doc-title" title={ed.doc?.title}>{ed.doc?.title}{h?.dirty && <i className="dirty" aria-label="Unsaved changes" />}</span>
+        <span className="doc-title" data-tip={ed.doc?.title}>{ed.doc?.title}{h?.dirty && <i className="dirty" aria-label="Unsaved changes" />}</span>
       </div>
       <button className="icon-btn" {...tip('New document', 'file.new')} onClick={() => runCommand('file.new')}><Icon name="new" /></button>
       <button className="icon-btn" {...tip('Open', 'file.open')} onClick={() => runCommand('file.open')}><Icon name="open" /></button>
@@ -155,11 +168,11 @@ function ToolPalette() {
   const ed = useEditor();
   const tools = STUDIO_TOOLS[ed.ui.studio];
   return (
-    <aside className="toolpalette" role="toolbar" aria-label="Tools" aria-orientation="vertical">
+    <aside className="toolpalette" role="toolbar" aria-label="Tools" aria-orientation="vertical" data-tip-side="right">
       {tools.map((t, i) => (
         <span key={t} style={{ display: 'contents' }}>
           {(t === 'hand' || (i > 0 && ['brush', 'pen', 'rect', 'text', 'textframe'].includes(t) && tools[i - 1] !== 'textframe')) && <div className="divider" />}
-          <button className={`icon-btn ${ed.ui.tool === t ? 'active' : ''}`} {...tip(...toolParts(t))} aria-pressed={ed.ui.tool === t} data-tool={t} onClick={() => ed.setTool(t)}>
+          <button className={`icon-btn ${ed.ui.tool === t ? 'active' : ''}`} {...tip(...toolParts(t))} data-tip-hint={TOOL_HINTS[t]} aria-pressed={ed.ui.tool === t} data-tool={t} onClick={() => ed.setTool(t)}>
             <Icon name={t} />
           </button>
         </span>
@@ -189,7 +202,7 @@ function CanvasArea() {
   const master = doc.masters.find((m) => m.id === ed.ui.activeContainerId);
   return (
     <section className={`canvas-area ${ed.settings.showRulers ? '' : 'no-rulers'}`} aria-label="Canvas">
-      <div className="ruler-corner" title="Toggle rulers" onDoubleClick={() => setSetting({ showRulers: false })} />
+      <div className="ruler-corner" data-tip="Toggle rulers" onDoubleClick={() => setSetting({ showRulers: false })} />
       {vp && <Rulers viewport={vp} />}
       <div className="viewport" ref={hostRef} />
       {master && (
@@ -215,7 +228,7 @@ function UpdateIndicator() {
   const line = statusLine(u);
   if (!line) return null;
   return (
-    <button type="button" className="update-ind" data-update-status={u!.status} onClick={() => openDialog('updates')} aria-label={`${line}. Open Software Update`} title="Software Update">
+    <button type="button" className="update-ind" data-update-status={u!.status} onClick={() => openDialog('updates')} aria-label={`${line}. Open Software Update`} data-tip="Software Update">
       <Icon name="update" size={16} />
       <span>{line}</span>
     </button>
@@ -246,7 +259,7 @@ function StatusBar() {
         </select>
       </label>
       <button className="icon-btn sm" {...tip('Zoom out', 'view.zoom-out')} onClick={() => runCommand('view.zoom-out')}><Icon name="minus" /></button>
-      <button className="btn ghost" style={{ height: 20, padding: '0 6px' }} onClick={() => runCommand('view.zoom-fit')} title={tip('Zoom to fit', 'view.zoom-fit').title} aria-label={`Zoom ${zoom}%, fit to window`}><span className="num">{zoom}%</span></button>
+      <button className="btn ghost" style={{ height: 20, padding: '0 6px' }} onClick={() => runCommand('view.zoom-fit')} {...tip('Zoom to fit', 'view.zoom-fit')} aria-label={`Zoom ${zoom}%, fit to window`}><span className="num">{zoom}%</span></button>
       <button className="icon-btn sm" {...tip('Zoom in', 'view.zoom-in')} onClick={() => runCommand('view.zoom-in')}><Icon name="plus" /></button>
       <span>{ed.settings.snapping ? 'Snap on' : 'Snap off'}</span>
     </footer>

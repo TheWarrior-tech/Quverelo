@@ -237,7 +237,7 @@ export function ColorPicker({ value, onChange, onCommit, showPalette = true }: {
             <span className="cp-knob" style={{ left: pct(alpha) }}><i style={{ background: toCss(rgb, alpha) }} /></span>
           </div>
         </div>
-        <button type="button" className="icon-btn sm" aria-label={eyedropper ? 'Pick a colour from the screen' : 'Pick a colour from the canvas'} title={eyedropper ? 'Pick from screen' : 'Pick from canvas (I)'} onClick={pickScreen}>
+        <button type="button" className="icon-btn sm" aria-label={eyedropper ? 'Pick a colour from the screen' : 'Pick a colour from the canvas'} data-tip={eyedropper ? 'Pick from screen' : 'Pick from canvas'} data-keys={eyedropper ? undefined : 'I'} onClick={pickScreen}>
           <Icon name="eyedropper" />
         </button>
       </div>
@@ -334,7 +334,7 @@ export function ColorPicker({ value, onChange, onCommit, showPalette = true }: {
         <div className="cp-palettes">
           <div className="cp-palette-head">
             <span className="micro">Document</span>
-            <button type="button" className="icon-btn xs" aria-label="Add this colour to the document palette" title="Add to document palette" onClick={() => editor.commit('Add swatch', (d) => addSwatch(d, solidCss))}>
+            <button type="button" className="icon-btn xs" aria-label="Add this colour to the document palette" data-tip="Add to document palette" onClick={() => editor.commit('Add swatch', (d) => addSwatch(d, solidCss))}>
               <Icon name="plus" size={16} />
             </button>
           </div>
@@ -347,7 +347,7 @@ export function ColorPicker({ value, onChange, onCommit, showPalette = true }: {
                 aria-selected={isCurrent(s.color)}
                 className={`swatch${isCurrent(s.color) ? ' on' : ''}`}
                 style={{ ['--sw' as string]: s.color }}
-                title={s.name}
+                data-tip={s.name}
                 aria-label={s.name}
                 onClick={() => outRgb(parseCss(s.color), alpha)}
               />
@@ -365,7 +365,7 @@ export function ColorPicker({ value, onChange, onCommit, showPalette = true }: {
                     aria-selected={isCurrent(col)}
                     className={`swatch${isCurrent(col) ? ' on' : ''}`}
                     style={{ ['--sw' as string]: col }}
-                    title={col}
+                    data-tip={col}
                     aria-label={`Recent colour ${col}`}
                     onClick={() => {
                       const p = parseCss(col);
