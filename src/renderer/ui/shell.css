@@ -506,10 +506,7 @@
   padding: 0 6px 0 6px;
   border-radius: var(--r-1);
 }
-.layer-row.selected {
-  background: var(--c-accent-wash);
-  box-shadow: inset 2px 0 0 var(--c-accent);
-}
+/* .layer-row.selected itself lives once, in panels.css */
 .layer-row.selected .name {
   font-weight: 500;
 }
@@ -525,13 +522,6 @@
 }
 .layer-actions .row-spacer {
   flex: 1;
-}
-:root[data-theme='high-contrast'] .layer-row.selected {
-  background: #000;
-  box-shadow: inset 0 0 0 2px var(--c-accent);
-}
-:root[data-theme='high-contrast'] .layer-row:not(.selected):hover {
-  box-shadow: inset 0 0 0 1px #fff;
 }
 
 /* ---------- menus ---------- */
@@ -693,10 +683,6 @@
 }
 .font-row svg.icon {
   color: var(--c-accent);
-}
-:root[data-theme='high-contrast'] .font-row.active {
-  outline: 2px solid var(--c-focus);
-  outline-offset: -2px;
 }
 .font-empty {
   margin: 0;

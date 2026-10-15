@@ -11,6 +11,9 @@
   --c-press: rgba(255, 255, 255, 0.09);
   --c-line: rgba(255, 255, 255, 0.08);
   --c-line-strong: rgba(255, 255, 255, 0.34); /* >= 3:1 on every surface (WCAG 1.4.11 control boundary) */
+  --c-plot-grid: var(--c-line); /* Curves grid and identity diagonal */
+  --c-plot-diagonal: var(--c-line-strong);
+  --plot-ghost-alpha: 0.18; /* histogram ghost behind Curves */
   /* text */
   --c-text: #ececed;
   --c-text-2: #a3a5aa;
@@ -87,6 +90,9 @@
   --c-press: rgba(0, 0, 0, 0.09);
   --c-line: rgba(0, 0, 0, 0.09);
   --c-line-strong: rgba(0, 0, 0, 0.43); /* >= 3:1 on every surface (WCAG 1.4.11 control boundary) */
+  --c-plot-grid: var(--c-line);
+  --c-plot-diagonal: var(--c-line-strong);
+  --plot-ghost-alpha: 0.12;
   --c-text: #18191b;
   --c-text-2: #54565b;
   --c-text-3: #606268; /* >= 4.5:1 on canvas #dedfdd */
@@ -118,13 +124,19 @@
   --c-press: rgba(255, 255, 255, 0.3);
   --c-line: #ffffff;
   --c-line-strong: #ffffff;
+  /* Curves / plot grid: dim, so it never cuts through the histogram (critique 4 P2-14) */
+  --c-plot-grid: rgba(255, 255, 255, 0.28);
+  --c-plot-diagonal: rgba(255, 255, 255, 0.5);
+  --plot-ghost-alpha: 0.32;
+  --c-disabled: #8f8f8f;
   --c-text: #ffffff;
   --c-text-2: #ffffff;
   --c-text-3: #e6e6e6;
   --c-accent: #ffd400;
   --c-accent-hover: #ffe766;
   --c-accent-ink: #000000;
-  --c-accent-wash: rgba(255, 212, 0, 0.25);
+  /* no washes in high contrast: a selected row is the solid accent fill (end of file) */
+  --c-accent-wash: #000000;
   --c-accent-wash-strong: #ffd400;
   --c-selection-ink: #000000;
   --c-seg-track: #000000;
@@ -912,36 +924,6 @@ kbd {
   color: var(--c-text-3);
   font-weight: 400;
 }
-/* high contrast (critique 3 N9): checked and focused never share a treatment.
-   Checked = solid yellow tile with black text and icon (the HC segmented/tab "on");
-   focused = the §9 HC focus ring, a 3px yellow outline 2px outside the row.
-   Rows get a 6px gap so a focus ring never touches a neighbouring checked tile. */
-:root[data-theme='high-contrast'] .tool-flyout {
-  gap: 6px;
-}
-:root[data-theme='high-contrast'] .flyout-item:hover {
-  background: #000;
-  box-shadow: inset 0 0 0 1px #fff;
-}
-:root[data-theme='high-contrast'] .flyout-item:focus-visible {
-  background: #000;
-  color: #fff;
-  box-shadow: none;
-  outline: 3px solid var(--c-focus);
-  outline-offset: 2px;
-}
-:root[data-theme='high-contrast'] .flyout-item.on,
-:root[data-theme='high-contrast'] .flyout-item.on:hover,
-:root[data-theme='high-contrast'] .flyout-item.on:focus-visible {
-  background: var(--c-accent);
-  color: var(--c-accent-ink);
-  box-shadow: none;
-}
-:root[data-theme='high-contrast'] .flyout-item.on kbd {
-  background: transparent;
-  border-color: var(--c-accent-ink);
-  color: var(--c-accent-ink);
-}
 @keyframes flyout-in {
   from {
     opacity: 0;
@@ -1123,10 +1105,6 @@ kbd {
 }
 .statusbar .snap-toggle.on svg.icon {
   color: var(--c-accent);
-}
-:root[data-theme='high-contrast'] .statusbar .snap-toggle.on {
-  background: #000;
-  box-shadow: inset 0 0 0 1px var(--c-accent);
 }
 
 .history-list {
@@ -1498,10 +1476,6 @@ kbd {
 .cmdk-row.active {
   background: var(--c-press);
 }
-:root[data-theme='high-contrast'] .cmdk-row.active {
-  background: transparent;
-  box-shadow: inset 0 0 0 2px var(--c-accent);
-}
 .cmdk-icon {
   display: inline-flex;
   width: 16px;
@@ -1827,6 +1801,10 @@ kbd {
   border-radius: var(--r-2);
   animation: fade-in var(--dur) var(--ease);
 }
+:root[data-theme='high-contrast'] .drop-overlay {
+  background: rgba(0, 0, 0, 0.7);
+  outline-width: 3px;
+}
 .drop-label {
   display: inline-flex;
   align-items: center;
@@ -1839,4 +1817,205 @@ kbd {
   color: var(--c-text);
   font-size: 13px;
   font-weight: 500;
+}
+
+/* =====================================================================================
+ * High contrast: the one selection vocabulary (DESIGN.md §9, critique 4 R1).
+ * Written once, here, for every list and selectable in the app. Nothing else in the
+ * CSS may style a selected / current / checked row in high contrast
+ * (tests/unit/shellLint.test.ts enforces it).
+ *   selected / current / checked / on  = solid #ffd400 fill, black text, icons, counts
+ *                                        and keycaps, no outline, no wash
+ *   keyboard focus                     = the §9 ring: 3px yellow outline 2px outside the
+ *                                        row, on a black row
+ *   selected + focused                 = the fill plus the ring (the 2px offset is the
+ *                                        black gap between them)
+ *   hover                              = 1px white inset on a black row (a selected row
+ *                                        keeps its fill)
+ * Rows that take DOM focus sit 6px apart (and 6px inside their scroller) so a ring never
+ * touches a neighbouring fill or gets clipped. The palette and font list keep focus in
+ * their search field, so their cursor row is "selected" and never ringed.
+ * ===================================================================================== */
+:root[data-theme='high-contrast'] :is(.layer-row, .history-list li button, .nav-item, .preset, .theme-tile, .page-thumb, .flyout-item, .menu-item, .cmdk-row, .font-row):hover {
+  background: #000;
+  color: #fff;
+  box-shadow: inset 0 0 0 1px #fff;
+}
+:root[data-theme='high-contrast'] :is(.layer-row, .history-list li button, .nav-item, .preset, .theme-tile, .page-thumb, .flyout-item, .menu-item):focus-visible {
+  background: #000;
+  color: #fff;
+  box-shadow: none;
+  outline: 3px solid var(--c-focus);
+  outline-offset: 2px;
+}
+:root[data-theme='high-contrast'] :is(
+    .layer-row.selected,
+    .history-list li.current button,
+    .nav-item[aria-current='true'],
+    .nav-item[aria-selected='true'],
+    .preset[aria-checked='true'],
+    .theme-tile[aria-checked='true'],
+    .page-thumb.active,
+    .flyout-item.on,
+    .menu-item[aria-checked='true'],
+    .cmdk-row.active,
+    .font-row.active,
+    .btn.selected,
+    .icon-btn.sm.active,
+    .statusbar .snap-toggle.on
+  ) {
+  background: var(--c-accent);
+  color: var(--c-accent-ink);
+  box-shadow: none;
+}
+/* everything drawn inside a selected row goes black: names, icons, counts, sub-lines,
+   status glyphs, toggles (an inline rename field and a layer thumbnail keep their own colours) */
+:root[data-theme='high-contrast'] :is(
+    .layer-row.selected,
+    .history-list li.current button,
+    .nav-item[aria-current='true'],
+    .nav-item[aria-selected='true'],
+    .preset[aria-checked='true'],
+    .theme-tile[aria-checked='true'],
+    .page-thumb.active,
+    .flyout-item.on,
+    .menu-item[aria-checked='true'],
+    .cmdk-row.active,
+    .font-row.active,
+    .btn.selected,
+    .icon-btn.sm.active,
+    .statusbar .snap-toggle.on
+  ) :not(input, textarea, select, .thumb, .thumb *) {
+  color: var(--c-accent-ink);
+}
+/* frames and keycaps on the yellow fill: black hairlines, never a black slab */
+:root[data-theme='high-contrast'] :is(.layer-row.selected, .flyout-item.on, .cmdk-row.active, .font-row.active, .nav-item[aria-current='true'], .nav-item[aria-selected='true']) kbd {
+  background: transparent;
+  border-color: var(--c-accent-ink);
+  color: var(--c-accent-ink);
+}
+:root[data-theme='high-contrast'] .layer-row.selected .thumb,
+:root[data-theme='high-contrast'] .page-thumb.active canvas,
+:root[data-theme='high-contrast'] .theme-tile[aria-checked='true'] .mini {
+  box-shadow: 0 0 0 1px var(--c-accent-ink);
+}
+/* a colour swatch can't take the fill (its colour is the content): selected is drawn
+   inside it, a 2px yellow edge with a 1px black keyline, so it never looks like the
+   focus ring outside it */
+:root[data-theme='high-contrast'] .swatch.on {
+  box-shadow: inset 0 0 0 2px var(--c-accent), inset 0 0 0 3px #000;
+}
+:root[data-theme='high-contrast'] .swatch:focus-visible {
+  outline: 3px solid var(--c-focus);
+  outline-offset: 2px;
+}
+/* theme tiles and page thumbnails: the fill needs a margin of tile around the drawing */
+:root[data-theme='high-contrast'] .theme-tile,
+:root[data-theme='high-contrast'] .page-thumb {
+  padding: 4px;
+  border-radius: var(--r-2);
+}
+:root[data-theme='high-contrast'] .theme-tile:focus-visible .mini {
+  outline: none;
+}
+/* spacing: a ring (3px + 2px offset) never touches a neighbour or the scroller edge */
+:root[data-theme='high-contrast'] .layer-row {
+  margin: 6px 6px 0;
+}
+:root[data-theme='high-contrast'] .dlg-side {
+  gap: 6px;
+}
+:root[data-theme='high-contrast'] .dlg-side::before {
+  margin-bottom: -6px;
+}
+:root[data-theme='high-contrast'] .dlg-side::after {
+  margin-top: -6px;
+}
+:root[data-theme='high-contrast'] .history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 6px 0 4px;
+}
+:root[data-theme='high-contrast'] .menu {
+  gap: 6px;
+  padding: 8px;
+}
+:root[data-theme='high-contrast'] .menu-sep {
+  margin: 0 -8px;
+}
+:root[data-theme='high-contrast'] .tool-flyout {
+  gap: 6px;
+}
+
+/* =====================================================================================
+ * High contrast: disabled states (DESIGN.md §9). Never translucent: an opacity wash
+ * turns the yellow accent olive and white into a grey that reads as another colour.
+ *   ink       --c-disabled (#8f8f8f, 6.6:1 on black, so it stays readable)
+ *   bordered  the border turns 1px dashed white (buttons, fields, selects, checkboxes,
+ *             the segmented track's active tile)
+ *   "on"      a disabled accent control (primary button, checked box, slider fill) is
+ *             black with a dashed white edge, never yellow
+ * Borderless icon buttons and menu rows only change ink.
+ * ===================================================================================== */
+:root[data-theme='high-contrast'] :is(.btn, .icon-btn, .theme-tile, .segmented button):disabled,
+:root[data-theme='high-contrast'] :is(.nf.disabled, .check.disabled),
+:root[data-theme='high-contrast'] .slider-row.disabled input[type='range'] {
+  opacity: 1;
+  color: var(--c-disabled);
+}
+:root[data-theme='high-contrast'] .menu-item[aria-disabled='true'],
+:root[data-theme='high-contrast'] .menu-item[aria-disabled='true'] :is(.menu-icon, .menu-detail, .menu-keys),
+:root[data-theme='high-contrast'] .cmdk-row.disabled :is(.cmdk-label, .cmdk-icon, .cmdk-meta),
+:root[data-theme='high-contrast'] .nf.disabled :is(input, .nf-label, .nf-unit),
+:root[data-theme='high-contrast'] :is(input, select, textarea):disabled {
+  color: var(--c-disabled);
+}
+:root[data-theme='high-contrast'] .btn:not(.ghost):disabled,
+:root[data-theme='high-contrast'] .nf.disabled,
+:root[data-theme='high-contrast'] :is(input[type='text'], input[type='number'], input[type='search'], select, textarea.field):disabled {
+  border-style: dashed;
+  border-color: #fff;
+}
+:root[data-theme='high-contrast'] .btn.primary:disabled {
+  background: #000;
+  border: 1px dashed #fff;
+  color: var(--c-disabled);
+}
+:root[data-theme='high-contrast'] input[type='checkbox']:disabled {
+  border-style: dashed;
+  border-color: #fff;
+  background-color: #000;
+}
+:root[data-theme='high-contrast'] input[type='checkbox']:checked:disabled {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%238f8f8f' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 10.5l3.8 3.8 7.2-8'/%3E%3C/svg%3E");
+}
+:root[data-theme='high-contrast'] .slider-row.disabled input[type='range']::-webkit-slider-runnable-track {
+  background: var(--c-disabled);
+}
+:root[data-theme='high-contrast'] .slider-row.disabled input[type='range']::-webkit-slider-thumb {
+  background: #000;
+  box-shadow: 0 0 0 1px var(--c-disabled);
+}
+
+/* high contrast "dimmed" states (an inactive search group, a redo-able history step, a
+   hidden adjustment or paint, a hidden layer) use the disabled ink too: text-3 is
+   #e6e6e6 in HC, which reads as white, so a dim state would vanish. Never opacity: on a
+   selected (yellow) row a faded name turns olive. */
+:root[data-theme='high-contrast'] :is(.nav-item.no-match, .history-list li.future button, .adjust-item header .adjust-name.off, .paint-row.off .paint-name, .layer-row.hidden-layer .name) {
+  opacity: 1;
+  color: var(--c-disabled);
+}
+:root[data-theme='high-contrast'] .layer-row.selected.hidden-layer :is(.name, .thumb) {
+  opacity: 1;
+  color: var(--c-accent-ink);
+}
+
+/* high contrast keycaps: one 1px white frame on black everywhere (tooltips, menus, the
+   flyout, dialogs), never the 2px-bottom dark-theme cap */
+:root[data-theme='high-contrast'] kbd {
+  background: #000;
+  border-color: #fff;
+  border-bottom-width: 1px;
+  color: #fff;
 }
