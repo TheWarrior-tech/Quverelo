@@ -32,15 +32,25 @@ export function cssFont(style: TextStyle, size = style.fontSize): string {
   return `${style.italic ? 'italic ' : ''}${style.fontWeight} ${size}px ${style.fontFamily}`;
 }
 
+type TypoCtx = CanvasRenderingContext2D & { fontKerning?: string; fontVariantCaps?: string };
+
+/** OpenType basics on a canvas context (kerning, small caps), so measuring and drawing agree. */
+function setTypo(ctx: CanvasRenderingContext2D, style: TextStyle) {
+  const c = ctx as TypoCtx;
+  c.fontKerning = style.kerning === false ? 'none' : 'normal';
+  c.fontVariantCaps = style.caps ?? 'normal';
+}
+
 const widthCache = new Map<string, number>();
 
 export const measureText: MeasureFn = (text, style) => {
   if (!text) return 0;
-  const key = cssFont(style) + '\u0000' + text;
+  const key = cssFont(style) + (style.kerning === false ? '|nk' : '') + (style.caps && style.caps !== 'normal' ? '|' + style.caps : '') + '\u0000' + text;
   const hit = widthCache.get(key);
   if (hit !== undefined) return hit;
   if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d')!;
   measureCtx.font = cssFont(style);
+  setTypo(measureCtx, style);
   const w = measureCtx.measureText(text).width;
   if (widthCache.size > 20000) widthCache.clear();
   widthCache.set(key, w);
@@ -266,6 +276,7 @@ function pathBox(d: PathCommand[]) {
 
 function setTextCtx(ctx: CanvasRenderingContext2D, style: TextStyle) {
   ctx.font = cssFont(style);
+  setTypo(ctx, style);
   ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
   const tracking = (style.letterSpacing / 1000) * style.fontSize;

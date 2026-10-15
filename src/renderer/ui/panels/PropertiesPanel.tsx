@@ -16,6 +16,7 @@ import { uiPaint, uiPaintPatch } from '../../state/uiPaint';
 import { Icon } from '../Icons';
 import { tip } from '../tips';
 import { evalArithmetic } from '../controls/numeric';
+import { TextSection } from './TextSection';
 import type { Unit } from '../../../core/types';
 
 export { evalArithmetic };
@@ -93,6 +94,7 @@ function DocumentProperties() {
             value={s.background ? { type: 'solid', color: s.background } : { type: 'none' }}
             fallback="#ffffff"
             allowGradient={false}
+            transparent
             onChange={(p) => ed.commit('Background', (x) => ({ ...x, settings: { ...x.settings, background: p.type === 'solid' ? p.color : null } }), p.type === 'solid' ? 'bg' : undefined)}
           />
           <label className="check"><input type="checkbox" checked={!s.background} onChange={(e) => ed.commit('Background', (x) => ({ ...x, settings: { ...x.settings, background: e.target.checked ? null : '#ffffff' } }))} /> Transparent</label>
@@ -116,7 +118,7 @@ const KIND: Record<SceneNode['type'], string> = {
  * The object's own section is named for what it edits, not for the object, so it
  * never repeats the header ("Rectangle" over "RECTANGLE", critique 3 P2-11).
  */
-const SHAPE_TITLE: Partial<Record<SceneNode['type'], string>> = { rect: 'Corners', polygon: 'Sides', star: 'Points', textframe: 'Columns and links', imageframe: 'Image fit', raster: 'Pixels' };
+const SHAPE_TITLE: Partial<Record<SceneNode['type'], string>> = { rect: 'Corners', polygon: 'Sides', star: 'Points', textframe: 'Text frame', imageframe: 'Image fit', raster: 'Pixels' };
 
 /** Align (and distribute / boolean when they apply) for the selection: the top of the inspector, as in Figma. */
 function ArrangeBar({ count }: { count: number }) {
@@ -236,6 +238,8 @@ export function PropertiesPanel() {
         </Field>
       </Section>
 
+      {!multi && (n.type === 'text' || n.type === 'textframe') && <TextSection />}
+
       {!multi && (
         <Section id="transform" title={<>Transform <span className="count">{u}</span></>}>
           <div className="grid4">
@@ -284,8 +288,8 @@ export function PropertiesPanel() {
                 <PaintRow kind="fill" label="Frame fill" paint={n.fill} onChange={(p) => editor.commit('Frame fill', (d) => updateNode(d, n.id, { fill: p } as Partial<SceneNode>), 'ffill')} />
               </Field>
               <div className="row">
-                <button className="btn sm" onClick={() => runCommand('text.link')} data-tip="Select this frame and another, then link">Link frames</button>
-                <button className="btn sm ghost" onClick={() => runCommand('text.unlink')}>Unlink</button>
+                <button className="btn sm ghost" onClick={() => runCommand('text.link')} data-tip="Select this frame and another, then link">Link frames</button>
+                <button className="btn sm ghost" onClick={() => runCommand('text.unlink')} disabled={!story || story.chain.length < 2} data-tip={story && story.chain.length > 1 ? 'Unlink this frame from its story' : 'This frame is not linked'}>Unlink</button>
               </div>
             </>
           )}

@@ -4,7 +4,7 @@ import { closeDialog, toast } from '../../state/bus';
 import { runExport, takePdfNote, type ExportRequest } from '../../state/io';
 import { exportSvg, pagesHaveImages, renderPageCanvas, renderSelectionCanvas, selectionBounds } from '../../engine/export';
 import { createCanvas, ctx2d } from '../../engine/assets';
-import { formatSize } from '../../../core/units';
+import { docPxPerInch, formatSize, physicalPx } from '../../../core/units';
 import { parsePageRange } from '../../../core/pageRange';
 import { NumberField, SliderField } from '../controls/NumberField';
 import { Menu, type MenuEntry } from '../controls/Menu';
@@ -66,7 +66,8 @@ export function ExportDialog({ format: initial }: { format: Format }) {
   const [scaleBy, setScaleBy] = useState<'factor' | 'width'>('factor');
   const [presetAnchor, setPresetAnchor] = useState<HTMLElement | null>(null);
   const scaleFieldRef = useRef<HTMLDivElement>(null);
-  const [dpi, setDpi] = useState(doc.settings.unit === 'px' ? 150 : 300);
+  // a px document's own Output DPI is its native image resolution (CRITIQUE-4 P2-17)
+  const [dpi, setDpi] = useState(doc.settings.unit === 'px' ? [96, 150, 300].reduce((a, b) => (Math.abs(b - doc.settings.dpi) < Math.abs(a - doc.settings.dpi) ? b : a)) : 300);
   const [quality, setQuality] = useState(90);
   const [transparent, setTransparent] = useState(!doc.settings.background);
   const [bleed, setBleed] = useState(false);
@@ -83,7 +84,7 @@ export function ExportDialog({ format: initial }: { format: Format }) {
 
   // areas each format offers
   const areaOptions: { value: Area; label: string; disabled?: boolean }[] = [
-    ...(isPdf || multi ? [{ value: 'all' as Area, label: multi ? `All ${doc.pages.length}` : 'Whole document' }] : []),
+    ...(isPdf || multi ? [{ value: 'all' as Area, label: multi ? `All (${doc.pages.length})` : 'Whole document' }] : []),
     ...(multi || !isPdf ? [{ value: 'current' as Area, label: multi ? 'Current' : 'Current page' }] : []),
     ...(isPdf && multi ? [{ value: 'range' as Area, label: 'Range' }] : []),
     ...(raster ? [{ value: 'selection' as Area, label: 'Selection', disabled: !selBox }] : []),
@@ -97,7 +98,7 @@ export function ExportDialog({ format: initial }: { format: Format }) {
   const b = bleed && !useSel ? doc.settings.bleed : 0;
   const baseW = useSel ? selBox!.w : doc.settings.width + 2 * b;
   const baseH = useSel ? selBox!.h : doc.settings.height + 2 * b;
-  const k = kind === 'pdf-image' ? dpi / 96 : scale;
+  const k = kind === 'pdf-image' ? dpi / docPxPerInch(doc.settings) : scale;
   const pxW = Math.round(baseW * k);
   const pxH = Math.round(baseH * k);
   const isTransparent = format === 'png' && transparent;
@@ -108,10 +109,13 @@ export function ExportDialog({ format: initial }: { format: Format }) {
     : `${title} - ${pages.length} files.${ext}`;
   const hasImages = useMemo(() => pagesHaveImages(doc, pages), [doc, pages.join(',')]);
   const showQuality = format === 'jpg' || kind === 'pdf-image' || (kind === 'pdf' && hasImages);
-  // a PDF page is physical: show it in the document unit (mm for a px document), pt in the tooltip (CRITIQUE-3 N1)
+  // a PDF page is physical: show it in the document unit (mm for a px document, sized
+  // by its Output DPI), pt in the tooltip (CRITIQUE-3 N1, CRITIQUE-4 P2-17)
   const pageUnit = doc.settings.unit === 'px' ? 'mm' : doc.settings.unit;
-  const physical = formatSize(baseW, baseH, pageUnit);
-  const physicalPt = formatSize(baseW, baseH, 'pt', 0);
+  const physW = physicalPx(baseW, doc.settings);
+  const physH = physicalPx(baseH, doc.settings);
+  const physical = formatSize(physW, physH, pageUnit);
+  const physicalPt = formatSize(physW, physH, 'pt', 0);
 
   // preview canvas of the current page or the selection
   const preview = useMemo(() => {

@@ -1,3 +1,4 @@
+import { layerDisplayName } from '../../core/document';
 import { useEffect, useRef, useState } from 'react';
 import type { StudioKind, Unit } from '../../core/types';
 import { UNITS, formatSize } from '../../core/units';
@@ -368,7 +369,8 @@ function CanvasArea() {
           <button onClick={() => ed.setUi({ activeContainerId: doc.pages[0].id, selection: [] })}>Done</button>
         </div>
       )}
-      {doc.pages.length > 1 && pageIndex >= 0 && (
+      {/* one page navigator at a time: the canvas pill only when the context bar is not showing its own (critique 3 P2-10) */}
+      {doc.pages.length > 1 && pageIndex >= 0 && !contextBarShowsPages(ed) && (
         <div className="page-indicator">
           <button className="icon-btn sm" {...tip('Previous page', 'PageUp')} disabled={pageIndex === 0} onClick={() => runCommand('page.prev')}><Icon name="chevron-left" /></button>
           <span>Page {pageIndex + 1} of {doc.pages.length}</span>
@@ -377,6 +379,11 @@ function CanvasArea() {
       )}
     </section>
   );
+}
+
+/** True while the Layout context bar shows page navigation (ContextBar `layoutPageControls`). */
+export function contextBarShowsPages(ed: typeof editor): boolean {
+  return ed.ui.studio === 'layout' && ed.ui.tool === 'move' && ed.ui.selection.length === 0 && !ed.ui.editingTextId;
 }
 
 /** Quiet update indicator: only shown while downloading, when an update is ready, or one is available. */
@@ -405,13 +412,17 @@ function StatusBar() {
   const s = doc.settings;
   const u = ed.unit;
   const pix = ed.ui.studio === 'photo' && ed.ui.pixelSelection?.length ? pathBounds(ed.ui.pixelSelection) : null;
+  // Photo names its active layer when nothing is selected (CRITIQUE-4 R2)
+  const activeNode = ed.ui.studio === 'photo' ? ed.activeLayer() : null;
+  const activeName = activeNode ? layerDisplayName(activeNode, doc) : null;
   return (
     <footer className="statusbar">
       <span className="num" data-testid="status-size">{formatSize(s.width, s.height, u)}</span>
       <span data-testid="status-selection">
         {pix
           ? <>Selection <span className="num">{formatSize(pix.w, pix.h, 'px', 0)}</span></>
-          : ed.ui.selection.length ? <><span className="num">{ed.ui.selection.length}</span> selected</> : 'Nothing selected'}
+          : ed.ui.selection.length ? <><span className="num">{ed.ui.selection.length}</span> selected</>
+          : activeName ? <>Layer {activeName}</> : 'Nothing selected'}
       </span>
       <span className="num">{ed.ui.status}</span>
       <div className="spacer" />

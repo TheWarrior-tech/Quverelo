@@ -587,6 +587,10 @@
   flex: none;
   transition: border-color var(--dur) var(--ease);
 }
+.font-trigger.full {
+  width: 100%;
+  flex: 1 1 auto;
+}
 .font-trigger.compact {
   width: 136px;
   border-color: transparent;
@@ -842,4 +846,23 @@ canvas.histogram {
 /* margins are four short values: compact fields so they fit beside page navigation at 1440 */
 :is(.contextbar, .ctx-more-body) .ctx-margins .nf.ctx {
   min-width: 64px;
+}
+
+/* ---------- inspector › Text (CRITIQUE-4 N11) ---------- */
+.text-section .text-font-row {
+  display: flex;
+}
+.text-section .grid2 > select {
+  min-width: 0;
+  width: 100%;
+}
+.text-section .segmented.full {
+  width: 100%;
+}
+.text-section .more-type {
+  margin-left: -8px;
+  color: var(--c-text-2);
+}
+.text-section .more-type-options .row {
+  gap: 16px;
 }

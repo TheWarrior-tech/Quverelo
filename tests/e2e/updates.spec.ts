@@ -103,6 +103,9 @@ test('ready toast and status-bar indicator; Restart goes to the main process', a
   await expect(dlg.locator('[role="progressbar"]')).toHaveAttribute('aria-valuenow', '42');
   await snap(page, 'updates-dialog-downloading-dark', dlg);
   await page.keyboard.press('Escape');
+  // The ready toast is suppressed while the dialog is open (it shows the state itself), so the
+  // dialog must really be gone before the main process reports 'ready'.
+  await expect(dlg).toBeHidden();
 
   await app.evaluate(({ BrowserWindow }, s) => {
     BrowserWindow.getAllWindows()[0].webContents.send('update:state', s);
@@ -113,6 +116,18 @@ test('ready toast and status-bar indicator; Restart goes to the main process', a
   await expect(page.locator('.update-ind')).toContainText('Restart to update');
   await t.hover(); // keep it up while capturing
   await snap(page, 'updates-toast-ready-dark');
+
+  // Restart hands over to the main process (which runs the normal close path, then installs).
+  await app.evaluate(({ ipcMain }) => {
+    const g = globalThis as unknown as { __restartAsks?: number };
+    g.__restartAsks = 0;
+    ipcMain.on('update:restart', () => { g.__restartAsks = (g.__restartAsks ?? 0) + 1; });
+  });
+  await t.getByRole('button', { name: 'Restart' }).click();
+  await expect(t).toBeHidden();
+  await expect.poll(() => app.evaluate(() => (globalThis as unknown as { __restartAsks?: number }).__restartAsks ?? 0)).toBe(1);
+  // dev builds never install: the main process only acts on its own 'ready' state, so the window stays
+  await expect(page.locator('.workspace')).toBeVisible();
   await app.close();
 });
 

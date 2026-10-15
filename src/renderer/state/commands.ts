@@ -326,7 +326,7 @@ reg('layer.merge-down', () => {
 });
 /** The layer pixel-selection actions apply to: the selected layer, else the topmost visible photo layer. */
 function selectionTargetLayer(): SceneNode | null {
-  const n = editor.selectedNodes()[0];
+  const n = editor.selectedNodes()[0] ?? editor.activeLayer();
   if (n) return n;
   const c = editor.activeContainer;
   return (c && [...c.nodes].reverse().find((x) => x.type === 'raster' && x.visible !== false)) || null;

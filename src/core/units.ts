@@ -63,6 +63,26 @@ export function pixelsAt(px: number, dpi: number): number {
   return Math.round((px / 96) * dpi);
 }
 
+/**
+ * Document px per physical inch. Print units are 96 px/in (CSS); a px document
+ * (a photo, a screen graphic) has no physical size of its own, so its Output
+ * DPI decides it: a 1264 × 848 px photo at 300 dpi is a 107 × 71.8 mm PDF page
+ * (CRITIQUE-4 P2-17).
+ */
+export function docPxPerInch(s: { unit: Unit; dpi: number }): number {
+  return s.unit === 'px' && s.dpi > 0 ? s.dpi : 96;
+}
+
+/** PDF points per document px (72 pt = 1 in). */
+export function pdfPtPerPx(s: { unit: Unit; dpi: number }): number {
+  return 72 / docPxPerInch(s);
+}
+
+/** A document-px length as 96-px/in "physical px", ready for formatLength in mm/in/pt. */
+export function physicalPx(px: number, s: { unit: Unit; dpi: number }): number {
+  return (px * 96) / docPxPerInch(s);
+}
+
 /** @deprecated use formatLength; kept for callers that pass explicit digits. */
 export function formatUnit(px: number, unit: Unit, digits?: number): string {
   return formatLength(px, unit, { digits });

@@ -53,14 +53,14 @@ test.describe('critique 3: UI', () => {
     await expect(page.getByLabel('Document units')).toHaveValue('mm');
     await expect(page.getByTestId('doc-size')).toContainText('210 × 297 mm');
     await expect(page.getByTestId('doc-size')).toContainText('2480 × 3508 px at 300 dpi');
-    // Layout context bar margins in mm (12.7 mm preset), never px
-    await expect(page.getByRole('spinbutton', { name: 'Top margin (mm)' })).toHaveValue('12.7');
-    // typing 15 means 15 mm
+    // Layout context bar margins in mm (an ISO preset is 15 mm, never ½ in as 12.7, CRITIQUE-4 P2-24), never px
+    await expect(page.getByRole('spinbutton', { name: 'Top margin (mm)' })).toHaveValue('15');
+    // typing 20 means 20 mm
     const top = page.getByRole('spinbutton', { name: 'Top margin (mm)' });
-    await top.fill('15');
+    await top.fill('20');
     await top.press('Enter');
-    await expect(top).toHaveValue('15');
-    expect(await state<number>(page, 'editor.doc.settings.margins.top')).toBeCloseTo((15 * 96) / 25.4, 3);
+    await expect(top).toHaveValue('20');
+    expect(await state<number>(page, 'editor.doc.settings.margins.top')).toBeCloseTo((20 * 96) / 25.4, 3);
 
     // an object the size of the page: the inspector W field reads 210
     await page.evaluate(() => {
@@ -78,7 +78,7 @@ test.describe('critique 3: UI', () => {
     await run(page, 'file.document-setup');
     const dlg = page.locator('.dialog');
     await expect(dlg.getByLabel('Document units')).toHaveValue('mm');
-    await expect(dlg.getByRole('spinbutton', { name: 'top margin' })).toHaveValue('15');
+    await expect(dlg.getByRole('spinbutton', { name: 'Top margin' })).toHaveValue('20');
     await page.keyboard.press('Escape');
 
     // PDF export: page size in mm, pt in the tooltip
@@ -96,48 +96,55 @@ test.describe('critique 3: UI', () => {
     await expect(page.getByTestId('status-size')).toHaveText('210 × 297 mm');
   });
 
-  test('N1: a photo stays in px; its PDF page size is physical', async () => {
+  test('N1 / P2-17: a photo stays in px; its PDF page size comes from its Output DPI', async () => {
     L = await launch({ QUVRELO_E2E_OPEN: photo });
     const { page } = L;
     await openPhoto(page);
     await expect(page.getByTestId('status-size')).toHaveText('1264 × 848 px');
     await run(page, 'file.export-pdf');
-    await expect(page.getByTestId('export-dims')).toHaveText('334.4 × 224.4 mm');
+    // 1264 × 848 px at the document's 300 dpi (CRITIQUE-4 P2-17), not 96 px/in
+    await expect(page.getByTestId('export-dims')).toHaveText('107 × 71.8 mm');
+    await expect(page.getByTestId('export-dims')).toHaveAttribute('data-tip', '303 × 204 pt');
     await page.keyboard.press('Escape');
   });
 
-  test('N4: Photo always opens with an active layer; Adjust and the status bar tell the truth', async () => {
+  test('N4 / R2: Photo always has an active layer, separate from the selection; Adjust and the status bar tell the truth', async () => {
     L = await launch({ QUVRELO_E2E_OPEN: photo });
     const { page } = L;
     await openPhoto(page);
     expect(await state<string>(page, 'editor.ui.studio')).toBe('photo');
-    // the Background pixel layer is active on open
-    expect(await state<number>(page, 'editor.ui.selection.length')).toBe(1);
-    expect(await state<string>(page, 'editor.selectedNodes()[0].type')).toBe('raster');
+    // the Background pixel layer is active on open, without an object selection
+    expect(await state<string>(page, 'editor.activeLayer().type')).toBe('raster');
+    expect(await state<number>(page, 'editor.ui.selection.length')).toBe(0);
+    await expect(page.locator('.layer-row.selected')).toHaveCount(1);
+    await expect(page.getByTestId('status-selection')).toHaveText('Layer Background');
     await page.locator('.inspector').getByRole('tab', { name: 'Adjust' }).click();
     await expect(page.getByText('Place a photo…')).toHaveCount(0);
     await expect(page.getByLabel('Add adjustment')).toBeVisible();
 
-    // deselecting shows "Select a layer to adjust" with a one-click way back, never "Place a photo…"
+    // deselecting keeps the active layer: Adjust never asks to pick one
+    await run(page, 'edit.select-all');
     await run(page, 'edit.deselect');
-    await expect(page.getByText('Select a layer to adjust')).toBeVisible();
-    await expect(page.getByText('Place a photo…')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Select Background' }).click();
-    expect(await state<number>(page, 'editor.ui.selection.length')).toBe(1);
+    await expect(page.getByLabel('Add adjustment')).toBeVisible();
+    await expect(page.getByText('Select a layer to adjust')).toHaveCount(0);
 
     // a pixel selection is reported in the status bar
-    await expect(page.getByTestId('status-selection')).toHaveText('1 selected');
     await page.evaluate(() => {
       const { editor } = (window as any).__quvrelo;
       editor.setUi({ pixelSelection: [['M', 10, 20], ['L', 422, 20], ['L', 422, 406], ['L', 10, 406], ['Z']] });
     });
     await expect(page.getByTestId('status-selection')).toHaveText('Selection 412 × 386 px');
+    await page.evaluate(() => (window as any).__quvrelo.editor.setUi({ pixelSelection: null }));
 
     // deleting the active layer activates the next pixel layer down
+    await page.locator('.layer-row').first().click();
     await run(page, 'edit.duplicate');
     expect(await state<number>(page, 'editor.doc.pages[0].nodes.length')).toBe(2);
+    const dup = await state<string>(page, 'editor.ui.activeLayerId');
     await run(page, 'edit.delete');
-    expect(await state<number>(page, 'editor.ui.selection.length')).toBe(1);
+    expect(await state<number>(page, 'editor.doc.pages[0].nodes.length')).toBe(1);
+    expect(await state<string>(page, 'editor.ui.activeLayerId')).not.toBe(dup);
+    expect(await state<string>(page, 'editor.activeLayer().type')).toBe('raster');
   });
 
   test('N2: the context bar never clips at 1280 and 1440; page setup overflows into More', async () => {

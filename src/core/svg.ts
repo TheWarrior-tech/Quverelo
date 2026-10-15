@@ -100,6 +100,8 @@ function textStyleAttrs(style: TextStyle): string {
   if (style.italic) attrs.push('font-style="italic"');
   if (style.underline) attrs.push('text-decoration="underline"');
   if (style.letterSpacing) attrs.push(`letter-spacing="${num((style.letterSpacing / 1000) * style.fontSize)}"`);
+  if (style.kerning === false) attrs.push('font-kerning="none"');
+  if (style.caps && style.caps !== 'normal') attrs.push(`font-variant="${style.caps}"`);
   return attrs.join(' ');
 }
 

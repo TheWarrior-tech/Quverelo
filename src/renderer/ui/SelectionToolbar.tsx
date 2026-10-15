@@ -10,10 +10,6 @@ import { tip, shortcutFor } from './tips';
 import { pixelStripActive } from './SelectionActions';
 import { ColorChipButton } from './color/Chips';
 import { MenuButton, type MenuItem } from './controls/Menu';
-import { NumberField } from './controls/NumberField';
-import { FontPicker } from './controls/FontPicker';
-import { activeTextTarget } from './ContextBar';
-import { primaryFamily } from './fonts';
 import { applyFillToSelection, applyStrokeToSelection, nodeFill } from './panels/ColorPanel';
 import { FIT_OPTIONS } from './panels/PropertiesPanel';
 
@@ -83,20 +79,6 @@ function ShapeGroup({ nodes }: { nodes: SceneNode[] }) {
   );
 }
 
-function TextGroup() {
-  const target = activeTextTarget();
-  if (!target) return null;
-  const st = target.style;
-  return (
-    <>
-      <FontPicker compact value={primaryFamily(st.fontFamily)} onPreview={(f) => target.apply({ fontFamily: f })} onCommit={(f) => target.apply({ fontFamily: f })} />
-      <NumberField className="stb-size" ariaLabel="Font size (pt)" label="Size" unit="pt" digits={1} value={st.fontSize} min={4} max={1000} onChange={(v) => target.apply({ fontSize: v })} onCommit={(v) => target.apply({ fontSize: v })} />
-      <button type="button" className={`icon-btn sm${st.fontWeight >= 600 ? ' active' : ''}`} {...tip('Bold')} aria-pressed={st.fontWeight >= 600} onClick={() => target.apply({ fontWeight: st.fontWeight >= 600 ? 400 : 700 })}><b>B</b></button>
-      <button type="button" className={`icon-btn sm${st.italic ? ' active' : ''}`} {...tip('Italic')} aria-pressed={st.italic} onClick={() => target.apply({ italic: !st.italic })}><i>I</i></button>
-      <ColorChipButton kind="fill" label="Text colour" chevron={false} value={st.fill} fallback="#000000" allowNone={false} onChange={(p) => target.apply({ fill: p })} />
-    </>
-  );
-}
 
 function FrameGroup({ node }: { node: Extract<SceneNode, { type: 'imageframe' }> }) {
   return (
@@ -164,7 +146,6 @@ export function SelectionToolbar({ viewport }: { viewport: Viewport }) {
 
   if (!show) return null;
   const types = new Set(nodes.map((n) => n.type));
-  const allText = [...types].every((t) => t === 'text' || t === 'textframe');
   const allShapes = [...types].every((t) => SHAPES.has(t));
   const single = nodes.length === 1 ? nodes[0] : null;
   const arrange: MenuItem[] = [
@@ -174,8 +155,9 @@ export function SelectionToolbar({ viewport }: { viewport: Viewport }) {
     { id: 'back', label: 'Send to back', keys: shortcutFor('arrange.back'), run: () => runCommand('arrange.back') },
   ];
   const groups: JSX.Element[] = [];
-  if (allText) groups.push(<TextGroup key="text" />);
-  else if (single?.type === 'imageframe') groups.push(<FrameGroup key="frame" node={single} />);
+  // text has one quick set outside the inspector, and it is the context bar
+  // (CRITIQUE-4 N11, DESIGN.md §8): the toolbar carries only the common actions
+  if (single?.type === 'imageframe') groups.push(<FrameGroup key="frame" node={single} />);
   else if (allShapes) groups.push(<ShapeGroup key="shape" nodes={nodes} />);
   else if (single?.type === 'raster')
     groups.push(

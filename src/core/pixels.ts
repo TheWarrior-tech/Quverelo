@@ -366,7 +366,7 @@ export const ADJUSTMENTS: AdjustmentSpec[] = [
     { key: 'gamma', label: 'Gamma', min: 0.2, max: 3, step: 0.01, default: 1 },
   ] },
   { type: 'vibrance', label: 'Vibrance', params: [
-    { key: 'amount', label: 'Vibrance', min: -100, max: 100, step: 1, default: 25 },
+    { key: 'amount', label: 'Amount', min: -100, max: 100, step: 1, default: 25 },
   ] },
   { type: 'temperature', label: 'White Balance', params: [
     { key: 'temperature', label: 'Temperature', min: -100, max: 100, step: 1, default: 0 },

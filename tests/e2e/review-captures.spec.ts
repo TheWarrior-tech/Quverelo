@@ -54,7 +54,10 @@ test.describe('review captures', () => {
       const { page } = L;
       await openPhoto(page, theme);
       await page.click('.toolpalette [data-tool="crop"]');
-      await page.locator('.contextbar select[aria-label="Crop ratio"]').selectOption('4:3');
+      // the default ratio is Original (the photo's 3:2); re-select it to place the box
+      await expect(page.locator('.contextbar select[aria-label="Crop ratio"]')).toHaveValue('original');
+      await page.locator('.contextbar select[aria-label="Crop ratio"]').selectOption('free');
+      await page.locator('.contextbar select[aria-label="Crop ratio"]').selectOption('original');
       const b = await state<{ x: number; y: number; w: number; h: number }>(page, 'editor.ui.crop');
       await drag(page, await docToScreen(page, b.x, b.y), await docToScreen(page, b.x + 220, b.y + 120));
       const c = await state<{ x: number; y: number; w: number; h: number }>(page, 'editor.ui.crop');

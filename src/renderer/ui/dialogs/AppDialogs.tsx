@@ -67,11 +67,15 @@ export function ShortcutsDialog() {
   const total = filtered.reduce((n, g) => n + g.items.length, 0);
   const shown = filtered.filter((g) => (active === 'all' || g.id === active) && g.items.length);
   const shownCount = shown.reduce((n, g) => n + g.items.length, 0);
-  const navItem = (g: (typeof filtered)[number]) => (
-    <button key={g.id} className={`nav-item${q && !g.items.length ? ' no-match' : ''}`} aria-current={active === g.id} onClick={() => setActive(g.id)}>
+  // while a query is active, groups with no match leave the nav instead of reading as live "Edit 0" rows (CRITIQUE-4 P2-21)
+  const navItem = (g: (typeof filtered)[number]) => (q && !g.items.length ? null : (
+    <button key={g.id} className="nav-item" aria-current={active === g.id} onClick={() => setActive(g.id)}>
       {g.title}<span className="count">{g.items.length}</span>
     </button>
-  );
+  ));
+  const menuGroups = filtered.filter((g) => APP_MENU.some((m) => m.label === g.id));
+  const toolGroups = filtered.filter((g) => !APP_MENU.some((m) => m.label === g.id));
+  const any = (list: typeof filtered) => !q || list.some((g) => g.items.length);
   return (
     <Dialog title="Keyboard shortcuts" size="xl" split footer={<button className="btn" onClick={closeDialog}>Done</button>}>
       <nav className="dlg-side" aria-label="Shortcut groups">
@@ -90,10 +94,10 @@ export function ShortcutsDialog() {
         <button className="nav-item" aria-current={active === 'all'} onClick={() => setActive('all')}>
           All shortcuts<span className="count">{total}</span>
         </button>
-        <h3 className="micro">Menus</h3>
-        {filtered.filter((g) => APP_MENU.some((m) => m.label === g.id)).map(navItem)}
-        <h3 className="micro">Tools &amp; canvas</h3>
-        {filtered.filter((g) => !APP_MENU.some((m) => m.label === g.id)).map(navItem)}
+        {any(menuGroups) && <h3 className="micro">Menus</h3>}
+        {menuGroups.map(navItem)}
+        {any(toolGroups) && <h3 className="micro">Tools &amp; canvas</h3>}
+        {toolGroups.map(navItem)}
       </nav>
       <div className="dlg-main" aria-live="polite">
         {q && shownCount > 0 && (

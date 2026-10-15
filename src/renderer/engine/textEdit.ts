@@ -188,6 +188,8 @@ export class TextEditOverlay {
     ta.style.lineHeight = `${lh}px`;
     ta.style.letterSpacing = `${(style.letterSpacing / 1000) * style.fontSize}px`;
     ta.style.textAlign = style.align;
+    ta.style.fontKerning = style.kerning === false ? 'none' : 'normal';
+    ta.style.fontVariantCaps = style.caps ?? 'normal';
     ta.style.textDecoration = style.underline ? 'underline' : 'none';
     ta.style.color = paintColor(style.fill);
     ta.style.caretColor = paintColor(style.fill) === '#ffffff' ? '#ffffff' : '#2fb8a6';

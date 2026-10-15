@@ -11,6 +11,7 @@ import { tip } from '../tips';
 import { runCommand } from '../../state/commands';
 import { canvasToPixels, createCanvas, ctx2d } from '../../engine/assets';
 import { useEditor } from '../hooks';
+import { activeRaster } from '../../engine/pixelOps';
 import { Icon } from '../Icons';
 import { CurvesEditor } from './CurvesEditor';
 
@@ -152,17 +153,18 @@ function AdjustmentHeader({ label, enabled, curves, onToggle, onReset, onDelete 
 
 export function AdjustmentsPanel() {
   const ed = useEditor();
-  const n = ed.selectedNodes().find((x): x is RasterNode => x.type === 'raster');
+  // the active layer when nothing is selected (CRITIQUE-4 R2), so Adjust never asks when one exists
+  const n = activeRaster(ed) ?? undefined;
   if (!n) {
-    // Photo keeps an active layer (CRITIQUE-3 N4); this only shows when the user
-    // deselected, or the page truly has no pixels yet.
+    // Photo keeps an active layer (CRITIQUE-4 R2), so this only shows while a
+    // non-pixel object (a shape, text) is selected, or the page has no pixels yet.
     const top = topPixelLayer(ed.activeContainer?.nodes ?? []);
     if (top) {
       const name = layerDisplayName(top, ed.doc);
       return (
         <EmptyState
           icon="adjust"
-          title="Select a layer to adjust"
+          title={ed.ui.selection.length ? 'Adjustments work on pixel layers' : 'Select a layer to adjust'}
           className="adjust-empty"
           actions={<button className="btn ghost" onClick={() => editor.select([top.id])}><Icon name="layers" size={16} /> Select {name}</button>}
         >

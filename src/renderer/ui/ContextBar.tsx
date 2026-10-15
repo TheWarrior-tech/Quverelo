@@ -9,7 +9,7 @@ import { editor } from '../state/editor';
 import { runCommand } from '../state/commands';
 import { useEditor } from './hooks';
 import { Icon } from './Icons';
-import { toolLabel } from './Workspace';
+import { contextBarShowsPages, toolLabel } from './Workspace';
 import { tip } from './tips';
 import { NumberField } from './controls/NumberField';
 import { ColorChipButton } from './color/Chips';
@@ -96,9 +96,10 @@ function layoutPageControls(doc: QuvreloDocument, i: number) {
       <Pri n={4}>
         <div className="group ctx-margins" role="group" aria-label="Margins">
           <span className="field-label">Margins</span>
+          {/* T · B · L · R, the same order as Document setup (critique 3 P2-11) */}
           <UnitNum label="T" title="Top margin" px={m.top} onChange={setMargin('top')} />
-          <UnitNum label="L" title={s.facingPages ? 'Inside margin' : 'Left margin'} px={m.left} onChange={setMargin('left')} />
           <UnitNum label="B" title="Bottom margin" px={m.bottom} onChange={setMargin('bottom')} />
+          <UnitNum label="L" title={s.facingPages ? 'Inside margin' : 'Left margin'} px={m.left} onChange={setMargin('left')} />
           <UnitNum label="R" title={s.facingPages ? 'Outside margin' : 'Right margin'} px={m.right} onChange={setMargin('right')} />
         </div>
       </Pri>
@@ -147,9 +148,11 @@ function TextFrameControls({ frames }: { frames: TextFrameNode[] }) {
 }
 
 /**
- * Text style controls. A plain function (ContextBar already subscribes) so the
- * priority+ row sees each group: font and size never collapse; style, alignment
- * and spacing go to "More" in that reverse order when space runs out.
+ * The one quick text set outside the inspector (CRITIQUE-4 N11, DESIGN.md §8):
+ * font · size · B I U · alignment. Leading, tracking and OpenType live only in
+ * Inspector › Text. A plain function (ContextBar already subscribes) so the
+ * priority+ row sees each group: font and size never collapse; alignment then
+ * style go to "More" when space runs out.
  */
 function textControls() {
   const target = activeTextTarget();
@@ -184,14 +187,6 @@ function textControls() {
           ))}
         </div>
       </Pri>
-      {target && (
-        <Pri n={3}>
-          <div className="group" data-keep-text-edit role="group" aria-label="Spacing">
-            <NumberField className="ctx" ariaLabel="Leading (line height multiple)" label="Leading" value={style.lineHeight ?? 1.3} min={0.6} max={4} step={0.05} onCommit={(v) => apply({ lineHeight: v })} onChange={(v) => apply({ lineHeight: v })} />
-            <NumberField className="ctx" ariaLabel="Tracking (thousandths of an em)" label="Tracking" digits={0} value={style.letterSpacing ?? 0} min={-200} max={1000} step={10} onCommit={(v) => apply({ letterSpacing: v })} onChange={(v) => apply({ letterSpacing: v })} />
-          </div>
-        </Pri>
-      )}
     </>
   );
 }
@@ -289,7 +284,6 @@ export function ContextBar() {
   const frame = sel.find((n) => n.type === 'imageframe');
   const textSelected = sel.some((n) => n.type === 'text' || n.type === 'textframe') || !!ed.ui.editingTextId;
   const frames = sel.filter((n): n is TextFrameNode => n.type === 'textframe');
-  const layout = ed.ui.studio === 'layout';
   return (
     <div className="contextbar" role="toolbar" aria-label="Tool options" ref={barRef}>
       <span className="tool-name">{toolLabel(t).replace(/ \(.*\)/, '')}</span>
@@ -323,11 +317,14 @@ export function ContextBar() {
               />
             </div>
           )}
-          <div className="group">
-            <button className="icon-btn sm" {...tip('Select all', 'select.all-pixels')} onClick={() => runCommand('select.all-pixels')}><Icon name="select-all" /></button>
-            <button className="icon-btn sm" {...tip('Deselect', 'select.none')} onClick={() => runCommand('select.none')} disabled={!ed.ui.pixelSelection}><Icon name="deselect" /></button>
-            <button className="icon-btn sm" {...tip('Invert selection', 'select.invert')} onClick={() => runCommand('select.invert')} disabled={!ed.ui.pixelSelection}><Icon name="select-invert" /></button>
-          </div>
+          {/* labelled, not three bare icons (critique 3 P2-13); the labels collapse into More before anything is cut */}
+          <Pri n={5}>
+            <div className="group ctx-select-actions" role="group" aria-label="Selection">
+              <button className="btn ghost" {...tip('Select all', 'select.all-pixels')} onClick={() => runCommand('select.all-pixels')}><Icon name="select-all" /> All</button>
+              <button className="btn ghost" {...tip('Deselect', 'select.none')} onClick={() => runCommand('select.none')} disabled={!ed.ui.pixelSelection}><Icon name="deselect" /> Deselect</button>
+              <button className="btn ghost" {...tip('Invert selection', 'select.invert')} onClick={() => runCommand('select.invert')} disabled={!ed.ui.pixelSelection}><Icon name="select-invert" /> Invert</button>
+            </div>
+          </Pri>
           {t === 'object-select' && <CtxHint>Click an object · click again to add · Alt-click to remove</CtxHint>}
         </>
       )}
@@ -365,12 +362,13 @@ export function ContextBar() {
             <ColorChipButton kind="fill" label="Fill" value={uiPaint(ed.ui, 'fill')} fallback={ed.ui.fillColor} onChange={(p) => ed.setUi(uiPaintPatch('fill', p, ed.ui))} />
             <span className="ctx-label">Stroke</span>
             <ColorChipButton kind="stroke" label="Stroke" value={uiPaint(ed.ui, 'stroke')} fallback={ed.ui.strokeColor} onChange={(p) => ed.setUi(uiPaintPatch('stroke', p, ed.ui))} />
-            <NumberField className="ctx" label="W" ariaLabel="Stroke width (px)" unit="px" step={0.5} value={o.strokeWidth} min={0} max={200} onCommit={(v) => ed.setToolOptions({ strokeWidth: v })} onChange={(v) => ed.setToolOptions({ strokeWidth: v })} />
+            {/* width means nothing without a stroke (critique 3 P2-12) */}
+            <NumberField className="ctx" label="W" ariaLabel="Stroke width (px)" title={uiPaint(ed.ui, 'stroke').type === 'none' ? 'Stroke width: add a stroke first' : 'Stroke width'} disabled={uiPaint(ed.ui, 'stroke').type === 'none'} unit="px" step={0.5} value={o.strokeWidth} min={0} max={200} onCommit={(v) => ed.setToolOptions({ strokeWidth: v })} onChange={(v) => ed.setToolOptions({ strokeWidth: v })} />
           </div>
           <CtxHint>{t === 'pen' ? 'Click: corner · drag: curve · click the first point to close · Enter finishes' : 'Shift constrains · Alt draws from centre'}</CtxHint>
         </>
       )}
-      {layout && t === 'move' && sel.length === 0 && !ed.ui.editingTextId && layoutPageControls(ed.doc!, ed.activePageIndex)}
+      {contextBarShowsPages(ed) && layoutPageControls(ed.doc!, ed.activePageIndex)}
       {(t === 'textframe' || t === 'move') && frames.length > 0 && <Pri n={2}><TextFrameControls frames={frames} /></Pri>}
       {(t === 'text' || t === 'textframe' || (t === 'move' && textSelected)) && textControls()}
       {t === 'textframe' && frames.length === 0 && <CtxHint>Drag to draw a text frame · link two frames to flow a story</CtxHint>}
@@ -394,7 +392,9 @@ export function ContextBar() {
           <button className="icon-btn sm" {...tip('Flip horizontal')} onClick={() => runCommand('arrange.flip-h')}><Icon name="flip-h" /></button>
           <button className="icon-btn sm" {...tip('Flip vertical')} onClick={() => runCommand('arrange.flip-v')}><Icon name="flip-v" /></button>
           <button className="icon-btn sm" {...tip('Rotate 90° clockwise')} onClick={() => runCommand('arrange.rotate-cw')}><Icon name="rotate" /></button>
-          <button className="btn" onClick={() => runCommand(sel.length > 1 ? 'arrange.group' : 'arrange.ungroup')} disabled={sel.length === 1 && sel[0].type !== 'group'}>{sel.length > 1 ? 'Group' : 'Ungroup'}</button>
+          {/* only the action that applies: Group for 2+, Ungroup for a group, nothing for one plain layer (critique 3 P2-9) */}
+          {sel.length > 1 && <button className="btn" onClick={() => runCommand('arrange.group')}>Group</button>}
+          {sel.length === 1 && sel[0].type === 'group' && <button className="btn" onClick={() => runCommand('arrange.ungroup')}>Ungroup</button>}
           {sel.length >= 3 && <button className="icon-btn sm" {...tip('Distribute horizontally')} onClick={() => runCommand('arrange.distribute-h')}><Icon name="distribute-h" /></button>}
           {sel.length >= 3 && <button className="icon-btn sm" {...tip('Distribute vertically')} onClick={() => runCommand('arrange.distribute-v')}><Icon name="distribute-v" /></button>}
         </div>

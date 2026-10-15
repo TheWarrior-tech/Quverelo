@@ -64,7 +64,7 @@ function currentStroke(ed: Editor, force = false) {
 
 function addAndSelect(ed: Editor, node: SceneNode, label: string): void {
   // Photo: a shape becomes a vector layer directly above the active layer (Vector/Layout: on top)
-  const at = ed.ui.studio === 'photo' ? indexAbove(ed.activeContainer?.nodes ?? [], ed.ui.selection) : undefined;
+  const at = ed.ui.studio === 'photo' ? indexAbove(ed.activeContainer?.nodes ?? [], ed.targetIds()) : undefined;
   ed.commit(label, (d) => addNodes(d, containerId(ed), [node], at));
   ed.select([node.id]);
 }

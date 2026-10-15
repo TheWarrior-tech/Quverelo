@@ -116,6 +116,16 @@ describe('sentence case outside ui/ (critique 3 P1-8)', () => {
     expect(bad).toEqual([]);
   });
 
+  it('New document preset names are sentence case (CRITIQUE-4 P2-20)', () => {
+    // PRESETS is a positional table the string scanner cannot see, so read the names directly
+    const src = fs.readFileSync(path.join(UI, 'dialogs/NewDocumentDialog.tsx'), 'utf8');
+    const table = src.slice(src.indexOf('export const PRESETS'), src.indexOf('const CATEGORIES'));
+    const names = [...table.matchAll(/\b(?:mm|inch|px)\('[^']+',\s*'([^']+)'/g)].map((m) => m[1]);
+    expect(names.length).toBeGreaterThan(20);
+    const bad = names.filter((n) => titleCasePair(n.replace(/\bUS\b/g, 'us')));
+    expect(bad).toEqual([]);
+  });
+
   it('tool names are sentence case, and the Shortcuts dialog and palette use them', async () => {
     const { TOOL_LABELS, toolName } = await import('../../src/renderer/state/toolGroups');
     const bad = Object.values(TOOL_LABELS).filter((l) => titleCasePair(l));
