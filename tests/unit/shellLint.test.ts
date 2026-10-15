@@ -65,12 +65,10 @@ describe('shell lint', () => {
     for (const f of css) {
       const src = fs.readFileSync(f, 'utf8');
       if (/\.seg[\s.{[:,]/.test(src)) bad.push(`${path.relative(process.cwd(), f)}: .seg`);
+      if (/\.choice-row\b/.test(src)) bad.push(`${path.relative(process.cwd(), f)}: .choice-row`);
     }
-    // TODO(curves owner): CurvesEditor's channel switch still uses .choice-row; it moves to <Segmented> with critique-2 P1-2.
-    const ALLOW_CHOICE_ROW = ['panels/CurvesEditor.tsx'];
     const allTsx = fs.readdirSync(UI, { recursive: true }).map(String).filter((f) => f.endsWith('.tsx'));
     for (const f of allTsx) {
-      if (ALLOW_CHOICE_ROW.includes(f)) continue;
       const src = fs.readFileSync(path.join(UI, f), 'utf8');
       if (/className=["'`{][^>]*(?<![\w-])(seg|choice-row)(?![\w-])/.test(src)) bad.push(`${f}: seg/choice-row class`);
     }

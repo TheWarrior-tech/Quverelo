@@ -653,35 +653,6 @@ kbd {
   color: var(--c-text-3);
 }
 
-/* legacy button row: only the Curves channel switch still uses it, until it moves
- * to <Segmented> with the Curves rework (critique 2 P1-2). Do not use elsewhere. */
-.choice-row {
-  gap: 0 !important;
-  padding: 2px;
-  background: var(--c-raised);
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-1);
-}
-.choice-row .btn {
-  height: 20px;
-  padding: 0 10px;
-  border: none;
-  background: transparent;
-  border-radius: var(--r-tile);
-  color: var(--c-text-2);
-}
-.choice-row .btn:hover {
-  background: var(--c-hover);
-  color: var(--c-text);
-}
-.choice-row .btn.selected {
-  background: var(--c-press);
-  color: var(--c-text);
-}
-.choice-row.wrap {
-  flex-wrap: wrap;
-}
-
 /* context bar: commit actions sit at the far right (crop Apply / Cancel) */
 .contextbar .ctx-spacer {
   flex: 1 0 8px;
