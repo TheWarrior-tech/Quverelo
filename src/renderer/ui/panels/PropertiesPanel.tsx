@@ -5,9 +5,14 @@ import { editor } from '../../state/editor';
 import { runCommand } from '../../state/commands';
 import { renderBounds } from '../../engine/draw';
 import { useEditor } from '../hooks';
-import { PaintEditor } from '../ColorControls';
 import { NumberField, SliderField } from '../controls/NumberField';
 import { Section } from '../controls/Panel';
+import { Segmented } from '../controls/Segmented';
+import { MenuButton } from '../controls/Menu';
+import { ColorChipButton } from '../color/Chips';
+import { PaintRow } from '../color/PaintRow';
+import { Icon } from '../Icons';
+import { tip } from '../tooltip';
 import { evalArithmetic } from '../controls/numeric';
 import type { Unit } from '../../../core/types';
 
@@ -22,61 +27,129 @@ function patchSel(label: string, fn: (n: SceneNode) => SceneNode, merge?: string
   editor.commit(label, (d) => updateNodes(d, editor.ui.selection, fn), merge);
 }
 
-function StrokeEditor({ stroke, onChange }: { stroke: Stroke; onChange: (s: Stroke) => void }) {
+/** Stroke details under the stroke paint row: width · dash · cap · join. */
+function StrokeDetails({ stroke, onChange }: { stroke: Stroke; onChange: (s: Stroke) => void }) {
   const dash = stroke.dash.length ? (stroke.dash[0] === stroke.width ? 'dot' : 'dash') : 'solid';
   return (
-    <>
-      <PaintEditor paint={stroke.paint} onChange={(p) => onChange({ ...stroke, paint: p, width: p.type !== 'none' && stroke.width === 0 ? 2 : stroke.width })} />
-      {stroke.paint.type !== 'none' && (
-        <div className="stroke-grid">
-          <NumberField label="W" ariaLabel="Stroke width" unit="px" value={stroke.width} min={0} max={500} step={0.5} onChange={(v) => onChange({ ...stroke, width: v })} onCommit={(v) => onChange({ ...stroke, width: v })} />
-          <select value={dash} aria-label="Dash style" onChange={(e) => {
-            const v = e.target.value;
-            onChange({ ...stroke, dash: v === 'solid' ? [] : v === 'dash' ? [stroke.width * 3, stroke.width * 2] : [stroke.width, stroke.width * 1.5], cap: v === 'dot' ? 'round' : stroke.cap });
-          }}>
-            <option value="solid">Solid</option>
-            <option value="dash">Dashed</option>
-            <option value="dot">Dotted</option>
-          </select>
-          <select value={stroke.cap} aria-label="Line cap" onChange={(e) => onChange({ ...stroke, cap: e.target.value as Stroke['cap'] })}>
-            <option value="butt">Butt cap</option><option value="round">Round cap</option><option value="square">Square cap</option>
-          </select>
-          <select value={stroke.join} aria-label="Line join" onChange={(e) => onChange({ ...stroke, join: e.target.value as Stroke['join'] })}>
-            <option value="miter">Mitre join</option><option value="round">Round join</option><option value="bevel">Bevel join</option>
-          </select>
-        </div>
-      )}
-    </>
+    <div className="stroke-grid">
+      <NumberField label="W" ariaLabel="Stroke width" unit="px" value={stroke.width} min={0} max={500} step={0.5} onChange={(v) => onChange({ ...stroke, width: v })} onCommit={(v) => onChange({ ...stroke, width: v })} />
+      <select value={dash} aria-label="Dash style" onChange={(e) => {
+        const v = e.target.value;
+        onChange({ ...stroke, dash: v === 'solid' ? [] : v === 'dash' ? [stroke.width * 3, stroke.width * 2] : [stroke.width, stroke.width * 1.5], cap: v === 'dot' ? 'round' : stroke.cap });
+      }}>
+        <option value="solid">Solid</option>
+        <option value="dash">Dashed</option>
+        <option value="dot">Dotted</option>
+      </select>
+      <select value={stroke.cap} aria-label="Line cap" onChange={(e) => onChange({ ...stroke, cap: e.target.value as Stroke['cap'] })}>
+        <option value="butt">Butt cap</option><option value="round">Round cap</option><option value="square">Square cap</option>
+      </select>
+      <select value={stroke.join} aria-label="Line join" onChange={(e) => onChange({ ...stroke, join: e.target.value as Stroke['join'] })}>
+        <option value="miter">Mitre join</option><option value="round">Round join</option><option value="bevel">Bevel join</option>
+      </select>
+    </div>
   );
 }
 
 const blendLabel = (m: string) => m.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+/** Row with a 56px label and a control that fills. */
+function Field({ label, htmlFor, children }: { label: string; htmlFor?: string; children: React.ReactNode }) {
+  return (
+    <div className="row insp-row">
+      <label htmlFor={htmlFor}>{label}</label>
+      {children}
+    </div>
+  );
+}
 
 function DocumentProperties() {
   const ed = useEditor();
   const d = ed.doc!;
   const s = d.settings;
   const u = ed.settings.units;
+  const fill: Paint = ed.ui.fillEnabled ? { type: 'solid', color: ed.ui.fillColor } : { type: 'none' };
+  const stroke: Paint = ed.ui.strokeEnabled ? { type: 'solid', color: ed.ui.strokeColor } : { type: 'none' };
+  const setDefault = (target: 'fill' | 'stroke') => (p: Paint) => {
+    const c = p.type === 'solid' ? p.color : null;
+    if (target === 'fill') ed.setUi(c ? { fillColor: c, fillEnabled: true } : { fillEnabled: false });
+    else ed.setUi(c ? { strokeColor: c, strokeEnabled: true } : { strokeEnabled: false });
+  };
   return (
-    <div>
+    <div className="properties">
+      <div className="prop-title"><span className="prop-name">{d.title}</span><span className="prop-kind">Document</span></div>
       <Section id="doc" title="Document">
-        <div className="row"><label htmlFor="doc-title">Title</label><input id="doc-title" type="text" value={d.title} onChange={(e) => ed.commit('Rename document', (x) => ({ ...x, title: e.target.value }), 'title')} /></div>
-        <div className="row"><label>Size</label><span className="value num">{Math.round(fromPx(s.width, u) * 100) / 100} × {Math.round(fromPx(s.height, u) * 100) / 100} {u}</span></div>
-        <div className="row"><label>Pages</label><span className="value num">{d.pages.length}</span></div>
-        <div className="row">
-          <label>Background</label>
-          <input type="color" value={s.background ?? '#ffffff'} aria-label="Background colour" disabled={!s.background} onChange={(e) => ed.commit('Background', (x) => ({ ...x, settings: { ...x.settings, background: e.target.value } }), 'bg')} />
+        <Field label="Title" htmlFor="doc-title"><input id="doc-title" type="text" value={d.title} onChange={(e) => ed.commit('Rename document', (x) => ({ ...x, title: e.target.value }), 'title')} /></Field>
+        <Field label="Size"><span className="value num">{Math.round(fromPx(s.width, u) * 100) / 100} × {Math.round(fromPx(s.height, u) * 100) / 100} {u}</span></Field>
+        <Field label="Pages"><span className="value num">{d.pages.length}</span></Field>
+        <Field label="Background">
+          <ColorChipButton
+            kind="fill"
+            label="Background"
+            color={s.background ?? '#ffffff'}
+            enabled={!!s.background}
+            onChange={(c) => ed.commit('Background', (x) => ({ ...x, settings: { ...x.settings, background: c } }), 'bg')}
+            onToggle={(on) => ed.commit('Background', (x) => ({ ...x, settings: { ...x.settings, background: on ? x.settings.background ?? '#ffffff' : null } }))}
+          />
           <label className="check"><input type="checkbox" checked={!s.background} onChange={(e) => ed.commit('Background', (x) => ({ ...x, settings: { ...x.settings, background: e.target.checked ? null : '#ffffff' } }))} /> Transparent</label>
-        </div>
-        <div className="row"><span className="row-spacer" /><button className="btn sm" onClick={() => runCommand('file.document-setup')}>Document Setup…</button></div>
+        </Field>
+        <div className="row"><span className="row-spacer" /><button className="btn sm" onClick={() => runCommand('file.document-setup')}>Document setup…</button></div>
       </Section>
-      <p className="hint pad">Select an object to see its properties. Double-click text to edit it, or a picture frame to place an image.</p>
+      <Section id="defaults" title="New objects">
+        <Field label="Fill"><PaintRow kind="fill" label="Default fill" paint={fill} allowGradient={false} onChange={setDefault('fill')} /></Field>
+        <Field label="Stroke"><PaintRow kind="stroke" label="Default stroke" paint={stroke} allowGradient={false} onChange={setDefault('stroke')} /></Field>
+      </Section>
+      <p className="hint pad">Select an object to edit it here. Double-click text to type, or a picture frame to place an image.</p>
     </div>
   );
 }
 
-const SHAPE_TITLE: Partial<Record<SceneNode['type'], string>> = { rect: 'Shape', polygon: 'Shape', star: 'Shape', textframe: 'Text frame', imageframe: 'Picture frame', raster: 'Pixel layer' };
+const KIND: Record<SceneNode['type'], string> = {
+  rect: 'Rectangle', ellipse: 'Ellipse', polygon: 'Polygon', star: 'Star', path: 'Path', text: 'Text', textframe: 'Text frame',
+  imageframe: 'Picture frame', raster: 'Pixel layer', group: 'Group',
+};
+const SHAPE_TITLE: Partial<Record<SceneNode['type'], string>> = { rect: 'Rectangle', polygon: 'Polygon', star: 'Star', textframe: 'Text frame', imageframe: 'Picture frame', raster: 'Pixels' };
 
+/** Align (and distribute / boolean when they apply) for the selection: the top of the inspector, as in Figma. */
+function ArrangeBar({ count }: { count: number }) {
+  const ed = useEditor();
+  const a = (id: string, label: string, icon: string, disabled = false) => (
+    <button key={id} type="button" className="icon-btn sm" {...tip(label)} disabled={disabled} onClick={() => runCommand(id)}><Icon name={icon} /></button>
+  );
+  return (
+    <div className="arrange-bar" role="toolbar" aria-label="Align">
+      {a('arrange.align-left', 'Align left', 'align-left')}
+      {a('arrange.align-hcenter', 'Align centre', 'align-hcenter')}
+      {a('arrange.align-right', 'Align right', 'align-right')}
+      {a('arrange.align-top', 'Align top', 'align-top')}
+      {a('arrange.align-vcenter', 'Align middle', 'align-vcenter')}
+      {a('arrange.align-bottom', 'Align bottom', 'align-bottom')}
+      <span className="arrange-sep" aria-hidden="true" />
+      {a('arrange.distribute-h', 'Distribute horizontally', 'distribute-h', count < 3)}
+      {a('arrange.distribute-v', 'Distribute vertically', 'distribute-v', count < 3)}
+      {ed.ui.studio === 'vector' && count >= 2 && (
+        <MenuButton
+          label="Boolean"
+          icon="bool-add"
+          className="arrange-menu"
+          items={[
+            { id: 'add', label: 'Add', icon: 'bool-add', run: () => runCommand('layer.bool-add') },
+            { id: 'subtract', label: 'Subtract', icon: 'bool-subtract', run: () => runCommand('layer.bool-subtract') },
+            { id: 'intersect', label: 'Intersect', icon: 'bool-intersect', run: () => runCommand('layer.bool-intersect') },
+            { id: 'exclude', label: 'Exclude', icon: 'bool-exclude', run: () => runCommand('layer.bool-exclude') },
+            { id: 'divide', label: 'Divide', icon: 'bool-divide', run: () => runCommand('layer.bool-divide') },
+          ]}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Inspector, v3 order (UX P1-2, DESIGN.md §8): object name, align bar, then
+ * Appearance (fill · stroke · opacity · blend), Transform (one 4-up X Y W H row,
+ * rotation and shear below), and the object's own section last.
+ */
 export function PropertiesPanel() {
   const ed = useEditor();
   const nodes = ed.selectedNodes();
@@ -109,37 +182,72 @@ export function PropertiesPanel() {
   const lenDigits = u === 'px' || u === 'pt' ? 1 : 2;
   const mixedOpacity = nodes.some((m) => m.opacity !== n.opacity);
   const mixedBlend = nodes.some((m) => m.blend !== n.blend);
+  const story = n.type === 'textframe' ? ed.doc.stories[n.storyId] : null;
+  const strokeOf = hasStroke ? (n as { stroke: Stroke }).stroke : null;
+  const setStroke = (st: Stroke) => patchSel('Stroke', (m) => ('stroke' in m ? ({ ...m, stroke: st } as SceneNode) : m), 'stroke');
   return (
     <div className="properties">
-      <div className="prop-title" title={multi ? undefined : n.name}>{multi ? `${nodes.length} objects` : n.name}</div>
-      {!multi && (
-        <Section id="transform" title="Transform">
-          <div className="grid2">
-            <NumField label="X" ariaLabel={`X (${u})`} unit={u} lengthUnit={u} digits={lenDigits} value={conv(b.x)} onChange={(v) => moveTo(v, null, k('x'))} onCommit={(v) => moveTo(v, null, k('x'))} />
-            <NumField label="Y" ariaLabel={`Y (${u})`} unit={u} lengthUnit={u} digits={lenDigits} value={conv(b.y)} onChange={(v) => moveTo(null, v, k('y'))} onCommit={(v) => moveTo(null, v, k('y'))} />
-            <NumField label="W" ariaLabel={`Width (${u})`} unit={u} lengthUnit={u} digits={lenDigits} value={conv(b.w)} min={0.01} onChange={(v) => resize(v, null, k('w'))} onCommit={(v) => resize(v, null, k('w'))} />
-            <NumField label="H" ariaLabel={`Height (${u})`} unit={u} lengthUnit={u} digits={lenDigits} value={conv(b.h)} min={0.01} onChange={(v) => resize(null, v, k('h'))} onCommit={(v) => resize(null, v, k('h'))} />
-            <NumField label="R" ariaLabel="Rotation (degrees)" unit="°" digits={1} value={n.rotation} step={1} onChange={(v) => patch('Rotate', { rotation: ((v % 360) + 360) % 360 }, k('r'))} onCommit={(v) => patch('Rotate', { rotation: ((v % 360) + 360) % 360 }, k('r'))} />
-            <NumField label="S" ariaLabel="Shear (degrees)" unit="°" digits={1} value={n.skewX} step={1} min={-80} max={80} onChange={(v) => patch('Shear', { skewX: v }, k('s'))} onCommit={(v) => patch('Shear', { skewX: v }, k('s'))} />
-          </div>
-        </Section>
-      )}
-      <Section id="appearance" title="Layer">
+      <div className="prop-title" title={multi ? undefined : n.name}>
+        <span className="prop-name">{multi ? `${nodes.length} objects` : n.name}</span>
+        {(multi || n.name !== KIND[n.type]) && <span className="prop-kind">{multi ? 'Mixed' : KIND[n.type]}</span>}
+      </div>
+      <ArrangeBar count={nodes.length} />
+
+      <Section id="appearance" title="Appearance">
+        {hasFill && (
+          <Field label="Fill">
+            <PaintRow kind="fill" label="Fill" paint={(n as { fill: Paint }).fill} onChange={(p) => patchSel('Fill', (m) => ('fill' in m ? ({ ...m, fill: p } as SceneNode) : m), 'fill')} />
+          </Field>
+        )}
+        {n.type === 'text' && (
+          <Field label="Colour">
+            <PaintRow kind="fill" label="Text colour" paint={n.style.fill} allowNone={false} onChange={(p) => patchSel('Text colour', (m) => (m.type === 'text' ? { ...m, style: { ...m.style, fill: p } } : m), 'tfill')} />
+          </Field>
+        )}
+        {n.type === 'textframe' && story && (
+          <Field label="Colour">
+            <PaintRow kind="fill" label="Text colour" paint={story.style.fill} allowNone={false} onChange={(p) => editor.commit('Text colour', (d) => ({ ...d, stories: { ...d.stories, [n.storyId]: { ...d.stories[n.storyId], style: { ...d.stories[n.storyId].style, fill: p } } } }), 'sfill')} />
+          </Field>
+        )}
+        {strokeOf && (
+          <>
+            <Field label="Stroke">
+              <PaintRow kind="stroke" label="Stroke" paint={strokeOf.paint} fallback="#1b1b1f" onChange={(p) => setStroke({ ...strokeOf, paint: p, width: p.type !== 'none' && strokeOf.width === 0 ? 2 : strokeOf.width })} />
+            </Field>
+            {strokeOf.paint.type !== 'none' && <StrokeDetails stroke={strokeOf} onChange={setStroke} />}
+          </>
+        )}
         <SliderField label="Opacity" ariaLabel="Opacity" unit="%" min={0} max={100} value={mixedOpacity ? 100 : Math.round(n.opacity * 100)} onChange={(v) => patchSel('Opacity', (m) => ({ ...m, opacity: v / 100 }), 'opacity')} />
-        <div className="row">
-          <label htmlFor="prop-blend">Blend</label>
+        <Field label="Blend" htmlFor="prop-blend">
           <select id="prop-blend" value={mixedBlend ? '' : n.blend} onChange={(e) => patchSel('Blend mode', (m) => ({ ...m, blend: e.target.value as BlendMode }))}>
             {mixedBlend && <option value="" disabled>Mixed</option>}
             {BLEND_MODES.map((m) => <option key={m} value={m}>{blendLabel(m)}</option>)}
           </select>
-        </div>
+        </Field>
       </Section>
+
+      {!multi && (
+        <Section id="transform" title={<>Transform <span className="count">{u}</span></>}>
+          <div className="grid4">
+            <NumField label="X" ariaLabel={`X (${u})`} lengthUnit={u} digits={lenDigits} value={conv(b.x)} onChange={(v) => moveTo(v, null, k('x'))} onCommit={(v) => moveTo(v, null, k('x'))} />
+            <NumField label="Y" ariaLabel={`Y (${u})`} lengthUnit={u} digits={lenDigits} value={conv(b.y)} onChange={(v) => moveTo(null, v, k('y'))} onCommit={(v) => moveTo(null, v, k('y'))} />
+            <NumField label="W" ariaLabel={`Width (${u})`} lengthUnit={u} digits={lenDigits} value={conv(b.w)} min={0.01} onChange={(v) => resize(v, null, k('w'))} onCommit={(v) => resize(v, null, k('w'))} />
+            <NumField label="H" ariaLabel={`Height (${u})`} lengthUnit={u} digits={lenDigits} value={conv(b.h)} min={0.01} onChange={(v) => resize(null, v, k('h'))} onCommit={(v) => resize(null, v, k('h'))} />
+          </div>
+          <div className="grid4">
+            <NumField label="R" ariaLabel="Rotation (degrees)" unit="°" digits={1} value={n.rotation} step={1} onChange={(v) => patch('Rotate', { rotation: ((v % 360) + 360) % 360 }, k('r'))} onCommit={(v) => patch('Rotate', { rotation: ((v % 360) + 360) % 360 }, k('r'))} />
+            <NumField label="S" ariaLabel="Shear (degrees)" unit="°" digits={1} value={n.skewX} step={1} min={-80} max={80} onChange={(v) => patch('Shear', { skewX: v }, k('s'))} onCommit={(v) => patch('Shear', { skewX: v }, k('s'))} />
+            <button type="button" className="icon-btn sm" {...tip('Flip horizontal')} onClick={() => runCommand('arrange.flip-h')}><Icon name="flip-h" /></button>
+            <button type="button" className="icon-btn sm" {...tip('Flip vertical')} onClick={() => runCommand('arrange.flip-v')}><Icon name="flip-v" /></button>
+          </div>
+        </Section>
+      )}
 
       {!multi && SHAPE_TITLE[n.type] && (
         <Section id={`shape-${n.type}`} title={SHAPE_TITLE[n.type]}>
           {n.type === 'rect' && (
             <div className="grid2">
-              <NumField label="Rad" ariaLabel="Corner radius (px)" unit="px" value={n.radius} min={0} onChange={(v) => patch('Corner radius', { radius: v } as Partial<SceneNode>, k('rad'))} onCommit={(v) => patch('Corner radius', { radius: v } as Partial<SceneNode>, k('rad'))} />
+              <NumField label="Radius" ariaLabel="Corner radius (px)" unit="px" value={n.radius} min={0} onChange={(v) => patch('Corner radius', { radius: v } as Partial<SceneNode>, k('rad'))} onCommit={(v) => patch('Corner radius', { radius: v } as Partial<SceneNode>, k('rad'))} />
             </div>
           )}
           {n.type === 'polygon' && (
@@ -150,71 +258,53 @@ export function PropertiesPanel() {
           {n.type === 'star' && (
             <>
               <div className="grid2">
-                <NumField label="Pts" ariaLabel="Points" value={n.points} min={3} max={64} digits={0} onChange={(v) => patch('Points', { points: Math.round(v) } as Partial<SceneNode>, k('pts'))} onCommit={(v) => patch('Points', { points: Math.round(v) } as Partial<SceneNode>, k('pts'))} />
+                <NumField label="Points" ariaLabel="Points" value={n.points} min={3} max={64} digits={0} onChange={(v) => patch('Points', { points: Math.round(v) } as Partial<SceneNode>, k('pts'))} onCommit={(v) => patch('Points', { points: Math.round(v) } as Partial<SceneNode>, k('pts'))} />
               </div>
               <SliderField label="Inner radius" unit="%" min={5} max={100} value={Math.round(n.innerRatio * 100)} onChange={(v) => patch('Inner radius', { innerRatio: v / 100 } as Partial<SceneNode>, 'inner')} />
             </>
           )}
           {n.type === 'textframe' && (
             <>
-              <div className="grid2">
+              <div className="grid3">
                 <NumField label="Col" ariaLabel="Columns" value={n.columns} min={1} max={12} digits={0} onChange={(v) => patch('Columns', { columns: Math.round(v) } as Partial<SceneNode>, k('col'))} onCommit={(v) => patch('Columns', { columns: Math.round(v) } as Partial<SceneNode>, k('col'))} />
-                <NumField label="Gap" ariaLabel="Column gap (px)" unit="px" value={n.columnGap} min={0} onChange={(v) => patch('Column gap', { columnGap: v } as Partial<SceneNode>, k('gap'))} onCommit={(v) => patch('Column gap', { columnGap: v } as Partial<SceneNode>, k('gap'))} />
-                <NumField label="Inset" ariaLabel="Inset (px)" unit="px" value={n.padding} min={0} onChange={(v) => patch('Inset', { padding: v } as Partial<SceneNode>, k('inset'))} onCommit={(v) => patch('Inset', { padding: v } as Partial<SceneNode>, k('inset'))} />
+                <NumField label="Gap" ariaLabel="Column gap (px)" value={n.columnGap} min={0} onChange={(v) => patch('Column gap', { columnGap: v } as Partial<SceneNode>, k('gap'))} onCommit={(v) => patch('Column gap', { columnGap: v } as Partial<SceneNode>, k('gap'))} />
+                <NumField label="Inset" ariaLabel="Inset (px)" value={n.padding} min={0} onChange={(v) => patch('Inset', { padding: v } as Partial<SceneNode>, k('inset'))} onCommit={(v) => patch('Inset', { padding: v } as Partial<SceneNode>, k('inset'))} />
               </div>
+              <Field label="Frame fill">
+                <PaintRow kind="fill" label="Frame fill" paint={n.fill} onChange={(p) => editor.commit('Frame fill', (d) => updateNode(d, n.id, { fill: p } as Partial<SceneNode>), 'ffill')} />
+              </Field>
               <div className="row">
                 <button className="btn sm" onClick={() => runCommand('text.link')} title="Select this frame and another, then link">Link frames</button>
                 <button className="btn sm ghost" onClick={() => runCommand('text.unlink')}>Unlink</button>
               </div>
-              <div className="sub-title">Frame fill</div>
-              <PaintEditor paint={n.fill} onChange={(p) => editor.commit('Frame fill', (d) => updateNode(d, n.id, { fill: p } as Partial<SceneNode>), 'ffill')} />
             </>
           )}
           {n.type === 'imageframe' && (
             <>
-              <div className="row">
-                <label htmlFor="prop-fit">Fit</label>
-                <select id="prop-fit" value={n.fit} onChange={(e) => editor.commit('Fit', (d) => updateNode(d, n.id, { fit: e.target.value as never, contentX: 0, contentY: 0, contentScale: 1 } as Partial<SceneNode>))}>
-                  <option value="fill">Fill frame</option><option value="fit">Fit inside</option><option value="stretch">Stretch</option><option value="none">Original size</option>
-                </select>
-              </div>
+              <Segmented
+                ariaLabel="Fit"
+                className="full"
+                value={n.fit}
+                onChange={(f) => editor.commit('Fit', (d) => updateNode(d, n.id, { fit: f, contentX: 0, contentY: 0, contentScale: 1 } as Partial<SceneNode>))}
+                options={FIT_OPTIONS}
+              />
               <SliderField label="Zoom" ariaLabel="Image zoom" unit="%" min={10} max={400} value={Math.round(n.contentScale * 100)} onChange={(v) => patch('Image zoom', { contentScale: v / 100 } as Partial<SceneNode>, 'cscale')} />
               <div className="grid2">
                 <NumField label="X" ariaLabel="Image offset X (px)" unit="px" value={n.contentX} onChange={(v) => patch('Image offset', { contentX: v } as Partial<SceneNode>, k('cx'))} onCommit={(v) => patch('Image offset', { contentX: v } as Partial<SceneNode>, k('cx'))} />
                 <NumField label="Y" ariaLabel="Image offset Y (px)" unit="px" value={n.contentY} onChange={(v) => patch('Image offset', { contentY: v } as Partial<SceneNode>, k('cy'))} onCommit={(v) => patch('Image offset', { contentY: v } as Partial<SceneNode>, k('cy'))} />
               </div>
-              <div className="row"><button className="btn sm" onClick={() => runCommand('file.place')}>Place image…</button></div>
+              <div className="row"><button className="btn sm" onClick={() => runCommand('file.place')}><Icon name="image" /> Replace image…</button></div>
             </>
           )}
           {n.type === 'raster' && (
             <>
-              <div className="row"><label>Pixels</label><span className="value num">{ed.assets.get(n.assetId)?.width ?? n.w} × {ed.assets.get(n.assetId)?.height ?? n.h}</span></div>
-              <div className="row"><label>Effects</label><span className="value">{n.adjustments.length ? `${n.adjustments.length} live adjustment${n.adjustments.length > 1 ? 's' : ''}` : 'None'}</span></div>
+              <Field label="Pixels"><span className="value num">{ed.assets.get(n.assetId)?.width ?? n.w} × {ed.assets.get(n.assetId)?.height ?? n.h}</span></Field>
+              <Field label="Effects"><span className="value">{n.adjustments.length ? `${n.adjustments.length} live adjustment${n.adjustments.length > 1 ? 's' : ''}` : 'None'}</span></Field>
             </>
           )}
         </Section>
       )}
 
-      {hasFill && (
-        <Section id="fill" title="Fill">
-          <PaintEditor paint={(n as { fill: Paint }).fill} onChange={(p) => patchSel('Fill', (m) => ('fill' in m ? ({ ...m, fill: p } as SceneNode) : m), 'fill')} />
-        </Section>
-      )}
-      {n.type === 'text' && (
-        <Section id="text-colour" title="Text colour">
-          <PaintEditor paint={n.style.fill} allowNone={false} onChange={(p) => patchSel('Text colour', (m) => (m.type === 'text' ? { ...m, style: { ...m.style, fill: p } } : m), 'tfill')} />
-        </Section>
-      )}
-      {n.type === 'textframe' && ed.doc.stories[n.storyId] && (
-        <Section id="text-colour" title="Text colour">
-          <PaintEditor paint={ed.doc.stories[n.storyId].style.fill} allowNone={false} onChange={(p) => editor.commit('Text colour', (d) => ({ ...d, stories: { ...d.stories, [n.storyId]: { ...d.stories[n.storyId], style: { ...d.stories[n.storyId].style, fill: p } } } }), 'sfill')} />
-        </Section>
-      )}
-      {hasStroke && (
-        <Section id="stroke" title="Stroke">
-          <StrokeEditor stroke={(n as { stroke: Stroke }).stroke} onChange={(s) => patchSel('Stroke', (m) => ('stroke' in m ? ({ ...m, stroke: s } as SceneNode) : m), 'stroke')} />
-        </Section>
-      )}
       {!multi && n.mask && (
         <Section id="mask" title="Mask">
           <div className="row">
@@ -228,3 +318,10 @@ export function PropertiesPanel() {
     </div>
   );
 }
+
+export const FIT_OPTIONS: { value: 'fill' | 'fit' | 'stretch' | 'none'; label: string; title: string }[] = [
+  { value: 'fill', label: 'Fill', title: 'Fill the frame (crops the image)' },
+  { value: 'fit', label: 'Fit', title: 'Fit inside the frame' },
+  { value: 'stretch', label: 'Stretch', title: 'Stretch to the frame' },
+  { value: 'none', label: 'Original', title: 'Original size' },
+];

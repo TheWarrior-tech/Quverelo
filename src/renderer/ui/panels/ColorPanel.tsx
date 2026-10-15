@@ -1,11 +1,6 @@
-import { useState } from 'react';
 import { setStoryStyle, updateNodes } from '../../../core/commands';
-import { solid } from '../../../core/document';
 import type { Paint, SceneNode } from '../../../core/types';
 import { editor } from '../../state/editor';
-import { useEditor } from '../hooks';
-import { PaintEditor } from '../ColorControls';
-import { FillStrokeChips } from '../color/Chips';
 
 /** Read the fill paint of a node (text colour for text). */
 export function nodeFill(n: SceneNode): Paint | null {
@@ -50,42 +45,4 @@ export function swapFillStroke(): void {
     const width = stroke.type !== 'none' && !n.stroke.width ? u.toolOptions.strokeWidth || 2 : n.stroke.width;
     return { ...n, fill, stroke: { ...n.stroke, paint: stroke, width } } as SceneNode;
   }));
-}
-
-const paintColor = (p: Paint | null, fallback: string) => (p && p.type === 'solid' ? p.color : p && (p.type === 'linear' || p.type === 'radial') ? p.stops[0]?.color ?? fallback : fallback);
-
-export function ColorPanel() {
-  const ed = useEditor();
-  const [target, setTarget] = useState<'fill' | 'stroke'>('fill');
-  const nodes = ed.selectedNodes();
-  const n = nodes[0];
-  const fillPaint: Paint = n ? nodeFill(n) ?? { type: 'none' } : ed.ui.fillEnabled ? solid(ed.ui.fillColor) : { type: 'none' };
-  const strokePaint: Paint = n ? ('stroke' in n ? n.stroke.paint : { type: 'none' }) : ed.ui.strokeEnabled ? solid(ed.ui.strokeColor) : { type: 'none' };
-  const paint = target === 'fill' ? fillPaint : strokePaint;
-  const onChange = (p: Paint) => {
-    if (p.type === 'solid') ed.setUi(target === 'fill' ? { fillColor: p.color, fillEnabled: true } : { strokeColor: p.color, strokeEnabled: true });
-    if (p.type === 'none' && !n) ed.setUi(target === 'fill' ? { fillEnabled: false } : { strokeEnabled: false });
-    if (n) {
-      if (target === 'fill') applyFillToSelection(p, 'colour-fill');
-      else applyStrokeToSelection(p, 'colour-stroke');
-    }
-  };
-  return (
-    <div className="colour-panel">
-      <div className="colour-head">
-        <FillStrokeChips
-          fill={{ color: paintColor(fillPaint, ed.ui.fillColor), enabled: fillPaint.type !== 'none' }}
-          stroke={{ color: paintColor(strokePaint, ed.ui.strokeColor), enabled: strokePaint.type !== 'none' }}
-          target={target}
-          onTarget={setTarget}
-          onSwap={swapFillStroke}
-        />
-        <div className="colour-head-text">
-          <span className="colour-target">{target === 'fill' ? 'Fill' : 'Stroke'}</span>
-          <span className="hint">{n ? (nodes.length > 1 ? `${nodes.length} objects` : n.name) : 'Default for new objects'}</span>
-        </div>
-      </div>
-      <PaintEditor paint={paint} onChange={onChange} allowNone={!(n?.type === 'text' && target === 'fill')} />
-    </div>
-  );
 }

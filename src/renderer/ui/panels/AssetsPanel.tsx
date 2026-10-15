@@ -4,6 +4,9 @@ import { centrePath, parsePath, transformPath } from '../../../core/path';
 import type { SceneNode } from '../../../core/types';
 import { editor } from '../../state/editor';
 import { useEditor } from '../hooks';
+import { Section } from '../controls/Panel';
+import { EmptyState } from '../controls/EmptyState';
+import { runCommand } from '../../state/commands';
 
 /** Built-in shape library (100×100 artboard). */
 export const SHAPES: { name: string; d: string; stroke?: boolean }[] = [
@@ -66,27 +69,34 @@ export function AssetsPanel() {
   const doc = ed.doc!;
   const images = Object.values(doc.assets).filter((a) => ed.assets.has(a.id));
   return (
-    <div>
-      <div className="section-title">Shapes & symbols</div>
-      <div className="asset-grid" style={{ marginBottom: 10 }}>
-        {SHAPES.map((s) => (
-          <button key={s.name} className="asset-tile" title={s.name} aria-label={`Insert ${s.name}`} onClick={() => insertShape(s)}>
-            <svg viewBox="-4 -4 108 108"><path d={s.d} fill={s.stroke ? 'none' : 'currentColor'} stroke="currentColor" strokeWidth={s.stroke ? 6 : 0} /></svg>
-          </button>
-        ))}
-      </div>
-      <div className="section-title">Images in this document</div>
-      {images.length === 0 && <p className="empty-note" style={{ padding: 4 }}>Placed images appear here for re-use.</p>}
-      <div className="asset-grid">
-        {images.map((a) => {
-          const c = ed.assets.get(a.id)!;
-          return (
-            <button key={a.id} className="asset-tile" title={a.name} aria-label={`Place ${a.name}`} onClick={() => placeAsset(a.id)}>
-              <img src={c.toDataURL('image/jpeg', 0.6)} alt="" />
+    <>
+      <Section id="lib-shapes" title="Shapes & symbols">
+        <div className="asset-grid">
+          {SHAPES.map((s) => (
+            <button key={s.name} className="asset-tile" title={s.name} aria-label={`Insert ${s.name}`} onClick={() => insertShape(s)}>
+              <svg viewBox="-4 -4 108 108"><path d={s.d} fill={s.stroke ? 'none' : 'currentColor'} stroke="currentColor" strokeWidth={s.stroke ? 6 : 0} /></svg>
             </button>
-          );
-        })}
-      </div>
-    </div>
+          ))}
+        </div>
+      </Section>
+      <Section id="lib-images" title={<>Images <span className="count num">{images.length}</span></>}>
+        {images.length === 0 ? (
+          <EmptyState icon="image" title="No images yet" actions={<button type="button" className="btn ghost sm" onClick={() => runCommand('file.place')}>Place image…</button>}>
+            Images you place or drop on the canvas collect here so you can reuse them.
+          </EmptyState>
+        ) : (
+          <div className="asset-grid">
+            {images.map((a) => {
+              const c = ed.assets.get(a.id)!;
+              return (
+                <button key={a.id} className="asset-tile" title={a.name} aria-label={`Place ${a.name}`} onClick={() => placeAsset(a.id)}>
+                  <img src={c.toDataURL('image/jpeg', 0.6)} alt="" />
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </Section>
+    </>
   );
 }

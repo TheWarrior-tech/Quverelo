@@ -33,6 +33,11 @@
   --e-2: 0 0 0 1px var(--c-line), 0 16px 48px rgba(0, 0, 0, 0.4);
   --dur: 120ms;
   --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+  /* shell geometry (DESIGN.md §5, v3) */
+  --w-tools: 44px;
+  --w-rail: 248px;
+  --w-inspector: 288px;
+  --h-top: 44px;
   /* type */
   --font-ui: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
@@ -458,83 +463,7 @@ kbd {
 
 /* ---------- workspace layout ---------- */
 
-.workspace {
-  display: grid;
-  grid-template-rows: auto auto 1fr auto;
-  grid-template-columns: auto 1fr auto;
-  grid-template-areas:
-    'top top top'
-    'ctx ctx ctx'
-    'tools canvas panels'
-    'status status status';
-  height: 100%;
-}
-.workspace.hide-panels {
-  grid-template-columns: auto 1fr 0;
-}
-.workspace.hide-panels .panels {
-  display: none;
-}
-
-.topbar {
-  grid-area: top;
-  /* three columns so the studio switch is truly centred and never shifts */
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  column-gap: 12px;
-  padding: 0 8px;
-  height: 44px;
-  background: var(--c-app);
-  border-bottom: 1px solid var(--c-line);
-}
-.topbar-side {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  min-width: 0;
-}
-.topbar-side.end {
-  justify-content: flex-end;
-}
-.topbar .sep {
-  width: 1px;
-  height: 16px;
-  background: var(--c-line-strong);
-  margin: 0 6px;
-}
-.topbar .spacer {
-  flex: 1;
-}
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 8px 0 2px;
-  min-width: 0;
-}
-.brand .logo {
-  width: 24px;
-  height: 24px;
-  flex: none;
-}
-.doc-title {
-  font-weight: 500;
-  color: var(--c-text);
-  max-width: 240px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.doc-title .dirty {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: var(--r-full);
-  background: var(--c-accent);
-  margin-left: 6px;
-  vertical-align: 1px;
-}
+/* workspace grid, top bar zones, rails: ui/shell.css (DESIGN.md §8 v3) */
 
 .studio-switch {
   display: flex;

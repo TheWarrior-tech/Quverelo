@@ -38,6 +38,8 @@ export interface UserSettings {
   autoDownloadUpdates: boolean;
   /** Update channel. Policy "updateChannel" overrides. */
   updateChannel: UpdateChannel;
+  /** Floating actions next to the canvas selection (Preferences ▸ Canvas). */
+  showSelectionToolbar: boolean;
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -51,6 +53,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   lastStudio: 'vector',
   autoDownloadUpdates: true,
   updateChannel: 'stable',
+  showSelectionToolbar: true,
 };
 
 export interface AppInfo {

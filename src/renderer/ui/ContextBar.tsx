@@ -1,7 +1,7 @@
-import { useState } from 'react';
 import { findNode } from '../../core/document';
 import { setStoryStyle, updateNode, updateNodes } from '../../core/commands';
 import { PX_PER } from '../../core/units';
+import { primaryFamily } from './fonts';
 import type { DocumentSettings, SceneNode, TextAlign, TextFrameNode, TextStyle } from '../../core/types';
 import { editor } from '../state/editor';
 import { runCommand } from '../state/commands';
@@ -11,31 +11,12 @@ import { toolLabel } from './Workspace';
 import { tip } from './tooltip';
 import { NumberField } from './controls/NumberField';
 import { ColorChipButton } from './color/Chips';
+import { Segmented } from './controls/Segmented';
+import { CtxHint } from './controls/CtxHint';
+import { FontPicker } from './controls/FontPicker';
+import { FIT_OPTIONS } from './panels/PropertiesPanel';
 
-export const BUNDLED_FONTS = ['Inter', 'Atkinson Hyperlegible', 'OpenDyslexic', 'Merriweather', 'Roboto Slab', 'Caveat'];
-export const SYSTEM_FONTS = ['Arial', 'Helvetica', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Georgia', 'Times New Roman', 'Garamond', 'Courier New', 'Comic Sans MS', 'Segoe UI', 'Calibri'];
-let localFonts: string[] = [];
-
-export function fontOptions(): string[] {
-  return [...new Set([...BUNDLED_FONTS, ...SYSTEM_FONTS, ...localFonts])];
-}
-
-export async function loadLocalFonts(): Promise<number> {
-  const q = (window as unknown as { queryLocalFonts?: () => Promise<{ family: string }[]> }).queryLocalFonts;
-  if (!q || !editor.feature('local-fonts')) return 0;
-  try {
-    const list = await q();
-    localFonts = [...new Set(list.map((f) => f.family))].sort();
-    editor.emit();
-    return localFonts.length;
-  } catch {
-    return 0;
-  }
-}
-
-export function primaryFamily(f: string): string {
-  return f.split(',')[0].replace(/["']/g, '').trim();
-}
+export { BUNDLED_FONTS, SYSTEM_FONTS, fontOptions, loadLocalFonts, primaryFamily } from './fonts';
 
 /** The text style currently being edited (selected text node / frame story), if any. */
 export function activeTextTarget(): { style: TextStyle; apply: (patch: Partial<TextStyle>) => void } | null {
@@ -63,24 +44,23 @@ function Slider({ label, value, min, max, step = 1, onChange, fmt }: { label: st
     <label className="group">
       {label}
       <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(parseFloat(e.target.value))} aria-label={label} />
-      <span className="num" style={{ width: 40, color: 'var(--c-text-2)' }}>{fmt ? fmt(value) : Math.round(value)}</span>
+      <span className="num ctx-value">{fmt ? fmt(value) : Math.round(value)}</span>
     </label>
   );
 }
 
 /** Document-unit number field: shows the user's display units, stores px. */
-function UnitNum({ label, title, px, onChange, width = 44 }: { label: string; title: string; px: number; onChange: (px: number) => void; width?: number }) {
+function UnitNum({ label, title, px, onChange }: { label: string; title: string; px: number; onChange: (px: number) => void }) {
   const u = editor.settings.units;
   const k = PX_PER[u];
   return (
-    <label className="group" title={title}>
-      <span className="field-label">{label}</span>
-      <input type="number" aria-label={title} value={Math.round((px / k) * 100) / 100} min={0} step={u === 'px' ? 1 : 0.5} style={{ width }} onChange={(e) => {
-        const v = parseFloat(e.target.value);
-        if (!Number.isNaN(v)) onChange(Math.max(0, v * k));
-      }} />
-    </label>
+    <NumberField className="ctx" label={label} ariaLabel={title} title={title} lengthUnit={u} digits={u === 'px' ? 0 : 2} step={u === 'px' ? 1 : 0.5} min={0} value={px / k} onChange={(v) => onChange(Math.max(0, v * k))} onCommit={(v) => onChange(Math.max(0, v * k))} />
   );
+}
+
+/** Integer count field (columns). */
+function CountNum({ label, title, value, onChange }: { label: string; title: string; value: number; onChange: (v: number) => void }) {
+  return <NumberField className="ctx" label={label} ariaLabel={title} title={title} digits={0} min={1} max={12} value={value} onChange={(v) => onChange(Math.round(v))} onCommit={(v) => onChange(Math.round(v))} />;
 }
 
 function setDocSettings(patch: Partial<DocumentSettings>, label: string, key: string) {
@@ -115,13 +95,7 @@ function LayoutPageControls() {
       </div>
       <div className="group">
         <UnitNum label="Bleed" title="Bleed" px={s.bleed} onChange={(v) => setDocSettings({ bleed: v }, 'Bleed', 'bleed')} />
-        <label className="group" title="Columns">
-          <span className="field-label">Columns</span>
-          <input type="number" aria-label="Columns" value={s.columns} min={1} max={12} step={1} style={{ width: 40 }} onChange={(e) => {
-            const v = parseInt(e.target.value, 10);
-            if (v >= 1 && v <= 12) setDocSettings({ columns: v }, 'Columns', 'columns');
-          }} />
-        </label>
+        <CountNum label="Columns" title="Columns" value={s.columns} onChange={(v) => setDocSettings({ columns: v }, 'Columns', 'columns')} />
         <UnitNum label="Gutter" title="Column gutter" px={s.columnGutter} onChange={(v) => setDocSettings({ columnGutter: v }, 'Gutter', 'gutter')} />
         <button className={`btn ${s.facingPages ? 'selected' : ''}`} aria-pressed={s.facingPages} title="Show pages as two-page spreads" onClick={() => setDocSettings({ facingPages: !s.facingPages }, 'Facing pages', 'facing')}><Icon name="pages" /> Facing pages</button>
       </div>
@@ -142,13 +116,7 @@ function TextFrameControls({ frames }: { frames: TextFrameNode[] }) {
   const linked = !!story && story.chain.length > 1;
   return (
     <div className="group" role="group" aria-label="Text frame">
-      <label className="group" title="Frame columns">
-        <span className="field-label">Columns</span>
-        <input type="number" aria-label="Frame columns" value={f.columns} min={1} max={12} step={1} style={{ width: 40 }} onChange={(e) => {
-          const v = parseInt(e.target.value, 10);
-          if (v >= 1 && v <= 12) set({ columns: v }, 'Frame columns', 'fcol');
-        }} />
-      </label>
+      <CountNum label="Columns" title="Frame columns" value={f.columns} onChange={(v) => set({ columns: v }, 'Frame columns', 'fcol')} />
       <UnitNum label="Gap" title="Column gap" px={f.columnGap} onChange={(v) => set({ columnGap: v }, 'Column gap', 'fgap')} />
       <UnitNum label="Inset" title="Text inset" px={f.padding} onChange={(v) => set({ padding: v }, 'Text inset', 'finset')} />
       <button className="icon-btn sm" {...tip('Link text frames')} title="Link frames: continue the story from the first selected frame into the second" disabled={frames.length !== 2} onClick={() => runCommand('text.link')}><Icon name="link" /></button>
@@ -167,13 +135,9 @@ export function TextControls() {
     if (patch.fontFamily) editor.setToolOptions({ fontFamily: patch.fontFamily });
     if (patch.fontSize) editor.setToolOptions({ fontSize: patch.fontSize });
   };
-  const [fontsLoaded, setFontsLoaded] = useState(false);
   return (
     <div className="group" data-keep-text-edit>
-      <select aria-label="Font" value={primaryFamily(style.fontFamily ?? 'Inter')} style={{ width: 160 }} onChange={(e) => apply({ fontFamily: e.target.value })} onFocus={async () => { if (!fontsLoaded) { setFontsLoaded(true); await loadLocalFonts(); } }}>
-        {fontOptions().map((f) => <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>)}
-        {!fontOptions().includes(primaryFamily(style.fontFamily ?? '')) && <option>{primaryFamily(style.fontFamily ?? '')}</option>}
-      </select>
+      <FontPicker value={primaryFamily(style.fontFamily ?? 'Inter')} onPreview={(f) => target?.apply({ fontFamily: f })} onCommit={(f) => apply({ fontFamily: f })} />
       <NumberField className="ctx" ariaLabel="Font size (pt)" label="Size" unit="pt" value={style.fontSize ?? 16} min={4} max={1000} onCommit={(v) => apply({ fontSize: v })} onChange={(v) => apply({ fontSize: v })} />
       <button className={`icon-btn sm ${style.fontWeight && style.fontWeight >= 600 ? 'active' : ''}`} {...tip('Bold')} aria-pressed={(style.fontWeight ?? 400) >= 600} onClick={() => apply({ fontWeight: (style.fontWeight ?? 400) >= 600 ? 400 : 700 })}><b>B</b></button>
       <button className={`icon-btn sm ${style.italic ? 'active' : ''}`} {...tip('Italic')} aria-pressed={!!style.italic} onClick={() => apply({ italic: !style.italic })}><i>I</i></button>
@@ -210,16 +174,24 @@ export function ContextBar() {
           <Slider label="Size" value={t === 'brush' ? o.brushSize : o.eraserSize} min={1} max={500} onChange={(v) => ed.setToolOptions(t === 'brush' ? { brushSize: v } : { eraserSize: v })} fmt={(v) => `${Math.round(v)}px`} />
           <Slider label="Hardness" value={o.brushHardness * 100} min={0} max={100} onChange={(v) => ed.setToolOptions({ brushHardness: v / 100 })} fmt={(v) => `${Math.round(v)}%`} />
           <Slider label="Opacity" value={o.brushOpacity * 100} min={1} max={100} onChange={(v) => ed.setToolOptions({ brushOpacity: v / 100 })} fmt={(v) => `${Math.round(v)}%`} />
-          {t === 'brush' && <label className="group">Colour <input type="color" value={ed.ui.fillColor.slice(0, 7)} onChange={(e) => ed.setUi({ fillColor: e.target.value })} aria-label="Brush colour" /></label>}
-          <span style={{ color: 'var(--text-faint)' }}>[ and ] change size · paints on the selected pixel layer (or creates one)</span>
+          {t === 'brush' && (
+            <div className="group">
+              <span className="ctx-label">Colour</span>
+              <ColorChipButton kind="fill" label="Brush" color={ed.ui.fillColor} enabled onChange={(c) => ed.setUi({ fillColor: c, fillEnabled: true })} />
+            </div>
+          )}
+          <CtxHint>[ and ] change size · paints on the selected pixel layer</CtxHint>
         </>
       )}
       {(t === 'marquee-rect' || t === 'marquee-ellipse' || t === 'lasso') && (
         <>
-          <div className="group choice-row" role="radiogroup" aria-label="Selection mode">
-            {(['new', 'add', 'subtract', 'intersect'] as const).map((m) => (
-              <button key={m} className={`btn ${o.selectionMode === m ? 'selected' : ''}`} role="radio" aria-checked={o.selectionMode === m} onClick={() => ed.setToolOptions({ selectionMode: m })}>{m[0].toUpperCase() + m.slice(1)}</button>
-            ))}
+          <div className="group">
+            <Segmented
+              ariaLabel="Selection mode"
+              value={o.selectionMode}
+              onChange={(m) => ed.setToolOptions({ selectionMode: m })}
+              options={(['new', 'add', 'subtract', 'intersect'] as const).map((m) => ({ value: m, label: m[0].toUpperCase() + m.slice(1) }))}
+            />
           </div>
           <div className="group">
             <button className="icon-btn sm" {...tip('Select all', 'select.all-pixels')} onClick={() => runCommand('select.all-pixels')}><Icon name="select-all" /></button>
@@ -233,12 +205,15 @@ export function ContextBar() {
           </div>
         </>
       )}
-      {t === 'crop' && <span style={{ color: 'var(--text-dim)' }}>Drag to set the crop area, then press Enter or double-click. Esc cancels.</span>}
+      {t === 'crop' && <CtxHint>Drag to set the crop area, then press Enter or double-click. Esc cancels.</CtxHint>}
       {t === 'fill' && (
         <>
           <Slider label="Tolerance" value={o.fillTolerance} min={0} max={255} onChange={(v) => ed.setToolOptions({ fillTolerance: v })} />
-          <label className="group">Colour <input type="color" value={ed.ui.fillColor.slice(0, 7)} onChange={(e) => ed.setUi({ fillColor: e.target.value })} aria-label="Fill colour" /></label>
-          <span style={{ color: 'var(--text-faint)' }}>Fills pixels on a pixel layer, or recolours a shape</span>
+          <div className="group">
+            <span className="ctx-label">Colour</span>
+            <ColorChipButton kind="fill" label="Flood fill" color={ed.ui.fillColor} enabled onChange={(c) => ed.setUi({ fillColor: c, fillEnabled: true })} />
+          </div>
+          <CtxHint>Fills pixels on a pixel layer, or recolours a shape</CtxHint>
         </>
       )}
       {t === 'rect' && (
@@ -266,25 +241,25 @@ export function ContextBar() {
             <ColorChipButton kind="stroke" label="Stroke" color={ed.ui.strokeColor} enabled={ed.ui.strokeEnabled} onChange={(c) => ed.setUi({ strokeColor: c, strokeEnabled: true })} onToggle={(on) => ed.setUi({ strokeEnabled: on })} />
             <NumberField className="ctx" label="W" ariaLabel="Stroke width (px)" unit="px" step={0.5} value={o.strokeWidth} min={0} max={200} onCommit={(v) => ed.setToolOptions({ strokeWidth: v })} onChange={(v) => ed.setToolOptions({ strokeWidth: v })} />
           </div>
-          <span className="ctx-hint">{t === 'pen' ? 'Click for corners, drag for curves, click the first point to close, Enter to finish' : 'Shift constrains · Alt draws from centre'}</span>
+          <CtxHint>{t === 'pen' ? 'Click: corner · drag: curve · click the first point to close · Enter finishes' : 'Shift constrains · Alt draws from centre'}</CtxHint>
         </>
       )}
       {layout && t === 'move' && sel.length === 0 && !ed.ui.editingTextId && <LayoutPageControls />}
       {(t === 'textframe' || t === 'move') && frames.length > 0 && <TextFrameControls frames={frames} />}
       {(t === 'text' || t === 'textframe' || (t === 'move' && textSelected)) && <TextControls />}
-      {t === 'textframe' && frames.length === 0 && <span>Drag to draw a text frame · select two frames and Link to flow a story between them</span>}
+      {t === 'textframe' && frames.length === 0 && <CtxHint>Drag to draw a text frame · link two frames to flow a story</CtxHint>}
       {t === 'node' && (
         <>
-          <span style={{ color: 'var(--text-dim)' }}>Drag nodes and handles · double-click a node to toggle smooth/corner · Delete removes a node · Alt breaks handles</span>
-          <button className="btn" onClick={() => runCommand('layer.convert-curves')} disabled={!sel.length}>Convert to curves</button>
+          <div className="group">
+            <button className="btn" onClick={() => runCommand('layer.convert-curves')} disabled={!sel.length}>Convert to curves</button>
+          </div>
+          <CtxHint title="Drag nodes and handles · double-click a node to toggle smooth/corner · Delete removes a node · Alt breaks handles">Drag nodes · double-click: smooth/corner · Alt breaks handles</CtxHint>
         </>
       )}
       {(t === 'imageframe' || (t === 'move' && frame)) && frame && frame.type === 'imageframe' && (
         <div className="group">
-          <label>Fit</label>
-          {(['fill', 'fit', 'stretch', 'none'] as const).map((f) => (
-            <button key={f} className={`btn ${frame.fit === f ? 'selected' : ''}`} onClick={() => ed.commit('Frame fit', (d) => updateNode(d, frame.id, { fit: f, contentX: 0, contentY: 0, contentScale: 1 } as Partial<SceneNode>))}>{f[0].toUpperCase() + f.slice(1)}</button>
-          ))}
+          <span className="ctx-label">Fit</span>
+          <Segmented ariaLabel="Frame fit" value={frame.fit} options={FIT_OPTIONS} onChange={(f) => ed.commit('Frame fit', (d) => updateNode(d, frame.id, { fit: f, contentX: 0, contentY: 0, contentScale: 1 } as Partial<SceneNode>))} />
           <button className="btn" onClick={() => runCommand('file.place')}><Icon name="image" /> Place…</button>
         </div>
       )}
@@ -298,9 +273,9 @@ export function ContextBar() {
           {sel.length >= 3 && <button className="icon-btn sm" {...tip('Distribute vertically')} onClick={() => runCommand('arrange.distribute-v')}><Icon name="distribute-v" /></button>}
         </div>
       )}
-      {t === 'eyedropper' && <span style={{ color: 'var(--text-dim)' }}>Click to pick a fill colour · Shift-click picks a stroke colour</span>}
-      {t === 'zoom' && <span style={{ color: 'var(--text-dim)' }}>Click to zoom in · Alt-click to zoom out · drag to zoom to an area</span>}
-      {t === 'hand' && <span style={{ color: 'var(--text-dim)' }}>Drag to pan · hold Space with any tool to pan</span>}
+      {t === 'eyedropper' && <CtxHint>Click picks a fill colour · Shift-click picks a stroke colour</CtxHint>}
+      {t === 'zoom' && <CtxHint>Click zooms in · Alt-click zooms out · drag zooms to an area</CtxHint>}
+      {t === 'hand' && <CtxHint>Drag to pan · hold Space with any tool to pan</CtxHint>}
     </div>
   );
 }
