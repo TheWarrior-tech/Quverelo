@@ -384,6 +384,50 @@ label.check {
   box-shadow: 0 0 0 2px var(--c-focus);
 }
 
+/* inline unit: the suffix follows the digits ("2×"), so it never sits where a clear-× lives */
+.nf.unit-inline input,
+.nf.unit-inline input[type='text'] {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 1ch;
+  field-sizing: content;
+  padding-right: 0;
+}
+.nf.unit-inline .nf-unit {
+  padding: 0 0 0 1px;
+  cursor: text;
+  pointer-events: auto;
+}
+.nf.unit-inline .nf-fill {
+  flex: 1;
+  align-self: stretch;
+  cursor: text;
+}
+/* trailing control inside the field's right edge (preset chevron) */
+.nf-trail {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-right: 2px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: var(--r-tile);
+  background: transparent;
+  color: var(--c-text-2);
+  cursor: default;
+}
+.nf-trail:hover,
+.nf-trail[aria-expanded='true'] {
+  background: var(--c-hover);
+  color: var(--c-text);
+}
+.nf-trail .icon {
+  width: 16px;
+  height: 16px;
+}
+
 /* ---------- slider row (label 88 · track · value 48) ---------- */
 
 .slider-row {
@@ -397,6 +441,14 @@ label.check {
 }
 .slider-row:last-child {
   margin-bottom: 0;
+}
+/* in a row that already names the value (Preferences, Export): track · 56px field */
+.slider-row.no-label {
+  grid-template-columns: minmax(0, 1fr) 56px;
+  margin-bottom: 0;
+}
+.slider-row.disabled input[type='range'] {
+  opacity: 0.4;
 }
 .slider-row > label {
   color: var(--c-text-2);
@@ -734,7 +786,9 @@ label.check {
   gap: 4px;
 }
 .cp-swatches {
-  grid-template-columns: repeat(auto-fill, 16px);
+  /* rows of ten: the default palette is a neutral ramp over ten hues */
+  grid-template-columns: repeat(10, 16px);
+  justify-content: space-between;
 }
 .swatch {
   --sw: transparent;

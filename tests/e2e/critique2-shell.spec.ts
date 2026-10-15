@@ -95,8 +95,9 @@ test.describe('critique 2: shell', () => {
     await page.keyboard.press('Escape');
     await page.getByRole('tab', { name: 'Layers' }).click();
     const row = page.locator('.layer-row').first();
-    await expect(row.locator('.name')).toHaveText('Open Evening at the…');
-    await expect(page.locator('.prop-name')).toHaveText('Open Evening at the…');
+    // the full words reach the row; only CSS truncates (critique 3 P2-16: never cut twice)
+    await expect(row.locator('.name')).toHaveText('Open Evening at the school');
+    await expect(page.locator('.prop-name')).toHaveText('Open Evening at the school');
     // the stored name is untouched until the user renames it
     expect(await state<string>(page, 'editor.doc.pages[0].nodes[0].name')).toBe('Text Frame');
     await row.focus();
