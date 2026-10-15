@@ -6,6 +6,7 @@ import { multiply, type Matrix } from '../../core/geometry';
 import { exportVectorPdf, type PdfImageData, type VectorPdfReport } from '../../core/pdfVector';
 import { bundledFaceFor } from '../../core/pdfFonts';
 import type { Id, QuvreloDocument, SceneNode } from '../../core/types';
+import { docPxPerInch, pdfPtPerPx } from '../../core/units';
 import type { AssetStore } from './assets';
 import { canvasToBytes, createCanvas, ctx2d } from './assets';
 import { artisticTextSize, drawNodeContent, drawNodeTransformed, drawPage, measureText, renderLocalBounds, storyFlow } from './draw';
@@ -77,8 +78,6 @@ export interface PdfExportOptions {
   onProgress?: (done: number, total: number) => void;
 }
 
-const PT_PER_PX = 72 / 96;
-
 export async function exportImagePdf(doc: QuvreloDocument, assets: AssetStore, o: PdfExportOptions): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   pdf.setTitle(doc.title);
@@ -88,8 +87,11 @@ export async function exportImagePdf(doc: QuvreloDocument, assets: AssetStore, o
   pdf.setModificationDate(new Date());
   const indices = o.pages === 'all' ? doc.pages.map((_, i) => i) : o.pages;
   const bleed = o.includeBleed ? doc.settings.bleed : 0;
-  const markLen = o.cropMarks ? 24 : 0; // px of slug for crop marks
-  const scale = o.dpi / 96;
+  // a px document's physical size comes from its Output DPI (CRITIQUE-4 P2-17)
+  const PT_PER_PX = pdfPtPerPx(doc.settings);
+  const pxScale = docPxPerInch(doc.settings) / 96;
+  const markLen = o.cropMarks ? 24 * pxScale : 0; // px of slug for crop marks
+  const scale = o.dpi / docPxPerInch(doc.settings);
   let done = 0;
   for (const i of indices) {
     const c = renderPageCanvas(doc, assets, { pageIndex: i, scale, includeBleed: o.includeBleed, transparent: false });
@@ -118,7 +120,7 @@ export async function exportImagePdf(doc: QuvreloDocument, assets: AssetStore, o
     page.node.set(PDFName.of('BleedBox'), pdf.context.obj([markLen * PT_PER_PX, markLen * PT_PER_PX, (markLen + wPx) * PT_PER_PX, (markLen + hPx) * PT_PER_PX]));
     if (o.cropMarks) {
       const [x0, y0, x1, y1] = trim;
-      const off = (bleed + 4) * PT_PER_PX;
+      const off = (bleed + 4 * pxScale) * PT_PER_PX;
       const len = 14;
       const line = (ax: number, ay: number, bx: number, by: number) =>
         page.drawLine({ start: { x: ax, y: ay }, end: { x: bx, y: by }, thickness: 0.3 });

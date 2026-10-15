@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { resizeDocument } from '../../../core/commands';
-import { UNITS, UNIT_NAMES, UNIT_STEP, lengthIn, toPx } from '../../../core/units';
+import { UNITS, UNIT_NAMES, UNIT_STEP, formatSize, lengthIn, pixelsAt, toPx } from '../../../core/units';
 import type { Unit } from '../../../core/types';
 import { editor } from '../../state/editor';
 import { closeDialog } from '../../state/bus';
@@ -88,7 +88,7 @@ export function DocumentSetupDialog() {
             <NumberInput label="Column gutter" prefix="Gutter" unit={unit} value={gutter} min={0} step={step} onChange={setGutter} />
           </div>
         </Field>
-        <Field label="Output DPI" htmlFor="ds-dpi">
+        <Field label="Output DPI" htmlFor="ds-dpi" hint={unit === 'px' ? `Raster exports and the PDF page size: ${formatSize(toPx(w, unit) * 96 / dpi, toPx(h, unit) * 96 / dpi, 'mm')} at ${dpi} dpi` : `Raster exports: ${pixelsAt(toPx(w, unit), dpi)} × ${pixelsAt(toPx(h, unit), dpi)} px at ${dpi} dpi`}>
           <NumberInput id="ds-dpi" label="Output DPI" unit="dpi" value={dpi} min={72} max={1200} step={1} onChange={(v) => setDpi(Math.round(v))} />
         </Field>
         <Field label="Background">

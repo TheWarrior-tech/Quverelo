@@ -96,13 +96,15 @@ test.describe('critique 3: UI', () => {
     await expect(page.getByTestId('status-size')).toHaveText('210 × 297 mm');
   });
 
-  test('N1: a photo stays in px; its PDF page size is physical', async () => {
+  test('N1 / P2-17: a photo stays in px; its PDF page size comes from its Output DPI', async () => {
     L = await launch({ QUVRELO_E2E_OPEN: photo });
     const { page } = L;
     await openPhoto(page);
     await expect(page.getByTestId('status-size')).toHaveText('1264 × 848 px');
     await run(page, 'file.export-pdf');
-    await expect(page.getByTestId('export-dims')).toHaveText('334.4 × 224.4 mm');
+    // 1264 × 848 px at the document's 300 dpi (CRITIQUE-4 P2-17), not 96 px/in
+    await expect(page.getByTestId('export-dims')).toHaveText('107 × 71.8 mm');
+    await expect(page.getByTestId('export-dims')).toHaveAttribute('data-tip', '303 × 204 pt');
     await page.keyboard.press('Escape');
   });
 

@@ -26,6 +26,7 @@ import { nodeToPath } from './document';
 import { lineHeightPx, type FlowResult, type MeasureFn } from './textflow';
 import { baselineOffset, imageFrameContentRect } from './svg';
 import { firstFamily } from './pdfFonts';
+import { docPxPerInch, pdfPtPerPx } from './units';
 import type { BlendMode, Id, Paint, PathCommand, QuvreloDocument, SceneNode, Stroke, TextStyle } from './types';
 
 export interface PdfFontFace {
@@ -80,7 +81,6 @@ export interface VectorPdfReport {
   rasterised: { name: string; reason: string }[];
 }
 
-const PT_PER_PX = 72 / 96;
 const MARK_PX = 24;
 
 // ---------------------------------------------------------------------------
@@ -481,7 +481,7 @@ async function writeText(
 
 /** Place the canvas rendering of a node's content (local space) as an image. */
 async function writeRasterised(pw: PageWriter, w: Writer, n: SceneNode, g: Gfx, reason: string): Promise<void> {
-  const ppu = w.opts.fallbackDpi / 96;
+  const ppu = w.opts.fallbackDpi / docPxPerInch(w.doc.settings);
   const r = await w.hooks.rasterise(n, ppu);
   w.report.rasterised.push({ name: n.name || n.type, reason });
   if (!r) return;
@@ -629,7 +629,10 @@ export async function exportVectorPdf(
   const w = new Writer(pdf, doc, hooks, opts);
   const { width, height, background } = doc.settings;
   const bleed = opts.includeBleed ? doc.settings.bleed : 0;
-  const mark = opts.cropMarks ? MARK_PX : 0;
+  // page size from the document's own scale: 96 px/in for print units, Output DPI for a px document
+  const PT_PER_PX = pdfPtPerPx(doc.settings);
+  const pxScale = docPxPerInch(doc.settings) / 96;
+  const mark = opts.cropMarks ? MARK_PX * pxScale : 0;
   for (const i of opts.pages) {
     const page = doc.pages[i];
     if (!page) continue;
@@ -665,7 +668,7 @@ export async function exportVectorPdf(
     p.node.set(PDFName.of('BleedBox'), pdf.context.obj([mark * PT_PER_PX, mark * PT_PER_PX, (mark + wPx) * PT_PER_PX, (mark + hPx) * PT_PER_PX]));
     if (opts.cropMarks) {
       const [x0, y0, x1, y1] = trim;
-      const off = (bleed + 4) * PT_PER_PX;
+      const off = (bleed + 4 * pxScale) * PT_PER_PX;
       const len = 14;
       pw.push('q 0 0 0 RG 0.3 w 0 J [] 0 d');
       for (const [x, sx] of [[x0, -1], [x1, 1]] as const) {

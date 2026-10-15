@@ -55,7 +55,7 @@ function xobjects(pdf: PDFDocument, i = 0): number {
 
 describe('vector PDF', () => {
   it('writes shapes, gradients, masks and text as vectors with an embedded font', async () => {
-    let d = createDocument({ settings: { width: 400, height: 300, background: '#ffffff' } });
+    let d = createDocument({ settings: { width: 400, height: 300, background: '#ffffff', dpi: 96 } });
     d = addNodes(d, d.pages[0].id, [
       make.rect({ x: 50, y: 50, w: 80, h: 40, fill: solid('#ff0000'), stroke: { paint: solid('#000000'), width: 2, dash: [4, 2], cap: 'round', join: 'bevel' } }),
       make.ellipse({ x: 150, y: 50, opacity: 0.5, blend: 'multiply', fill: { type: 'linear', angle: 0, stops: [{ offset: 0, color: '#000' }, { offset: 0.5, color: '#f00' }, { offset: 1, color: '#fff' }] }, mask: { d: [['M', 0, 0], ['L', 10, 0], ['L', 10, 10], ['Z']], inverted: true, enabled: true } }),
@@ -107,7 +107,7 @@ describe('vector PDF', () => {
   });
 
   it('embeds pixel layers once, writes page ranges, bleed boxes and crop marks', async () => {
-    let d = createDocument({ settings: { width: 200, height: 100, bleed: 10 } });
+    let d = createDocument({ settings: { width: 200, height: 100, bleed: 10, dpi: 96 } });
     d = { ...d, pages: [...d.pages, { ...d.pages[0], id: 'p2', name: 'Page 2' }, { ...d.pages[0], id: 'p3', name: 'Page 3' }] };
     const raster = { ...make.rect(), type: 'raster', assetId: 'a1', adjustments: [], w: 50, h: 50 } as unknown as SceneNode;
     d = addNodes(d, d.pages[0].id, [raster, { ...raster, id: 'r2', x: 120 } as SceneNode]);
@@ -123,6 +123,22 @@ describe('vector PDF', () => {
     expect(trim[2] - trim[0]).toBeCloseTo(150);
     expect(ops[0]).toMatch(/ m .* l S/);
     expect(ops[0]).toMatch(/\/Im\d+ Do/);
+  });
+});
+
+describe('PDF page size', () => {
+  it('sizes a px document by its Output DPI and a print document at 96 px/in (CRITIQUE-4 P2-17)', async () => {
+    const photo = createDocument({ settings: { width: 1264, height: 848, unit: 'px', dpi: 300 } });
+    let r = await exportVectorPdf(photo, { pages: [0], includeBleed: false, cropMarks: false, fallbackDpi: 300 }, hooks(photo));
+    let pg = (await contents(r.bytes)).pdf.getPages()[0];
+    // 1264 px at 300 dpi = 4.2133 in = 303.36 pt = 107 mm
+    expect(pg.getWidth()).toBeCloseTo(303.36, 1);
+    expect(pg.getHeight()).toBeCloseTo(203.52, 1);
+    const a4 = createDocument({ settings: { width: (210 * 96) / 25.4, height: (297 * 96) / 25.4, unit: 'mm', dpi: 300 } });
+    r = await exportVectorPdf(a4, { pages: [0], includeBleed: false, cropMarks: false, fallbackDpi: 300 }, hooks(a4));
+    pg = (await contents(r.bytes)).pdf.getPages()[0];
+    expect(pg.getWidth()).toBeCloseTo(595.3, 0);
+    expect(pg.getHeight()).toBeCloseTo(841.9, 0);
   });
 });
 
