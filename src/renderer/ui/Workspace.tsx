@@ -22,7 +22,9 @@ import { SelectionToolbar } from './SelectionToolbar';
 import { openDialog, toast } from '../state/bus';
 import { enabledExportFormats, exportFormatFor, lastExportFor } from '../state/io';
 import { Menu, type MenuEntry } from './controls/Menu';
-import { shortcutFor } from './tooltip';
+import { accelFor, shortcutFor } from './tooltip';
+import { openPalette } from '../state/palette';
+import { Keys } from './dialogs/controls';
 
 export { toolLabel } from './ToolFlyout';
 
@@ -110,8 +112,25 @@ function DocIdentity() {
 }
 
 /**
+ * Visible entry point to the command palette (critique 2 P1-9, MOBBIN
+ * "command surfaces as inline controls"): a quiet field-like button reading
+ * "Search commands" with its Ctrl K keycaps. Collapses to an icon below 1280px.
+ */
+function CommandSearch() {
+  const accel = accelFor('help.command-palette') ?? 'CmdOrCtrl+K';
+  const t = tip('Search commands', 'help.command-palette');
+  return (
+    <button type="button" className="topbar-search" aria-label="Search commands" aria-haspopup="dialog" aria-keyshortcuts={t['aria-keyshortcuts']} data-tip={t['data-tip']} data-keys={t['data-keys']} onClick={() => openPalette()}>
+      <Icon name="search" />
+      <span className="topbar-search-label">Search commands</span>
+      <span className="topbar-search-keys" aria-hidden="true"><Keys combo={accel} /></span>
+    </button>
+  );
+}
+
+/**
  * Top bar in three semantic zones (DESIGN.md §8 v3, MOBBIN #4):
- * document identity | studio switch + tools | outbound actions, with Export as
+ * document identity + undo/redo/place | studio switch | search + outbound actions, with Export as
  * the single filled (primary) button in the bar.
  */
 function Topbar() {
@@ -121,15 +140,17 @@ function Topbar() {
     <header className="topbar" role="toolbar" aria-label="Main toolbar">
       <div className="topbar-zone identity">
         <DocIdentity />
-      </div>
-      <div className="topbar-zone centre">
-        <StudioSwitch />
         <span className="sep" aria-hidden="true" />
         <button className="icon-btn" {...tip('Undo', 'edit.undo')} disabled={!h?.canUndo} onClick={() => runCommand('edit.undo')}><Icon name="undo" /></button>
         <button className="icon-btn" {...tip('Redo', 'edit.redo')} disabled={!h?.canRedo} onClick={() => runCommand('edit.redo')}><Icon name="redo" /></button>
         {ed.feature('import-images') && <button className="icon-btn" {...tip('Place image…', 'file.place')} onClick={() => runCommand('file.place')}><Icon name="image" /></button>}
       </div>
+      {/* the centre column holds only the studio switch, so it sits on the window's centre line */}
+      <div className="topbar-zone centre">
+        <StudioSwitch />
+      </div>
       <div className="topbar-zone actions">
+        <CommandSearch />
         <button className="icon-btn" {...tip('Open…', 'file.open')} onClick={() => runCommand('file.open')}><Icon name="open" /></button>
         <button className="icon-btn" {...tip('Save', 'file.save')} onClick={() => runCommand('file.save')}><Icon name="save" /></button>
         <button className="icon-btn" {...tip('Keyboard shortcuts', 'help.shortcuts')} onClick={() => runCommand('help.shortcuts')}><Icon name="keyboard" /></button>
