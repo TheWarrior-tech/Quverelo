@@ -6,6 +6,14 @@ Side-by-side boards of a **Mobbin reference** (left) against a **Quvrelo capture
 
 ## Regenerate
 
+The capture set comes from three gated specs writing into one folder (all three themes):
+
+```sh
+QUVRELO_REVIEW_DIR=/workspace/work/review-v5 xvfb-run -a npx playwright test design-review review-captures review-extra
+```
+
+`review-extra.spec.ts` adds the unobstructed `layers` frame and the 150 % / 200 % screens (`<theme>-<screen>@150.png`).
+
 ```sh
 # 1. Fetch the references (once) and build light boards
 python3 scripts/compare-boards.py --fetch
@@ -29,7 +37,7 @@ Needs Python 3 + Pillow (`pip install pillow`) and `curl` for `--fetch`. Capture
 | editor-shell | Editor shell | Figma: Design Interface | `layout-mm` |
 | tool-rail | Tool rail (zoomed) | Figma: Design Interface, bottom toolbar | `layout-mm` (left rail) |
 | inspector | Inspector | Framer: Design Canvas (embed selected) | `vector` |
-| layers | Layers panel | Framer: Layer Editor | `tooltip` (populated poster; tooltip overlaps one row) |
+| layers | Layers panel | Framer: Layer Editor | `layers` (populated poster, unobstructed; from `review-extra.spec.ts`) |
 | command-palette | Command palette | Linear: Command menu | `palette` |
 | modal-export | Export dialog | Figma: Export Tutorial | `export` |
 | modal-new | New-file dialog | Linear: New Issue Dialog | `new` |

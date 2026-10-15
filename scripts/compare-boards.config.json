@@ -62,7 +62,7 @@
     {
       "id": "layers",
       "title": "Layers panel",
-      "note": "Tree list with type icons and nesting. (Quvrelo capture: populated poster, a tool tooltip overlaps one row.)",
+      "note": "Tree list with type icons and nesting. (Quvrelo capture: populated poster, Layers tab, nothing over the rows.)",
       "ref": {
         "mobbin": "080ef869-43fd-4f1a-b8d8-b8d4224c1f35",
         "app": "Framer",
@@ -74,7 +74,7 @@
         0.17,
         0.55
       ],
-      "quvrelo": "tooltip",
+      "quvrelo": "layers",
       "quvrelo_crop": [
         0.0,
         0.03,
