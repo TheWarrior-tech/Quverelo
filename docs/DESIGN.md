@@ -43,12 +43,15 @@ Neutrals are near-grey with ~0 chroma so photography never fights the chrome. Th
 | `--c-accent-hover` | `#58d3c0` | `#096558` | `#ffe766` | |
 | `--c-accent-ink` | `#06231e` | `#ffffff` | `#000` | text on solid accent |
 | `--c-accent-wash` | accent 14 % | accent 12 % | accent 25 % | selected row fill |
+| `--c-accent-wash-strong` | accent 32 % | accent 24 % | `#ffd400` | text selection (`::selection`), never the OS blue |
+| `--c-selection-ink` | `#ececed` | `#18191b` | `#000` | text on `--c-accent-wash-strong` |
+| `--c-seg-track` · `--c-seg-on` · `--c-seg-ring` | see §8 Segmented | | | segmented control |
 | `--c-focus` | `#58d3c0` | `#096558` | `#ffd400` | 2px focus ring, offset 1px |
 | `--c-danger` | `#ff6b6b` | `#c92a2a` | `#ff8080` | destructive text/icons only |
 
-Contrast (WCAG 2.2 AA minimum, checked): text on panel ≥ 12:1; text-2 ≥ 7:1; text-3 ≥ 4.5:1; accent-ink on accent ≥ 7:1; accent as text on panel ≥ 4.5:1; focus ring, accent fills and `--c-line-strong` boundaries ≥ 3:1 on every surface. `--c-line` hairlines are decorative and exempt. Enforced by `npm run audit:contrast` (scripts/contrast-audit.mjs, also run by vitest) for all three themes — change a token, run it.
+Contrast (WCAG 2.2 AA minimum, checked; also selected text on the selection wash, and the segmented active tile against its track): text on panel ≥ 12:1; text-2 ≥ 7:1; text-3 ≥ 4.5:1; accent-ink on accent ≥ 7:1; accent as text on panel ≥ 4.5:1; focus ring, accent fills and `--c-line-strong` boundaries ≥ 3:1 on every surface. `--c-line` hairlines are decorative and exempt. Enforced by `npm run audit:contrast` (scripts/contrast-audit.mjs, also run by vitest) for all three themes — change a token, run it.
 
-Canvas overlays (selection, handles, hover, guides) use accent `#2fb8a6` for selection and hover, coral `#ff6b4a` for snapping and margins, cyan for ruler guides, so they stay legible on photographs. Handles are solid accent with a 1px white ring, so they read on dark, light and photographic content alike.
+Canvas overlays (selection, handles, hover, guides) use accent `#2fb8a6` for selection and hover, coral `#ff6b4a` for snapping and margins, cyan for ruler guides, so they stay legible on photographs. Handles are solid accent with a 1px white ring, so they read on dark, light and photographic content alike. The selection colours are tokens the viewport reads from CSS on every theme change (`engine/controls.ts` `readOverlayColors`): `--c-canvas-selection`, `--c-canvas-handle`, `--c-canvas-handle-ring` = `#2fb8a6` / `#2fb8a6` / `#fff` in dark and light, and `#ffd400` / `#ffd400` / `#000` in high contrast, so canvas selection is yellow like every other high-contrast selection.
 
 ## 4. Type
 
@@ -67,13 +70,15 @@ Features: `"cv11" "ss03"` off; `"tnum" "calt"` on for numerals; tracking −0.00
 
 Weights: 400 body, 500 labels/controls in active state, 600 titles. Never 700+.
 
+**Case.** Sentence case for every string Quvrelo draws: buttons, dialog titles, tabs, headings, labels, tooltips, tool names, toasts (“Document setup…”, “Check for updates”, “Don't save”, “Rectangle marquee”). Two exceptions: native menu items keep platform Title Case (`shared/menu.ts`), and so do the command-palette rows that mirror them and any text that quotes a menu item as a path (“File › Place Image”); proper nouns (Quvrelo, font and platform names, keys) keep their capitals. Micro-labels are uppercase by CSS, never typed in capitals. Enforced by `tests/unit/sentenceCase.test.ts` over `ui/` and the UI-facing `state/` modules.
+
 ## 5. Space, size, grid
 
 4px base; allowed steps 4 · 8 · 12 · 16 · 24 · 32 · 48. Control heights: `24` (compact: panel inputs, segmented, small buttons), `28` (default buttons, top bar), `32` (dialog actions). Tool rail buttons `32×32` on a `44px` rail. Panel row height `28`, layer row `28`. Top bar `44` (`--h-top`), context bar `36`, status bar `24`. Shell columns (v3): tool rail `44` (`--w-tools`) · left rail `248` (`--w-rail`) · canvas · inspector `288` (`--w-inspector`). The rails run full height between top bar and status bar; the context bar sits over the canvas column only. All hairlines are 1 device-independent px drawn as `box-shadow`/`border` so they stay crisp at 150 %/200 %.
 
 ## 6. Radius, elevation, motion
 
-- Radius: `--r-1: 4px` (buttons, inputs, rows, tiles) · `--r-2: 8px` (dialogs, popovers, cards, thumbnails) · `--r-full: 999px` (knobs, count pills). One derived value, `--r-tile: calc(var(--r-1) - 1px)`, for tiles inset inside a 4px track (segmented controls) and checkboxes. No literal radii anywhere else.
+- Radius: `--r-1: 4px` (buttons, inputs, rows, tiles) · `--r-2: 8px` (dialogs, popovers, cards, thumbnails) · `--r-full: 999px` (knobs, count pills). One derived value, `--r-tile: calc(var(--r-1) - 1px)`, for tiles inset inside a 4px track (segmented controls) and checkboxes, and `--r-hairline: 1px` for 2px tracks, ticks and insertion bars (slider track, checklist progress, layer drop line, orientation glyph, spread page corners). No literal radii anywhere else (`tests/unit/shellLint.test.ts` rejects a px `border-radius` outside the tokens).
 - Elevation: `--e-0` none · scroll edges (the one exception on resting chrome): a hairline plus a short soft shade appears at the top/bottom of a scrolling panel only while content is hidden past that edge · `--e-1` popover `0 0 0 1px line, 0 4px 16px rgba(0,0,0,.28)` · `--e-2` dialog `0 0 0 1px line, 0 16px 48px rgba(0,0,0,.4)`.
 - Motion: `--dur: 120ms`, `--ease: cubic-bezier(.2,.7,.3,1)`. Allowed: background/colour/opacity fades, 4px toast slide, dialog 4px rise. No bouncing, no scaling on hover.
 
@@ -115,11 +120,19 @@ Icon buttons: use `tip(label, commandId | key)` from `ui/tooltip.ts` — `aria-l
 5. The object's own section last (Rectangle radius, Polygon sides, Star points/inner, Text frame columns + frame fill + linking, Picture frame fit/zoom/offset/replace, Pixels), then Mask.
 Nothing selected: Document (title, size, pages, background chip) and *New objects* (default fill/stroke rows). Rows use a 56px label column; sections are flat with a micro-label disclosure (remembered per section), hairline between, and a section you expand scrolls itself into view.
 
-**Colour control (one everywhere).** `ColorChipButton` is the only colour trigger in the shell: a 20px chip (optionally with a chevron in the context bar) that opens the shared picker in a popover. The inspector's `PaintRow` is chip · hex field · add/remove; its chip opens the full paint editor (None · Solid · Linear · Radial + picker) to the *left* of the inspector so it never covers the panel. Context bar (shape tools, brush, flood fill), selection toolbar and document background all use it. No native `<input type="color">` anywhere in the shell.
+**Colour control (one everywhere).** `ColorChipButton` is the only colour trigger in the shell: a 20px chip (optionally with a chevron in the context bar) that opens `ColorPopoverBody` in a popover. There is one popover body: title, then the paint-type tabs **None · Solid · Linear · Radial** as the first row (always all four, in that order), then the picker (Solid) or the gradient editor. A target that can't take a type (brush and flood fill: no None, no gradients; text: no None; document background: no gradients) shows that tab disabled with a tooltip, never hidden, so the body is identical in the inspector, context bar, selection toolbar, tool rail and Document section. No "None" checkbox anywhere. The chip takes a `Paint` and returns a `Paint`; defaults for new objects are read and written through `state/uiPaint.ts`, so a default fill or stroke can be a gradient too. The inspector's `PaintRow` is chip · hex field · add/remove; its chip opens to the *left* of the inspector so it never covers the panel. No native `<input type="color">` anywhere in the shell.
 
 **Layers.** Header 36: blend select · Opacity number field (scrub label). Row 28, full bleed: 16px indent per group level, chevron twisty, 24×20 thumbnail (4px radius, hairline; vector thumbnails tint the type glyph with the fill), name (12), status icons (mask, live adjustments) in `text-3`, then lock/eye toggles that appear on hover, keyboard focus or selection, and stay visible while they carry state (hidden, locked). Rows are inset 4px with a 4px radius. Hover = `--c-hover` fill only; selected = accent-wash fill + 2px inset accent bar + name at 500 (hover on a selected row keeps the wash, never the grey hover). Hovering a row draws the hover outline on the canvas. High contrast = black fill + 2px yellow inset outline when selected, 1px white outline on hover, no washes. Photo keeps the blend · opacity header (36); Vector and Layout edit those in the inspector. **Empty state:** a teaching block, never a bare line: 32px glyph tile, “No layers yet” (13/600), one line on what lives here, then ghost actions *Place image* · *Draw a shape* (Photo: *Paint*) · *Add text*, and “Or drop an image file onto the canvas.” in `text-3`. Drag: the dragged row dims, insertion = 2px accent line with a 6px ring at its start, above or below the hovered row. Keyboard: ↑/↓ move focus, ←/→ collapse/expand, Enter selects, F2 renames, Alt+↑/↓ reorders, Alt+H toggles visibility. Footer actions are 24×24 icon buttons.
 
-**Segmented control (shared).** `ui/controls/Segmented.tsx` is the one implementation (radio group, roving focus, arrows move and select; optional icon-only segments with an accessible name; disabled segments skipped). `sm` = 24 track / 20 tiles, `md` = 28 / 22. Used for paint type, colour model, selection mode, frame fit, curves channel.
+**Segmented control (shared).** `ui/controls/Segmented.tsx` is the one implementation (radio group, roving focus, arrows move and select; optional icon-only segments with an accessible name; disabled segments skipped; `disabled` locks the whole group). `sm` = 24 track / 20 tiles (panels, context bar, colour picker), `md` = 28 / 24 (dialogs, via the `dialogs/controls.tsx` adapter, which only sets the size). Used for every one-of-few choice: paint type, colour model, selection mode, frame fit, dialog options (orientation, background, update channel, resize mode, export pages/background). There is no other segmented style (`.seg` and context-bar `.choice-row` are gone; `tests/unit/shellLint.test.ts` guards it; the Curves channel switch is the last `.choice-row` and moves with its own rework). Tokens: track `--c-seg-track` with a `--c-line` hairline; active tile `--c-seg-on` + 1px `--c-seg-ring`, label `--c-seg-on-text` at 500.
+
+| | Dark | Light | High contrast |
+|---|---|---|---|
+| track | `#1e1f21` | black 6 % | `#000` + 1px white |
+| active tile | `#222326` + 1px white 34 % ring | `#fff` + 1px black 43 % ring | `#ffd400` fill, black label |
+| disabled | 40 % opacity | 40 % opacity | no opacity: label `text-3`; active = black tile, 1px dashed white outline |
+
+Disabled never means translucent accent. The contrast audit checks that the active tile differs from the track (fill ≥ 1.4:1 or ring ≥ 3:1) on panels and in dialogs, in all three themes.
 
 **Context-bar hint (`CtxHint`).** One quiet line in `text-3`, ≤ 60 characters, pattern “Drag to … · Shift …”, truncates with an ellipsis (full text in the tooltip) and hides below 1280px. Never a coloured span.
 
@@ -162,6 +175,8 @@ Nothing selected: Document (title, size, pages, background chip) and *New object
 **Menus.** `role="menu"`, `--c-popover`, `--e-1`, 4px padding, 28px rows (13px label, optional 11px `text-3` detail line, shortcut right in 11px `text-3`), hairline separators, micro-label headings; icon column only when an item has an icon. ↑/↓/Home/End, Enter, Esc returns focus to the anchor.
 
 **Scrollbars.** Themed everywhere: 10px hit area, 6px thumb in `--c-line-strong` (hover `text-3`), transparent track.
+
+**New document presets.** Grid of 124px-min tiles: page thumbnail on pasteboard tone (84 high), name 12/500, meta 11 `text-3`. Every page is drawn as paper in every theme: `#fff` at 88 % opacity with a 1px `--c-line-strong` edge, never a grey slab. Selection is the tile's accent-wash fill and 1px accent outline only; the selected page goes to full opacity and shows its margins as a faint coral inset (`#ff6b4a` at 60 %).
 
 **Export / preferences.** Dialog with a left list (grouped, 4px-radius active row) and a form on the right; labels 12 `text-2`; dividers hairline; preview thumbnail on pasteboard tone with filename + dimensions as tabular text.
 

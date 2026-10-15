@@ -51,7 +51,7 @@ export function ShortcutsDialog() {
     .map((g) => ({ ...g, items: q ? g.items.filter((i) => `${i.label} ${i.keys}`.toLowerCase().includes(q)) : g.items }))
     .filter((g) => g.items.length);
   return (
-    <Dialog title="Keyboard Shortcuts" size="xl" split footer={<button className="btn primary" onClick={closeDialog}>Done</button>}>
+    <Dialog title="Keyboard shortcuts" size="xl" split footer={<button className="btn" onClick={closeDialog}>Done</button>}>
       <nav className="dlg-side" aria-label="Shortcut groups">
         <input type="search" className="sc-search" placeholder="Search shortcuts" aria-label="Search shortcuts" value={query} onChange={(e) => setQuery(e.target.value)} data-autofocus />
         <button className="nav-item" aria-current={!q && active === 'all'} onClick={() => { setActive('all'); setQuery(''); }}>
@@ -98,27 +98,27 @@ export function ShortcutsDialog() {
 
 export function GuideDialog() {
   return (
-    <Dialog title="Quick Start Guide" size="lg" footer={<button className="btn primary" onClick={closeDialog}>Done</button>}>
+    <Dialog title="Quick start guide" size="lg" footer={<button className="btn" onClick={closeDialog}>Done</button>}>
       <div className="guide">
         <p>Quvrelo is one app with three <b>studios</b>. They all work on the same document, so you can switch at any time with the switch at the top of the window (or Ctrl/⌘ + Alt + 1, 2, 3).</p>
         <h3>Photo studio</h3>
         <ul>
           <li>Open a JPG, PNG or WebP, or place one with File › Place Image. Each photo becomes a <b>pixel layer</b>.</li>
           <li>Paint with the Brush (B) and Eraser (E). Use [ and ] to change the brush size.</li>
-          <li>Select areas with the Marquee (M) or Freehand Selection (L). Hold Shift to add, Alt to subtract.</li>
+          <li>Select areas with the Marquee (M) or Freehand selection (L). Hold Shift to add, Alt to subtract.</li>
           <li>Add <b>live adjustments</b> (Brightness/Contrast, Levels, Hue/Saturation, Black &amp; White…) and filters in the Adjustments panel. They stay editable until you apply them.</li>
           <li>Crop with the Crop tool (C): drag an area and press Enter.</li>
         </ul>
         <h3>Vector studio</h3>
         <ul>
           <li>Draw rectangles, ellipses, polygons, stars and lines. Shift keeps proportions; Alt draws from the centre.</li>
-          <li>The Pen (P) draws curves: click for corners, drag for smooth points, click the first point to close.</li>
+          <li>Draw curves with the Pen (P): click for corners, drag for smooth points, click the first point to close.</li>
           <li>Edit any shape's points with the Node tool (A). Double-click a point to switch between smooth and corner.</li>
-          <li>Combine shapes with the Boolean buttons (Add, Subtract, Intersect, Exclude, Divide).</li>
+          <li>Combine shapes with the Boolean menu (Add, Subtract, Intersect, Exclude, Divide).</li>
         </ul>
         <h3>Layout studio</h3>
         <ul>
-          <li>Drag with the Frame Text tool (X) to make a text box. Text that doesn't fit shows an overflow marker; select two frames and choose <b>Link frames</b> to flow it on.</li>
+          <li>Drag with the Frame text tool (X) to make a text box. Text that doesn't fit shows an overflow marker; select two frames and choose <b>Link frames</b> to flow it on.</li>
           <li>Picture frames (F) hold photos. Double-click one to place an image, then choose Fill, Fit or Stretch.</li>
           <li>Add pages in the Pages panel. <b>Master pages</b> hold headers and footers shared by many pages.</li>
           <li>Export a multi-page PDF with File › Export PDF, with bleed and crop marks for professional printing.</li>
@@ -151,7 +151,7 @@ export function AboutDialog() {
     <Dialog
       title="About Quvrelo"
       size="md"
-      footer={<><button className="btn" onClick={() => { closeDialog(); void runCommand('help.check-updates'); }}>Check for Updates</button><button className="btn primary" onClick={closeDialog}>Done</button></>}
+      footer={<><button className="btn" onClick={() => { closeDialog(); void runCommand('help.check-updates'); }}>Check for updates</button><button className="btn" onClick={closeDialog}>Done</button></>}
     >
       <div className="about-head">
         <Logo className="logo" />
@@ -277,7 +277,7 @@ export function PreferencesDialog() {
         : 'Download new versions in the background and install them when you restart.';
   const scale = Math.round(s.uiScale * 100);
   return (
-    <Dialog title="Preferences" size="lg" split footer={<button className="btn primary" onClick={closeDialog}>Done</button>}>
+    <Dialog title="Preferences" size="lg" split footer={<button className="btn" onClick={closeDialog}>Done</button>}>
       <nav className="dlg-side" aria-label="Preference categories">
         {PANES.map((x) => (
           <button key={x.id} className="nav-item" aria-current={pane === x.id} onClick={() => setPane(x.id)} data-pane={x.id}>
@@ -300,7 +300,7 @@ export function PreferencesDialog() {
             </PrefSection>
             <PrefSection title="Files">
               <PrefRow title="Recent documents" description="The list on the start screen. Files themselves are not touched.">
-                <button className="btn" onClick={async () => { await window.quvrelo.clearRecent(); toast('Recent documents cleared', 'success'); }} disabled={!editor.feature('recent-files' as never)}>Clear List</button>
+                <button className="btn" onClick={async () => { await window.quvrelo.clearRecent(); toast('Recent documents cleared', 'success'); }} disabled={!editor.feature('recent-files' as never)}>Clear list</button>
               </PrefRow>
               <PrefRow title="Autosave" description={p.autosaveIntervalSeconds ? `Every ${p.autosaveIntervalSeconds} seconds, kept for crash recovery.` : 'Turned off by your organisation.'}>
                 <span className="value-text" style={{ color: 'var(--c-text-3)' }}>{p.autosaveIntervalSeconds ? 'On' : 'Off'}</span>
@@ -328,7 +328,7 @@ export function PreferencesDialog() {
                 />
               </PrefRow>
               <PrefRow title="Software update" description={upd ? `Quvrelo ${upd.current}` : undefined}>
-                <button className="btn" disabled={updOff} onClick={() => openDialog('updates')}>Check Now</button>
+                <button className="btn" disabled={updOff} onClick={() => openDialog('updates')}>Check now</button>
               </PrefRow>
             </PrefSection>
           </>

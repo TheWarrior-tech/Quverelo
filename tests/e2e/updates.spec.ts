@@ -78,7 +78,7 @@ test('Check for Updates finds a newer version on the internal feed', async () =>
   await expect(dlg.locator('[data-status="available"]')).toContainText(`Quvrelo ${NEXT} is available`);
   await expect(dlg).toContainText('Text frames flow across pages');
   await expect(dlg).toContainText('127.0.0.1');
-  await expect(dlg.getByRole('button', { name: 'Download Update' })).toBeVisible();
+  await expect(dlg.getByRole('button', { name: 'Download update' })).toBeVisible();
   expect(requests.some((r) => /^\/latest[^/]*\.yml/.test(r))).toBe(true);
   await snap(page, 'updates-dialog-available-dark');
   await snap(page, 'updates-dialog-available-dark-crop', dlg);

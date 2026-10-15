@@ -14,7 +14,7 @@ import { NodeObject, RESIZE_TYPES } from './NodeObject';
 import { renderBounds, type DrawEnv } from './draw';
 import { createTool, type Tool, type ToolContext } from './tools';
 import { TextEditOverlay } from './textEdit';
-import { HANDLE_RING, HANDLE_SIZE, SELECTION_COLOR, tuneControls } from './controls';
+import { HANDLE_SIZE, readOverlayColors, tuneControls, type OverlayColors } from './controls';
 
 class QuvreloCanvas extends Canvas {
   pageW = 100;
@@ -80,6 +80,8 @@ export class Viewport {
   private objects = new Map<Id, NodeObject>();
   private lastDoc: QuvreloDocument | null = null;
   private lastTheme = '';
+  /** canvas overlay colours for the current theme (refreshed on theme change in sync) */
+  private ov: OverlayColors = readOverlayColors();
   private lastContainer: Id | null = null;
   private syncingSelection = false;
   private tool: Tool;
@@ -230,6 +232,8 @@ export class Viewport {
     if (themeKey !== this.lastTheme) {
       this.lastTheme = themeKey;
       this.canvas.pasteboard = getComputedStyle(document.documentElement).getPropertyValue('--pasteboard').trim() || '#0d0e0f';
+      this.ov = readOverlayColors();
+      this.canvas.selectionBorderColor = this.ov.selection;
       this.canvas.requestRenderAll();
     }
     if (doc !== this.lastDoc || containerChanged) {
@@ -811,7 +815,7 @@ export class Viewport {
     if (!tl || !tr || !br || !bl) return;
     ctx.lineWidth = 1;
     ctx.setLineDash([]);
-    ctx.strokeStyle = SELECTION_COLOR;
+    ctx.strokeStyle = this.ov.selection;
     ctx.beginPath();
     ctx.moveTo(Math.round(tl.x) + 0.5, Math.round(tl.y) + 0.5);
     ctx.lineTo(Math.round(tr.x) + 0.5, Math.round(tr.y) + 0.5);
@@ -844,7 +848,7 @@ export class Viewport {
     const axisAligned = Math.abs(tl.y - tr.y) < 0.01 && Math.abs(tl.x - bl.x) < 0.01;
     ctx.lineWidth = 1;
     ctx.setLineDash([]);
-    ctx.strokeStyle = SELECTION_COLOR;
+    ctx.strokeStyle = this.ov.selection;
     ctx.beginPath();
     if (axisAligned) {
       const x0 = crisp(Math.min(tl.x, br.x));
@@ -890,11 +894,11 @@ export class Viewport {
       ctx.stroke();
       ctx.beginPath();
       ctx.arc(mtr.x, mtr.y, HANDLE_SIZE / 2, 0, Math.PI * 2);
-      ctx.fillStyle = SELECTION_COLOR;
+      ctx.fillStyle = this.ov.handle;
       ctx.fill();
-      ctx.strokeStyle = HANDLE_RING;
+      ctx.strokeStyle = this.ov.ring;
       ctx.stroke();
-      ctx.strokeStyle = SELECTION_COLOR;
+      ctx.strokeStyle = this.ov.selection;
     }
     // accent handles with a 1px white ring: read on dark, light and photographic content alike
     const H = HANDLE_SIZE;
@@ -904,12 +908,12 @@ export class Viewport {
       if (!p) continue;
       const x = Math.round(p.x) - half;
       const y = Math.round(p.y) - half;
-      ctx.fillStyle = HANDLE_RING;
+      ctx.fillStyle = this.ov.ring;
       ctx.fillRect(x - 1, y - 1, H + 2, H + 2);
-      ctx.fillStyle = SELECTION_COLOR;
+      ctx.fillStyle = this.ov.handle;
       ctx.fillRect(x, y, H, H);
     }
-    ctx.strokeStyle = SELECTION_COLOR;
+    ctx.strokeStyle = this.ov.selection;
     // live W×H while transforming
     if ((this.canvas as unknown as { _currentTransform: unknown })._currentTransform) {
       const r = obj.getBoundingRect();
@@ -921,7 +925,7 @@ export class Viewport {
       ctx.font = '500 11px Inter, sans-serif';
       (ctx as CanvasRenderingContext2D & { fontVariantNumeric?: string }).fontVariantNumeric = 'tabular-nums';
       const tw = ctx.measureText(label).width + 12;
-      ctx.fillStyle = SELECTION_COLOR;
+      ctx.fillStyle = this.ov.selection;
       ctx.beginPath();
       ctx.roundRect(Math.round(cx - tw / 2), Math.round(by), Math.round(tw), 18, 4);
       ctx.fill();

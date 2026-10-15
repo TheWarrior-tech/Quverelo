@@ -105,9 +105,21 @@ function useGridKeys(count: number, index: number, select: (i: number) => void) 
   return { ref, onKeyDown };
 }
 
-function PageGlyph({ w, h }: { w: number; h: number }) {
+/**
+ * Preset thumbnail: the page drawn as real paper (white in every theme, never a
+ * grey slab). `margin` (fraction of the width) draws a faint coral inset; only
+ * the selected tile passes it.
+ */
+function PageGlyph({ w, h, margin }: { w: number; h: number; margin?: number }) {
   const s = 60 / Math.max(w, h);
-  return <span className="sheet" style={{ width: Math.max(6, w * s), height: Math.max(6, h * s) }} />;
+  const pw = Math.max(6, w * s);
+  const ph = Math.max(6, h * s);
+  const m = margin ? Math.min(pw / 2 - 1, ph / 2 - 1, Math.max(1, margin * pw)) : 0;
+  return (
+    <span className="sheet" style={{ width: pw, height: ph }}>
+      {m > 0 && <span className="sheet-margin" style={{ left: m, top: m, right: m, bottom: m }} />}
+    </span>
+  );
 }
 
 function PagePreview({ w, h, unit, margins, bleed, transparent, pages }: { w: number; h: number; unit: Unit; margins: number; bleed: number; transparent: boolean; pages: number }) {
@@ -256,7 +268,7 @@ export function NewDocumentDialog({ category, preset: presetArg }: { category?: 
 
   return (
     <Dialog
-      title="New Document"
+      title="New document"
       size="xl"
       split
       onSubmit={create}
@@ -294,7 +306,7 @@ export function NewDocumentDialog({ category, preset: presetArg }: { category?: 
                   onDoubleClick={() => { apply(p); requestAnimationFrame(create); }}
                   data-preset={p.id}
                 >
-                  <span className="glyph"><PageGlyph w={p.w} h={p.h} /></span>
+                  <span className="glyph"><PageGlyph w={p.w} h={p.h} margin={on ? toPx(margins, unit) / toPx(p.w, p.unit) : undefined} /></span>
                   <span className="name">{p.name}</span>
                   <span className="meta">{presetMeta(p)}</span>
                 </button>

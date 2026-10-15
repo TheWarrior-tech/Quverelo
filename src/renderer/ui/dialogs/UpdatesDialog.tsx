@@ -125,7 +125,7 @@ export function UpdatesDialog() {
     footer = (
       <>
         <button className="btn" onClick={closeDialog}>Later</button>
-        <button className="btn primary" data-autofocus onClick={() => { closeDialog(); restartToUpdate(); }}>Restart Now</button>
+        <button className="btn primary" data-autofocus onClick={() => { closeDialog(); restartToUpdate(); }}>Restart now</button>
       </>
     );
   } else if (s.status === 'available' && s.mode === 'auto') {
@@ -140,12 +140,12 @@ export function UpdatesDialog() {
       <>
         <button className="btn" onClick={closeDialog}>Later</button>
         <button className="btn primary" data-autofocus onClick={() => void openUpdateDownload()}>
-          {s.action === 'package-manager' ? 'Download Package' : 'Download Update'}
+          {s.action === 'package-manager' ? 'Download package' : 'Download update'}
         </button>
       </>
     );
   } else {
-    footer = <button className="btn primary" data-autofocus onClick={closeDialog}>{s.status === 'downloading' ? 'Hide' : 'Done'}</button>;
+    footer = <button className="btn" data-autofocus onClick={closeDialog}>{s.status === 'downloading' ? 'Hide' : 'Done'}</button>;
   }
 
   const rows: [string, string][] = [
@@ -155,10 +155,10 @@ export function UpdatesDialog() {
 
   return (
     <Dialog
-      title="Software Update"
+      title="Software update"
       size="md"
       className="updates-dialog"
-      footerStart={canCheck ? <button className="btn ghost" onClick={() => void checkForUpdates()}>Check Again</button> : undefined}
+      footerStart={canCheck ? <button className="btn ghost" onClick={() => void checkForUpdates()}>Check again</button> : undefined}
       footer={footer}
     >
       <div className="about-head">

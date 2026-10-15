@@ -28,4 +28,16 @@ describe('contrast audit (WCAG 2.2 AA)', () => {
     const bad = failures(rows).map((r) => `${r.theme}: --${r.fg} on --${r.bg} = ${r.ratio}:1 (needs ${r.min})`);
     expect(bad).toEqual([]);
   });
+
+  it('segmented active tile is distinguishable from its track in every theme and on panels and dialogs', () => {
+    const rows = audit(css).filter((r) => r.note.startsWith('segmented active tile'));
+    expect(rows.map((r) => r.theme).sort()).toEqual(['dark', 'dark', 'high-contrast', 'high-contrast', 'light', 'light']);
+    expect(rows.filter((r) => !r.pass)).toEqual([]);
+  });
+
+  it('text selection uses the accent wash with readable ink in every theme', () => {
+    const rows = audit(css).filter((r) => r.fg === 'c-selection-ink');
+    expect(rows.length).toBe(9);
+    expect(rows.filter((r) => !r.pass)).toEqual([]);
+  });
 });

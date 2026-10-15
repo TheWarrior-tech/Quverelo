@@ -152,7 +152,7 @@ export function Dialog({ title, children, footer, footerStart, size, wide, split
 export interface ConfirmAction {
   label: string;
   primary?: boolean;
-  /** Destructive choice (e.g. "Don't Save"): shown on the left, in danger text. */
+  /** Destructive choice (e.g. "Don't save"): shown on the left, in danger text. */
   destructive?: boolean;
   run: () => void | Promise<void>;
 }

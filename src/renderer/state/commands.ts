@@ -82,7 +82,7 @@ reg('file.close', async () => {
       message: 'You have unsaved changes. Save before closing?',
       actions: [
         { label: 'Save', primary: true, run: async () => { if (await io.save()) editor.closeSession(); } },
-        { label: "Don't Save", run: () => { void window.quvrelo.deleteRecovery(editor.session!.recoveryId); editor.closeSession(); } },
+        { label: "Don't save", run: () => { void window.quvrelo.deleteRecovery(editor.session!.recoveryId); editor.closeSession(); } },
         { label: 'Cancel', run: () => undefined },
       ],
     });
@@ -300,7 +300,7 @@ reg('layer.merge-down', () => {
   const i = c.nodes.findIndex((x) => x.id === n.id);
   const below = c.nodes[i - 1];
   if (i <= 0 || !below || below.type !== 'raster') {
-    toast('Merge Down needs a pixel layer underneath');
+    toast('Merging down needs a pixel layer underneath');
     return;
   }
   const base = editor.assets.rendered(below.assetId, below.adjustments, false);
@@ -668,7 +668,7 @@ export function shortcutTable(): { group: string; items: [string, string][] }[] 
         ['Space + drag', 'Pan'], ['Ctrl/⌘ + scroll', 'Zoom at pointer'], ['Arrow keys', 'Nudge 1 px'], ['Shift + arrows', 'Nudge 10 px'],
         ['Shift + drag', 'Constrain proportions / angle'], ['Alt + drag', 'Draw from centre / disable snapping'],
         ['Double-click', 'Edit text, place image, or edit nodes'], ['Enter (pen/crop)', 'Finish / apply crop'], ['Esc', 'Cancel / leave text editing / reset crop'],
-        ['Alt + click (Object Select)', 'Remove part of the selection'], ['Ctrl/⌘ + Alt + S', 'Select subject'],
+        ['Alt + click (Object select)', 'Remove part of the selection'], ['Ctrl/⌘ + Alt + S', 'Select subject'],
         ['[ / ]', 'Brush size'], ['Page Up / Down', 'Previous / next page'], ['Tab', 'Hide / show panels'],
         ['Shift + tool key', 'Cycle the tools in that flyout group'], ['Right-click / hold a tool', 'Open its flyout'],
       ],

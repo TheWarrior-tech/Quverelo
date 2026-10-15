@@ -20,6 +20,17 @@
   --c-accent-hover: #58d3c0;
   --c-accent-ink: #06231e;
   --c-accent-wash: rgba(60, 196, 176, 0.14);
+  --c-accent-wash-strong: rgba(60, 196, 176, 0.32); /* text selection (::selection) */
+  --c-selection-ink: #ececed; /* text on --c-accent-wash-strong */
+  /* segmented control (DESIGN.md §8): track, active tile, its text and boundary */
+  --c-seg-track: #1e1f21;
+  --c-seg-on: #222326;
+  --c-seg-on-text: #ececed;
+  --c-seg-ring: rgba(255, 255, 255, 0.34);
+  /* canvas overlays, read by engine/Viewport.ts (DESIGN.md §3) */
+  --c-canvas-selection: #2fb8a6;
+  --c-canvas-handle: #2fb8a6;
+  --c-canvas-handle-ring: #ffffff;
   --c-focus: #58d3c0;
   --c-danger: #ff6b6b;
   --c-backdrop: rgba(0, 0, 0, 0.55);
@@ -29,6 +40,8 @@
   --r-full: 999px;
   /* derived: tiles inset 2px inside a --r-1 track (segmented controls), checkboxes */
   --r-tile: calc(var(--r-1) - 1px);
+  /* 2px tracks, ticks and insertion bars (slider track, checklist progress, drop line, orientation glyph) */
+  --r-hairline: 1px;
   --e-1: 0 0 0 1px var(--c-line), 0 4px 16px rgba(0, 0, 0, 0.28);
   --e-2: 0 0 0 1px var(--c-line), 0 16px 48px rgba(0, 0, 0, 0.4);
   --dur: 120ms;
@@ -81,6 +94,12 @@
   --c-accent-hover: #096558;
   --c-accent-ink: #ffffff;
   --c-accent-wash: rgba(12, 122, 107, 0.16);
+  --c-accent-wash-strong: rgba(12, 122, 107, 0.24);
+  --c-selection-ink: #18191b;
+  --c-seg-track: rgba(0, 0, 0, 0.06);
+  --c-seg-on: #ffffff;
+  --c-seg-on-text: #18191b;
+  --c-seg-ring: rgba(0, 0, 0, 0.43);
   --c-focus: #096558;
   --c-danger: #c92a2a;
   --c-backdrop: rgba(20, 22, 24, 0.4);
@@ -106,6 +125,15 @@
   --c-accent-hover: #ffe766;
   --c-accent-ink: #000000;
   --c-accent-wash: rgba(255, 212, 0, 0.25);
+  --c-accent-wash-strong: #ffd400;
+  --c-selection-ink: #000000;
+  --c-seg-track: #000000;
+  --c-seg-on: #ffd400;
+  --c-seg-on-text: #000000;
+  --c-seg-ring: #ffd400;
+  --c-canvas-selection: #ffd400;
+  --c-canvas-handle: #ffd400;
+  --c-canvas-handle-ring: #000000;
   --c-focus: #ffd400;
   --c-danger: #ff8080;
   --c-backdrop: rgba(0, 0, 0, 0.8);
@@ -154,6 +182,12 @@ body,
   font-feature-settings: 'calt';
   -webkit-font-smoothing: antialiased;
   user-select: none;
+}
+
+/* text selection: the accent wash, never the OS blue (critique 2 P1-5) */
+::selection {
+  background: var(--c-accent-wash-strong);
+  color: var(--c-selection-ink);
 }
 
 button,
@@ -381,7 +415,7 @@ input[type='range'] {
 }
 input[type='range']::-webkit-slider-runnable-track {
   height: 2px;
-  border-radius: 1px;
+  border-radius: var(--r-hairline);
   background: var(--c-line-strong);
 }
 input[type='range']::-webkit-slider-thumb {
@@ -546,16 +580,14 @@ kbd {
   gap: 6px;
 }
 .contextbar .group + .group,
-.contextbar .tool-name + .group,
-.contextbar .choice-row + .group {
+.contextbar .tool-name + .group {
   position: relative;
   padding-left: 12px;
   border-left: 0;
 }
 /* group divider: a 16px hairline, not a full-height rule */
 .contextbar .group + .group::before,
-.contextbar .tool-name + .group::before,
-.contextbar .choice-row + .group::before {
+.contextbar .tool-name + .group::before {
   content: '';
   position: absolute;
   left: 0;
@@ -601,12 +633,6 @@ kbd {
   width: 24px;
   height: 24px;
 }
-.contextbar .choice-row .btn {
-  border-color: transparent;
-}
-.contextbar .choice-row .btn.selected {
-  background: var(--c-press);
-}
 .contextbar .field-label,
 .contextbar .page-count {
   color: var(--c-text-2);
@@ -627,21 +653,14 @@ kbd {
   color: var(--c-text-3);
 }
 
-/* segmented control (selection modes, radio groups) */
+/* legacy button row: only the Curves channel switch still uses it, until it moves
+ * to <Segmented> with the Curves rework (critique 2 P1-2). Do not use elsewhere. */
 .choice-row {
   gap: 0 !important;
   padding: 2px;
   background: var(--c-raised);
   border: 1px solid var(--c-line);
   border-radius: var(--r-1);
-}
-.contextbar .group.choice-row {
-  /* a segmented control is self-contained: no divider before it */
-  padding: 2px;
-  border-left: 1px solid var(--c-line);
-}
-.contextbar .group.choice-row::before {
-  display: none;
 }
 .choice-row .btn {
   height: 20px;

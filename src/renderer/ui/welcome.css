@@ -468,7 +468,7 @@
 .cl-progress span {
   flex: 1;
   height: 2px;
-  border-radius: 1px;
+  border-radius: var(--r-hairline);
   background: var(--c-press);
 }
 .cl-progress span.on {

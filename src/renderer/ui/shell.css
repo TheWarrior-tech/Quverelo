@@ -204,34 +204,6 @@
   color: var(--c-text-2);
 }
 
-/* ---------- segmented sizes ---------- */
-
-.segmented.sm button {
-  height: 20px;
-}
-.segmented.md {
-  height: 28px;
-}
-.segmented.md button {
-  height: 22px;
-  font-size: 12px;
-}
-.segmented button.icon-seg {
-  flex: none;
-  width: 28px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.segmented button:disabled {
-  opacity: 0.4;
-  pointer-events: none;
-}
-.contextbar .segmented {
-  flex: none;
-}
-
 /* ---------- inspector (Design tab) ---------- */
 
 .prop-title {
@@ -362,9 +334,6 @@
 }
 .paint-row.off .paint-name {
   color: var(--c-text-3);
-}
-.paint-popover {
-  width: 252px;
 }
 
 /* ---------- empty states ---------- */

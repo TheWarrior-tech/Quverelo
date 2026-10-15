@@ -24,6 +24,7 @@ import {
   CROP_HANDLES, cursorFor, handlePoints, hitCrop, moveWithin, rectFromDrag, resizeCrop, roundCrop, type CropHit, type CropRect,
 } from '../../core/crop';
 import { currentCrop, currentRatio, docBounds, setCropBox } from '../state/crop';
+import { uiPaint } from '../state/uiPaint';
 import { HANDLE_SIZE, SELECTION_COLOR } from './controls';
 import { objectSelectClick, objectSelectMarkers } from './objectSelect';
 
@@ -52,11 +53,12 @@ function containerId(ed: Editor): string {
 }
 
 function currentFill(ed: Editor) {
-  return ed.ui.fillEnabled ? solid(ed.ui.fillColor) : NO_PAINT;
+  return uiPaint(ed.ui, 'fill');
 }
 
 function currentStroke(ed: Editor, force = false) {
-  if (ed.ui.strokeEnabled || force) return makeStroke(ed.ui.strokeColor, ed.ui.toolOptions.strokeWidth);
+  if (ed.ui.strokeEnabled) return { ...makeStroke(ed.ui.strokeColor, ed.ui.toolOptions.strokeWidth), paint: uiPaint(ed.ui, 'stroke') };
+  if (force) return makeStroke(ed.ui.strokeColor, ed.ui.toolOptions.strokeWidth);
   return makeStroke();
 }
 
