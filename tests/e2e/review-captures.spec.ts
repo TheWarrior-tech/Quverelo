@@ -88,7 +88,8 @@ test.describe('review captures', () => {
       await expect(input).toBeFocused();
       await input.fill('exp');
       await snap(page, theme, 'palette');
-      await page.keyboard.press('Escape');
+      await page.keyboard.press('Escape'); // clears the query
+      await page.keyboard.press('Escape'); // closes
       await expect(page.locator('.cmdk')).toBeHidden();
       await page.mouse.move(700, 450);
       await page.locator('button[data-tool="rect"]').hover();
