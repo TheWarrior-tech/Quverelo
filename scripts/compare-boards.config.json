@@ -1,0 +1,236 @@
+{
+  "_comment": "Board definitions for scripts/compare-boards.py. Reference images are NOT in the repo (Mobbin licence): they are fetched by URL into a local refs dir. crop = [x0, y0, x1, y1] as fractions of the image; omit for no zoom row.",
+  "boards": [
+    {
+      "id": "editor-shell",
+      "title": "Editor shell & tool rail",
+      "note": "Three-zone layout: tools + layers left, canvas hero, inspector right.",
+      "ref": {
+        "mobbin": "24933190-a2b0-4d37-b79f-5b80c9adab7e",
+        "app": "Figma",
+        "screen": "Design Interface (blank file)"
+      },
+      "quvrelo": "layout-mm"
+    },
+    {
+      "id": "tool-rail",
+      "title": "Tool rail",
+      "note": "Icon tools grouped with dividers; active tool filled; flyout carets on grouped tools.",
+      "ref": {
+        "mobbin": "24933190-a2b0-4d37-b79f-5b80c9adab7e",
+        "app": "Figma",
+        "screen": "Design Interface (bottom toolbar)"
+      },
+      "ref_crop": [
+        0.36,
+        0.935,
+        0.66,
+        1.0
+      ],
+      "quvrelo": "layout-mm",
+      "quvrelo_crop": [
+        0.0,
+        0.035,
+        0.035,
+        0.56
+      ],
+      "detail_independent": true
+    },
+    {
+      "id": "inspector",
+      "title": "Inspector / properties panel",
+      "note": "Sectioned, selection-driven properties with compact numeric fields.",
+      "ref": {
+        "mobbin": "12e8f4e8-14d4-43bc-8188-ae7d8b4aa063",
+        "app": "Framer",
+        "screen": "Design Canvas (embed selected)"
+      },
+      "ref_crop": [
+        0.8,
+        0.04,
+        1.0,
+        0.8
+      ],
+      "quvrelo": "vector",
+      "quvrelo_crop": [
+        0.8,
+        0.03,
+        1.0,
+        0.6
+      ]
+    },
+    {
+      "id": "layers",
+      "title": "Layers panel",
+      "note": "Tree list with type icons and nesting. (Quvrelo capture: populated poster, a tool tooltip overlaps one row.)",
+      "ref": {
+        "mobbin": "080ef869-43fd-4f1a-b8d8-b8d4224c1f35",
+        "app": "Framer",
+        "screen": "Layer Editor"
+      },
+      "ref_crop": [
+        0.0,
+        0.03,
+        0.17,
+        0.55
+      ],
+      "quvrelo": "tooltip",
+      "quvrelo_crop": [
+        0.0,
+        0.03,
+        0.2,
+        0.45
+      ]
+    },
+    {
+      "id": "command-palette",
+      "title": "Command palette",
+      "note": "Centred search field, grouped results, right-aligned shortcut keys.",
+      "ref": {
+        "mobbin": "663ce897-cc91-4f2c-b9e8-15b2822846ab",
+        "app": "Linear",
+        "screen": "Command menu"
+      },
+      "ref_crop": [
+        0.27,
+        0.11,
+        0.78,
+        0.6
+      ],
+      "quvrelo": "palette",
+      "quvrelo_crop": [
+        0.28,
+        0.12,
+        0.72,
+        0.56
+      ]
+    },
+    {
+      "id": "modal-export",
+      "title": "Modal dialog: Export",
+      "note": "Dimmed scrim, titled dialog, preview + options, primary action bottom-right.",
+      "ref": {
+        "mobbin": "898d9390-62c1-4314-beb9-63bbac2ce62c",
+        "app": "Figma",
+        "screen": "Export Tutorial (export dialog)"
+      },
+      "ref_crop": [
+        0.36,
+        0.24,
+        0.64,
+        0.8
+      ],
+      "quvrelo": "export",
+      "quvrelo_crop": [
+        0.18,
+        0.2,
+        0.82,
+        0.86
+      ]
+    },
+    {
+      "id": "modal-new",
+      "title": "Modal dialog: New file",
+      "note": "Creation dialog: concise fields, secondary + primary footer actions.",
+      "ref": {
+        "mobbin": "be8e5272-be5c-4faf-9caf-5ebff30e45ff",
+        "app": "Linear",
+        "screen": "New Issue Dialog"
+      },
+      "ref_crop": [
+        0.23,
+        0.12,
+        0.79,
+        0.44
+      ],
+      "quvrelo": "new",
+      "quvrelo_crop": [
+        0.15,
+        0.09,
+        0.85,
+        0.91
+      ],
+      "detail_independent": true
+    },
+    {
+      "id": "home-welcome",
+      "title": "Home / welcome",
+      "note": "Greeting, recents, start-from cards, getting-started checklist.",
+      "ref": {
+        "mobbin": "cbf7d1f7-7603-405e-ba9e-dc7573bc71e4",
+        "app": "Notion",
+        "screen": "Notion Workspace (home)"
+      },
+      "quvrelo": "welcome"
+    },
+    {
+      "id": "empty-state",
+      "title": "Empty state",
+      "note": "Empty surface explains itself and offers the next verb.",
+      "ref": {
+        "mobbin": "0637549d-40fe-4ee3-ad78-19e8483efead",
+        "app": "Pitch",
+        "screen": "Workspace Home (empty folder)"
+      },
+      "ref_crop": [
+        0.22,
+        0.27,
+        0.8,
+        1.0
+      ],
+      "quvrelo": "empty-canvas",
+      "quvrelo_crop": [
+        0.36,
+        0.36,
+        0.62,
+        0.66
+      ]
+    },
+    {
+      "id": "tooltip",
+      "title": "Tooltip",
+      "note": "Dark compact tooltip next to the control it labels.",
+      "ref": {
+        "mobbin": "079b35a8-c000-4b5f-badb-af774e3810b6",
+        "app": "Pitch",
+        "screen": "Design Customization (tooltip)"
+      },
+      "ref_crop": [
+        0.7,
+        0.0,
+        1.0,
+        0.16
+      ],
+      "quvrelo": "tooltip",
+      "quvrelo_crop": [
+        0.0,
+        0.08,
+        0.26,
+        0.32
+      ]
+    },
+    {
+      "id": "menu",
+      "title": "Menu / tool flyout",
+      "note": "Tool-group menu with icons, labels and shortcuts.",
+      "ref": {
+        "mobbin": "fa59c4f0-4292-43b5-94c0-cf0387346718",
+        "app": "Figma",
+        "screen": "Shape Menu"
+      },
+      "ref_crop": [
+        0.4,
+        0.7,
+        0.62,
+        1.0
+      ],
+      "quvrelo": "flyout",
+      "quvrelo_crop": [
+        0.0,
+        0.03,
+        0.26,
+        0.4
+      ]
+    }
+  ]
+}
