@@ -51,7 +51,12 @@ test.describe('critique 2: controls', () => {
       });
       // the active tile differs from the inactive one by fill or by a ring
       expect(look.onBg !== look.offBg || look.onShadow !== 'none', theme).toBe(true);
-      if (theme === 'high-contrast') expect(look.onBg).toBe('rgb(255, 212, 0)');
+      // the tile's background transitions after a theme switch: read the settled value
+      if (theme === 'high-contrast') {
+        await expect
+          .poll(() => group.evaluate((g) => getComputedStyle(g.querySelector('[aria-checked="true"]') as HTMLElement).backgroundColor))
+          .toBe('rgb(255, 212, 0)');
+      }
     }
   });
 
