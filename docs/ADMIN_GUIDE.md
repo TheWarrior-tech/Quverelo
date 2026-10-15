@@ -92,6 +92,7 @@ Make the file read-only for standard users. Invalid keys are ignored and listed 
 | `uiScale` | number | `1` | Default interface scale (0.75–2). |
 | `lockUiScale` | boolean | `false` | Prevents users changing the interface scale. |
 | `showWelcomeScreen` | boolean | `true` | Show the welcome screen at launch. |
+| `disableOnboarding` | boolean | `false` | Hides first-run onboarding for every user: the *Get started* checklist on the welcome screen (create a document, place an image, select a subject, add text, export). Useful for staff machines or exam rooms. Progress is stored per user in `settings.json` (`onboarding`), so turning the key off again shows the checklist only to users who have not finished or closed it. |
 | `maxUndoSteps` | number | `250` | Undo history length (10–2000) — lower it on low-memory machines. |
 
 #### Feature IDs for `disabledFeatures`
@@ -107,6 +108,7 @@ Make the file read-only for standard users. Invalid keys are ignored and listed 
   "handInDirectory": "\\\\fileserver\\handin$",
   "templateDirectories": ["\\\\fileserver\\templates$\\Quvrelo"],
   "disableUpdateCheck": true,
+  "disableOnboarding": false,
   "autosaveIntervalSeconds": 45
 }
 ```

@@ -9,7 +9,9 @@ Quvrelo is one app with three **studios**. They all edit the same document, so y
 Press <kbd>F1</kbd> at any time to see every keyboard shortcut.
 
 ## Getting started
-1. On the welcome screen pick a studio card, a template (the **Classroom pack** has worksheets, certificates, lesson plans, timetables and more) or **New document** for a custom size.
+1. On the welcome screen choose **Edit a photo…** to open a picture, **Poster or social post** or **A4 page** to start a blank document (both open *New document* with the size picked; Quvrelo chooses the right studio for you, and *More options* lets you pick another), or a template (the **Classroom pack** has worksheets, certificates, lesson plans, timetables and more). Press <kbd>/</kbd> to search templates and recent files. You can also drop a photo or `.quvrelo` file anywhere on the window.
+   - **Get started:** the checklist on the right walks you through five first steps (create a document, place an image, select a subject, add text, export). Each row takes you to that step and ticks itself when you've done it. Close it with its close button when you no longer need it.
+   - An empty page shows **Place image…**, **Draw a shape** and **Add text** to get you going; it disappears once the page has something on it.
 2. Use the **tools** on the left. The **context bar** under the top toolbar shows options for the current tool.
 3. The **panels** on the right show properties, colours, layers, pages and history. Press <kbd>Tab</kbd> to hide/show them.
 4. Save with <kbd>Ctrl/⌘</kbd>+<kbd>S</kbd>. Everything — including photos — is stored in one `.quvrelo` file.
@@ -58,7 +60,8 @@ Press <kbd>F1</kbd> at any time to see every keyboard shortcut.
 - **Document Setup** (<kbd>Ctrl/⌘</kbd>+<kbd>Alt</kbd>+<kbd>D</kbd>): page size, margins, bleed, column guides and background.
 
 ## Exporting
-*File ▸ Export* (PNG, JPEG, SVG or PDF):
+Click **Export** at the right of the top bar (<kbd>Ctrl/⌘</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd>), or *File ▸ Export…*. Layout documents start on PDF; after that Quvrelo remembers the format you last used for each document. The **▾** next to Export lists every format, **Hand in…** (when assignments are on) and **Export again** (<kbd>Ctrl/⌘</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd>), which repeats your last export with the same settings and files without opening the dialog.
+Formats (PNG, JPEG, SVG or PDF):
 - **PNG / JPEG** — choose the scale (1×–4× or print 300 dpi) and transparency.
 - **SVG** — keeps shapes and text as vectors.
 - **PDF** — all pages or the current page, 96/150/300 dpi, optional bleed and crop marks for professional printers.
