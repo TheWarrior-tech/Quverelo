@@ -108,7 +108,7 @@ test.describe('command palette', () => {
     L = await launch();
     const { page } = L;
     await newDoc(page);
-    const undo = page.locator('.topbar button[aria-label="Open"]');
+    const undo = page.locator('.topbar button[aria-label="Open…"]');
     await undo.focus();
     await openPalette(page);
 
@@ -250,10 +250,10 @@ test.describe('tooltips', () => {
     await page.waitForTimeout(250);
     await expect(tipEl).toBeVisible();
 
-    // neighbours show at once while warm
-    const ellipse = page.locator('button[data-tool="ellipse"]');
-    await ellipse.hover();
-    await expect(tipEl.locator('.q-tip-text')).toHaveText('Ellipse', { timeout: 300 });
+    // neighbours show at once while warm (Ellipse sits in the shapes flyout; Line is the next rail button)
+    const line = page.locator('.toolpalette button[data-tool="line"]');
+    await line.hover();
+    await expect(tipEl.locator('.q-tip-text')).toHaveText('Line', { timeout: 300 });
 
     // Esc dismisses without moving the pointer, and doesn't reach the app
     await page.keyboard.press('Escape');
@@ -277,13 +277,14 @@ test.describe('tooltips', () => {
     L = await launch();
     const { page } = L;
     await newDoc(page);
-    const open = page.locator('.topbar button[aria-label="Open"]');
-    await page.locator('.topbar button[aria-label="New document"]').focus();
+    // shell v3: Place image… ends the centre zone, Open… starts the actions zone
+    const open = page.locator('.topbar button[aria-label="Open…"]');
+    await page.locator('.topbar button[aria-label="Place image…"]').focus();
     await page.keyboard.press('Tab');
     await expect(open).toBeFocused();
     const tipEl = page.getByRole('tooltip');
     await expect(tipEl).toBeVisible();
-    await expect(tipEl.locator('.q-tip-text')).toHaveText('Open');
+    await expect(tipEl.locator('.q-tip-text')).toHaveText('Open…');
     await page.keyboard.press('Escape');
     await expect(tipEl).toBeHidden();
     await expect(open).toBeFocused();

@@ -50,7 +50,8 @@ test.describe('tool rail flyouts', () => {
     await expect(items.nth(0).locator('kbd')).toHaveText('M');
     await expect(items.nth(3)).toContainText('Star');
     await expect(items.nth(3).locator('kbd')).toHaveText('S');
-    // menu sits to the right of the rail button, 4px away
+    // menu sits to the right of the rail button, 4px away (once its slide-in has finished)
+    await menu.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
     const b = (await shapes.boundingBox())!;
     const m = (await menu.boundingBox())!;
     expect(Math.round(m.x - (b.x + b.width))).toBe(4);
