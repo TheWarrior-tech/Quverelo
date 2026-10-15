@@ -1,0 +1,78 @@
+import { describe, expect, it } from 'vitest';
+import type { StudioKind } from '../../src/core/types';
+import { STUDIO_RAIL, cycleTool, groupOf, isGroup, remember, studioGroups, studioTools, visibleTool } from '../../src/renderer/state/toolGroups';
+
+const STUDIOS: StudioKind[] = ['photo', 'vector', 'layout'];
+
+describe('tool rail groups', () => {
+  it('lists every tool exactly once per studio', () => {
+    for (const s of STUDIOS) {
+      const tools = studioTools(s);
+      expect(new Set(tools).size, s).toBe(tools.length);
+      expect(tools[0], s).toBe('move');
+    }
+    // the tools each studio offered before flyouts are all still reachable
+    expect(new Set(studioTools('photo'))).toEqual(new Set(['move', 'marquee-rect', 'marquee-ellipse', 'lasso', 'crop', 'brush', 'eraser', 'fill', 'eyedropper', 'text', 'hand', 'zoom']));
+    expect(new Set(studioTools('vector'))).toEqual(new Set(['move', 'node', 'pen', 'pencil', 'rect', 'ellipse', 'polygon', 'star', 'line', 'text', 'eyedropper', 'hand', 'zoom']));
+    expect(new Set(studioTools('layout'))).toEqual(new Set(['move', 'node', 'textframe', 'imageframe', 'text', 'rect', 'ellipse', 'line', 'eyedropper', 'hand', 'zoom']));
+  });
+
+  it('groups have unique ids, at least two members and a cycle key', () => {
+    const ids = STUDIOS.flatMap((s) => studioGroups(s).map((g) => g.id));
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const s of STUDIOS) for (const g of studioGroups(s)) {
+      expect(g.tools.length).toBeGreaterThanOrEqual(2);
+      expect(g.key).toMatch(/^[A-Z]$/);
+    }
+  });
+
+  it('never starts, ends or doubles a divider', () => {
+    for (const s of STUDIOS) {
+      const r = STUDIO_RAIL[s];
+      expect(r[0]).not.toBe('|');
+      expect(r[r.length - 1]).not.toBe('|');
+      r.forEach((e, i) => i > 0 && e === '|' && expect(r[i - 1]).not.toBe('|'));
+    }
+  });
+
+  it('finds the group of a tool per studio', () => {
+    expect(groupOf('photo', 'marquee-ellipse')?.id).toBe('photo-marquee');
+    expect(groupOf('vector', 'star')?.id).toBe('vector-shapes');
+    expect(groupOf('layout', 'ellipse')?.id).toBe('layout-shapes');
+    expect(groupOf('vector', 'move')).toBeNull();
+    expect(STUDIO_RAIL.vector.filter(isGroup).map((g) => g.id)).toEqual(['vector-pen', 'vector-shapes']);
+  });
+
+  it('shows the active member, else the last used, else the first', () => {
+    const g = groupOf('vector', 'rect')!;
+    expect(visibleTool(g, 'move', {})).toBe('rect');
+    expect(visibleTool(g, 'move', { 'vector-shapes': 'star' })).toBe('star');
+    expect(visibleTool(g, 'polygon', { 'vector-shapes': 'star' })).toBe('polygon');
+    // stale memory (a tool not in the group) falls back to the first member
+    expect(visibleTool(g, 'move', { 'vector-shapes': 'brush' })).toBe('rect');
+  });
+
+  it('remembers the last-used tool per group', () => {
+    let m = remember({}, 'vector', 'star');
+    expect(m).toEqual({ 'vector-shapes': 'star' });
+    m = remember(m, 'vector', 'pencil');
+    expect(m).toEqual({ 'vector-shapes': 'star', 'vector-pen': 'pencil' });
+    // tools outside any group leave memory untouched (same object)
+    expect(remember(m, 'vector', 'move')).toBe(m);
+    expect(remember(m, 'vector', 'star')).toBe(m);
+  });
+
+  it('cycles within a group with Shift+key semantics', () => {
+    const g = groupOf('vector', 'rect')!;
+    // from outside the group: first press lands on the shown member
+    expect(cycleTool(g, 'move', {})).toBe('rect');
+    expect(cycleTool(g, 'move', { 'vector-shapes': 'polygon' })).toBe('polygon');
+    // inside: step and wrap, both directions
+    expect(cycleTool(g, 'rect', {})).toBe('ellipse');
+    expect(cycleTool(g, 'star', {})).toBe('rect');
+    expect(cycleTool(g, 'rect', {}, -1)).toBe('star');
+    const m = groupOf('photo', 'marquee-rect')!;
+    expect(cycleTool(m, 'marquee-rect', {})).toBe('marquee-ellipse');
+    expect(cycleTool(m, 'marquee-ellipse', {})).toBe('marquee-rect');
+  });
+});

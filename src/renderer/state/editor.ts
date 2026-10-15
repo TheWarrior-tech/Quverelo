@@ -9,6 +9,7 @@ import type { QuvreloDocument, Id, PathCommand, SceneNode, StudioKind } from '..
 import { DEFAULT_POLICY, featureEnabled, type FeatureId, type Policy } from '../../core/policy';
 import { DEFAULT_SETTINGS, type UserSettings } from '../../shared/api';
 import { AssetStore } from '../engine/assets';
+import { remember, studioTools, type RailMemory } from './toolGroups';
 
 export type ToolId =
   | 'move' | 'node' | 'hand' | 'zoom'
@@ -48,6 +49,8 @@ export interface UiState {
   /** live-preview flag (adjustment slider drags) */
   interacting: boolean;
   status: string;
+  /** last-used tool per tool-rail flyout group (shown on the rail) */
+  railTools: RailMemory;
 }
 
 export interface DocSession {
@@ -74,10 +77,11 @@ const DEFAULT_TOOL_OPTIONS: ToolOptions = {
   strokeWidth: 2,
 };
 
+/** Every tool per studio in rail order; the rail layout and flyout groups live in toolGroups.ts. */
 export const STUDIO_TOOLS: Record<StudioKind, ToolId[]> = {
-  photo: ['move', 'marquee-rect', 'marquee-ellipse', 'lasso', 'crop', 'brush', 'eraser', 'fill', 'eyedropper', 'text', 'hand', 'zoom'],
-  vector: ['move', 'node', 'pen', 'pencil', 'rect', 'ellipse', 'polygon', 'star', 'line', 'text', 'eyedropper', 'hand', 'zoom'],
-  layout: ['move', 'node', 'textframe', 'imageframe', 'text', 'rect', 'ellipse', 'line', 'eyedropper', 'hand', 'zoom'],
+  photo: studioTools('photo'),
+  vector: studioTools('vector'),
+  layout: studioTools('layout'),
 };
 
 export class Editor {
@@ -100,6 +104,7 @@ export class Editor {
     toolOptions: { ...DEFAULT_TOOL_OPTIONS },
     interacting: false,
     status: '',
+    railTools: {},
   };
   /** clipboard (in-app) */
   clipboard: { nodes: SceneNode[]; stories: QuvreloDocument['stories'] } | null = null;
@@ -220,7 +225,12 @@ export class Editor {
   }
 
   setTool(tool: ToolId): void {
-    this.ui = { ...this.ui, tool, editingTextId: tool === this.ui.tool ? this.ui.editingTextId : null };
+    this.ui = {
+      ...this.ui,
+      tool,
+      editingTextId: tool === this.ui.tool ? this.ui.editingTextId : null,
+      railTools: remember(this.ui.railTools, this.ui.studio, tool),
+    };
     this.emit();
   }
 
