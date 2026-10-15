@@ -266,7 +266,9 @@
   border-top: none;
 }
 .insp-row > label:not(.check) {
-  width: 56px;
+  flex: none;
+  min-width: 56px; /* a longer label ("Background") grows instead of running into its control */
+  white-space: nowrap;
 }
 .properties .slider-row {
   grid-template-columns: 56px minmax(0, 1fr) 56px;
