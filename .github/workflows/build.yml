@@ -91,7 +91,13 @@ jobs:
         if: matrix.name == 'macOS' && env.MAC_SIGNING == 'true'
         run: node scripts/ci-enable-mac-signing.mjs
       - name: Build installers
-        run: npx electron-builder ${{ matrix.args }} --publish never
+        shell: bash
+        run: |
+          # Empty-string secrets make electron-builder resolve CSC_LINK to the cwd ("not a file").
+          for v in CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            [ -z "${!v}" ] && unset "$v"
+          done
+          npx electron-builder ${{ matrix.args }} --publish never
         env:
           CSC_LINK: ${{ matrix.name == 'macOS' && secrets.MAC_CSC_LINK || '' }}
           CSC_KEY_PASSWORD: ${{ matrix.name == 'macOS' && secrets.MAC_CSC_KEY_PASSWORD || '' }}
@@ -104,7 +110,12 @@ jobs:
         run: mv release/latest-mac.yml release/latest-mac-x64.part.yml
       - name: Build installers (macOS arm64, separate run so the two .pkg builds don't collide)
         if: matrix.name == 'macOS'
-        run: npx electron-builder --mac --arm64 --publish never
+        shell: bash
+        run: |
+          for v in CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            [ -z "${!v}" ] && unset "$v"
+          done
+          npx electron-builder --mac --arm64 --publish never
         env:
           CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
