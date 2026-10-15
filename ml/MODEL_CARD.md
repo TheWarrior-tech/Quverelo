@@ -95,6 +95,7 @@ How to read this:
 |---|---|---|
 | onnxruntime (Python), 2 threads | 12 ms | 30 ms |
 | onnxruntime-web WASM in Node 22, 1 thread | 54 ms | 126 ms |
+| Quvrelo Electron app, **Select ▸ Select Subject** end to end on a 1264×848 photo (`tests/e2e/ml.spec.ts`) | 225 ms total | |
 
 * In the app, the image is analysed at up to 1024 px on its longest side, and the model runs at 320.
 * TS pre-processing of a 1024×768 image takes about 30 ms. Post-processing, which covers upsampling, clean-up and contour tracing to a selection path, takes about 40 ms.
