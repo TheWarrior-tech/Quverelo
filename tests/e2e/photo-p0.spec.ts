@@ -218,4 +218,27 @@ test.describe('photo P0', () => {
     await page.waitForTimeout(3500); // let the "Opened" toast go
     await saveShot(page, 'crop.png');
   });
+
+  test('the pixel action strip and the object selection toolbar never show together', async () => {
+    L = await launch({ QUVRELO_E2E_OPEN: photo });
+    const { page } = L;
+    await openPhoto(page);
+    // the photo layer selected with Move: the object toolbar is offered
+    await page.evaluate(() => {
+      const q = (window as any).__quvrelo;
+      const r = q.editor.doc.pages[0].nodes.find((n: any) => n.type === 'raster');
+      q.editor.select([r.id]);
+      q.editor.setTool('move');
+    });
+    await expect(page.locator('.selection-toolbar.placed')).toBeVisible();
+    await expect(page.locator('.sel-actions')).toHaveCount(0);
+    // a pixel selection takes the floating slot
+    await page.evaluate(() => (window as any).__quvrelo.runCommand('select.all-pixels'));
+    await expect(page.locator('.sel-actions[data-placed]')).toBeVisible();
+    await expect(page.locator('.selection-toolbar')).toHaveCount(0);
+    // deselecting pixels gives it back
+    await page.locator('.sel-actions [data-sel-action="deselect"]').click();
+    await expect(page.locator('.sel-actions')).toHaveCount(0);
+    await expect(page.locator('.selection-toolbar.placed')).toBeVisible();
+  });
 });
