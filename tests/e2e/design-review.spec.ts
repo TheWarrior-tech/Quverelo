@@ -53,6 +53,13 @@ test.describe('design review', () => {
       await page.click('[data-tool="rect"]');
       await drag(page, { x: 640, y: 320 }, { x: 800, y: 420 });
       await snap('vector');
+      await page.click('[data-panel="colour"]');
+      await page.locator('.layer-row').first().hover();
+      await snap('colour');
+      await page.click('[data-panel="properties"]');
+      await page.click('.contextbar .chip-select >> nth=0');
+      await snap('colour-popover');
+      await page.keyboard.press('Escape');
       await page.click('.studio-switch [data-studio="layout"]');
       await page.waitForTimeout(300);
       await snap('layout');

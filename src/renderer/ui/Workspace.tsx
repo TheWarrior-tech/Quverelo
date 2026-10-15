@@ -9,6 +9,10 @@ import { ContextBar } from './ContextBar';
 import { Rulers } from './Rulers';
 import { Panels } from './panels/Panels';
 import { tip } from './tooltip';
+import { applyFillToSelection, applyStrokeToSelection, swapFillStroke } from './panels/ColorPanel';
+import { ColorPopoverBody, FillStrokeChips, type ChipTarget } from './color/Chips';
+import { Popover } from './controls/Panel';
+import { solid } from '../../core/document';
 
 const TOOL_LABELS: Record<ToolId, string> = {
   move: 'Move (V)', node: 'Node (A)', hand: 'Hand (H)', zoom: 'Zoom (Z)',
@@ -110,10 +114,44 @@ function Topbar() {
   );
 }
 
+/** Fill/stroke chips at the foot of the tool rail; clicking one opens its picker beside the rail. */
+function RailChips() {
+  const ed = useEditor();
+  const [target, setTarget] = useState<ChipTarget>('fill');
+  const [open, setOpen] = useState<{ t: ChipTarget; el: HTMLElement } | null>(null);
+  const isFill = open?.t === 'fill';
+  return (
+    <>
+      <FillStrokeChips
+        size="sm"
+        fill={{ color: ed.ui.fillColor, enabled: ed.ui.fillEnabled }}
+        stroke={{ color: ed.ui.strokeColor, enabled: ed.ui.strokeEnabled }}
+        target={target}
+        onTarget={setTarget}
+        onSwap={swapFillStroke}
+        onOpen={(t, el) => setOpen(open && open.t === t ? null : { t, el })}
+      />
+      {open && (
+        <Popover anchor={open.el} placement="right" label={isFill ? 'Fill colour' : 'Stroke colour'} onClose={() => setOpen(null)}>
+          <ColorPopoverBody
+            label={isFill ? 'Fill' : 'Stroke'}
+            color={isFill ? ed.ui.fillColor : ed.ui.strokeColor}
+            enabled={isFill ? ed.ui.fillEnabled : ed.ui.strokeEnabled}
+            onToggle={(on) => ed.setUi(isFill ? { fillEnabled: on } : { strokeEnabled: on })}
+            onChange={(c) => {
+              ed.setUi(isFill ? { fillColor: c, fillEnabled: true } : { strokeColor: c, strokeEnabled: true });
+              if (ed.ui.selection.length) (isFill ? applyFillToSelection : applyStrokeToSelection)(solid(c), isFill ? 'rail-fill' : 'rail-stroke');
+            }}
+          />
+        </Popover>
+      )}
+    </>
+  );
+}
+
 function ToolPalette() {
   const ed = useEditor();
   const tools = STUDIO_TOOLS[ed.ui.studio];
-  const swap = () => ed.setUi({ fillColor: ed.ui.strokeColor, strokeColor: ed.ui.fillColor });
   return (
     <aside className="toolpalette" role="toolbar" aria-label="Tools" aria-orientation="vertical">
       {tools.map((t, i) => (
@@ -125,11 +163,7 @@ function ToolPalette() {
         </span>
       ))}
       <div className="divider" />
-      <div className="color-chips" style={{ ['--stroke-color' as string]: ed.ui.strokeColor }}>
-        <button className={`fill-chip ${ed.ui.fillEnabled ? '' : 'chip-none'}`} style={{ background: ed.ui.fillColor }} title="Fill colour: click to toggle none" aria-label="Fill colour" aria-pressed={ed.ui.fillEnabled} onClick={() => ed.setUi({ fillEnabled: !ed.ui.fillEnabled })} />
-        <button className={`stroke-chip ${ed.ui.strokeEnabled ? '' : 'chip-none'}`} title="Stroke colour: click to toggle none" aria-label="Stroke colour" aria-pressed={ed.ui.strokeEnabled} onClick={() => ed.setUi({ strokeEnabled: !ed.ui.strokeEnabled })} />
-      </div>
-      <button className="icon-btn sm" {...tip('Swap fill and stroke colours')} onClick={swap}><Icon name="swap" /></button>
+      <RailChips />
     </aside>
   );
 }

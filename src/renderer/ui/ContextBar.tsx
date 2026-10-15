@@ -9,6 +9,8 @@ import { useEditor } from './hooks';
 import { Icon } from './Icons';
 import { toolLabel } from './Workspace';
 import { tip } from './tooltip';
+import { NumberField } from './controls/NumberField';
+import { ColorChipButton } from './color/Chips';
 
 export const BUNDLED_FONTS = ['Inter', 'Atkinson Hyperlegible', 'OpenDyslexic', 'Merriweather', 'Roboto Slab', 'Caveat'];
 export const SYSTEM_FONTS = ['Arial', 'Helvetica', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Georgia', 'Times New Roman', 'Garamond', 'Courier New', 'Comic Sans MS', 'Segoe UI', 'Calibri'];
@@ -54,18 +56,6 @@ export function activeTextTarget(): { style: TextStyle; apply: (patch: Partial<T
     };
   }
   return null;
-}
-
-function Num({ label, value, min, max, step = 1, onChange, width = 60 }: { label: string; value: number; min: number; max: number; step?: number; onChange: (v: number) => void; width?: number }) {
-  return (
-    <label className="group">
-      {label}
-      <input type="number" value={Math.round(value * 100) / 100} min={min} max={max} step={step} style={{ width }} onChange={(e) => {
-        const v = parseFloat(e.target.value);
-        if (!Number.isNaN(v)) onChange(Math.min(max, Math.max(min, v)));
-      }} />
-    </label>
-  );
 }
 
 function Slider({ label, value, min, max, step = 1, onChange, fmt }: { label: string; value: number; min: number; max: number; step?: number; onChange: (v: number) => void; fmt?: (v: number) => string }) {
@@ -184,7 +174,7 @@ export function TextControls() {
         {fontOptions().map((f) => <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>)}
         {!fontOptions().includes(primaryFamily(style.fontFamily ?? '')) && <option>{primaryFamily(style.fontFamily ?? '')}</option>}
       </select>
-      <Num label="" value={style.fontSize ?? 16} min={4} max={1000} step={1} onChange={(v) => apply({ fontSize: v })} width={56} />
+      <NumberField className="ctx" ariaLabel="Font size (pt)" label="Size" unit="pt" value={style.fontSize ?? 16} min={4} max={1000} onCommit={(v) => apply({ fontSize: v })} onChange={(v) => apply({ fontSize: v })} />
       <button className={`icon-btn sm ${style.fontWeight && style.fontWeight >= 600 ? 'active' : ''}`} {...tip('Bold')} aria-pressed={(style.fontWeight ?? 400) >= 600} onClick={() => apply({ fontWeight: (style.fontWeight ?? 400) >= 600 ? 400 : 700 })}><b>B</b></button>
       <button className={`icon-btn sm ${style.italic ? 'active' : ''}`} {...tip('Italic')} aria-pressed={!!style.italic} onClick={() => apply({ italic: !style.italic })}><i>I</i></button>
       <button className={`icon-btn sm ${style.underline ? 'active' : ''}`} {...tip('Underline')} aria-pressed={!!style.underline} onClick={() => apply({ underline: !style.underline })}><u>U</u></button>
@@ -195,8 +185,8 @@ export function TextControls() {
       ))}
       {target && (
         <>
-          <Num label="Leading" value={style.lineHeight ?? 1.3} min={0.6} max={4} step={0.05} onChange={(v) => apply({ lineHeight: v })} width={60} />
-          <Num label="Tracking" value={style.letterSpacing ?? 0} min={-200} max={1000} step={10} onChange={(v) => apply({ letterSpacing: v })} width={52} />
+          <NumberField className="ctx" ariaLabel="Leading (line height multiple)" label="Leading" value={style.lineHeight ?? 1.3} min={0.6} max={4} step={0.05} onCommit={(v) => apply({ lineHeight: v })} onChange={(v) => apply({ lineHeight: v })} />
+          <NumberField className="ctx" ariaLabel="Tracking (thousandths of an em)" label="Tracking" digits={0} value={style.letterSpacing ?? 0} min={-200} max={1000} step={10} onCommit={(v) => apply({ letterSpacing: v })} onChange={(v) => apply({ letterSpacing: v })} />
         </>
       )}
     </div>
@@ -251,20 +241,32 @@ export function ContextBar() {
           <span style={{ color: 'var(--text-faint)' }}>Fills pixels on a pixel layer, or recolours a shape</span>
         </>
       )}
-      {t === 'rect' && <Num label="Corner radius" value={o.cornerRadius} min={0} max={1000} onChange={(v) => ed.setToolOptions({ cornerRadius: v })} />}
-      {t === 'polygon' && <Num label="Sides" value={o.polygonSides} min={3} max={64} onChange={(v) => ed.setToolOptions({ polygonSides: Math.round(v) })} />}
+      {t === 'rect' && (
+        <div className="group">
+          <NumberField className="ctx" label="Radius" ariaLabel="Corner radius (px)" unit="px" value={o.cornerRadius} min={0} max={1000} onCommit={(v) => ed.setToolOptions({ cornerRadius: v })} onChange={(v) => ed.setToolOptions({ cornerRadius: v })} />
+        </div>
+      )}
+      {t === 'polygon' && (
+        <div className="group">
+          <NumberField className="ctx" label="Sides" ariaLabel="Sides" digits={0} value={o.polygonSides} min={3} max={64} onCommit={(v) => ed.setToolOptions({ polygonSides: Math.round(v) })} onChange={(v) => ed.setToolOptions({ polygonSides: Math.round(v) })} />
+        </div>
+      )}
       {t === 'star' && (
-        <>
-          <Num label="Points" value={o.starPoints} min={3} max={64} onChange={(v) => ed.setToolOptions({ starPoints: Math.round(v) })} />
-          <Slider label="Inner radius" value={o.starInner * 100} min={5} max={100} onChange={(v) => ed.setToolOptions({ starInner: v / 100 })} fmt={(v) => `${Math.round(v)}%`} />
-        </>
+        <div className="group">
+          <NumberField className="ctx" label="Points" ariaLabel="Points" digits={0} value={o.starPoints} min={3} max={64} onCommit={(v) => ed.setToolOptions({ starPoints: Math.round(v) })} onChange={(v) => ed.setToolOptions({ starPoints: Math.round(v) })} />
+          <NumberField className="ctx" label="Inner" ariaLabel="Inner radius percent" unit="%" digits={0} value={Math.round(o.starInner * 100)} min={5} max={100} onCommit={(v) => ed.setToolOptions({ starInner: v / 100 })} onChange={(v) => ed.setToolOptions({ starInner: v / 100 })} />
+        </div>
       )}
       {['rect', 'ellipse', 'polygon', 'star', 'line', 'pen', 'pencil'].includes(t) && (
         <>
-          <Num label="Stroke" value={o.strokeWidth} min={0} max={200} step={0.5} onChange={(v) => ed.setToolOptions({ strokeWidth: v })} />
-          <label className="group">Fill <input type="color" value={ed.ui.fillColor.slice(0, 7)} onChange={(e) => ed.setUi({ fillColor: e.target.value, fillEnabled: true })} aria-label="Fill colour" /></label>
-          <label className="group">Stroke <input type="color" value={ed.ui.strokeColor.slice(0, 7)} onChange={(e) => ed.setUi({ strokeColor: e.target.value, strokeEnabled: true })} aria-label="Stroke colour" /></label>
-          <span style={{ color: 'var(--text-faint)' }}>{t === 'pen' ? 'Click for corners, drag for curves, click the first point to close, Enter to finish' : 'Shift constrains · Alt draws from centre'}</span>
+          <div className="group">
+            <span className="ctx-label">Fill</span>
+            <ColorChipButton kind="fill" label="Fill" color={ed.ui.fillColor} enabled={ed.ui.fillEnabled} onChange={(c) => ed.setUi({ fillColor: c, fillEnabled: true })} onToggle={(on) => ed.setUi({ fillEnabled: on })} />
+            <span className="ctx-label">Stroke</span>
+            <ColorChipButton kind="stroke" label="Stroke" color={ed.ui.strokeColor} enabled={ed.ui.strokeEnabled} onChange={(c) => ed.setUi({ strokeColor: c, strokeEnabled: true })} onToggle={(on) => ed.setUi({ strokeEnabled: on })} />
+            <NumberField className="ctx" label="W" ariaLabel="Stroke width (px)" unit="px" step={0.5} value={o.strokeWidth} min={0} max={200} onCommit={(v) => ed.setToolOptions({ strokeWidth: v })} onChange={(v) => ed.setToolOptions({ strokeWidth: v })} />
+          </div>
+          <span className="ctx-hint">{t === 'pen' ? 'Click for corners, drag for curves, click the first point to close, Enter to finish' : 'Shift constrains · Alt draws from centre'}</span>
         </>
       )}
       {layout && t === 'move' && sel.length === 0 && !ed.ui.editingTextId && <LayoutPageControls />}
