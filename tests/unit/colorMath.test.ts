@@ -74,3 +74,17 @@ describe('colour conversions', () => {
     expect(luminance({ r: 0, g: 0, b: 0 })).toBe(0);
   });
 });
+
+describe('layer thumbnail tint (critique 3 P2-6)', () => {
+  it('falls back to text-3 when the fill would vanish on the tile', async () => {
+    const { thumbTint, contrastRatio, parseCss } = await import('../../src/renderer/ui/color/colorMath');
+    expect(contrastRatio(parseCss('#ffffff'), parseCss('#000000'))).toBeCloseTo(21, 0);
+    expect(thumbTint('#ffffff', '#ffffff')).toBeNull(); // white Paper on the light theme's white tile
+    expect(thumbTint('#f4f1ea', '#ffffff')).toBeNull();
+    expect(thumbTint('#ffffff', '#1e1f21')).toBe('#ffffff');
+    expect(thumbTint('#3a86ff', '#ffffff')).toBe('#3a86ff');
+    expect(thumbTint('#1e1f21', '#1e1f21')).toBeNull();
+    expect(thumbTint('rgba(255,0,0,0.1)', '#1e1f21')).toBeNull();
+    expect(thumbTint(undefined, '#1e1f21')).toBeNull();
+  });
+});

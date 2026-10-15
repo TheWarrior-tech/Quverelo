@@ -5,6 +5,35 @@ import { Popover } from '../controls/Panel';
 import type { Paint } from '../../../core/types';
 import { PaintEditor, paintCss } from '../ColorControls';
 import { firstColorOf } from '../../state/uiPaint';
+import { getViewport } from '../../state/commands';
+import type { Rect } from '../controls/placement';
+
+const rectOf = (r: DOMRect): Rect => ({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+
+/** Window rect of the selected object's bounds on the canvas, or null. */
+export function selectionScreenRect(): Rect | null {
+  const vp = getViewport();
+  const r = vp?.selectionRect();
+  if (!vp || !r || r.w <= 0 || r.h <= 0) return null;
+  const h = vp.host.getBoundingClientRect();
+  return { left: h.left + r.x, top: h.top + r.y, right: h.left + r.x + r.w, bottom: h.top + r.y + r.h };
+}
+
+/**
+ * Where a colour popover may go (critique 3 N6, DESIGN.md §8 "Colour control"):
+ * never over the inspector, never over the selected object it edits. A chip in
+ * the inspector places against the inspector's left edge, so the popover opens
+ * beside the panel rather than over its labels.
+ */
+export function colourPopoverGeometry(anchor: HTMLElement): { anchorRect: Rect; avoid: Rect[] } {
+  const a = rectOf(anchor.getBoundingClientRect());
+  const inspectorEl = document.querySelector('.inspector');
+  const insp = inspectorEl && (inspectorEl as HTMLElement).offsetWidth > 0 ? rectOf(inspectorEl.getBoundingClientRect()) : null;
+  const inInspector = !!inspectorEl?.contains(anchor);
+  const sel = selectionScreenRect();
+  const avoid = [...(insp ? [insp] : []), ...(sel ? [sel] : [])];
+  return { anchorRect: inInspector && insp ? { left: insp.left, top: a.top, right: insp.left, bottom: a.bottom } : a, avoid };
+}
 
 export type ChipTarget = 'fill' | 'stroke';
 
@@ -99,7 +128,7 @@ export function ColorChipButton({ kind, label, value, onChange, onCommit, allowN
   chevron?: boolean;
   className?: string;
   disabled?: boolean;
-  /** 'left' opens beside the inspector instead of over it */
+  /** preferred side; 'left' from the inspector opens beside the panel. The selection and inspector are always kept clear. */
   placement?: 'below' | 'left' | 'right';
   }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
@@ -114,7 +143,14 @@ export function ColorChipButton({ kind, label, value, onChange, onCommit, allowN
         {chevron && <Icon name="chevron-down" size={16} />}
       </button>
       {anchor && (
-        <Popover anchor={anchor} label={`${label} colour`} placement={placement} onClose={() => setAnchor(null)}>
+        <Popover
+          anchor={anchor}
+          label={`${label} colour`}
+          placement={placement}
+          anchorRect={() => colourPopoverGeometry(anchor).anchorRect}
+          avoid={() => colourPopoverGeometry(anchor).avoid}
+          onClose={() => setAnchor(null)}
+        >
           <ColorPopoverBody label={label} value={value} onChange={onChange} onCommit={onCommit} allowNone={allowNone} allowGradient={allowGradient} fallback={fallback} />
         </Popover>
       )}

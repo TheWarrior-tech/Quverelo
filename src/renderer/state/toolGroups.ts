@@ -123,3 +123,20 @@ export function cycleTool(group: ToolGroup, current: ToolId, memory: RailMemory,
   if (i < 0) return visibleTool(group, current, memory);
   return group.tools[(i + dir + group.tools.length) % group.tools.length];
 }
+
+/**
+ * Tool names as the UI shows them, with the default key in brackets: sentence
+ * case (DESIGN.md §4), shared by tooltips, flyouts and the Shortcuts dialog.
+ */
+export const TOOL_LABELS: Record<ToolId, string> = {
+  move: 'Move (V)', node: 'Node (A)', hand: 'Hand (H)', zoom: 'Zoom (Z)',
+  'marquee-rect': 'Rectangle marquee (M)', 'marquee-ellipse': 'Ellipse marquee', lasso: 'Freehand selection (L)', 'object-select': 'Object select (W)',
+  brush: 'Paint brush (B)', eraser: 'Eraser (E)', fill: 'Flood fill (G)', eyedropper: 'Colour picker (I)', crop: 'Crop (C)',
+  pen: 'Pen (P)', pencil: 'Pencil (N)', rect: 'Rectangle (M)', ellipse: 'Ellipse (E)', polygon: 'Polygon (Y)', star: 'Star (S)', line: 'Line (L)',
+  text: 'Artistic text (T)', textframe: 'Frame text (X)', imageframe: 'Picture frame (F)',
+};
+
+/** A tool's display name without its key ('Rectangle marquee'). */
+export function toolName(t: ToolId): string {
+  return (TOOL_LABELS[t] ?? t).replace(/ \([^)]*\)$/, '');
+}

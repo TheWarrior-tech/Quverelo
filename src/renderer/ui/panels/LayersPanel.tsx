@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { moveNodeTo, updateNode } from '../../../core/commands';
-import { layerDisplayName } from '../../../core/document';
+import { DISPLAY_NAME_MAX, layerDisplayName } from '../../../core/document';
 import type { Adjustment, AdjustmentType, Id, RasterNode, SceneNode } from '../../../core/types';
 import { ADJUSTMENTS, defaultParams } from '../../../core/pixels';
 import { newId } from '../../../core/ids';
@@ -13,11 +13,23 @@ import { useScrollEdges } from '../controls/Panel';
 import { EmptyState } from '../controls/EmptyState';
 import { shortcutFor, tip } from '../tips';
 import { dropIndex, isNoopDrop } from './layerDrop';
+import { thumbTint } from '../color/colorMath';
 
 const TYPE_ICON: Record<SceneNode['type'], string> = {
   rect: 'rect', ellipse: 'ellipse', polygon: 'polygon', star: 'star', path: 'pen', text: 'text', textframe: 'textframe',
   imageframe: 'imageframe', raster: 'pixel', group: 'group',
 };
+
+/** The thumbnail tile colour of the current theme (`--c-raised`), cached per theme. */
+let tileCache: { theme: string; color: string } | null = null;
+function thumbTile(): string {
+  const theme = document.documentElement.dataset.theme ?? 'dark';
+  if (tileCache?.theme !== theme) {
+    const v = getComputedStyle(document.documentElement).getPropertyValue('--c-raised').trim();
+    tileCache = { theme, color: v || '#1e1f21' };
+  }
+  return tileCache.color;
+}
 
 function Thumb({ n }: { n: SceneNode }) {
   if ((n.type === 'raster' || (n.type === 'imageframe' && n.assetId)) && editor.assets.get((n as { assetId: string }).assetId)) {
@@ -26,7 +38,8 @@ function Thumb({ n }: { n: SceneNode }) {
       <span className="thumb" style={{ backgroundImage: `url(${thumbUrl(c)})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
     );
   }
-  const color = 'fill' in n && n.fill.type === 'solid' ? n.fill.color : undefined;
+  const fill = 'fill' in n && n.fill.type === 'solid' ? n.fill.color : undefined;
+  const color = thumbTint(fill, thumbTile()) ?? undefined;
   return (
     <span className="thumb" style={color ? { ['--thumb' as string]: color } : undefined}>
       <Icon name={TYPE_ICON[n.type]} />
@@ -61,7 +74,7 @@ function focusSibling(from: HTMLElement, d: 1 | -1 | 'first' | 'last') {
 
 function LayerRow({ n, depth, containerId, index, dragId, setDragId, focusable }: { n: SceneNode; depth: number; containerId: Id; index: number; dragId: Id | null; setDragId: (id: Id | null) => void; focusable: boolean }) {
   const ed = useEditor();
-  const label = layerDisplayName(n, ed.doc);
+  const label = layerDisplayName(n, ed.doc, DISPLAY_NAME_MAX);
   const [open, setOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [drop, setDrop] = useState<DropPlace | null>(null);
@@ -155,7 +168,7 @@ function LayerRow({ n, depth, containerId, index, dragId, setDragId, focusable }
           <span className="twisty-space" aria-hidden="true" />
         )}
         <Thumb n={n} />
-        <span className="name">
+        <span className="name" data-tip={!renaming && label.length > 20 ? label : undefined}>
           {renaming ? (
             <input
               type="text"
@@ -212,7 +225,7 @@ export function LayersPanel() {
   return (
     <div className="layers-panel">
       <div className="layers-scroll" ref={scrollRef}>
-        {c.nodes.length === 0 && <LayersEmpty />}
+        {c.nodes.length === 0 && <LayersEmpty compact={!!page} />}
         <ul className="layer-list" role="tree" aria-label="Layers" aria-multiselectable="true">
           {rows.map((n, i) => (
             <LayerRow key={n.id} n={n} depth={0} containerId={c.id} index={c.nodes.length - 1 - i} dragId={dragId} setDragId={setDragId} focusable={n.id === focusId} />
@@ -287,11 +300,21 @@ function AddLayerMenu() {
 /**
  * Empty Layers panel teaches the model instead of saying "nothing here"
  * (UX gap list, MOBBIN #8): what this list is, and the three ways to start.
+ * When the canvas shows its own empty card (an empty page), that card owns the
+ * actions and this shrinks to glyph, title and one line, so the window never
+ * shows two empty states with the same three buttons (critique 3 P2-3).
  */
-function LayersEmpty() {
+function LayersEmpty({ compact }: { compact: boolean }) {
   const ed = useEditor();
   const photo = ed.ui.studio === 'photo';
+  if (compact) {
     return (
+      <EmptyState icon="layers" title="No layers yet" className="layers-empty compact">
+        Everything you add to this page stacks here, top to bottom.
+      </EmptyState>
+    );
+  }
+  return (
     <EmptyState
       icon="layers"
       title="No layers yet"

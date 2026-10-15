@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from '../Icons';
+import { placePopover, type Rect } from './placement';
 
 const collapsed = new Set<string>(readCollapsed());
 function readCollapsed(): string[] {
@@ -116,22 +117,28 @@ export function watchScrollRegions(root: HTMLElement, selector: string): () => v
  * Anchored popover (non-modal): portals to <body> so scrolling toolbars don't clip it,
  * closes on Escape or an outside press and hands focus back to the anchor.
  */
-export function Popover({ anchor, onClose, children, label, placement = 'below', className, role = 'dialog' }: { anchor: HTMLElement; onClose: () => void; children: ReactNode; label: string; placement?: 'below' | 'above' | 'right' | 'left'; className?: string; role?: 'dialog' | 'menu' | 'listbox' }) {
+export function Popover({ anchor, onClose, children, label, placement = 'below', className, role = 'dialog', anchorRect, avoid }: {
+  anchor: HTMLElement;
+  onClose: () => void;
+  children: ReactNode;
+  label: string;
+  placement?: 'below' | 'above' | 'right' | 'left';
+  className?: string;
+  role?: 'dialog' | 'menu' | 'listbox';
+  /** place against this rect instead of the anchor's own (an inspector chip places against the inspector's edge) */
+  anchorRect?: () => Rect;
+  /** rects the popover must not cover when any placement allows (the selection, the inspector); see placement.ts */
+  avoid?: () => Rect[];
+}) {
   const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  const [pos, setPos] = useState<{ left: number; top: number; side: string } | null>(null);
   useLayoutEffect(() => {
-    const r = anchor.getBoundingClientRect();
+    const r = anchorRect?.() ?? anchor.getBoundingClientRect();
     const el = ref.current;
     const w = el?.offsetWidth ?? 248;
     const h = el?.offsetHeight ?? 320;
-    let left = placement === 'right' ? r.right + 8 : placement === 'left' ? r.left - w - 8 : r.left;
-    let top = placement === 'right' || placement === 'left' ? r.top - 8 : placement === 'above' ? r.top - h - 6 : r.bottom + 6;
-    // flip when the preferred side has no room
-    if (placement === 'below' && top + h > window.innerHeight - 8 && r.top - h - 6 >= 8) top = r.top - h - 6;
-    if (placement === 'above' && top < 8) top = r.bottom + 6;
-    left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
-    top = Math.max(8, Math.min(top, window.innerHeight - h - 8));
-    setPos({ left, top });
+    const p = placePopover(r, w, h, { width: window.innerWidth, height: window.innerHeight }, placement, avoid?.() ?? []);
+    setPos({ left: p.left, top: p.top, side: p.side });
   }, [anchor, placement]);
   // focus the first control once, after the popover is placed (a hidden element can't take focus);
   // never again on re-render, or typing in a field would lose focus when the value commits
@@ -166,7 +173,7 @@ export function Popover({ anchor, onClose, children, label, placement = 'below',
     };
   }, [anchor]);
   return createPortal(
-    <div ref={ref} className={`popover${className ? ' ' + className : ''}`} role={role} aria-label={label} style={pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }}>
+    <div ref={ref} className={`popover${className ? ' ' + className : ''}`} role={role} aria-label={label} data-side={pos?.side} style={pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }}>
       {children}
     </div>,
     document.body,

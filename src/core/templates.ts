@@ -111,7 +111,7 @@ function poster(size: { w: number; h: number }, unit: 'mm' | 'in', title: string
     b.frame(p, x, H * 0.07, W - 2 * x, 24, 'NORTHFIELD ACADEMY PRESENTS', { fontFamily: SANS, fontSize: W * 0.022, fontWeight: 600, letterSpacing: 120, fill: solid('#aab4c8') });
     b.frame(p, x, H * 0.2, W - 2 * x, H * 0.34, 'Year 8\nScience\nFair', { fontFamily: SANS, fontSize: W * 0.135, fontWeight: 700, lineHeight: 0.98, fill: solid('#ffffff') });
     b.rect(p, x, H * 0.6 - 8, W * 0.18, 16, solid(CORAL), { name: 'Rule' });
-    b.frame(p, x, H * 0.65, W - 2 * x, H * 0.058, 'Thursday 14 March', { fontFamily: SANS, fontSize: W * 0.055, fontWeight: 700, fill: solid(NAVY) });
+    b.frame(p, x, H * 0.65, W - 2 * x, H * 0.06, 'Thursday 14 March', { fontFamily: SANS, fontSize: W * 0.055, fontWeight: 700, fill: solid(NAVY) });
     b.frame(p, x, H * 0.71, W - 2 * x, H * 0.035, '3:30 – 5:30 pm  ·  Main Hall', { fontFamily: SANS, fontSize: W * 0.032, fill: solid(NAVY) });
     b.frame(p, x, H * 0.77, W * 0.62, H * 0.12, 'Thirty projects from Year 8, from water filters to wind turbines. Families are welcome; judging starts at 5 pm.', { fontFamily: SANS, fontSize: W * 0.024, lineHeight: 1.45, fill: solid(INK_2) });
     b.line(p, x, H - M * 2 - 30, W - x, H - M * 2 - 30, '#c9c3b6', 1);
@@ -170,7 +170,7 @@ function certificate(): QuvreloDocument {
   b.frame(p, 80, 96, W - 160, 20, 'NORTHFIELD ACADEMY', { fontFamily: SANS, fontSize: 13, fontWeight: 600, letterSpacing: 200, align: 'center', fill: solid(GOLD) });
   b.frame(p, 80, 128, W - 160, 64, 'Certificate of Achievement', { fontFamily: SERIF, fontSize: 48, align: 'center', fill: solid(NAVY) });
   b.frame(p, 80, 214, W - 160, 28, 'awarded to', { fontFamily: SERIF, fontSize: 18, italic: true, align: 'center', fill: solid(INK_2) });
-  b.frame(p, 80, 246, W - 160, 72, 'Alex Morgan', { fontFamily: SERIF, fontSize: 50, align: 'center', fill: solid(NAVY) });
+  b.frame(p, 80, 248, W - 160, 72, 'Alex Morgan', { fontFamily: SERIF, fontSize: 50, align: 'center', fill: solid(NAVY) });
   b.line(p, W * 0.3, 326, W * 0.7, 326, GOLD, 1);
   b.frame(p, 140, 344, W - 280, 56, 'for outstanding work in Year 9 Art\nSpring term 2026', { fontFamily: SERIF, fontSize: 17, lineHeight: 1.5, align: 'center', fill: solid(INK_2) });
   b.ellipse(p, W / 2, H - 128, 76, 76, { type: 'none' }, { stroke: makeStroke(GOLD, 1.5), name: 'Seal' });
@@ -232,7 +232,7 @@ function newsletter(): QuvreloDocument {
 }
 
 function slide(): QuvreloDocument {
-  const b = new Builder(doc('Presentation Slide', 1920, 1080, 'layout', { margins: { top: 80, right: 120, bottom: 80, left: 120 } }));
+  const b = new Builder(doc('Presentation slide', 1920, 1080, 'layout', { margins: { top: 80, right: 120, bottom: 80, left: 120 } }));
   const p = b.page();
   const AMBER = '#e8b04b';
   b.rect(p, 0, 0, 1920, 1080, solid('#14171c'), { name: 'Background' });
@@ -246,7 +246,7 @@ function slide(): QuvreloDocument {
 }
 
 function social(): QuvreloDocument {
-  const b = new Builder(doc('Social Graphic', 1080, 1080, 'vector'));
+  const b = new Builder(doc('Social graphic', 1080, 1080, 'vector'));
   const p = b.page();
   const RUST = '#c2462a';
   b.rect(p, 0, 0, 1080, 1080, solid('#f3eee6'), { name: 'Background' });
@@ -260,7 +260,7 @@ function social(): QuvreloDocument {
 }
 
 function lessonPlan(): QuvreloDocument {
-  const b = new Builder(doc('Lesson Plan', A4.w, A4.h, 'layout', printOpts()));
+  const b = new Builder(doc('Lesson plan', A4.w, A4.h, 'layout', printOpts()));
   const p = b.page();
   const W = A4.w;
   const SLATE = '#3b5b92';
@@ -288,7 +288,7 @@ function lessonPlan(): QuvreloDocument {
 function weeklyPlanner(): QuvreloDocument {
   const W = A4.h;
   const H = A4.w;
-  const b = new Builder(doc('Weekly Timetable', W, H, 'layout', printOpts()));
+  const b = new Builder(doc('Weekly timetable', W, H, 'layout', printOpts()));
   const p = b.page();
   const BLUE = '#2f5d9e';
   b.frame(p, M, M, W - 2 * M, 34, 'Timetable · Autumn term', { fontFamily: SANS, fontSize: 24, fontWeight: 700, fill: solid(INK) });
@@ -314,7 +314,7 @@ function weeklyPlanner(): QuvreloDocument {
 }
 
 function exitTicket(): QuvreloDocument {
-  const b = new Builder(doc('Exit Tickets', A4.w, A4.h, 'layout', printOpts()));
+  const b = new Builder(doc('Exit tickets', A4.w, A4.h, 'layout', printOpts()));
   const p = b.page();
   const W = A4.w;
   const H = A4.h;
@@ -342,7 +342,7 @@ function exitTicket(): QuvreloDocument {
 }
 
 function nameBadges(): QuvreloDocument {
-  const b = new Builder(doc('Name Badges', A4.w, A4.h, 'layout', printOpts()));
+  const b = new Builder(doc('Name badges', A4.w, A4.h, 'layout', printOpts()));
   const p = b.page();
   const cols = 2;
   const rows = 5;
@@ -366,7 +366,7 @@ function nameBadges(): QuvreloDocument {
 }
 
 function rulesPoster(): QuvreloDocument {
-  const b = new Builder(doc('Classroom Rules', A4.w, A4.h, 'vector', printOpts()));
+  const b = new Builder(doc('Classroom rules', A4.w, A4.h, 'vector', printOpts()));
   const p = b.page();
   const W = A4.w;
   const GREEN = '#2d5f4a';
@@ -417,7 +417,7 @@ function flashcards(): QuvreloDocument {
 }
 
 function readingLog(): QuvreloDocument {
-  const b = new Builder(doc('Reading Log', A4.w, A4.h, 'layout', printOpts()));
+  const b = new Builder(doc('Reading log', A4.w, A4.h, 'layout', printOpts()));
   const p = b.page();
   const W = A4.w;
   const BLUE = '#2f5d9e';
@@ -452,21 +452,21 @@ function photo(): QuvreloDocument {
 
 export const TEMPLATES: TemplateInfo[] = [
   { id: 'blank-a4', name: 'Blank A4', category: 'Start', description: 'Portrait A4 page with margins and bleed', studio: 'layout', size: '210 × 297 mm', build: blank('Untitled', A4.w, A4.h, 'layout', printOpts()) },
-  { id: 'blank-letter', name: 'Blank US Letter', category: 'Start', description: 'Portrait Letter page with margins', studio: 'layout', size: '8.5 × 11 in', build: blank('Untitled', LETTER.w, LETTER.h, 'layout', printOpts('in')) },
+  { id: 'blank-letter', name: 'Blank US letter', category: 'Start', description: 'Portrait US letter page with margins', studio: 'layout', size: '8.5 × 11 in', build: blank('Untitled', LETTER.w, LETTER.h, 'layout', printOpts('in')) },
   { id: 'photo', name: 'Photo', category: 'Start', description: 'Pixel canvas for photo editing', studio: 'photo', size: '1920 × 1280 px', build: photo },
-  { id: 'social', name: 'Social Graphic', category: 'Digital', description: 'Square announcement post', studio: 'vector', size: '1080 × 1080 px', build: social },
-  { id: 'slide', name: 'Presentation Slide', category: 'Digital', description: '16:9 lesson title slide', studio: 'layout', size: '1920 × 1080 px', build: slide },
-  { id: 'poster-a4', name: 'Event Poster', category: 'Print', description: 'Typographic event poster', studio: 'vector', size: '210 × 297 mm', build: poster(A4, 'mm', 'Event Poster') },
+  { id: 'social', name: 'Social graphic', category: 'Digital', description: 'Square announcement post', studio: 'vector', size: '1080 × 1080 px', build: social },
+  { id: 'slide', name: 'Presentation slide', category: 'Digital', description: '16:9 lesson title slide', studio: 'layout', size: '1920 × 1080 px', build: slide },
+  { id: 'poster-a4', name: 'Event poster', category: 'Print', description: 'Typographic event poster', studio: 'vector', size: '210 × 297 mm', build: poster(A4, 'mm', 'Event poster') },
   { id: 'newsletter', name: 'Newsletter', category: 'Print', description: 'Two pages, master page, linked text columns', studio: 'layout', size: 'A4 · 2 pages', build: newsletter },
   { id: 'worksheet', name: 'Worksheet', category: 'Classroom', description: 'Questions with answer lines', studio: 'layout', size: 'A4', build: worksheet },
   { id: 'certificate', name: 'Certificate', category: 'Classroom', description: 'Award certificate, landscape', studio: 'vector', size: 'A4 landscape', build: certificate },
-  { id: 'lesson-plan', name: 'Lesson Plan', category: 'Classroom', description: 'Objectives, activities and resources', studio: 'layout', size: 'A4', build: lessonPlan },
-  { id: 'timetable', name: 'Weekly Timetable', category: 'Classroom', description: '5-day, 6-period timetable', studio: 'layout', size: 'A4 landscape', build: weeklyPlanner },
-  { id: 'exit-ticket', name: 'Exit Tickets', category: 'Classroom', description: 'Three cut-out reflection slips', studio: 'layout', size: 'A4', build: exitTicket },
-  { id: 'name-badges', name: 'Name Badges', category: 'Classroom', description: '10 badges per sheet', studio: 'layout', size: 'A4', build: nameBadges },
-  { id: 'rules-poster', name: 'Classroom Rules', category: 'Classroom', description: 'Six-rule room poster', studio: 'vector', size: 'A4', build: rulesPoster },
+  { id: 'lesson-plan', name: 'Lesson plan', category: 'Classroom', description: 'Objectives, activities and resources', studio: 'layout', size: 'A4', build: lessonPlan },
+  { id: 'timetable', name: 'Weekly timetable', category: 'Classroom', description: '5-day, 6-period timetable', studio: 'layout', size: 'A4 landscape', build: weeklyPlanner },
+  { id: 'exit-ticket', name: 'Exit tickets', category: 'Classroom', description: 'Three cut-out reflection slips', studio: 'layout', size: 'A4', build: exitTicket },
+  { id: 'name-badges', name: 'Name badges', category: 'Classroom', description: '10 badges per sheet', studio: 'layout', size: 'A4', build: nameBadges },
+  { id: 'rules-poster', name: 'Classroom rules', category: 'Classroom', description: 'Six-rule room poster', studio: 'vector', size: 'A4', build: rulesPoster },
   { id: 'flashcards', name: 'Flashcards', category: 'Classroom', description: 'Double-sided, 8 per sheet', studio: 'layout', size: 'A4 · 2 pages', build: flashcards },
-  { id: 'reading-log', name: 'Reading Log', category: 'Classroom', description: 'Daily reading tracker table', studio: 'layout', size: 'A4', build: readingLog },
+  { id: 'reading-log', name: 'Reading log', category: 'Classroom', description: 'Daily reading tracker table', studio: 'layout', size: 'A4', build: readingLog },
 ];
 
 export function templateById(id: string): TemplateInfo | undefined {

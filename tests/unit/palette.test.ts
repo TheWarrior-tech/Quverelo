@@ -128,4 +128,12 @@ describe('fuzzy noise', () => {
     expect(fuzzyMatch('exp', { label: 'Next Page' })).toBeNull();
     expect(fuzzyMatch('np', { label: 'Next Page' })).not.toBeNull();
   });
+  it('a short query does not reach a command through a synonym prefix (critique 3 P2-12)', () => {
+    const cc = { label: 'Convert to Curves', keywords: ['outline', 'expand', 'path'] };
+    expect(fuzzyMatch('exp', cc)).toBeNull();
+    expect(fuzzyMatch('expa', cc)).not.toBeNull();
+    expect(fuzzyMatch('path', cc)).not.toBeNull();
+    const top = rank('exp', [cc, { label: 'Export…' }, { label: 'Export PNG' }]).map((r) => r.item.label);
+    expect(top).toEqual(['Export…', 'Export PNG']);
+  });
 });

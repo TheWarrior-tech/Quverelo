@@ -82,9 +82,13 @@ function matchKeywords(term: string, keywords: readonly string[] | undefined): n
   for (const k of keywords) {
     const kw = normalize(k);
     if (kw === term) best = Math.max(best, 700);
+    // a synonym is a weaker claim than the label: a short query ("exp") only matches
+    // a synonym it spells out, so typing "exp" no longer surfaces Convert to Curves via
+    // "expand" (critique 3 P2-12); four letters are a deliberate word ("expa")
+    else if (term.length < 4) continue;
     else if (kw.startsWith(term)) best = Math.max(best, 650 - kw.length / 10);
-    else if (term.length >= 3 && kw.split(' ').some((w) => w.startsWith(term))) best = Math.max(best, 560);
-    else if (term.length >= 4 && kw.includes(term)) best = Math.max(best, 450);
+    else if (kw.split(' ').some((w) => w.startsWith(term))) best = Math.max(best, 560);
+    else if (kw.includes(term)) best = Math.max(best, 450);
   }
   return best;
 }

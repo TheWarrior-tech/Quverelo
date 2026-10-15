@@ -8,6 +8,7 @@ import { useEditor } from '../hooks';
 import { Icon, Logo } from '../Icons';
 import { Dialog } from './DialogHost';
 import { Check, Keys, PrefRow, PrefSection, Segmented } from './controls';
+import { SliderField } from '../controls/NumberField';
 import { useUpdateState } from '../../state/updates';
 
 const isMac = navigator.platform.toLowerCase().includes('mac');
@@ -41,44 +42,73 @@ function shortcutGroups(): ShortcutGroup[] {
   return [...menus, ...tools].filter((g) => g.items.length);
 }
 
+/** The label with every occurrence of the query drawn bold (the palette's match style). */
+function Hit({ text, q }: { text: string; q: string }) {
+  if (!q) return <>{text}</>;
+  const out: React.ReactNode[] = [];
+  const low = text.toLowerCase();
+  let i = 0;
+  for (let at = low.indexOf(q); at >= 0; at = low.indexOf(q, at + q.length)) {
+    if (at > i) out.push(text.slice(i, at));
+    out.push(<b className="sc-hit" key={at}>{text.slice(at, at + q.length)}</b>);
+    i = at + q.length;
+  }
+  if (i < text.length) out.push(text.slice(i));
+  return <>{out}</>;
+}
+
 export function ShortcutsDialog() {
   const groups = useMemo(shortcutGroups, []);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState<string>('all');
   const q = query.trim().toLowerCase();
-  const shown = groups
-    .filter((g) => q || active === 'all' || g.id === active)
-    .map((g) => ({ ...g, items: q ? g.items.filter((i) => `${i.label} ${i.keys}`.toLowerCase().includes(q)) : g.items }))
-    .filter((g) => g.items.length);
+  // the filter applies to every group, so the nav counts follow it (critique 3 P2-4)
+  const filtered = groups.map((g) => ({ ...g, items: q ? g.items.filter((i) => `${i.label} ${i.keys}`.toLowerCase().includes(q)) : g.items }));
+  const total = filtered.reduce((n, g) => n + g.items.length, 0);
+  const shown = filtered.filter((g) => (active === 'all' || g.id === active) && g.items.length);
+  const shownCount = shown.reduce((n, g) => n + g.items.length, 0);
+  const navItem = (g: (typeof filtered)[number]) => (
+    <button key={g.id} className={`nav-item${q && !g.items.length ? ' no-match' : ''}`} aria-current={active === g.id} onClick={() => setActive(g.id)}>
+      {g.title}<span className="count">{g.items.length}</span>
+    </button>
+  );
   return (
     <Dialog title="Keyboard shortcuts" size="xl" split footer={<button className="btn" onClick={closeDialog}>Done</button>}>
       <nav className="dlg-side" aria-label="Shortcut groups">
-        <input type="search" className="sc-search" placeholder="Search shortcuts" aria-label="Search shortcuts" value={query} onChange={(e) => setQuery(e.target.value)} data-autofocus />
-        <button className="nav-item" aria-current={!q && active === 'all'} onClick={() => { setActive('all'); setQuery(''); }}>
-          All shortcuts<span className="count">{groups.reduce((n, g) => n + g.items.length, 0)}</span>
+        <input
+          type="search"
+          className="sc-search"
+          placeholder="Search shortcuts"
+          aria-label="Search shortcuts"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setActive('all');
+          }}
+          data-autofocus
+        />
+        <button className="nav-item" aria-current={active === 'all'} onClick={() => setActive('all')}>
+          All shortcuts<span className="count">{total}</span>
         </button>
         <h3 className="micro">Menus</h3>
-        {groups.filter((g) => APP_MENU.some((m) => m.label === g.id)).map((g) => (
-          <button key={g.id} className="nav-item" aria-current={!q && active === g.id} onClick={() => { setActive(g.id); setQuery(''); }}>
-            {g.title}<span className="count">{g.items.length}</span>
-          </button>
-        ))}
+        {filtered.filter((g) => APP_MENU.some((m) => m.label === g.id)).map(navItem)}
         <h3 className="micro">Tools &amp; canvas</h3>
-        {groups.filter((g) => !APP_MENU.some((m) => m.label === g.id)).map((g) => (
-          <button key={g.id} className="nav-item" aria-current={!q && active === g.id} onClick={() => { setActive(g.id); setQuery(''); }}>
-            {g.title}<span className="count">{g.items.length}</span>
-          </button>
-        ))}
+        {filtered.filter((g) => !APP_MENU.some((m) => m.label === g.id)).map(navItem)}
       </nav>
       <div className="dlg-main" aria-live="polite">
+        {q && shownCount > 0 && (
+          <p className="sc-summary" data-testid="shortcuts-summary">
+            {shownCount === 1 ? '1 shortcut matches' : `${shownCount} shortcuts match`} “{query.trim()}”
+          </p>
+        )}
         {shown.length ? (
-          <div className="sc-cols">
+          <div className={`sc-cols${q ? ' filtered' : ''}`}>
             {shown.map((g) => (
               <section className="sc-group" key={g.id}>
                 <h3 className="micro">{g.title}</h3>
                 {g.items.map((i) => (
                   <div className="sc-row" key={i.label + i.keys}>
-                    <span>{i.label}</span>
+                    <span><Hit text={i.label} q={q} /></span>
                     <Keys combo={i.keys} />
                   </div>
                 ))}
@@ -86,7 +116,7 @@ export function ShortcutsDialog() {
             ))}
           </div>
         ) : (
-          <div className="sc-empty">No shortcuts match “{query}”.</div>
+          <div className="sc-empty">No shortcuts match “{query}”{active !== 'all' && total > 0 ? ' in this group' : ''}.</div>
         )}
       </div>
     </Dialog>
@@ -295,8 +325,9 @@ export function PreferencesDialog() {
               <PrefRow title="Recent documents" description="The list on the start screen. Files themselves are not touched.">
                 <button className="btn" onClick={async () => { await window.quvrelo.clearRecent(); toast('Recent documents cleared', 'success'); }} disabled={!editor.feature('recent-files' as never)}>Clear list</button>
               </PrefRow>
-              <PrefRow title="Autosave" description={p.autosaveIntervalSeconds ? `Every ${p.autosaveIntervalSeconds} seconds, kept for crash recovery.` : 'Turned off by your organisation.'}>
-                <span className="value-text" style={{ color: 'var(--c-text-3)' }}>{p.autosaveIntervalSeconds ? 'On' : 'Off'}</span>
+              <PrefRow title="Autosave" htmlFor="pref-autosave" description={p.autosaveIntervalSeconds ? `Every ${p.autosaveIntervalSeconds} seconds, kept for crash recovery. Always on.` : 'Turned off by your organisation.'}>
+                {/* a read-only boolean is still a checkbox, never a bare "On" (critique 3 P2-3) */}
+                <Check id="pref-autosave" checked={!!p.autosaveIntervalSeconds} disabled onChange={() => undefined} />
               </PrefRow>
             </PrefSection>
             <PrefSection title="Updates">
@@ -333,9 +364,9 @@ export function PreferencesDialog() {
               <ThemeTiles value={p.forceTheme ?? s.theme} locked={!!p.forceTheme} onChange={(t) => setSetting({ theme: t })} />
             </PrefSection>
             <PrefSection title="Interface">
-              <PrefRow title="Interface size" description="Scales every panel, menu and dialog." htmlFor="pref-scale">
-                <input id="pref-scale" type="range" min={75} max={200} step={5} value={scale} disabled={p.lockUiScale} onChange={(e) => setSetting({ uiScale: parseInt(e.target.value, 10) / 100 })} aria-valuetext={`${scale}%`} />
-                <span className="value-text">{scale}%</span>
+              <PrefRow title="Interface size" description="Scales every panel, menu and dialog.">
+                {/* the one slider dialect: track · 56px number field (critique 3 P2-8) */}
+                <SliderField label="Interface size" hideLabel className="pref-slider" min={75} max={200} step={5} unit="%" value={scale} disabled={p.lockUiScale} onChange={(v) => setSetting({ uiScale: v / 100 })} />
               </PrefRow>
             </PrefSection>
           </>

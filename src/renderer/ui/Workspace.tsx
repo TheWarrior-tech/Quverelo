@@ -15,7 +15,7 @@ import { Rulers } from './Rulers';
 import { Panels } from './panels/Panels';
 import { tip } from './tips';
 import { applyFillToSelection, applyStrokeToSelection, swapFillStroke } from './panels/ColorPanel';
-import { ColorPopoverBody, FillStrokeChips, type ChipTarget } from './color/Chips';
+import { ColorPopoverBody, FillStrokeChips, colourPopoverGeometry, type ChipTarget } from './color/Chips';
 import { Popover } from './controls/Panel';
 import { uiPaint, uiPaintPatch } from '../state/uiPaint';
 import { statusLine, useUpdateState } from '../state/updates';
@@ -242,7 +242,7 @@ function RailChips() {
         onOpen={(t, el) => setOpen(open && open.t === t ? null : { t, el })}
       />
       {open && (
-        <Popover anchor={open.el} placement="right" label={isFill ? 'Fill colour' : 'Stroke colour'} onClose={() => setOpen(null)}>
+        <Popover anchor={open.el} placement="right" avoid={() => colourPopoverGeometry(open.el).avoid} label={isFill ? 'Fill colour' : 'Stroke colour'} onClose={() => setOpen(null)}>
           <ColorPopoverBody
             label={isFill ? 'Fill' : 'Stroke'}
             value={uiPaint(ed.ui, open.t)}
@@ -313,20 +313,20 @@ function CanvasEmptyState() {
             <button type="button" className="ce-action" onClick={() => runCommand('file.place')} data-empty-action="place">
               <Icon name="image" size={16} />
               <span>Place image…</span>
-              {shortcutFor('file.place') && <span className="ce-keys">{shortcutFor('file.place')}</span>}
+              {shortcutFor('file.place') && <span className="ce-keys" aria-hidden="true"><Keys combo={shortcutFor('file.place')!} /></span>}
             </button>
           )}
           {(shapesHere || ed.feature('vector')) && (
             <button type="button" className="ce-action" onClick={drawShape} data-empty-action="shape">
               <Icon name="rect" size={16} />
               <span>Draw a shape</span>
-              <span className="ce-keys">{shapesHere ? toolKeyIn(ed.ui.studio, 'rect') : ''}</span>
+              <span className="ce-keys" aria-hidden="true">{shapesHere && toolKeyIn(ed.ui.studio, 'rect') ? <Keys combo={toolKeyIn(ed.ui.studio, 'rect')!} /> : null}</span>
             </button>
           )}
           <button type="button" className="ce-action" onClick={addText} data-empty-action="text">
             <Icon name="text" size={16} />
             <span>Add text</span>
-            <span className="ce-keys">T</span>
+            <span className="ce-keys" aria-hidden="true"><Keys combo="T" /></span>
           </button>
         </div>
         {canPlace && <p className="canvas-empty-hint"><Icon name="drop" size={16} />or drop an image here</p>}

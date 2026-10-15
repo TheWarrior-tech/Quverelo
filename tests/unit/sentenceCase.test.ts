@@ -108,3 +108,26 @@ describe('sentence case', () => {
     expect(bad).toEqual([]);
   });
 });
+
+describe('sentence case outside ui/ (critique 3 P1-8)', () => {
+  it('bundled template names are sentence case (welcome, new document, palette)', async () => {
+    const { TEMPLATES } = await import('../../src/core/templates');
+    const bad = TEMPLATES.flatMap((t) => [t.name, t.description, t.category].filter((s) => titleCasePair(s.replace(/\bUS\b/g, 'us'))).map((s) => `${t.id}: ${s}`));
+    expect(bad).toEqual([]);
+  });
+
+  it('tool names are sentence case, and the Shortcuts dialog and palette use them', async () => {
+    const { TOOL_LABELS, toolName } = await import('../../src/renderer/state/toolGroups');
+    const bad = Object.values(TOOL_LABELS).filter((l) => titleCasePair(l));
+    expect(bad).toEqual([]);
+    expect(toolName('marquee-rect')).toBe('Rectangle marquee');
+    expect(toolName('rect')).toBe('Rectangle');
+    // the Shortcuts table and palette must not derive names from ids ("marquee-rect" → "Marquee Rect")
+    const commands = fs.readFileSync(path.join(STATE, 'commands.ts'), 'utf8');
+    const table = commands.slice(commands.indexOf('export function shortcutTable'));
+    expect(table).toMatch(/toolName\(t as ToolId\)/);
+    expect(table).not.toMatch(/toUpperCase\(\)\)\s*;?\s*\n/);
+    const palette = fs.readFileSync(path.join(STATE, 'palette.ts'), 'utf8');
+    expect(palette).toMatch(/label: `\$\{name\} tool`/);
+  });
+});

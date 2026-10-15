@@ -197,7 +197,8 @@
   color: var(--c-text-2);
 }
 .doc-state.dirty i {
-  background: var(--c-accent);
+  /* status, not one of the accent's four roles (critique 3 P2-5): a solid neutral dot */
+  background: var(--c-text-2);
   box-shadow: none;
 }
 .topbar .export-btn svg.icon {

@@ -8,12 +8,16 @@ import type {
   SceneNode, Story, Stroke, StudioKind, Swatch, TextStyle, Id,
 } from './types';
 
+/**
+ * Default document palette (critique 3 P2-8): a ten-step neutral ramp, then ten
+ * considered mid-tone hues that print and project well, in place of a saturated
+ * rainbow. The picker shows it as two rows of ten.
+ */
 export const DEFAULT_SWATCHES: Swatch[] = [
-  ['Black', '#000000'], ['White', '#ffffff'], ['Charcoal', '#2b2d42'], ['Slate', '#5c677d'],
-  ['Silver', '#c9ced6'], ['Red', '#e63946'], ['Coral', '#ff7f50'], ['Orange', '#f4a261'],
-  ['Sun', '#ffd166'], ['Lime', '#a7c957'], ['Green', '#2a9d8f'], ['Teal', '#06aed5'],
-  ['Sky', '#4cc9f0'], ['Blue', '#3a86ff'], ['Indigo', '#4361ee'], ['Violet', '#7209b7'],
-  ['Magenta', '#f72585'], ['Pink', '#ffafcc'], ['Sand', '#e9d8a6'], ['Brown', '#8d6346'],
+  ['Black', '#000000'], ['Ink', '#1b1d22'], ['Graphite', '#33363d'], ['Slate', '#4d5159'], ['Steel', '#6b7079'],
+  ['Pewter', '#8d929b'], ['Silver', '#b1b5bc'], ['Mist', '#d4d7dc'], ['Paper', '#ecedef'], ['White', '#ffffff'],
+  ['Brick', '#c4473a'], ['Coral', '#e07a5f'], ['Amber', '#e3a13b'], ['Mustard', '#d9b44a'], ['Olive', '#8a9a5b'],
+  ['Green', '#3d8b6d'], ['Teal', '#2a8c9a'], ['Blue', '#3d6fb6'], ['Indigo', '#5a55a6'], ['Plum', '#8e4f8b'],
 ].map(([name, color]) => ({ id: newId('sw'), name, color }));
 
 export const solid = (color: string): Paint => ({ type: 'solid', color });
@@ -386,8 +390,15 @@ export function hasAutoName(n: SceneNode): boolean {
  * like Figma; an empty text frame keeps "Text Frame". Everything else shows
  * its stored name.
  */
-export function layerDisplayName(n: SceneNode, doc: Pick<QuvreloDocument, 'stories'> | null | undefined): string {
+export function layerDisplayName(n: SceneNode, doc: Pick<QuvreloDocument, 'stories'> | null | undefined, max = AUTO_NAME_LENGTH): string {
   if (!hasAutoName(n)) return n.name;
   const text = n.type === 'text' ? n.text : n.type === 'textframe' ? doc?.stories[n.storyId]?.text ?? '' : '';
-  return textSnippet(text) || n.name;
+  return textSnippet(text, max) || n.name;
 }
+
+/**
+ * Length cap for names shown in a CSS-truncated slot (layer rows, the inspector
+ * header): long enough that the CSS ellipsis is the only cut anyone sees, so a
+ * name is never cut twice ("Thirty projects fro…", critique 3 P2-16).
+ */
+export const DISPLAY_NAME_MAX = 120;

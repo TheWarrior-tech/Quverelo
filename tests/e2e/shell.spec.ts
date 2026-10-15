@@ -86,8 +86,10 @@ test.describe('shell v3', () => {
     const empty = page.locator('.layers-empty');
     await expect(empty).toBeVisible();
     await expect(empty).toContainText('No layers yet');
-    await expect(empty.getByRole('button')).toHaveCount(3);
-    await empty.getByRole('button', { name: /Draw a shape/ }).click();
+    // the canvas card owns the three actions; the Layers empty state shrinks to one line (critique 3 P2-3)
+    await expect(page.getByTestId('canvas-empty')).toBeVisible();
+    await expect(empty.getByRole('button')).toHaveCount(0);
+    await page.getByTestId('canvas-empty').locator('[data-empty-action="shape"]').click();
     await expect.poll(() => state<string>(page, 'editor.ui.tool')).toBe('rect');
     await drag(page, await docToScreen(page, 100, 100), await docToScreen(page, 300, 260));
     await expect(empty).toHaveCount(0);

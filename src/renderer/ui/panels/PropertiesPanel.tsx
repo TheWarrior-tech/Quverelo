@@ -1,7 +1,7 @@
 import { BLEND_MODES, type BlendMode, type Paint, type SceneNode, type Stroke } from '../../../core/types';
 import { updateNode, updateNodes, releaseMask } from '../../../core/commands';
 import { UNIT_DIGITS, UNIT_STEP, formatSize, fromPx, pixelsAt, toPx } from '../../../core/units';
-import { layerDisplayName } from '../../../core/document';
+import { DISPLAY_NAME_MAX, layerDisplayName } from '../../../core/document';
 import { editor } from '../../state/editor';
 import { runCommand } from '../../state/commands';
 import { renderBounds } from '../../engine/draw';
@@ -112,7 +112,11 @@ const KIND: Record<SceneNode['type'], string> = {
   rect: 'Rectangle', ellipse: 'Ellipse', polygon: 'Polygon', star: 'Star', path: 'Path', text: 'Text', textframe: 'Text frame',
   imageframe: 'Picture frame', raster: 'Pixel layer', group: 'Group',
 };
-const SHAPE_TITLE: Partial<Record<SceneNode['type'], string>> = { rect: 'Rectangle', polygon: 'Polygon', star: 'Star', textframe: 'Text frame', imageframe: 'Picture frame', raster: 'Pixels' };
+/**
+ * The object's own section is named for what it edits, not for the object, so it
+ * never repeats the header ("Rectangle" over "RECTANGLE", critique 3 P2-11).
+ */
+const SHAPE_TITLE: Partial<Record<SceneNode['type'], string>> = { rect: 'Corners', polygon: 'Sides', star: 'Points', textframe: 'Columns and links', imageframe: 'Image fit', raster: 'Pixels' };
 
 /** Align (and distribute / boolean when they apply) for the selection: the top of the inspector, as in Figma. */
 function ArrangeBar({ count }: { count: number }) {
@@ -160,7 +164,7 @@ export function PropertiesPanel() {
   if (!ed.doc) return null;
   if (!nodes.length) return <DocumentProperties />;
   const n = nodes[0];
-  const name = layerDisplayName(n, ed.doc);
+  const name = layerDisplayName(n, ed.doc, DISPLAY_NAME_MAX);
   const multi = nodes.length > 1;
   const u = ed.unit;
   const b = renderBounds(n);
