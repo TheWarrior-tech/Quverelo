@@ -72,6 +72,7 @@ export function RailGroup({ group }: { group: ToolGroup }) {
         aria-controls={open ? menuId : undefined}
         data-tool={shown}
         data-group={group.id}
+        data-group-tools={group.tools.join(' ')}
         onPointerDown={(e) => {
           if (e.button !== 0) return;
           suppressClick.current = false;

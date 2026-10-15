@@ -67,3 +67,26 @@ export async function shot(page: Page, name: string) {
   fs.mkdirSync(shotsDir, { recursive: true });
   await page.screenshot({ path: path.join(shotsDir, `${name}.png`) });
 }
+
+/**
+ * Activate a tool from the rail. Tools hidden inside a flyout group (CRITIQUE #21)
+ * are reached by right-clicking the group button and choosing the menu item.
+ */
+export async function pickTool(page: Page, tool: string): Promise<void> {
+  const direct = page.locator(`.toolpalette [data-tool="${tool}"]`);
+  if (await direct.count()) {
+    await direct.click();
+    return;
+  }
+  const group = page.locator(`.toolpalette [data-group-tools~="${tool}"]`);
+  await group.click({ button: 'right' });
+  await page.locator(`.tool-flyout [data-flyout-tool="${tool}"]`).click();
+  await page.locator('.tool-flyout').waitFor({ state: 'detached' });
+}
+
+/** Every tool on the rail, flyout members included, in rail order. */
+export async function railTools(page: Page): Promise<string[]> {
+  return page.locator('.toolpalette [data-tool]').evaluateAll((els) =>
+    els.flatMap((e) => (e.getAttribute('data-group-tools') ?? e.getAttribute('data-tool')!).split(' ')),
+  );
+}
