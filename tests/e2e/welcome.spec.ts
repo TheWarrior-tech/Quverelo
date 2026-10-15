@@ -9,6 +9,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { launch, state, type Launched } from './helpers';
+import { displayLocation } from '../../src/core/paths';
 
 const photo = path.resolve('tests/fixtures/sample-photo.jpg');
 const png = path.resolve('tests/fixtures/gradient.png');
@@ -120,9 +121,8 @@ test.describe('Welcome and first run', () => {
     await expect(row).toBeVisible();
     await expect(row).toHaveAttribute('data-tip', photo);
     const where = row.getByTestId('recent-where');
-    const home = os.homedir();
-    const dir = path.dirname(photo);
-    await expect(where).toHaveText(dir.startsWith(home + path.sep) ? '~' + dir.slice(home.length) : dir);
+    // the folder in full when it fits 48 characters (CI checkouts do); deep checkouts get "/…/" in the middle
+    await expect(where).toHaveText(displayLocation(photo, os.homedir()));
     expect(await where.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
     await page.getByTestId('welcome-search').fill('gradient');
     await expect(page.locator('[data-recent]')).toHaveCount(1);
