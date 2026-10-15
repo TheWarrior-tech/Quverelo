@@ -128,6 +128,7 @@ test.describe('Welcome and first run', () => {
     await expect(page.locator('[data-recent]')).toHaveCount(1);
     if (shots) {
       await page.getByTestId('welcome-search').fill('');
+      await page.getByTestId('welcome-search').blur();
       await page.mouse.move(2, 2);
       await page.waitForTimeout(800);
       await page.screenshot({ path: path.join(shots, 'welcome-v3.png') });
