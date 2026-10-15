@@ -29,6 +29,20 @@ A new editor shell, faster photo selection and cropping, a command palette, and 
 
 ### Export
 - The top bar has an **Export ▾** button. Export… opens on PDF for Layout documents and remembers the last format per document; the menu lists every format, **Hand in…** and **Export again** (<kbd>Ctrl/⌘</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd>), which repeats the last export without the dialog. <kbd>Ctrl/⌘</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd> now opens Export… (it used to open Export PNG).
+- **PDF is now real vectors.** Shapes, gradients, masks, blend modes and text are written as PDF vectors with embedded, subset fonts, so text stays sharp and can be searched and copied. The old picture-per-page option is labelled **Image PDF**. No format is called "print-ready" and no PDF/X preset is shown.
+- **Export form, reworked:** file name in the form; **Area** (All · Current · Range such as `1–3, 5` · Selection for PNG/JPEG); a scale field with a W px field and presets; the dialog is as tall as its content, and PDF shows the page size in document units.
+
+### Critique 2 polish
+- **Top bar:** a visible *Search commands  Ctrl K* field opens the command palette, and the studio switch is truly centred.
+- **One home for opacity and blend** in Design › Appearance in every studio; text frames show their dashed guide only on hover, selection or editing; new text layers are named by their first words until renamed.
+- **Photo:** a Shapes flyout on the rail (Rectangle · Ellipse · Polygon · Star, <kbd>U</kbd> / <kbd>Shift</kbd>+<kbd>U</kbd>) draws vector shape layers above the active layer. The Layers **+** button opens an *Add layer* menu (Pixel layer, Group selection, Place image…, Adjustment).
+- **Snap** in the status bar is a real toggle with a magnet icon and its shortcut in the tooltip.
+- **One segmented control everywhere**, Curves included, with a clearly visible active tile in Dark, Light and High contrast; **one colour popover** (None · Solid · Linear · Radial + picker) behind every colour chip, so new objects can default to a gradient.
+- **Curves:** working Input/Output number fields, Reset beside the channel switch, solid end-point knobs; the histogram has a header with a channel menu and draws luminance as a quiet area with thin R/G/B lines.
+- **Sentence case** for every button, title, tab, label and tooltip (native menus keep platform Title Case). New Document shows preset pages as white paper in every theme; high-contrast canvas handles are yellow; Done is a plain default button.
+
+### Fixes
+- macOS and Windows packages build again (two source files differed only by letter case, which those file systems treat as the same file).
 
 ---
 
