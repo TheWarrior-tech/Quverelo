@@ -26,7 +26,7 @@ export function paintCss(p: Paint): string {
 const PAINT_LABELS: Record<Paint['type'], string> = { none: 'None', solid: 'Solid', linear: 'Linear', radial: 'Radial' };
 
 /** Paint editor: none / solid / linear / radial gradient. */
-export function PaintEditor({ paint, onChange, onCommit, allowNone = true }: { paint: Paint; onChange: (p: Paint) => void; onCommit?: () => void; allowNone?: boolean }) {
+export function PaintEditor({ paint, onChange, onCommit, allowNone = true, allowGradient = true }: { paint: Paint; onChange: (p: Paint) => void; onCommit?: () => void; allowNone?: boolean; allowGradient?: boolean }) {
   const [stop, setStop] = useState(0);
   const firstColor = paint.type === 'solid' ? paint.color : paint.type === 'none' ? '#3a86ff' : paint.stops[0]?.color ?? '#000000';
   const setType = (t: Paint['type']) => {
@@ -39,7 +39,7 @@ export function PaintEditor({ paint, onChange, onCommit, allowNone = true }: { p
     }
     onCommit?.();
   };
-  const types = (['none', 'solid', 'linear', 'radial'] as const).filter((t) => allowNone || t !== 'none');
+  const types = (['none', 'solid', 'linear', 'radial'] as const).filter((t) => (allowNone || t !== 'none') && (allowGradient || t === 'none' || t === 'solid'));
   const grad = paint.type === 'linear' || paint.type === 'radial' ? paint : null;
   const cur = grad ? Math.min(stop, grad.stops.length - 1) : 0;
   const setStops = (stops: { offset: number; color: string }[], commit = false) => {
