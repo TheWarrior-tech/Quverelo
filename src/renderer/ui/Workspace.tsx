@@ -417,7 +417,10 @@ function StatusBar() {
       <button className="icon-btn sm" {...tip('Zoom out', 'view.zoom-out')} onClick={() => runCommand('view.zoom-out')}><Icon name="minus" /></button>
       <button className="btn ghost zoom-value" onClick={() => runCommand('view.zoom-fit')} {...tip('Zoom to fit', 'view.zoom-fit')} aria-label={`Zoom ${zoom}%, fit to window`}><span className="num">{zoom}%</span></button>
       <button className="icon-btn sm" {...tip('Zoom in', 'view.zoom-in')} onClick={() => runCommand('view.zoom-in')}><Icon name="plus" /></button>
-      <span>{ed.settings.snapping ? 'Snap on' : 'Snap off'}</span>
+      <span className="sep" aria-hidden="true" />
+      <button type="button" className={`btn ghost snap-toggle${ed.settings.snapping ? ' on' : ''}`} aria-pressed={ed.settings.snapping} {...tip('Snapping', 'view.snapping')} aria-label="Snap" onClick={() => runCommand('view.snapping')}>
+        <Icon name="magnet" /> Snap
+      </button>
     </footer>
   );
 }
