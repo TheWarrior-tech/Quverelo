@@ -1,3 +1,4 @@
+import { tip } from '../tooltip';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Icon } from '../Icons';
 import { closeDialog, onDialog, type DialogName } from '../../state/bus';
@@ -129,7 +130,7 @@ export function Dialog({ title, children, footer, footerStart, size, wide, split
           <>
             <header className="dialog-header">
               <h2 id={`${id}-t`}>{title}</h2>
-              <button className="icon-btn" aria-label="Close" title="Close (Esc)" onClick={close}>
+              <button className="icon-btn" {...tip('Close', 'Escape')} onClick={close}>
                 <Icon name="close" size={16} />
               </button>
             </header>
