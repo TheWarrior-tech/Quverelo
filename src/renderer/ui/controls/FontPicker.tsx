@@ -39,8 +39,10 @@ export function FontPicker({ value, onPreview, onCommit, compact = false }: { va
   );
 }
 
-function FontList({ anchor, initial, onPreview, onCommit, onClose }: { anchor: HTMLElement; initial: string; onPreview: (f: string) => void; onCommit: (f: string) => void; onClose: () => void }) {
+function FontList({ anchor, initial: initialProp, onPreview, onCommit, onClose }: { anchor: HTMLElement; initial: string; onPreview: (f: string) => void; onCommit: (f: string) => void; onClose: () => void }) {
   const ed = useEditor();
+  // the font when the list opened: live previews change the trigger's value, Esc returns here
+  const [initial] = useState(initialProp);
   const [query, setQuery] = useState('');
   const [scroll, setScroll] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
