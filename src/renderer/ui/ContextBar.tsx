@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react';
 import { findNode } from '../../core/document';
 import { setStoryStyle, updateNode, updateNodes } from '../../core/commands';
 import { PX_PER } from '../../core/units';
@@ -210,8 +211,32 @@ function CropControls() {
   );
 }
 
+/** Marks the context bar while controls run past its right edge, so CSS can fade them out instead of cutting one in half. */
+function useOverflowEnd() {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => {
+      const more = el.scrollWidth - el.clientWidth - el.scrollLeft > 1;
+      if (more) el.setAttribute('data-overflow-end', '');
+      else el.removeAttribute('data-overflow-end');
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    el.addEventListener('scroll', update, { passive: true });
+    return () => {
+      ro.disconnect();
+      el.removeEventListener('scroll', update);
+    };
+  });
+  return ref;
+}
+
 export function ContextBar() {
   const ed = useEditor();
+  const barRef = useOverflowEnd();
   const t = ed.ui.tool;
   const o = ed.ui.toolOptions;
   const sel = ed.selectedNodes();
@@ -220,7 +245,7 @@ export function ContextBar() {
   const frames = sel.filter((n): n is TextFrameNode => n.type === 'textframe');
   const layout = ed.ui.studio === 'layout';
   return (
-    <div className="contextbar" role="toolbar" aria-label="Tool options">
+    <div className="contextbar" role="toolbar" aria-label="Tool options" ref={barRef}>
       <span className="tool-name">{toolLabel(t).replace(/ \(.*\)/, '')}</span>
       {(t === 'brush' || t === 'eraser') && (
         <>
