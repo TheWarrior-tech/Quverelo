@@ -6,7 +6,9 @@ import { exportSvg, pagesHaveImages, renderPageCanvas, renderSelectionCanvas, se
 import { createCanvas, ctx2d } from '../../engine/assets';
 import { formatUnit } from '../../../core/units';
 import { parsePageRange } from '../../../core/pageRange';
-import { NumberField } from '../controls/NumberField';
+import { NumberField, SliderField } from '../controls/NumberField';
+import { Menu, type MenuEntry } from '../controls/Menu';
+import { Icon } from '../Icons';
 import { Dialog } from './DialogHost';
 import { Check, Field, Segmented, formatBytes } from './controls';
 
@@ -23,14 +25,19 @@ const KINDS: { id: Kind; format: Format; name: string; sub: string }[] = [
   { id: 'pdf-image', format: 'pdf', name: 'Image PDF', sub: 'One picture per page' },
 ];
 
-const SCALE_PRESETS: { v: number; label: string }[] = [
+const SCALE_PRESETS: { v: number; label: string; detail?: string }[] = [
   { v: 0.5, label: '0.5×' },
   { v: 1, label: '1×' },
   { v: 2, label: '2×' },
   { v: 3, label: '3×' },
   { v: 4, label: '4×' },
-  { v: 300 / 96, label: 'Print · 300 dpi' },
+  { v: 300 / 96, label: '3.13×', detail: 'Print · 300 dpi' },
 ];
+
+/** "2×", "0.5×", "3.13×": the scale as the field shows it. */
+export function formatScale(k: number): string {
+  return `${Math.round(k * 100) / 100}×`;
+}
 
 const PREVIEW_MAX = 512;
 
@@ -55,6 +62,10 @@ export function ExportDialog({ format: initial }: { format: Format }) {
   const isPdf = format === 'pdf';
   const raster = format === 'png' || format === 'jpg';
   const [scale, setScale] = useState(1);
+  /** The Scale control edits either the factor (2×) or the output width (W px); the other is the read-only hint. */
+  const [scaleBy, setScaleBy] = useState<'factor' | 'width'>('factor');
+  const [presetAnchor, setPresetAnchor] = useState<HTMLElement | null>(null);
+  const scaleFieldRef = useRef<HTMLDivElement>(null);
   const [dpi, setDpi] = useState(doc.settings.unit === 'px' ? 150 : 300);
   const [quality, setQuality] = useState(90);
   const [transparent, setTransparent] = useState(!doc.settings.background);
@@ -194,7 +205,38 @@ export function ExportDialog({ format: initial }: { format: Format }) {
   };
 
   const hasBleed = doc.settings.bleed > 0;
-  const presetValue = SCALE_PRESETS.find((p) => Math.abs(p.v - scale) < 1e-6)?.v ?? 'custom';
+  const focusScaleField = () => window.setTimeout(() => scaleFieldRef.current?.querySelector('input')?.focus(), 0);
+  const presetItems: MenuEntry[] = [
+    ...SCALE_PRESETS.map((p) => ({
+      id: `scale-${p.v}`,
+      label: p.label,
+      detail: p.detail,
+      icon: scaleBy === 'factor' && Math.abs(p.v - scale) < 1e-6 ? 'check' : undefined,
+      run: () => {
+        setScale(p.v);
+        setScaleBy('factor');
+        focusScaleField();
+      },
+    })),
+    '-',
+    scaleBy === 'factor'
+      ? { id: 'scale-width', label: 'Custom width…', detail: 'Type the width in pixels', run: () => { setScaleBy('width'); focusScaleField(); } }
+      : { id: 'scale-factor', label: 'Scale factor…', detail: 'Type a multiplier like 2×', run: () => { setScaleBy('factor'); focusScaleField(); } },
+  ];
+  const presetTrigger = (
+    <button
+      type="button"
+      className="nf-trail"
+      aria-label="Scale presets"
+      data-tip="Scale presets"
+      aria-haspopup="menu"
+      aria-expanded={!!presetAnchor}
+      data-testid="export-scale-presets"
+      onClick={(e) => setPresetAnchor(presetAnchor ? null : e.currentTarget)}
+    >
+      <Icon name="chevron-down" size={16} />
+    </button>
+  );
 
   return (
     <Dialog
@@ -258,15 +300,18 @@ export function ExportDialog({ format: initial }: { format: Format }) {
             <Field label="Area"><span className="value-text">{areaOptions[0]?.label ?? 'Current page'}</span></Field>
           )}
           {raster && (
-            <Field label="Scale" hint={`${pxW} × ${pxH} px`}>
-              <div className="ex-scale">
-                <NumberField ariaLabel="Scale" value={scale} unit="×" min={0.05} max={16} step={0.25} digits={2} onCommit={setScale} className="ex-scale-k" />
-                <NumberField ariaLabel="Width in pixels" label="W" value={pxW} unit="px" min={1} max={16384} step={1} digits={0} onCommit={(w) => setScale(Math.max(0.01, w / baseW))} className="ex-scale-w" />
-                <select aria-label="Scale presets" value={presetValue} onChange={(e) => e.target.value !== 'custom' && setScale(parseFloat(e.target.value))}>
-                  {presetValue === 'custom' && <option value="custom">Custom</option>}
-                  {SCALE_PRESETS.map((s) => <option key={s.v} value={s.v}>{s.label}</option>)}
-                </select>
+            <Field
+              label={scaleBy === 'factor' ? 'Scale' : 'Width'}
+              hint={<span data-testid="export-scale-hint">{scaleBy === 'factor' ? `${pxW} × ${pxH} px` : `${formatScale(scale)} · ${pxW} × ${pxH} px`}</span>}
+            >
+              <div className="ex-scale" ref={scaleFieldRef}>
+                {scaleBy === 'factor' ? (
+                  <NumberField key="factor" ariaLabel="Scale" value={scale} unit="×" unitInline trailing={presetTrigger} min={0.05} max={16} step={0.25} digits={2} onCommit={setScale} className="ex-scale-k" />
+                ) : (
+                  <NumberField key="width" ariaLabel="Width in pixels" value={pxW} unit="px" unitInline trailing={presetTrigger} min={1} max={16384} step={1} digits={0} onCommit={(w) => setScale(Math.max(0.01, w / baseW))} className="ex-scale-w" />
+                )}
               </div>
+              {presetAnchor && <Menu anchor={presetAnchor} label="Scale presets" items={presetItems} align="end" minWidth={184} onClose={() => setPresetAnchor(null)} />}
             </Field>
           )}
           {kind === 'pdf-image' && (
@@ -279,11 +324,8 @@ export function ExportDialog({ format: initial }: { format: Format }) {
             </Field>
           )}
           {showQuality && (
-            <Field label={kind === 'pdf' ? 'Photo quality' : 'Quality'} htmlFor="ex-q">
-              <div className="range-row">
-                <input id="ex-q" type="range" min={40} max={100} value={quality} onChange={(e) => setQuality(parseInt(e.target.value, 10))} aria-valuetext={`${quality}%`} />
-                <span className="value-text">{quality}%</span>
-              </div>
+            <Field label={kind === 'pdf' ? 'Photo quality' : 'Quality'}>
+              <SliderField label={kind === 'pdf' ? 'Photo quality' : 'Quality'} hideLabel className="ex-quality" min={40} max={100} unit="%" value={quality} onChange={(v) => setQuality(Math.round(v))} />
             </Field>
           )}
           {format === 'png' && (

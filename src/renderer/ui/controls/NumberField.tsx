@@ -29,6 +29,13 @@ export interface NumberFieldProps {
   title?: string;
   onScrubStart?: () => void;
   onScrubEnd?: () => void;
+  /**
+   * Draw the unit directly after the digits ("2×", left-aligned) instead of at
+   * the field's right edge, where a suffix reads as a clear button (critique 3 N5).
+   */
+  unitInline?: boolean;
+  /** Control drawn inside the field's right edge (a preset chevron). */
+  trailing?: ReactNode;
 }
 
 /**
@@ -37,7 +44,7 @@ export interface NumberFieldProps {
  * The input is the accessible spinbutton; the scrub label is decorative for AT.
  */
 export function NumberField(p: NumberFieldProps) {
-  const { value, onCommit, onChange, ariaLabel, label, min, max, step = 1, digits = 2, unit, lengthUnit, pxPerStep = 1, mixed, disabled, className, title } = p;
+  const { value, onCommit, onChange, ariaLabel, label, min, max, step = 1, digits = 2, unit, lengthUnit, pxPerStep = 1, mixed, disabled, className, title, unitInline, trailing } = p;
   const fmt = (v: number) => (mixed ? '' : formatNumber(v, digits));
   const [text, setText] = useState(fmt(value));
   const [scrubbing, setScrubbing] = useState(false);
@@ -110,7 +117,19 @@ export function NumberField(p: NumberFieldProps) {
 
   const numericNow = mixed ? undefined : value;
   return (
-    <div className={`nf${scrubbing ? ' scrubbing' : ''}${disabled ? ' disabled' : ''}${label === undefined ? ' no-label' : ''}${className ? ' ' + className : ''}`} data-tip={title ?? ariaLabel}>
+    <div
+      className={`nf${scrubbing ? ' scrubbing' : ''}${disabled ? ' disabled' : ''}${label === undefined ? ' no-label' : ''}${unitInline ? ' unit-inline' : ''}${trailing ? ' has-trailing' : ''}${className ? ' ' + className : ''}`}
+      data-tip={title ?? ariaLabel}
+      onPointerDown={unitInline ? (e) => {
+        // the inline input is only as wide as its digits: a press on the empty rest of the field still edits it
+        if (disabled || e.button !== 0) return;
+        const t = e.target as HTMLElement;
+        if (t === e.currentTarget || t.classList.contains('nf-unit') || t.classList.contains('nf-fill')) {
+          e.preventDefault();
+          inputRef.current?.focus();
+        }
+      } : undefined}
+    >
       {label !== undefined && (
         <span className="nf-label" aria-hidden="true" onPointerDown={startScrub}>
           {label}
@@ -165,6 +184,8 @@ export function NumberField(p: NumberFieldProps) {
         }}
       />
       {unit && <span className="nf-unit" aria-hidden="true">{unit}</span>}
+      {unitInline && <span className="nf-fill" aria-hidden="true" />}
+      {trailing}
     </div>
   );
 }
@@ -187,6 +208,11 @@ export interface SliderFieldProps {
   /** draw the fill from this value (e.g. 0 on a -100..100 range) */
   origin?: number;
   compact?: boolean;
+  /** the row already names the value (a Preferences or dialog row): track · field only, `label` stays the accessible name */
+  hideLabel?: boolean;
+  disabled?: boolean;
+  /** extra class on the row */
+  className?: string;
 }
 
 /** Label (scrubbable) · track · value field. Used in panels and the context bar. */
@@ -224,12 +250,15 @@ export function SliderField(p: SliderFieldProps) {
     document.addEventListener('pointerup', up);
   };
   return (
-    <div className={`slider-row${p.compact ? ' compact' : ''}`}>
-      <label className="sf-label" onPointerDown={startScrub} data-tip="Drag to adjust">
-        {label}
-      </label>
+    <div className={`slider-row${p.compact ? ' compact' : ''}${p.hideLabel ? ' no-label' : ''}${p.disabled ? ' disabled' : ''}${p.className ? ' ' + p.className : ''}`}>
+      {!p.hideLabel && (
+        <label className="sf-label" onPointerDown={p.disabled ? undefined : startScrub} data-tip="Drag to adjust">
+          {label}
+        </label>
+      )}
       <input
         type="range"
+        disabled={p.disabled}
         min={min}
         max={max}
         step={step}
@@ -250,7 +279,7 @@ export function SliderField(p: SliderFieldProps) {
         }}
         onChange={(e) => onChange(parseFloat(e.target.value))}
       />
-      <NumberField value={value} min={min} max={max} step={step} digits={digits} unit={unit} ariaLabel={`${ariaLabel} value`} onCommit={commit} />
+      <NumberField value={value} min={min} max={max} step={step} digits={digits} unit={unit} ariaLabel={`${ariaLabel} value`} onCommit={commit} disabled={p.disabled} />
     </div>
   );
 }

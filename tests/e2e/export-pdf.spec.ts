@@ -120,7 +120,8 @@ test.describe('export', () => {
     const scale = dlg.getByRole('spinbutton', { name: 'Scale' });
     await scale.fill('2');
     await scale.press('Tab');
-    await expect(dlg.getByRole('spinbutton', { name: 'Width in pixels' })).toHaveValue('200');
+    // factor mode: the hint under the Scale field reads out the pixel size
+    await expect(page.getByTestId('export-scale-hint')).toHaveText('200 × 100 px');
     await expect(page.getByTestId('export-dims')).toHaveText('200 × 100 px');
     // dialog hugs its content: the form's last row ends near the body's bottom or the preview sets the height
     const gap = await page.evaluate(() => {
