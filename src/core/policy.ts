@@ -17,6 +17,8 @@ export type FeatureId = (typeof FEATURE_IDS)[number];
 
 export type ThemeId = 'dark' | 'light' | 'high-contrast';
 
+export type UpdateChannel = 'stable' | 'beta';
+
 export interface Policy {
   /** Directory used by Save / Export dialogs by default. Supports %USERPROFILE%, ~, %DOCUMENTS%. */
   defaultSaveDirectory: string | null;
@@ -26,8 +28,19 @@ export interface Policy {
   allowedSaveDirectories: string[];
   /** Folder where students hand in assignments (shown in File ▸ Hand In). */
   handInDirectory: string | null;
-  /** Disables the manual "Check for updates" command entirely. The app never updates itself automatically. */
+  /** Turns off every update check (automatic and Help ▸ Check for Updates). Updates are then deployed by IT. */
   disableUpdateCheck: boolean;
+  /**
+   * Internal update server (electron-builder "generic" feed): a folder that holds latest*.yml,
+   * beta*.yml, the installers and their .blockmap files. null = the public GitHub Releases feed.
+   */
+  updateFeedUrl: string | null;
+  /** Lock background downloading of updates on (true) or off (false). null = user choice (default on). */
+  autoDownload: boolean | null;
+  /** Lock installing a downloaded update when the app quits. false = only when the user clicks Restart. null = on. */
+  autoInstall: boolean | null;
+  /** Lock the update channel. null = user choice (default "stable"). */
+  updateChannel: UpdateChannel | null;
   /** Features to remove from the UI. */
   disabledFeatures: FeatureId[];
   /** Autosave interval in seconds (0 disables autosave). */
@@ -53,6 +66,10 @@ export const DEFAULT_POLICY: Policy = {
   allowedSaveDirectories: [],
   handInDirectory: null,
   disableUpdateCheck: false,
+  updateFeedUrl: null,
+  autoDownload: null,
+  autoInstall: null,
+  updateChannel: null,
   disabledFeatures: [],
   autosaveIntervalSeconds: 60,
   forceTheme: null,
@@ -121,6 +138,26 @@ export function parsePolicy(raw: unknown, source: string | null = null): PolicyR
   bool('showWelcomeScreen');
   numIn('maxUndoSteps', 10, 2000);
   strOrNull('organizationName');
+
+  const boolOrNull = (k: 'autoDownload' | 'autoInstall') => {
+    if (!(k in r)) return;
+    const v = r[k];
+    if (v === null || typeof v === 'boolean') policy[k] = v;
+    else warnings.push(`"${k}" must be true, false or null`);
+  };
+  boolOrNull('autoDownload');
+  boolOrNull('autoInstall');
+  if ('updateFeedUrl' in r) {
+    const v = r.updateFeedUrl;
+    if (v === null || v === '') policy.updateFeedUrl = null;
+    else if (isStr(v) && /^https?:\/\/[^\s/]+/i.test(v.trim())) policy.updateFeedUrl = v.trim().replace(/\/+$/, '') + '/';
+    else warnings.push('"updateFeedUrl" must be an http:// or https:// URL or null');
+  }
+  if ('updateChannel' in r) {
+    const v = r.updateChannel;
+    if (v === null || v === 'stable' || v === 'beta') policy.updateChannel = v;
+    else warnings.push('"updateChannel" must be "stable", "beta" or null');
+  }
 
   if ('forceTheme' in r) {
     const v = r.forceTheme;

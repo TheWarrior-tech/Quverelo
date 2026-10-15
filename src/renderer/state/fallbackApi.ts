@@ -3,7 +3,14 @@
  * (component development, browser-based tests). Uses file inputs and downloads.
  */
 import { DEFAULT_POLICY } from '../../core/policy';
-import { DEFAULT_SETTINGS, type QuvreloApi, type OpenedFile, type UserSettings } from '../../shared/api';
+import { DEFAULT_SETTINGS, type QuvreloApi, type OpenedFile, type UpdateState, type UserSettings } from '../../shared/api';
+
+const browserUpdateState: UpdateState = {
+  status: 'disabled', current: 'dev', latest: null, releaseName: null, releaseNotes: null, releaseDate: null,
+  channel: 'stable', mode: 'disabled', action: 'none', installKind: 'browser', note: 'Updates are not available in the browser.',
+  progress: null, error: null, downloadUrl: null, command: null, feedLabel: '', autoDownload: false, autoInstallOnQuit: false,
+  locks: { autoDownload: false, autoInstall: false, channel: false }, checkedAt: null,
+};
 
 export function browserFallbackApi(): QuvreloApi {
   const settingsKey = 'quvrelo.settings';
@@ -53,7 +60,12 @@ export function browserFallbackApi(): QuvreloApi {
     handIn: async () => {
       throw new Error('Hand-in requires the desktop app');
     },
-    checkForUpdates: async () => ({ current: 'dev', latest: null, url: null, newer: false, error: 'Not available in the browser' }),
+    checkForUpdates: async () => browserUpdateState,
+    getUpdateState: async () => browserUpdateState,
+    downloadUpdate: async () => browserUpdateState,
+    restartToUpdate: () => undefined,
+    openUpdateDownload: async () => undefined,
+    onUpdateState: () => () => undefined,
     openExternal: async (u) => void window.open(u, '_blank'),
     showItemInFolder: async () => undefined,
     nativeEdit: (a) => void document.execCommand(a),

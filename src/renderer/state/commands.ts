@@ -583,20 +583,7 @@ export async function setSetting(patch: Partial<typeof editor.settings>): Promis
 reg('help.shortcuts', () => openDialog('shortcuts'));
 reg('help.guide', () => openDialog('guide'));
 reg('help.about', () => openDialog('about'));
-reg('help.check-updates', async () => {
-  const r = await window.quvrelo.checkForUpdates();
-  if (r.error) toast(`Update check: ${r.error}`, 'error');
-  else if (r.newer && r.url) {
-    openDialog('confirm', {
-      title: 'Update available',
-      message: `Quvrelo ${r.latest} is available (you have ${r.current}). Open the download page?`,
-      actions: [
-        { label: 'Open download page', primary: true, run: () => window.quvrelo.openExternal(r.url!) },
-        { label: 'Later', run: () => undefined },
-      ],
-    });
-  } else toast(`You have the latest version (${r.current})`, 'success');
-});
+reg('help.check-updates', () => openDialog('updates'));
 reg('dialog.close', () => closeDialog());
 
 // ---------------------------------------------------------------------------

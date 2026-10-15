@@ -6,11 +6,11 @@ import { DEFAULT_POLICY, featureEnabled, isSavePathAllowed, parsePolicy, type Po
 import { APP_MENU } from '../shared/menu';
 import {
   DEFAULT_SETTINGS, type AppInfo, type ExternalTemplate, type FileFilter, type OpenedFile, type RecentFile,
-  type RecoveryEntry, type UpdateInfo, type UserSettings,
+  type RecoveryEntry, type UpdateState, type UserSettings,
 } from '../shared/api';
+import { UpdateService } from './updates/updater';
 
 const E2E = process.env.QUVRELO_E2E === '1';
-const REPO = 'TheWarrior-tech/Quverelo';
 
 if (process.env.QUVRELO_USER_DATA) app.setPath('userData', process.env.QUVRELO_USER_DATA);
 
@@ -94,6 +94,23 @@ async function getSettings(): Promise<UserSettings> {
 let win: BrowserWindow | null = null;
 let dirty = false;
 let quitting = false;
+
+const updates = new UpdateService({
+  policy,
+  e2e: E2E,
+  getPrefs: async () => {
+    const s = await getSettings();
+    return { autoDownloadUpdates: s.autoDownloadUpdates, updateChannel: s.updateChannel };
+  },
+  broadcast: (state: UpdateState) => {
+    if (win && !win.isDestroyed()) win.webContents.send('update:state', state);
+  },
+  // Restart to update: close through the normal path so unsaved work gets the save prompt first.
+  requestQuitForUpdate: () => {
+    if (win) win.close();
+    else updates.installNow();
+  },
+});
 const pendingOpen: string[] = [];
 
 function fileArgs(argv: string[]): string[] {
@@ -144,10 +161,11 @@ async function createWindow() {
     else if (r.response === 1) {
       quitting = true;
       win?.close();
-    }
+    } else updates.cancelRestart();
   });
   win.on('closed', () => {
     win = null;
+    if (updates.wantsInstall) updates.installNow();
   });
 
   const devUrl = process.env.VITE_DEV_SERVER_URL;
@@ -215,6 +233,7 @@ function registerIpc() {
     await writeJson('settings.json', next);
     const s = await getSettings();
     if (win && patch.uiScale) win.webContents.setZoomFactor(s.uiScale);
+    if ('autoDownloadUpdates' in patch || 'updateChannel' in patch) await updates.configure();
     return s;
   });
 
@@ -354,21 +373,11 @@ function registerIpc() {
     return target;
   });
 
-  ipcMain.handle('update:check', async (): Promise<UpdateInfo> => {
-    const current = app.getVersion();
-    if (policy.disableUpdateCheck || !featureEnabled(policy, 'update-check')) {
-      return { current, latest: null, url: null, newer: false, error: 'Update checks are disabled by your administrator.' };
-    }
-    try {
-      const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: 'application/vnd.github+json' } });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const j = (await res.json()) as { tag_name: string; html_url: string };
-      const latest = j.tag_name.replace(/^v/, '');
-      return { current, latest, url: j.html_url, newer: compareVersions(latest, current) > 0 };
-    } catch (e) {
-      return { current, latest: null, url: null, newer: false, error: (e as Error).message };
-    }
-  });
+  ipcMain.handle('update:check', () => updates.check(true));
+  ipcMain.handle('update:get-state', () => updates.state);
+  ipcMain.handle('update:download', () => updates.download());
+  ipcMain.handle('update:open-download', () => updates.openDownload());
+  ipcMain.on('update:restart', () => updates.restart());
   ipcMain.handle('shell:open-external', (_e, url: string) => {
     if (featureEnabled(policy, 'external-links') && /^https?:\/\//.test(url)) return shell.openExternal(url);
   });
@@ -399,16 +408,6 @@ function registerIpc() {
 async function readFileResult(p: string): Promise<OpenedFile> {
   const data = await fs.readFile(p);
   return { path: p, name: path.basename(p), data: new Uint8Array(data) };
-}
-
-export function compareVersions(a: string, b: string): number {
-  const pa = a.split('.').map((x) => parseInt(x, 10) || 0);
-  const pb = b.split('.').map((x) => parseInt(x, 10) || 0);
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
-    if (d) return d;
-  }
-  return 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -450,6 +449,7 @@ if (!E2E && !app.requestSingleInstanceLock()) {
     registerIpc();
     buildMenu();
     await createWindow();
+    updates.init().catch((e) => console.error('[updater] init failed', e));
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });

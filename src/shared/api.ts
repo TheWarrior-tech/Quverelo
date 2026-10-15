@@ -1,5 +1,5 @@
 /** Contract between the renderer and the main process (exposed by preload as window.quvrelo). */
-import type { Policy } from '../core/policy';
+import type { Policy, UpdateChannel } from '../core/policy';
 
 export interface FileFilter {
   name: string;
@@ -34,6 +34,10 @@ export interface UserSettings {
   reduceMotion: boolean;
   dyslexiaFriendlyUi: boolean;
   lastStudio: 'photo' | 'vector' | 'layout';
+  /** Download updates in the background (Preferences ▸ General). Policy "autoDownload" overrides. */
+  autoDownloadUpdates: boolean;
+  /** Update channel. Policy "updateChannel" overrides. */
+  updateChannel: UpdateChannel;
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -45,6 +49,8 @@ export const DEFAULT_SETTINGS: UserSettings = {
   reduceMotion: false,
   dyslexiaFriendlyUi: false,
   lastStudio: 'vector',
+  autoDownloadUpdates: true,
+  updateChannel: 'stable',
 };
 
 export interface AppInfo {
@@ -64,12 +70,44 @@ export interface ExternalTemplate {
   folder: string;
 }
 
-export interface UpdateInfo {
+export type UpdateStatus =
+  | 'idle' // nothing checked yet
+  | 'disabled' // policy, portable, dev build...
+  | 'checking'
+  | 'available' // found; not downloading (notify-only installs, or automatic download off)
+  | 'downloading'
+  | 'ready' // downloaded and verified (sha512); restart to install
+  | 'up-to-date'
+  | 'error';
+
+export interface UpdateState {
+  status: UpdateStatus;
   current: string;
   latest: string | null;
-  url: string | null;
-  newer: boolean;
-  error?: string;
+  releaseName: string | null;
+  /** Plain text (HTML from the feed is reduced to text in the main process). */
+  releaseNotes: string | null;
+  releaseDate: string | null;
+  channel: UpdateChannel;
+  /** 'auto' = installs itself; 'notify' = tells you and links to the download; 'disabled'. */
+  mode: 'auto' | 'notify' | 'disabled';
+  /** What the primary button does once an update is found. */
+  action: 'restart' | 'open-download' | 'package-manager' | 'none';
+  /** How Quvrelo was installed (nsis, msi, mac, appimage, deb, rpm, flatpak, ...). */
+  installKind: string;
+  /** Why updates are off, or why this install cannot update itself. */
+  note: string | null;
+  progress: { percent: number; transferred: number; total: number; bytesPerSecond: number } | null;
+  error: string | null;
+  /** Download page / package URL for notify-only installs. */
+  downloadUrl: string | null;
+  /** Package-manager command (deb/rpm/flatpak). */
+  command: string | null;
+  feedLabel: string;
+  autoDownload: boolean;
+  autoInstallOnQuit: boolean;
+  locks: { autoDownload: boolean; autoInstall: boolean; channel: boolean };
+  checkedAt: string | null;
 }
 
 export interface QuvreloApi {
@@ -95,7 +133,16 @@ export interface QuvreloApi {
   listExternalTemplates(): Promise<ExternalTemplate[]>;
   handIn(opts: { data: Uint8Array; fileName: string; className: string; studentName: string }): Promise<string>;
 
-  checkForUpdates(): Promise<UpdateInfo>;
+  /** Manual check (Help ▸ Check for Updates). Resolves with the state after the check. */
+  checkForUpdates(): Promise<UpdateState>;
+  getUpdateState(): Promise<UpdateState>;
+  /** Start the download when automatic download is off. */
+  downloadUpdate(): Promise<UpdateState>;
+  /** Restart and install. Goes through the normal close path, so unsaved work prompts first. */
+  restartToUpdate(): void;
+  /** Open the release page / package for installs that cannot update themselves. */
+  openUpdateDownload(): Promise<void>;
+  onUpdateState(cb: (s: UpdateState) => void): () => void;
   openExternal(url: string): Promise<void>;
   showItemInFolder(path: string): Promise<void>;
 

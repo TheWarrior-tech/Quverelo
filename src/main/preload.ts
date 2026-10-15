@@ -19,6 +19,15 @@ const api: QuvreloApi = {
   listExternalTemplates: () => ipcRenderer.invoke('templates:external'),
   handIn: (o) => ipcRenderer.invoke('handin:submit', o),
   checkForUpdates: () => ipcRenderer.invoke('update:check'),
+  getUpdateState: () => ipcRenderer.invoke('update:get-state'),
+  downloadUpdate: () => ipcRenderer.invoke('update:download'),
+  restartToUpdate: () => ipcRenderer.send('update:restart'),
+  openUpdateDownload: () => ipcRenderer.invoke('update:open-download'),
+  onUpdateState: (cb) => {
+    const h = (_e: unknown, s: Parameters<typeof cb>[0]) => cb(s);
+    ipcRenderer.on('update:state', h);
+    return () => ipcRenderer.removeListener('update:state', h);
+  },
   openExternal: (u) => ipcRenderer.invoke('shell:open-external', u),
   showItemInFolder: (p) => ipcRenderer.invoke('shell:show-item', p),
   nativeEdit: (a) => ipcRenderer.send('edit:native', a),
