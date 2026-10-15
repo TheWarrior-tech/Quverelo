@@ -178,7 +178,7 @@ Disabled never means translucent accent. The contrast audit checks that the acti
 
 **New document presets.** Grid of 124px-min tiles: page thumbnail on pasteboard tone (84 high), name 12/500, meta 11 `text-3`. Every page is drawn as paper in every theme: `#fff` at 88 % opacity with a 1px `--c-line-strong` edge, never a grey slab. Selection is the tile's accent-wash fill and 1px accent outline only; the selected page goes to full opacity and shows its margins as a faint coral inset (`#ff6b4a` at 60 %).
 
-**Export / preferences.** Dialog with a left list (grouped, 4px-radius active row) and a form on the right; labels 12 `text-2`; dividers hairline; preview thumbnail on pasteboard tone with filename + dimensions as tabular text.
+**Export / preferences.** Dialog with a left list (grouped, 4px-radius active row) and a form on the right; labels 12 `text-2`; dividers hairline; preview thumbnail on pasteboard tone with filename + dimensions as tabular text. Export lists PNG · JPEG · SVG · **PDF** (vectors and live text, embedded fonts) · **Image PDF** (one picture per page); copy never calls a format "print-ready" and no PDF/X preset is shown until output is genuinely conformant. Form order: File name · Area (All · Current · Range with a `1–3, 5` field · Selection for PNG/JPEG) · Scale (× field · W px field · preset menu) or Image resolution · Quality (PDF: only when the pages hold photos) · Background · Bleed · Marks · Colour, then one `text-3` note on what the format keeps. The dialog is as tall as its content (no fixed height); PDF shows page size in document units.
 
 **Status bar (24).** Left: size, selection count, status. Right: units select, zoom control (− value +), a 12px hairline, then the **Snap** toggle: 20-high ghost button, 16px magnet icon + "Snap", `aria-pressed`, tooltip "Snapping" with its shortcut; off = `text-3`, on = `--c-press` fill, `text` label, accent magnet (the "on" role; HC: black + 1px yellow inset). All 11–12px tabular, `text-2`.
 
@@ -188,7 +188,9 @@ Disabled never means translucent accent. The contrast audit checks that the acti
 
 **Layout canvas.** Page edge hairline, dashed bleed, coral margins at 60 %, column guides at 40 %; none of these appear in Photo or Vector.
 
-**Curves.** 256×256 graph, `--r-2`, `--c-canvas` fill, 4×4 hairline grid, histogram at 20 %, 1.5px curve, 8px knobs (selected = white + accent ring), RGB·R·G·B segmented control, Input/Output fields.
+**Curves.** Header row: RGB·R·G·B segmented control (shared `Segmented`) and, outside the track, a 24px ghost `undo` icon button that resets the shown channel (disabled while straight). 256×256 graph, `--r-2`, `--c-canvas` fill, plot inset 6px so end points are whole, 4×4 hairline grid, histogram ghost `--c-text-3` at 18 % (light 12 %; a channel's tint on R/G/B), 1.5px curve, 8px ring knobs for inner points, 7px solid end-point knobs (`--c-text` fill, 1px `--c-app` ring), selected = white + accent ring. Input/Output are number fields that always show a point: the selected one, else the black point.
+
+**Histogram (Adjust tab).** 8px top padding, 28px header (micro-label `HISTOGRAM` · channel menu: Colours / Luminance / Red / Green / Blue), 60px plot on `--c-app` with a hairline: luminance as a `--c-text-3` area at 40 %, R/G/B as 1px lines at 60 % (HC: white area, full-strength lines). No saturated fills.
 
 ## 9. Accessibility (must not regress)
 

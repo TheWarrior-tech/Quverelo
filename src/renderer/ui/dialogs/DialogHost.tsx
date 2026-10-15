@@ -82,6 +82,12 @@ export function Dialog({ title, children, footer, footerStart, size, wide, split
         if (field || t === r) {
           e.preventDefault();
           e.stopPropagation();
+          if (t.getAttribute('role') === 'spinbutton') {
+            // a number field commits on blur: let it, then submit with the committed value
+            t.blur();
+            window.setTimeout(() => submitRef.current?.(), 0);
+            return;
+          }
           submitRef.current();
           return;
         }

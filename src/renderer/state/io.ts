@@ -6,7 +6,7 @@ import { templateById } from '../../core/templates';
 import type { QuvreloDocument, ImageFrameNode, SceneNode, StudioKind } from '../../core/types';
 import type { FileFilter } from '../../shared/api';
 import { canvasToBytes, createCanvas, ctx2d } from '../engine/assets';
-import { exportPdf, exportRaster, exportSvg, renderPageCanvas } from '../engine/export';
+import { exportImagePdf, exportPdf, exportRaster, exportSelectionRaster, exportSvg, renderPageCanvas } from '../engine/export';
 import { importSvg } from '../engine/svgImport';
 import { defaultExportFormat, pagesStillValid, type ExportFormat } from '../../core/exportDefaults';
 import { editor } from './editor';
@@ -297,6 +297,20 @@ export interface ExportRequest {
   transparent: boolean;
   includeBleed: boolean;
   cropMarks: boolean;
+  /** PDF only: 'vector' (default) keeps shapes and text as vectors; 'image' makes one picture per page */
+  pdfKind?: 'vector' | 'image';
+  /** PNG/JPEG only: export just these objects, cropped to their bounds */
+  selection?: string[];
+  /** file name offered in the save dialog (without extension); defaults to the document title */
+  fileName?: string;
+}
+
+/** What the last vector PDF had to place as images (for the toast), or null. */
+let lastPdfNote: string | null = null;
+export function takePdfNote(): string | null {
+  const n = lastPdfNote;
+  lastPdfNote = null;
+  return n;
 }
 
 /**
@@ -307,10 +321,19 @@ export interface ExportRequest {
 export async function runExportFiles(req: ExportRequest, targets: (string | null)[] = []): Promise<string[] | null> {
   const doc = editor.doc;
   if (!doc) return null;
-  const title = doc.title || 'Untitled';
+  const title = req.fileName?.trim() || doc.title || 'Untitled';
   const written: string[] = [];
   if (req.format === 'pdf') {
-    const data = await exportPdf(doc, editor.assets, { dpi: req.dpi, includeBleed: req.includeBleed, cropMarks: req.cropMarks, quality: req.quality, pages: req.pages });
+    let data: Uint8Array;
+    lastPdfNote = null;
+    if (req.pdfKind === 'image') {
+      data = await exportImagePdf(doc, editor.assets, { dpi: req.dpi, includeBleed: req.includeBleed, cropMarks: req.cropMarks, quality: req.quality, pages: req.pages });
+    } else {
+      const out = await exportPdf(doc, editor.assets, { pages: req.pages, includeBleed: req.includeBleed, cropMarks: req.cropMarks, quality: req.quality, fallbackDpi: Math.max(150, req.dpi) });
+      data = out.bytes;
+      const r = out.report.rasterised;
+      if (r.length) lastPdfNote = r.length === 1 ? `“${r[0].name}” was placed as an image: ${r[0].reason}` : `${r.length} objects were placed as images (${r[0].reason}…)`;
+    }
     const p = await window.quvrelo.saveFile({ path: targets[0] ?? null, data, defaultName: `${title}.pdf`, filters: [{ name: 'PDF', extensions: ['pdf'] }], title: 'Export PDF' });
     if (!p) return null;
     written.push(p);
@@ -321,6 +344,13 @@ export async function runExportFiles(req: ExportRequest, targets: (string | null
       if (req.format === 'svg') {
         const svg = exportSvg(doc, editor.assets, i, req.includeBleed);
         p = await window.quvrelo.saveFile({ path: targets[k] ?? null, data: new TextEncoder().encode(svg), defaultName: `${title}${suffix}.svg`, filters: [{ name: 'SVG', extensions: ['svg'] }], title: 'Export SVG' });
+      } else if (req.selection?.length) {
+        const data = await exportSelectionRaster(doc, editor.assets, req.selection, { scale: req.scale, transparent: req.transparent, format: req.format, quality: req.quality });
+        const ext = req.format === 'jpg' ? 'jpg' : 'png';
+        p = await window.quvrelo.saveFile({ path: targets[k] ?? null, data, defaultName: `${title} - selection.${ext}`, filters: [{ name: ext.toUpperCase(), extensions: [ext] }], title: `Export ${ext.toUpperCase()}` });
+        if (!p) return null;
+        written.push(p); // one image of the selection, whatever the page range
+        break;
       } else {
         const data = await exportRaster(doc, editor.assets, { pageIndex: i, scale: req.scale, includeBleed: req.includeBleed, transparent: req.transparent, format: req.format, quality: req.quality });
         const ext = req.format === 'jpg' ? 'jpg' : 'png';
@@ -370,7 +400,9 @@ export async function exportAgain(): Promise<string[] | null> {
   if (!doc) return null;
   const last = lastExportFor(doc.id);
   const pages = last ? pagesStillValid(last.req.pages, doc.pages.length) : null;
-  if (!last || !pages || !enabledExportFormats().includes(last.req.format)) {
+  // a selection export whose objects are gone opens the dialog instead
+  const selGone = !!last?.req.selection?.length && !last.req.selection.some((id) => findNode(doc, id));
+  if (!last || !pages || selGone || !enabledExportFormats().includes(last.req.format)) {
     openDialog('export', { format: exportFormatFor() });
     return null;
   }
@@ -378,6 +410,8 @@ export async function exportAgain(): Promise<string[] | null> {
   try {
     const paths = await runExportFiles({ ...last.req, pages }, same ? last.paths : []);
     if (paths) toast(paths.length === 1 ? `Exported again: ${paths[0].split(/[\\/]/).pop()}` : `Exported ${paths.length} files again`, 'success');
+    const note = takePdfNote();
+    if (paths && note) toast(note, 'info');
     return paths;
   } catch (e) {
     toast(`Export failed: ${(e as Error).message}`, 'error');

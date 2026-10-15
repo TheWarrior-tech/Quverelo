@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { updateNode } from '../../../core/commands';
 import { newId } from '../../../core/ids';
 import { ADJUSTMENTS, adjustmentSpec, defaultParams, histogram } from '../../../core/pixels';
@@ -14,34 +14,90 @@ function setAdjustments(n: RasterNode, list: Adjustment[], merge?: string) {
   editor.commit('Adjustment', (d) => updateNode(d, n.id, { adjustments: list } as Partial<SceneNode>), merge);
 }
 
+type HistMode = 'rgb' | 'l' | 'r' | 'g' | 'b';
+const HIST_MODES: { v: HistMode; label: string }[] = [
+  { v: 'rgb', label: 'Colours' },
+  { v: 'l', label: 'Luminance' },
+  { v: 'r', label: 'Red' },
+  { v: 'g', label: 'Green' },
+  { v: 'b', label: 'Blue' },
+];
+const HIST_LINE: Record<'r' | 'g' | 'b', string> = { r: '#ff6b6b', g: '#5fd47c', b: '#6ba4ff' };
+
+function cssVar(name: string, fallback: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+}
+
+/**
+ * Histogram (critique 2 P1-13): a micro-label header with a channel menu, then
+ * luminance as a quiet text-3 area with R/G/B as thin lines (no saturated fills).
+ */
 function Histogram({ node }: { node: RasterNode }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const [mode, setMode] = useState<HistMode>('rgb');
   useEffect(() => {
     const c = ref.current;
     const src = editor.assets.rendered(node.assetId, node.adjustments, true);
     if (!c || !src) return;
+    const dpr = window.devicePixelRatio || 1;
+    const cw = c.clientWidth || 264;
+    const ch = c.clientHeight || 60;
+    c.width = Math.round(cw * dpr);
+    c.height = Math.round(ch * dpr);
     // sample a downscaled copy for speed
     const s = Math.min(1, 256 / Math.max(src.width, src.height));
     const small = createCanvas(src.width * s, src.height * s);
     ctx2d(small).drawImage(src, 0, 0, small.width, small.height);
     const h = histogram(canvasToPixels(small));
     const ctx = c.getContext('2d')!;
-    ctx.clearRect(0, 0, c.width, c.height);
-    const max = Math.max(1, ...h.l);
-    const draw = (arr: Uint32Array, color: string) => {
-      ctx.fillStyle = color;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cw, ch);
+    const chans = mode === 'rgb' ? (['l', 'r', 'g', 'b'] as const) : ([mode] as const);
+    let max = 1;
+    for (const k of chans) for (let i = 1; i < 255; i++) max = Math.max(max, h[k][i]);
+    const yOf = (v: number) => ch - Math.min(1, v / max) * (ch - 1);
+    const theme = document.documentElement.dataset.theme;
+    const hc = theme === 'high-contrast';
+    const trace = (arr: Uint32Array) => {
       ctx.beginPath();
-      ctx.moveTo(0, c.height);
-      for (let i = 0; i < 256; i++) ctx.lineTo((i / 255) * c.width, c.height - (arr[i] / max) * c.height);
-      ctx.lineTo(c.width, c.height);
-      ctx.fill();
+      for (let i = 0; i < 256; i++) {
+        const x = (i / 255) * cw;
+        if (i === 0) ctx.moveTo(x, yOf(arr[i]));
+        else ctx.lineTo(x, yOf(arr[i]));
+      }
     };
-    ctx.globalCompositeOperation = 'screen';
-    draw(h.r, 'rgba(255,60,60,0.55)');
-    draw(h.g, 'rgba(60,255,60,0.55)');
-    draw(h.b, 'rgba(60,120,255,0.55)');
-  }, [node.assetId, node.adjustments]);
-  return <canvas ref={ref} width={276} height={60} className="histogram" aria-label="Histogram" role="img" />;
+    // area: luminance (or the one channel picked)
+    const areaKey = mode === 'rgb' ? 'l' : mode;
+    trace(h[areaKey]);
+    ctx.lineTo(cw, ch);
+    ctx.lineTo(0, ch);
+    ctx.closePath();
+    ctx.globalAlpha = hc ? 0.6 : 0.4;
+    ctx.fillStyle = hc ? '#ffffff' : mode === 'rgb' || mode === 'l' ? cssVar('--c-text-3', '#8b8d93') : HIST_LINE[mode];
+    ctx.fill();
+    // colour lines
+    if (mode === 'rgb') {
+      ctx.globalAlpha = hc ? 1 : 0.6;
+      ctx.lineWidth = 1;
+      for (const k of ['r', 'g', 'b'] as const) {
+        trace(h[k]);
+        ctx.strokeStyle = HIST_LINE[k];
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }, [node.assetId, node.adjustments, mode]);
+  return (
+    <section className="histo" aria-label="Histogram">
+      <header className="histo-head">
+        <span className="micro" id="histo-label">Histogram</span>
+        <select aria-label="Histogram channel" value={mode} onChange={(e) => setMode(e.target.value as HistMode)}>
+          {HIST_MODES.map((m) => <option key={m.v} value={m.v}>{m.label}</option>)}
+        </select>
+      </header>
+      <canvas ref={ref} className="histogram" aria-labelledby="histo-label" role="img" />
+    </section>
+  );
 }
 
 export function AdjustmentsPanel() {
