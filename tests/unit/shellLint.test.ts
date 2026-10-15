@@ -187,6 +187,8 @@ describe('high contrast selection vocabulary', () => {
     for (const r of all) {
       for (const sel of r.selectors.filter(isSelectedRule)) {
         if (/:focus/.test(subject(sel))) continue; // the focus half of selected+focused
+        // a colour swatch's fill is its content: selected is a 2px edge drawn inside it, focus the ring outside
+        if (/\.swatch\.on$/.test(subject(sel)) && /^inset\s+0\s+0\s+0\s+2px/.test(decl(r.body, 'box-shadow') ?? '')) continue;
         const outline = decl(r.body, 'outline');
         const shadow = decl(r.body, 'box-shadow') ?? '';
         const bg = decl(r.body, 'background') ?? decl(r.body, 'background-color');

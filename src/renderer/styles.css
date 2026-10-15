@@ -1899,6 +1899,16 @@ kbd {
 :root[data-theme='high-contrast'] .theme-tile[aria-checked='true'] .mini {
   box-shadow: 0 0 0 1px var(--c-accent-ink);
 }
+/* a colour swatch can't take the fill (its colour is the content): selected is drawn
+   inside it, a 2px yellow edge with a 1px black keyline, so it never looks like the
+   focus ring outside it */
+:root[data-theme='high-contrast'] .swatch.on {
+  box-shadow: inset 0 0 0 2px var(--c-accent), inset 0 0 0 3px #000;
+}
+:root[data-theme='high-contrast'] .swatch:focus-visible {
+  outline: 3px solid var(--c-focus);
+  outline-offset: 2px;
+}
 /* theme tiles and page thumbnails: the fill needs a margin of tile around the drawing */
 :root[data-theme='high-contrast'] .theme-tile,
 :root[data-theme='high-contrast'] .page-thumb {
@@ -1986,6 +1996,19 @@ kbd {
 :root[data-theme='high-contrast'] .slider-row.disabled input[type='range']::-webkit-slider-thumb {
   background: #000;
   box-shadow: 0 0 0 1px var(--c-disabled);
+}
+
+/* high contrast "dimmed" states (an inactive search group, a redo-able history step, a
+   hidden adjustment or paint, a hidden layer) use the disabled ink too: text-3 is
+   #e6e6e6 in HC, which reads as white, so a dim state would vanish. Never opacity: on a
+   selected (yellow) row a faded name turns olive. */
+:root[data-theme='high-contrast'] :is(.nav-item.no-match, .history-list li.future button, .adjust-item header .adjust-name.off, .paint-row.off .paint-name, .layer-row.hidden-layer .name) {
+  opacity: 1;
+  color: var(--c-disabled);
+}
+:root[data-theme='high-contrast'] .layer-row.selected.hidden-layer :is(.name, .thumb) {
+  opacity: 1;
+  color: var(--c-accent-ink);
 }
 
 /* high contrast keycaps: one 1px white frame on black everywhere (tooltips, menus, the
