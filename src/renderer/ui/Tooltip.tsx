@@ -20,7 +20,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Keys } from './dialogs/controls';
-import { placeTip, type TipSide as Side } from './tooltip';
+import { placeTip, type TipSide as Side } from './tips';
 
 export const TIP_DELAY = 400;
 export const TIP_WARM_MS = 800;

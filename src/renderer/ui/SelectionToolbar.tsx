@@ -7,7 +7,7 @@ import { editor } from '../state/editor';
 import { runCommand } from '../state/commands';
 import { useEditor } from './hooks';
 import { Icon } from './Icons';
-import { tip, shortcutFor } from './tooltip';
+import { tip, shortcutFor } from './tips';
 import { pixelStripActive } from './SelectionActions';
 import { ColorChipButton } from './color/Chips';
 import { MenuButton, type MenuItem } from './controls/Menu';

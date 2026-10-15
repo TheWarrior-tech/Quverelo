@@ -8,7 +8,7 @@ import { Icon } from '../Icons';
 import { NumberField } from '../controls/NumberField';
 import { useScrollEdges } from '../controls/Panel';
 import { EmptyState } from '../controls/EmptyState';
-import { tip } from '../tooltip';
+import { tip } from '../tips';
 import { dropIndex, isNoopDrop } from './layerDrop';
 
 const TYPE_ICON: Record<SceneNode['type'], string> = {

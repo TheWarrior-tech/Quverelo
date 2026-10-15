@@ -11,7 +11,7 @@ import { ContextBar } from './ContextBar';
 import { SelectionActions } from './SelectionActions';
 import { Rulers } from './Rulers';
 import { Panels } from './panels/Panels';
-import { tip } from './tooltip';
+import { tip } from './tips';
 import { applyFillToSelection, applyStrokeToSelection, swapFillStroke } from './panels/ColorPanel';
 import { ColorPopoverBody, FillStrokeChips, type ChipTarget } from './color/Chips';
 import { Popover } from './controls/Panel';
@@ -22,7 +22,7 @@ import { SelectionToolbar } from './SelectionToolbar';
 import { openDialog, toast } from '../state/bus';
 import { enabledExportFormats, exportFormatFor, lastExportFor } from '../state/io';
 import { Menu, type MenuEntry } from './controls/Menu';
-import { shortcutFor } from './tooltip';
+import { shortcutFor } from './tips';
 
 export { toolLabel } from './ToolFlyout';
 

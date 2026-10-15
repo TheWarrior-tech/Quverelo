@@ -4,7 +4,7 @@ import { editor, type ToolId } from '../state/editor';
 import { visibleTool, type ToolGroup } from '../state/toolGroups';
 import { useEditor } from './hooks';
 import { Icon } from './Icons';
-import { formatAccel, tip } from './tooltip';
+import { formatAccel, tip } from './tips';
 
 const TOOL_LABELS: Record<ToolId, string> = {
   move: 'Move (V)', node: 'Node (A)', hand: 'Hand (H)', zoom: 'Zoom (Z)',

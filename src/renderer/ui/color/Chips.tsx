@@ -1,4 +1,4 @@
-import { tip } from '../tooltip';
+import { tip } from '../tips';
 import { useRef, useState, type ReactNode } from 'react';
 import { Icon } from '../Icons';
 import { Popover } from '../controls/Panel';

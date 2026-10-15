@@ -12,7 +12,7 @@ import { MenuButton } from '../controls/Menu';
 import { ColorChipButton } from '../color/Chips';
 import { PaintRow } from '../color/PaintRow';
 import { Icon } from '../Icons';
-import { tip } from '../tooltip';
+import { tip } from '../tips';
 import { evalArithmetic } from '../controls/numeric';
 import type { Unit } from '../../../core/types';
 

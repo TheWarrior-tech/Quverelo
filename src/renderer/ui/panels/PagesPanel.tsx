@@ -1,4 +1,4 @@
-import { tip } from '../tooltip';
+import { tip } from '../tips';
 import { useEffect, useState } from 'react';
 import { movePage, removeMaster, renamePage, setPageMaster } from '../../../core/commands';
 import type { QuvreloDocument } from '../../../core/types';

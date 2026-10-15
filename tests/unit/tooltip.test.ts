@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { placeTip, tip, tipText } from '../../src/renderer/ui/tooltip';
+import { placeTip, tip, tipText } from '../../src/renderer/ui/tips';
 
 const rect = (left: number, top: number, w: number, h: number) => ({ left, top, right: left + w, bottom: top + h, width: w, height: h });
 

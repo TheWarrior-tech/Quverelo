@@ -9,7 +9,7 @@ import { runCommand } from '../state/commands';
 import { useEditor } from './hooks';
 import { Icon } from './Icons';
 import { toolLabel } from './Workspace';
-import { tip } from './tooltip';
+import { tip } from './tips';
 import { NumberField } from './controls/NumberField';
 import { ColorChipButton } from './color/Chips';
 import { Segmented } from './controls/Segmented';

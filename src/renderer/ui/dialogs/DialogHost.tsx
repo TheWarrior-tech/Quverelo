@@ -1,4 +1,4 @@
-import { tip } from '../tooltip';
+import { tip } from '../tips';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Icon } from '../Icons';
 import { closeDialog, onDialog, type DialogName } from '../../state/bus';

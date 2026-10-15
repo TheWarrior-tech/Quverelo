@@ -11,7 +11,7 @@ import { dismissChecklist, onboardingState } from '../state/onboarding';
 import { STEP_LABELS, availableSteps, checklistVisible, type OnboardingStep } from '../../core/onboarding';
 import { displayLocation, matchesQuery, relativeAge } from '../../core/paths';
 import { useEditor } from './hooks';
-import { shortcutFor, tip } from './tooltip';
+import { shortcutFor, tip } from './tips';
 import { createCanvas, ctx2d } from '../engine/assets';
 import { drawPage } from '../engine/draw';
 import { Icon, Logo } from './Icons';

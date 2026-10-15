@@ -4,7 +4,7 @@ import type { Viewport } from '../engine/Viewport';
 import { runCommand } from '../state/commands';
 import { useEditor } from './hooks';
 import { Icon } from './Icons';
-import { tip } from './tooltip';
+import { tip } from './tips';
 
 /** Tools after which the pixel-selection action strip is offered. */
 const STRIP_TOOLS = new Set(['marquee-rect', 'marquee-ellipse', 'lasso', 'object-select', 'move']);
