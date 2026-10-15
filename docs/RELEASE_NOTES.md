@@ -1,6 +1,6 @@
-## Unreleased
+## Quvrelo v0.5.0 — premium, signed off
 
-Design critique 3 and 4 fixes.
+Design critique 3, 4 and 5 fixes. The redesign passed an independent design review in dark, light and high contrast.
 
 ### Critique 4
 - **High contrast has one selection language.** A selected row, tile or list item is a solid yellow fill with black text and icons; keyboard focus is a yellow ring outside the row; selected and focused shows both. This now applies to Layers, Preferences, Shortcuts, Export formats, New document, the command palette and menus, and nothing turns olive. Dimmed items (search groups with no match, history you can redo, hidden layers) use the disabled colour instead of transparency. The Curves grid stays dim over the histogram.
