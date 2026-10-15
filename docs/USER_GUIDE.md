@@ -10,7 +10,7 @@ Press <kbd>F1</kbd> at any time to see every keyboard shortcut.
 
 ## Getting started
 1. On the welcome screen pick a studio card, a template (the **Classroom pack** has worksheets, certificates, lesson plans, timetables and more) or **New document** for a custom size.
-2. Use the **tools** on the left. The **context bar** under the top toolbar shows options for the current tool.
+2. Use the **tools** on the left. A tool with a small triangle in its corner hides related tools: right-click it or hold it down to choose one (or press <kbd>Shift</kbd> with its shortcut key to step through them). The one you used last stays on the rail. The **context bar** under the top toolbar shows options for the current tool.
 3. The **panels** on the right show properties, colours, layers, pages and history. Press <kbd>Tab</kbd> to hide/show them.
 4. Save with <kbd>Ctrl/⌘</kbd>+<kbd>S</kbd>. Everything — including photos — is stored in one `.quvrelo` file.
 
