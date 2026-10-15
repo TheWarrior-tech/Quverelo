@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createStory, hasAutoName, layerDisplayName, make, textSnippet } from '../../src/core/document';
 import { frameGuideVisible } from '../../src/renderer/engine/draw';
+import { indexAbove } from '../../src/core/commands';
 
 describe('text layer auto-names (critique 2 P1-7)', () => {
   it('collapses whitespace and cuts at a word boundary', () => {
@@ -56,8 +57,6 @@ describe('text frame guide (critique 2 P1-7)', () => {
     expect(frameGuideVisible(make.imageframe(), { doc, hiddenNodeId: null })).toBe(true);
   });
 });
-
-import { indexAbove } from '../../src/core/commands';
 
 describe('Photo shapes insert above the active layer', () => {
   const a = make.rect(), b = make.rect(), c = make.rect();
