@@ -120,3 +120,10 @@ describe('palette availability', () => {
     expect(r).toEqual(['f', 'e', 'd', 'a', 'c']);
   });
 });
+
+describe('fuzzy noise', () => {
+  it('a subsequence must start on a word', () => {
+    expect(fuzzyMatch('exp', { label: 'Next Page' })).toBeNull();
+    expect(fuzzyMatch('np', { label: 'Next Page' })).not.toBeNull();
+  });
+});

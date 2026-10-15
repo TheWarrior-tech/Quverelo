@@ -16,7 +16,8 @@ async function unnamedIconButtons(page: Page, scope: string): Promise<string[]> 
       const iconOnly = text.length === 0 || (b.querySelector('svg') !== null && text.length <= 1);
       if (!iconOnly) continue;
       const label = b.getAttribute('aria-label') ?? '';
-      const title = b.getAttribute('title') ?? '';
+      // tooltips are drawn by ui/Tooltip.tsx from data-tip (native title is migrated on hover)
+      const title = b.getAttribute('data-tip') ?? b.getAttribute('title') ?? '';
       if (!label || !title || !title.startsWith(label)) out.push(b.outerHTML.slice(0, 140));
     }
     return out;
@@ -67,9 +68,11 @@ test.describe('accessibility', () => {
       expect(await unnamedIconButtons(page, '.canvas-area'), `${studio} canvas`).toEqual([]);
     }
     // tooltips carry the real shortcut
-    await expect(page.locator('button[data-tool="move"]')).toHaveAttribute('title', 'Move (V)');
+    await expect(page.locator('button[data-tool="move"]')).toHaveAttribute('data-tip', 'Move');
+    await expect(page.locator('button[data-tool="move"]')).toHaveAttribute('data-keys', 'V');
     await expect(page.locator('button[data-tool="move"]')).toHaveAttribute('aria-label', 'Move');
-    await expect(page.locator('.topbar button[aria-label="Undo"]')).toHaveAttribute('title', /^Undo \((Ctrl\+Z|⌘Z)\)$/);
+    await expect(page.locator('button[data-tool="move"]')).not.toHaveAttribute('title', /.*/);
+    await expect(page.locator('.topbar button[aria-label="Undo"]')).toHaveAttribute('data-keys', 'CmdOrCtrl+Z');
   });
 
   for (const theme of ['dark', 'light', 'high-contrast'] as const) {
