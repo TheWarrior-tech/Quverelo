@@ -37,15 +37,30 @@ export function Menu({ anchor, onClose, label, items, align = 'start', minWidth 
     setPos({ left, top });
   }, [anchor, align, minWidth]);
   const buttons = () => [...(ref.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not([aria-disabled="true"])') ?? [])];
+  // focus the first item once the menu is positioned (it is hidden until then)
   useEffect(() => {
-    buttons()[0]?.focus();
+    if (pos && !ref.current?.contains(document.activeElement)) buttons()[0]?.focus();
+  }, [pos]);
+  useEffect(() => {
     const down = (e: PointerEvent) => {
       const t = e.target as Node;
       if (ref.current?.contains(t) || anchor.contains(t)) return;
       onClose();
     };
+    // Esc closes even when focus never reached the menu (pointer users)
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      e.preventDefault();
+      onClose();
+      anchor.focus();
+    };
     document.addEventListener('pointerdown', down, true);
-    return () => document.removeEventListener('pointerdown', down, true);
+    document.addEventListener('keydown', key, true);
+    return () => {
+      document.removeEventListener('pointerdown', down, true);
+      document.removeEventListener('keydown', key, true);
+    };
   }, [anchor, onClose]);
   const onKeyDown = (e: React.KeyboardEvent) => {
     const list = buttons();
@@ -55,10 +70,7 @@ export function Menu({ anchor, onClose, label, items, align = 'start', minWidth 
     else if (e.key === 'ArrowUp') go(i < 0 ? list.length - 1 : i - 1);
     else if (e.key === 'Home') go(0);
     else if (e.key === 'End') go(list.length - 1);
-    else if (e.key === 'Escape') {
-      onClose();
-      anchor.focus();
-    } else if (e.key === 'Tab') {
+    else if (e.key === 'Tab') {
       onClose();
       return;
     } else return;
