@@ -580,16 +580,14 @@ kbd {
   gap: 6px;
 }
 .contextbar .group + .group,
-.contextbar .tool-name + .group,
-.contextbar .choice-row + .group {
+.contextbar .tool-name + .group {
   position: relative;
   padding-left: 12px;
   border-left: 0;
 }
 /* group divider: a 16px hairline, not a full-height rule */
 .contextbar .group + .group::before,
-.contextbar .tool-name + .group::before,
-.contextbar .choice-row + .group::before {
+.contextbar .tool-name + .group::before {
   content: '';
   position: absolute;
   left: 0;
@@ -635,12 +633,6 @@ kbd {
   width: 24px;
   height: 24px;
 }
-.contextbar .choice-row .btn {
-  border-color: transparent;
-}
-.contextbar .choice-row .btn.selected {
-  background: var(--c-press);
-}
 .contextbar .field-label,
 .contextbar .page-count {
   color: var(--c-text-2);
@@ -661,21 +653,14 @@ kbd {
   color: var(--c-text-3);
 }
 
-/* segmented control (selection modes, radio groups) */
+/* legacy button row: only the Curves channel switch still uses it, until it moves
+ * to <Segmented> with the Curves rework (critique 2 P1-2). Do not use elsewhere. */
 .choice-row {
   gap: 0 !important;
   padding: 2px;
   background: var(--c-raised);
   border: 1px solid var(--c-line);
   border-radius: var(--r-1);
-}
-.contextbar .group.choice-row {
-  /* a segmented control is self-contained: no divider before it */
-  padding: 2px;
-  border-left: 1px solid var(--c-line);
-}
-.contextbar .group.choice-row::before {
-  display: none;
 }
 .choice-row .btn {
   height: 20px;
