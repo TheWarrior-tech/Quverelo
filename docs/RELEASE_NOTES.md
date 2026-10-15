@@ -1,3 +1,23 @@
+## Quvrelo v0.2.0 — premium redesign
+
+A top-to-bottom redesign of how Quvrelo looks and feels, plus our first in-house machine-learning feature.
+
+### What's new
+- **Design system:** one set of colour, spacing, radius and type tokens across every surface, in Dark, Light and High contrast.
+- **Icons:** a redrawn, consistent icon set and re-rendered app icons that stay crisp at small sizes.
+- **Dialogs:** a shared dialog frame for New Document, Export, Preferences, Keyboard Shortcuts and About.
+- **Welcome screen:** Recent files first with real thumbnails, quick starts per studio and redrawn classroom templates.
+- **Colour picker:** a proper picker with fill/stroke chips, recent colours, number scrub fields and sliders.
+- **Panels:** a rebuilt Layers panel and resizable, collapsible panel groups.
+- **Curves editor:** a real Curves adjustment with draggable points on a histogram, per-channel RGB/R/G/B.
+- **Canvas selection:** selection box and handles in Vector and Layout; the pixel selection (marching ants) only in Photo; one active studio segment in a centred top bar; toasts bottom-centre.
+- **Layout context:** page guides and rulers, and a page-setup context bar (margins, bleed, columns, page navigation).
+- **Accessibility and contrast audit:** every icon button has a name, tooltip and keyboard shortcut for assistive tech; control borders and secondary text meet WCAG 2.2 AA; visible keyboard focus in every theme; reduced-motion respected (including the OS setting).
+- **Flatpak:** Linux builds are now also offered as a Flatpak.
+- **Select Subject (preview):** our first in-house, fully on-device ML model (v0). In the Photo studio, **Select ▸ Select Subject** makes a pixel selection of the main subject. This is an **early model**: it scores 0.458 mean IoU on our held-out test set, so expect blotchy or incomplete edges and refine the selection by hand. It runs offline, sends nothing anywhere, and falls back to a simple colour-based selection if the model can't load. Better models will follow.
+
+---
+
 ## Quvrelo — first public preview
 
 Photo editing, vector design and page layout in **one** offline app, built for schools and professional teams.

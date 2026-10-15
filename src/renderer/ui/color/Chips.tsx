@@ -40,8 +40,8 @@ export function FillStrokeChips({ fill, stroke, target, onTarget, onSwap, size =
         aria-checked={target === t}
         tabIndex={target === t ? 0 : -1}
         className={`chip-btn ${t}${target === t ? ' on' : ''}`}
-        aria-label={`${t === 'fill' ? 'Fill' : 'Stroke'}: ${v.enabled ? v.color : 'none'}`}
-        title={`${t === 'fill' ? 'Fill' : 'Stroke'} (${v.enabled ? v.color.toUpperCase() : 'none'})`}
+        aria-label={`${t === 'fill' ? 'Fill' : 'Stroke'}: ${v.enabled ? v.color.toUpperCase() : 'none'}`}
+        title={`${t === 'fill' ? 'Fill' : 'Stroke'}: ${v.enabled ? v.color.toUpperCase() : 'none'}`}
         onClick={(e) => {
           onTarget(t);
           onOpen?.(t, e.currentTarget);
