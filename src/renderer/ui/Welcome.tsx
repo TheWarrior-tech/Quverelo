@@ -12,6 +12,7 @@ import { STEP_LABELS, availableSteps, checklistVisible, type OnboardingStep } fr
 import { displayLocation, matchesQuery, relativeAge } from '../../core/paths';
 import { useEditor } from './hooks';
 import { shortcutFor, tip } from './tips';
+import { Keys } from './dialogs/controls';
 import { createCanvas, ctx2d } from '../engine/assets';
 import { drawPage } from '../engine/draw';
 import { Icon, Logo } from './Icons';
@@ -216,7 +217,7 @@ function Checklist({ recent }: { recent: RecentFile[] | null }) {
               <button type="button" className={`cl-row${done ? ' done' : ''}`} onClick={() => actions[s].run()} data-step={s} aria-label={`${STEP_LABELS[s]}${done ? ', done' : ''}`}>
                 <span className="cl-check"><Icon name={done ? 'circle-check' : 'circle'} size={16} /></span>
                 <span className="cl-label">{STEP_LABELS[s]}</span>
-                {actions[s].hint && <span className="cl-hint">{actions[s].hint}</span>}
+                {actions[s].hint && <span className="cl-hint" aria-hidden="true"><Keys combo={actions[s].hint!} /></span>}
                 <span className="cl-go"><Icon name="chevron-right" size={16} /></span>
               </button>
             </li>
@@ -435,7 +436,7 @@ export function Welcome() {
                   <Icon name="help" size={16} /><span>Quick start guide</span>
                 </button>
                 <button type="button" className="w-link" onClick={() => openDialog('shortcuts')}>
-                  <Icon name="keyboard" size={16} /><span>Keyboard shortcuts</span><span className="w-link-keys">{shortcutFor('help.shortcuts')}</span>
+                  <Icon name="keyboard" size={16} /><span>Keyboard shortcuts</span>{shortcutFor('help.shortcuts') && <span className="w-link-keys" aria-hidden="true"><Keys combo={shortcutFor('help.shortcuts')!} /></span>}
                 </button>
                 <p className="w-tip"><Icon name="drop" size={16} /><span>Drop a photo or .quvrelo file anywhere in this window to open it.</span></p>
               </section>
