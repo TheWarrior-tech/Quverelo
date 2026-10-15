@@ -2,9 +2,9 @@ import { useLayoutEffect, useRef } from 'react';
 import { findNode, solid } from '../../core/document';
 import { firstColorOf, uiPaint, uiPaintPatch } from '../state/uiPaint';
 import { setStoryStyle, updateNode, updateNodes } from '../../core/commands';
-import { PX_PER } from '../../core/units';
+import { PX_PER, UNIT_DIGITS, UNIT_STEP } from '../../core/units';
 import { primaryFamily } from './fonts';
-import type { DocumentSettings, SceneNode, TextAlign, TextFrameNode, TextStyle } from '../../core/types';
+import type { DocumentSettings, QuvreloDocument, SceneNode, TextAlign, TextFrameNode, TextStyle } from '../../core/types';
 import { editor } from '../state/editor';
 import { runCommand } from '../state/commands';
 import { useEditor } from './hooks';
@@ -15,6 +15,7 @@ import { NumberField } from './controls/NumberField';
 import { ColorChipButton } from './color/Chips';
 import { Segmented } from './controls/Segmented';
 import { CtxHint } from './controls/CtxHint';
+import { CtxOverflow, Pri } from './controls/CtxOverflow';
 import { FontPicker } from './controls/FontPicker';
 import { FIT_OPTIONS } from './panels/PropertiesPanel';
 import { CROP_RATIOS, isFullCrop, roundCrop, type CropOverlay, type CropRatioId } from '../../core/crop';
@@ -53,12 +54,12 @@ function Slider({ label, value, min, max, step = 1, onChange, fmt }: { label: st
   );
 }
 
-/** Document-unit number field: shows the user's display units, stores px. */
+/** Document-unit number field: shows the document's unit (mm for print), stores px. */
 function UnitNum({ label, title, px, onChange }: { label: string; title: string; px: number; onChange: (px: number) => void }) {
-  const u = editor.settings.units;
+  const u = editor.unit;
   const k = PX_PER[u];
   return (
-    <NumberField className="ctx" label={label} ariaLabel={title} title={title} lengthUnit={u} digits={u === 'px' ? 0 : 2} step={u === 'px' ? 1 : 0.5} min={0} value={px / k} onChange={(v) => onChange(Math.max(0, v * k))} onCommit={(v) => onChange(Math.max(0, v * k))} />
+    <NumberField className="ctx" label={label} ariaLabel={`${title} (${u})`} title={title} lengthUnit={u} digits={UNIT_DIGITS[u]} step={UNIT_STEP[u]} min={0} value={px / k} onChange={(v) => onChange(Math.max(0, v * k))} onCommit={(v) => onChange(Math.max(0, v * k))} />
   );
 }
 
@@ -73,39 +74,55 @@ function setDocSettings(patch: Partial<DocumentSettings>, label: string, key: st
 
 /**
  * Layout with nothing selected: page navigation and page setup (margins, bleed,
- * columns, facing pages) right in the context bar, as in a DTP app.
+ * columns, facing pages) right in the context bar, as in a DTP app. A plain
+ * function (not a component) so the bar's priority+ row sees each group: page
+ * navigation always stays; the rest collapses into "More" from the lowest
+ * priority up when the canvas column is narrow (CRITIQUE-3 N2).
  */
-function LayoutPageControls() {
-  const ed = useEditor();
-  const doc = ed.doc!;
+function layoutPageControls(doc: QuvreloDocument, i: number) {
   const s = doc.settings;
-  const i = ed.activePageIndex;
   const m = s.margins;
   const setMargin = (side: keyof typeof m) => (v: number) => setDocSettings({ margins: { ...m, [side]: v } }, 'Margins', 'margins');
   return (
     <>
-      <div className="group" role="group" aria-label="Pages">
-        <button className="icon-btn sm" {...tip('Previous page', 'page.prev')} disabled={i <= 0} onClick={() => runCommand('page.prev')}><Icon name="chevron-left" /></button>
-        <span className="page-count">{i >= 0 ? <>Page <span className="num">{i + 1}</span> of <span className="num">{doc.pages.length}</span></> : 'Master'}</span>
-        <button className="icon-btn sm" {...tip('Next page', 'page.next')} disabled={i < 0 || i >= doc.pages.length - 1} onClick={() => runCommand('page.next')}><Icon name="chevron-right" /></button>
-        <button className="icon-btn sm" {...tip('Add page', 'page.add')} onClick={() => runCommand('page.add')}><Icon name="plus" /></button>
-      </div>
-      <div className="group" role="group" aria-label="Margins">
-        <span className="field-label">Margins</span>
-        <UnitNum label="T" title="Top margin" px={m.top} onChange={setMargin('top')} />
-        <UnitNum label="L" title={s.facingPages ? 'Inside margin' : 'Left margin'} px={m.left} onChange={setMargin('left')} />
-        <UnitNum label="B" title="Bottom margin" px={m.bottom} onChange={setMargin('bottom')} />
-        <UnitNum label="R" title={s.facingPages ? 'Outside margin' : 'Right margin'} px={m.right} onChange={setMargin('right')} />
-      </div>
-      <div className="group">
-        <UnitNum label="Bleed" title="Bleed" px={s.bleed} onChange={(v) => setDocSettings({ bleed: v }, 'Bleed', 'bleed')} />
-        <CountNum label="Columns" title="Columns" value={s.columns} onChange={(v) => setDocSettings({ columns: v }, 'Columns', 'columns')} />
-        <UnitNum label="Gutter" title="Column gutter" px={s.columnGutter} onChange={(v) => setDocSettings({ columnGutter: v }, 'Gutter', 'gutter')} />
-        <button className={`btn ${s.facingPages ? 'selected' : ''}`} aria-pressed={s.facingPages} data-tip="Show pages as two-page spreads" onClick={() => setDocSettings({ facingPages: !s.facingPages }, 'Facing pages', 'facing')}><Icon name="pages" /> Facing pages</button>
-      </div>
-      <div className="group">
-        <button className="btn" onClick={() => runCommand('file.document-setup')}>Document setup…</button>
-      </div>
+      <Pri n={Infinity}>
+        <div className="group" role="group" aria-label="Pages">
+          <button className="icon-btn sm" {...tip('Previous page', 'page.prev')} disabled={i <= 0} onClick={() => runCommand('page.prev')}><Icon name="chevron-left" /></button>
+          <span className="page-count">{i >= 0 ? <>Page <span className="num">{i + 1}</span> of <span className="num">{doc.pages.length}</span></> : 'Master'}</span>
+          <button className="icon-btn sm" {...tip('Next page', 'page.next')} disabled={i < 0 || i >= doc.pages.length - 1} onClick={() => runCommand('page.next')}><Icon name="chevron-right" /></button>
+          <button className="icon-btn sm" {...tip('Add page', 'page.add')} onClick={() => runCommand('page.add')}><Icon name="plus" /></button>
+        </div>
+      </Pri>
+      <Pri n={4}>
+        <div className="group ctx-margins" role="group" aria-label="Margins">
+          <span className="field-label">Margins</span>
+          <UnitNum label="T" title="Top margin" px={m.top} onChange={setMargin('top')} />
+          <UnitNum label="L" title={s.facingPages ? 'Inside margin' : 'Left margin'} px={m.left} onChange={setMargin('left')} />
+          <UnitNum label="B" title="Bottom margin" px={m.bottom} onChange={setMargin('bottom')} />
+          <UnitNum label="R" title={s.facingPages ? 'Outside margin' : 'Right margin'} px={m.right} onChange={setMargin('right')} />
+        </div>
+      </Pri>
+      <Pri n={1}>
+        <div className="group" role="group" aria-label="Bleed">
+          <UnitNum label="Bleed" title="Bleed" px={s.bleed} onChange={(v) => setDocSettings({ bleed: v }, 'Bleed', 'bleed')} />
+        </div>
+      </Pri>
+      <Pri n={2}>
+        <div className="group" role="group" aria-label="Columns">
+          <CountNum label="Columns" title="Columns" value={s.columns} onChange={(v) => setDocSettings({ columns: v }, 'Columns', 'columns')} />
+          <UnitNum label="Gutter" title="Column gutter" px={s.columnGutter} onChange={(v) => setDocSettings({ columnGutter: v }, 'Gutter', 'gutter')} />
+        </div>
+      </Pri>
+      <Pri n={2.5}>
+        <div className="group">
+          <button className={`btn ${s.facingPages ? 'selected' : ''}`} aria-pressed={s.facingPages} data-tip="Show pages as two-page spreads" onClick={() => setDocSettings({ facingPages: !s.facingPages }, 'Facing pages', 'facing')}><Icon name="pages" /> Facing pages</button>
+        </div>
+      </Pri>
+      <Pri n={3}>
+        <div className="group">
+          <button className="btn" onClick={() => runCommand('file.document-setup')}>Document setup…</button>
+        </div>
+      </Pri>
     </>
   );
 }
@@ -129,8 +146,12 @@ function TextFrameControls({ frames }: { frames: TextFrameNode[] }) {
   );
 }
 
-export function TextControls() {
-  useEditor();
+/**
+ * Text style controls. A plain function (ContextBar already subscribes) so the
+ * priority+ row sees each group: font and size never collapse; style, alignment
+ * and spacing go to "More" in that reverse order when space runs out.
+ */
+function textControls() {
   const target = activeTextTarget();
   const o = editor.ui.toolOptions;
   const style: Partial<TextStyle> = target?.style ?? { fontFamily: o.fontFamily, fontSize: o.fontSize, fontWeight: 400, italic: false, underline: false, align: 'left' };
@@ -140,25 +161,45 @@ export function TextControls() {
     if (patch.fontSize) editor.setToolOptions({ fontSize: patch.fontSize });
   };
   return (
-    <div className="group" data-keep-text-edit>
-      <FontPicker value={primaryFamily(style.fontFamily ?? 'Inter')} onPreview={(f) => target?.apply({ fontFamily: f })} onCommit={(f) => apply({ fontFamily: f })} />
-      <NumberField className="ctx" ariaLabel="Font size (pt)" label="Size" unit="pt" value={style.fontSize ?? 16} min={4} max={1000} onCommit={(v) => apply({ fontSize: v })} onChange={(v) => apply({ fontSize: v })} />
-      <button className={`icon-btn sm ${style.fontWeight && style.fontWeight >= 600 ? 'active' : ''}`} {...tip('Bold')} aria-pressed={(style.fontWeight ?? 400) >= 600} onClick={() => apply({ fontWeight: (style.fontWeight ?? 400) >= 600 ? 400 : 700 })}><b>B</b></button>
-      <button className={`icon-btn sm ${style.italic ? 'active' : ''}`} {...tip('Italic')} aria-pressed={!!style.italic} onClick={() => apply({ italic: !style.italic })}><i>I</i></button>
-      <button className={`icon-btn sm ${style.underline ? 'active' : ''}`} {...tip('Underline')} aria-pressed={!!style.underline} onClick={() => apply({ underline: !style.underline })}><u>U</u></button>
-      {(['left', 'center', 'right', 'justify'] as TextAlign[]).map((a) => (
-        <button key={a} className={`icon-btn sm ${style.align === a ? 'active' : ''}`} {...tip(`Align text ${a === 'center' ? 'centre' : a}`)} aria-pressed={style.align === a} onClick={() => apply({ align: a })}>
-          <Icon name={`text-${a}`} />
-        </button>
-      ))}
+    <>
+      <Pri n={Infinity}>
+        <div className="group" data-keep-text-edit role="group" aria-label="Font">
+          <FontPicker value={primaryFamily(style.fontFamily ?? 'Inter')} onPreview={(f) => target?.apply({ fontFamily: f })} onCommit={(f) => apply({ fontFamily: f })} />
+          <NumberField className="ctx" ariaLabel="Font size (pt)" label="Size" unit="pt" value={style.fontSize ?? 16} min={4} max={1000} onCommit={(v) => apply({ fontSize: v })} onChange={(v) => apply({ fontSize: v })} />
+        </div>
+      </Pri>
+      <Pri n={7}>
+        <div className="group" data-keep-text-edit role="group" aria-label="Text style">
+          <button className={`icon-btn sm ${style.fontWeight && style.fontWeight >= 600 ? 'active' : ''}`} {...tip('Bold')} aria-pressed={(style.fontWeight ?? 400) >= 600} onClick={() => apply({ fontWeight: (style.fontWeight ?? 400) >= 600 ? 400 : 700 })}><b>B</b></button>
+          <button className={`icon-btn sm ${style.italic ? 'active' : ''}`} {...tip('Italic')} aria-pressed={!!style.italic} onClick={() => apply({ italic: !style.italic })}><i>I</i></button>
+          <button className={`icon-btn sm ${style.underline ? 'active' : ''}`} {...tip('Underline')} aria-pressed={!!style.underline} onClick={() => apply({ underline: !style.underline })}><u>U</u></button>
+        </div>
+      </Pri>
+      <Pri n={6}>
+        <div className="group" data-keep-text-edit role="group" aria-label="Alignment">
+          {(['left', 'center', 'right', 'justify'] as TextAlign[]).map((a) => (
+            <button key={a} className={`icon-btn sm ${style.align === a ? 'active' : ''}`} {...tip(`Align text ${a === 'center' ? 'centre' : a}`)} aria-pressed={style.align === a} onClick={() => apply({ align: a })}>
+              <Icon name={`text-${a}`} />
+            </button>
+          ))}
+        </div>
+      </Pri>
       {target && (
-        <>
-          <NumberField className="ctx" ariaLabel="Leading (line height multiple)" label="Leading" value={style.lineHeight ?? 1.3} min={0.6} max={4} step={0.05} onCommit={(v) => apply({ lineHeight: v })} onChange={(v) => apply({ lineHeight: v })} />
-          <NumberField className="ctx" ariaLabel="Tracking (thousandths of an em)" label="Tracking" digits={0} value={style.letterSpacing ?? 0} min={-200} max={1000} step={10} onCommit={(v) => apply({ letterSpacing: v })} onChange={(v) => apply({ letterSpacing: v })} />
-        </>
+        <Pri n={3}>
+          <div className="group" data-keep-text-edit role="group" aria-label="Spacing">
+            <NumberField className="ctx" ariaLabel="Leading (line height multiple)" label="Leading" value={style.lineHeight ?? 1.3} min={0.6} max={4} step={0.05} onCommit={(v) => apply({ lineHeight: v })} onChange={(v) => apply({ lineHeight: v })} />
+            <NumberField className="ctx" ariaLabel="Tracking (thousandths of an em)" label="Tracking" digits={0} value={style.letterSpacing ?? 0} min={-200} max={1000} step={10} onCommit={(v) => apply({ letterSpacing: v })} onChange={(v) => apply({ letterSpacing: v })} />
+          </div>
+        </Pri>
       )}
-    </div>
+    </>
   );
+}
+
+/** Text controls as a component, for hosts outside the context bar. */
+export function TextControls() {
+  useEditor();
+  return textControls();
 }
 
 /** "Select subject": runs the on-device model on the photo layer (also Ctrl/Cmd+Alt+S). */
@@ -174,7 +215,9 @@ export function SelectSubjectButton() {
 
 /** Crop tool: ratio preset, orientation, W/H, guide overlay, then Cancel / Apply on the right. */
 function CropControls() {
-  const ed = useEditor();
+  // called as a plain function from ContextBar (which already subscribes), so the
+  // bar's priority+ row sees each group: Cancel/Apply never collapse (CRITIQUE-3 N2)
+  const ed = editor;
   const o = ed.ui.toolOptions;
   const box = currentCrop();
   const doc = ed.doc!;
@@ -203,11 +246,13 @@ function CropControls() {
           options={([['thirds', 'Thirds'], ['grid', 'Grid'], ['none', 'None']] as [CropOverlay, string][]).map(([value, label]) => ({ value, label }))}
         />
       </div>
+      <Pri n={Infinity}>
       <div className="ctx-spacer" />
       <div className="group ctx-commit">
         <button className="btn" data-action="crop-cancel" onClick={() => runCommand('crop.cancel')} disabled={!changed} {...tip('Cancel', 'Escape')} data-tip-hint="Reset the crop box">Cancel</button>
         <button className="btn primary" data-action="crop-apply" onClick={() => runCommand('crop.apply')} disabled={!changed} {...tip('Apply', 'Enter')} data-tip-hint="Drag handles to adjust · Shift keeps proportions"><Icon name="check" /> Apply</button>
       </div>
+      </Pri>
     </>
   );
 }
@@ -248,6 +293,7 @@ export function ContextBar() {
   return (
     <div className="contextbar" role="toolbar" aria-label="Tool options" ref={barRef}>
       <span className="tool-name">{toolLabel(t).replace(/ \(.*\)/, '')}</span>
+      <CtxOverflow>
       {(t === 'brush' || t === 'eraser') && (
         <>
           <Slider label="Size" value={t === 'brush' ? o.brushSize : o.eraserSize} min={1} max={500} onChange={(v) => ed.setToolOptions(t === 'brush' ? { brushSize: v } : { eraserSize: v })} fmt={(v) => `${Math.round(v)}px`} />
@@ -285,7 +331,7 @@ export function ContextBar() {
           {t === 'object-select' && <CtxHint>Click an object · click again to add · Alt-click to remove</CtxHint>}
         </>
       )}
-      {t === 'crop' && <CropControls />}
+      {t === 'crop' && CropControls()}
       {t === 'fill' && (
         <>
           <Slider label="Tolerance" value={o.fillTolerance} min={0} max={255} onChange={(v) => ed.setToolOptions({ fillTolerance: v })} />
@@ -324,9 +370,9 @@ export function ContextBar() {
           <CtxHint>{t === 'pen' ? 'Click: corner · drag: curve · click the first point to close · Enter finishes' : 'Shift constrains · Alt draws from centre'}</CtxHint>
         </>
       )}
-      {layout && t === 'move' && sel.length === 0 && !ed.ui.editingTextId && <LayoutPageControls />}
-      {(t === 'textframe' || t === 'move') && frames.length > 0 && <TextFrameControls frames={frames} />}
-      {(t === 'text' || t === 'textframe' || (t === 'move' && textSelected)) && <TextControls />}
+      {layout && t === 'move' && sel.length === 0 && !ed.ui.editingTextId && layoutPageControls(ed.doc!, ed.activePageIndex)}
+      {(t === 'textframe' || t === 'move') && frames.length > 0 && <Pri n={2}><TextFrameControls frames={frames} /></Pri>}
+      {(t === 'text' || t === 'textframe' || (t === 'move' && textSelected)) && textControls()}
       {t === 'textframe' && frames.length === 0 && <CtxHint>Drag to draw a text frame · link two frames to flow a story</CtxHint>}
       {t === 'node' && (
         <>
@@ -356,6 +402,7 @@ export function ContextBar() {
       {t === 'eyedropper' && <CtxHint>Click picks a fill colour · Shift-click picks a stroke colour</CtxHint>}
       {t === 'zoom' && <CtxHint>Click zooms in · Alt-click zooms out · drag zooms to an area</CtxHint>}
       {t === 'hand' && <CtxHint>Drag to pan · hold Space with any tool to pan</CtxHint>}
+      </CtxOverflow>
     </div>
   );
 }

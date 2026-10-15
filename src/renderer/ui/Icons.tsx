@@ -122,6 +122,8 @@ const paths: Record<string, ReactElement> = {
   drop: P('M10 3.5v8M6.8 8.3l3.2 3.2 3.2-3.2M3.5 12v3.5a1 1 0 001 1h11a1 1 0 001-1V12'),
   'circle-check': <><circle cx="10" cy="10" r="7" />{P('M7 10.3l2.1 2.1 4-4.3')}</>,
   circle: <circle cx="10" cy="10" r="7" />,
+  // overflow / options menu: three dots (round caps on zero-length strokes)
+  more: <path d="M5 10h.01M10 10h.01M15 10h.01" strokeWidth={2.5} />,
 
   // updates: arrow into a tray
   update: P('M10 3.5v9M6.5 9.5l3.5 3.5 3.5-3.5M3.5 13.5v2a1 1 0 001 1h11a1 1 0 001-1v-2'),

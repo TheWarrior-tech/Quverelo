@@ -574,20 +574,20 @@ kbd {
 .contextbar::-webkit-scrollbar {
   display: none;
 }
-.contextbar .group {
+:is(.contextbar, .ctx-more-body) .group {
   display: flex;
   align-items: center;
   gap: 6px;
 }
-.contextbar .group + .group,
-.contextbar .tool-name + .group {
+:is(.contextbar, .ctx-more-body) .group + .group,
+:is(.contextbar, .ctx-more-body) .tool-name + .group {
   position: relative;
   padding-left: 12px;
   border-left: 0;
 }
 /* group divider: a 16px hairline, not a full-height rule */
-.contextbar .group + .group::before,
-.contextbar .tool-name + .group::before {
+:is(.contextbar, .ctx-more-body) .group + .group::before,
+:is(.contextbar, .ctx-more-body) .tool-name + .group::before {
   content: '';
   position: absolute;
   left: 0;
@@ -597,17 +597,17 @@ kbd {
   margin-top: -8px;
   background: var(--c-line-strong);
 }
-.contextbar label {
+:is(.contextbar, .ctx-more-body) label {
   font-size: 12px;
 }
-.contextbar input[type='number'] {
+:is(.contextbar, .ctx-more-body) input[type='number'] {
   width: 56px;
 }
-.contextbar input[type='range'] {
+:is(.contextbar, .ctx-more-body) input[type='range'] {
   width: 96px;
 }
 /* context bar controls are ghost buttons: no border, hover fill, 24px (DESIGN.md §8) */
-.contextbar .btn {
+:is(.contextbar, .ctx-more-body) .btn {
   height: 24px;
   padding: 0 8px;
   gap: 6px;
@@ -617,66 +617,66 @@ kbd {
   color: var(--c-text-2);
   font-weight: 500;
 }
-.contextbar .btn svg.icon {
+:is(.contextbar, .ctx-more-body) .btn svg.icon {
   width: 16px;
   height: 16px;
   stroke-width: 1.75;
 }
-.contextbar .btn:hover {
+:is(.contextbar, .ctx-more-body) .btn:hover {
   background: var(--c-hover);
   color: var(--c-text);
 }
-.contextbar .btn:active {
+:is(.contextbar, .ctx-more-body) .btn:active {
   background: var(--c-press);
 }
-.contextbar .icon-btn.sm {
+:is(.contextbar, .ctx-more-body) .icon-btn.sm {
   width: 24px;
   height: 24px;
 }
-.contextbar .field-label,
-.contextbar .page-count {
+:is(.contextbar, .ctx-more-body) .field-label,
+:is(.contextbar, .ctx-more-body) .page-count {
   color: var(--c-text-2);
 }
-.contextbar .page-count {
+:is(.contextbar, .ctx-more-body) .page-count {
   min-width: 72px;
   text-align: center;
 }
-.contextbar .group > .group {
+:is(.contextbar, .ctx-more-body) .group > .group {
   gap: 4px;
 }
-.contextbar .tool-name {
+:is(.contextbar, .ctx-more-body) .tool-name {
   font-weight: 600;
   color: var(--c-text);
   min-width: 88px;
 }
-.contextbar > span:not(.tool-name) {
+:is(.contextbar, .ctx-more-body) > span:not(.tool-name) {
   color: var(--c-text-3);
 }
 
 /* context bar: commit actions sit at the far right (crop Apply / Cancel) */
-.contextbar .ctx-spacer {
+:is(.contextbar, .ctx-more-body) .ctx-spacer {
   flex: 1 0 8px;
 }
-.contextbar .ctx-commit {
+:is(.contextbar, .ctx-more-body) .ctx-commit {
   gap: 4px;
 }
-.contextbar .ctx-commit::before {
+:is(.contextbar, .ctx-more-body) .ctx-commit::before {
   display: none;
 }
-.contextbar .btn.primary {
+:is(.contextbar, .ctx-more-body) .btn.primary {
   background: var(--c-accent);
   color: var(--c-accent-ink);
   font-weight: 600;
   padding: 0 10px;
 }
-.contextbar .btn.primary:hover {
+:is(.contextbar, .ctx-more-body) .btn.primary:hover {
   background: var(--c-accent-hover);
   color: var(--c-accent-ink);
 }
-.contextbar .btn.primary svg.icon {
+:is(.contextbar, .ctx-more-body) .btn.primary svg.icon {
   stroke-width: 2;
 }
-:root[data-theme='high-contrast'] .contextbar .btn.primary {
+:root[data-theme='high-contrast'] :is(.contextbar, .ctx-more-body) .btn.primary {
   outline: 1px solid var(--c-accent);
 }
 
@@ -1229,25 +1229,6 @@ kbd {
 .canvas-area > .ruler.v { grid-area: 2 / 1; }
 .canvas-area > .viewport { grid-area: 2 / 2; }
 
-/* thin, quiet scrollbars */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--c-line-strong) transparent;
-}
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--c-line-strong);
-  border-radius: var(--r-full);
-  border: 3px solid transparent;
-  background-clip: content-box;
-}
-::-webkit-scrollbar-corner {
-  background: transparent;
-}
-
 /* ---------- curves editor ---------- */
 
 .curves-editor {
@@ -1529,11 +1510,26 @@ kbd {
   line-height: 16px;
 }
 
-/* ---------- scrollbars (themed, UX audit P1-13) ---------- */
+/* ---------- scrollbars (themed, UX audit P1-13; CRITIQUE-3 N7) ----------
+ * The one scrollbar style. Chromium 121+ lets the standard scrollbar-width /
+ * scrollbar-color win over ::-webkit-scrollbar, which brought back the native
+ * bar with stepper arrows, so the standard properties apply only where the
+ * WebKit pseudo-elements don't exist. Never set them globally. */
 
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--c-line-strong) transparent;
+  }
+}
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
+}
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 ::-webkit-scrollbar-track,
 ::-webkit-scrollbar-corner {
