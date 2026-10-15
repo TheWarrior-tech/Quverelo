@@ -495,27 +495,6 @@ label.check {
   height: 100%;
   min-height: 0;
 }
-.layers-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 36px;
-  padding: 0 12px;
-  border-bottom: 1px solid var(--c-line);
-  flex: none;
-}
-.layers-head select {
-  flex: 1;
-  min-width: 96px;
-  width: 0;
-}
-.layers-head .opacity-field {
-  width: 104px;
-  flex: none;
-}
-.layers-head.disabled select {
-  opacity: 0.4;
-}
 .layers-scroll {
   flex: 1;
   min-height: 0;

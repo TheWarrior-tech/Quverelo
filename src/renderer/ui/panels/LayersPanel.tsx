@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { moveNodeTo, updateNode, updateNodes } from '../../../core/commands';
+import { moveNodeTo, updateNode } from '../../../core/commands';
 import { layerDisplayName } from '../../../core/document';
-import { BLEND_MODES, type BlendMode, type Id, type SceneNode } from '../../../core/types';
+import { type Id, type SceneNode } from '../../../core/types';
 import { editor } from '../../state/editor';
 import { getViewport, runCommand } from '../../state/commands';
 import { useEditor } from '../hooks';
 import { Icon } from '../Icons';
-import { NumberField } from '../controls/NumberField';
 import { useScrollEdges } from '../controls/Panel';
 import { EmptyState } from '../controls/EmptyState';
 import { tip } from '../tooltip';
@@ -200,24 +199,15 @@ export function LayersPanel() {
   const c = ed.activeContainer;
   if (!c) return null;
   const sel = ed.selectedNodes();
-  const first = sel[0];
   const doc = ed.doc!;
   const page = doc.pages.find((p) => p.id === c.id);
   const master = page?.masterId ? doc.masters.find((m) => m.id === page.masterId) : null;
   const rows = [...c.nodes].reverse();
   const focusId = rows.find((n) => ed.ui.selection.includes(n.id))?.id ?? rows[0]?.id;
-  const setOpacity = (v: number) => ed.commit('Opacity', (d) => updateNodes(d, ed.ui.selection, (m) => ({ ...m, opacity: v / 100 })), 'layer-opacity');
-  const mixedOpacity = sel.some((m) => m.opacity !== first?.opacity);
-  const photo = ed.ui.studio === 'photo';
+  // Opacity and blend live in one place, Design › Appearance, in every studio
+  // (critique 2 P1-4); rows keep their eye/lock quick actions.
   return (
     <div className="layers-panel">
-      {/* Photo keeps Photoshop's blend · opacity header; Vector and Layout edit these in the inspector */}
-      {photo && <div className={`layers-head${first ? '' : ' disabled'}`}>
-        <select value={first?.blend ?? 'normal'} disabled={!first} aria-label="Layer blend mode" onChange={(e) => ed.commit('Blend mode', (d) => updateNodes(d, ed.ui.selection, (m) => ({ ...m, blend: e.target.value as BlendMode })))}>
-          {BLEND_MODES.map((m) => <option key={m} value={m}>{m.replace(/-/g, ' ').replace(/\b\w/g, (x) => x.toUpperCase())}</option>)}
-        </select>
-        <NumberField className="opacity-field" label="Opacity" ariaLabel="Layer opacity percent" unit="%" digits={0} min={0} max={100} value={Math.round((first?.opacity ?? 1) * 100)} mixed={mixedOpacity} disabled={!first} onChange={setOpacity} onCommit={setOpacity} />
-      </div>}
       <div className="layers-scroll" ref={scrollRef}>
         {c.nodes.length === 0 && <LayersEmpty />}
         <ul className="layer-list" role="tree" aria-label="Layers" aria-multiselectable="true">
