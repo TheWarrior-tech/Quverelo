@@ -1,3 +1,8 @@
+## Unreleased
+
+- **Command palette.** <kbd>Ctrl/⌘</kbd>+<kbd>K</kbd> (or <kbd>Ctrl/⌘</kbd>+<kbd>/</kbd>) searches and runs every menu command, tool, template and recent file, with synonyms ("cutout" finds Select Subject, "print" finds Export PDF), shortcut keycaps, a Recent section and a one-line reason when a command can't run yet. Fully keyboard operable and screen-reader friendly.
+- **New tooltips.** Faster (400 ms), drawn in the app's own style with the shortcut as keycaps and a how-to line on tools; they also appear on keyboard focus, can be hovered, and close with <kbd>Esc</kbd>.
+
 ## Quvrelo v0.3.0 — over-the-air updates
 
 ### Over-the-air updates
