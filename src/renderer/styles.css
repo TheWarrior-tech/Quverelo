@@ -1144,3 +1144,254 @@ kbd {
 .curves-field input {
   width: 52px;
 }
+
+/* ---------- scrollbars (themed, UX audit P1-13) ---------- */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  min-height: 32px;
+  border: 2px solid transparent;
+  border-radius: var(--r-full);
+  background: var(--c-line-strong) padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--c-text-3);
+}
+
+/* ---------- menus (DESIGN.md §8 "Menus / selects") ---------- */
+
+.menu {
+  position: fixed;
+  z-index: 950;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  background: var(--c-popover);
+  border-radius: var(--r-2);
+  box-shadow: var(--e-1);
+  animation: fade-in var(--dur) var(--ease);
+}
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 4px 8px 4px 6px;
+  border: none;
+  border-radius: var(--r-1);
+  background: none;
+  color: var(--c-text);
+  font-size: 13px;
+  line-height: 20px;
+  text-align: left;
+  cursor: pointer;
+}
+.menu-item:hover,
+.menu-item:focus-visible {
+  background: var(--c-hover);
+  outline: none;
+}
+.menu-item:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--c-focus);
+}
+.menu-item[aria-disabled='true'] {
+  color: var(--c-text-3);
+  cursor: default;
+}
+.menu-item[aria-disabled='true']:hover {
+  background: none;
+}
+.menu-icon {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  flex: none;
+  color: var(--c-text-2);
+}
+.menu-label {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.menu-detail {
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--c-text-3);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.menu-keys {
+  flex: none;
+  margin-left: 16px;
+  font-size: 11px;
+  color: var(--c-text-3);
+  font-variant-numeric: tabular-nums;
+}
+.menu-sep {
+  height: 1px;
+  margin: 4px -4px;
+  background: var(--c-line);
+}
+.menu-heading {
+  padding: 4px 8px 2px 30px;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--c-text-3);
+}
+
+/* ---------- split button (top bar "Export ▾", UX audit P0-5) ---------- */
+
+.split-btn {
+  display: inline-flex;
+  flex: none;
+  height: 28px;
+  margin-left: 6px;
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-1);
+  background: var(--c-raised);
+}
+.split-btn > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  border: none;
+  background: none;
+  color: var(--c-text);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease);
+}
+.split-btn > button:hover {
+  background: var(--c-press);
+}
+.split-btn > button:focus-visible {
+  outline-offset: -1px;
+}
+.split-main {
+  padding: 0 10px 0 8px;
+  border-radius: calc(var(--r-1) - 1px) 0 0 calc(var(--r-1) - 1px);
+}
+.split-more {
+  width: 24px;
+  justify-content: center;
+  border-left: 1px solid var(--c-line-strong) !important;
+  border-radius: 0 calc(var(--r-1) - 1px) calc(var(--r-1) - 1px) 0;
+  color: var(--c-text-2) !important;
+}
+.split-btn svg.icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.75;
+}
+
+/* ---------- canvas empty state (UX audit P0-3c) ---------- */
+
+.canvas-empty {
+  grid-area: 2 / 2;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.canvas-empty-card {
+  width: 264px;
+  padding: 12px 8px 8px;
+  border-radius: var(--r-2);
+  background: var(--c-panel);
+  box-shadow: inset 0 0 0 1px var(--c-line-strong);
+  pointer-events: auto;
+  animation: fade-in var(--dur) var(--ease);
+}
+.canvas-empty-title {
+  margin: 0 8px 8px;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--c-text-2);
+}
+.canvas-empty-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ce-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--r-1);
+  background: none;
+  color: var(--c-text);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease);
+}
+.ce-action:hover {
+  background: var(--c-hover);
+}
+.ce-action svg.icon {
+  color: var(--c-text-2);
+}
+.ce-action > span:first-of-type {
+  flex: 1;
+}
+.ce-keys {
+  font-size: 11px;
+  color: var(--c-text-3);
+  font-variant-numeric: tabular-nums;
+}
+.canvas-empty-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 8px 8px 0;
+  border-top: 1px solid var(--c-line);
+  font-size: 12px;
+  color: var(--c-text-3);
+}
+
+/* ---------- window drop overlay (UX audit P0-3b) ---------- */
+
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: var(--c-accent-wash);
+  outline: 2px dashed var(--c-accent);
+  outline-offset: -8px;
+  border-radius: var(--r-2);
+  animation: fade-in var(--dur) var(--ease);
+}
+.drop-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--r-1);
+  background: var(--c-popover);
+  box-shadow: var(--e-1);
+  color: var(--c-text);
+  font-size: 13px;
+  font-weight: 500;
+}
