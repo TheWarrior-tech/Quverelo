@@ -145,6 +145,25 @@ export function luminance({ r, g, b }: RGB): number {
   return 0.2126 * ch(r) + 0.7152 * ch(g) + 0.0722 * ch(b);
 }
 
+/** WCAG contrast ratio between two colours (1..21). */
+export function contrastRatio(a: RGB, b: RGB): number {
+  const la = luminance(a);
+  const lb = luminance(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+/**
+ * Tint for a layer thumbnail's type glyph (critique 3 P2-6): the object's fill,
+ * unless it would vanish on the thumbnail tile (a white "Paper" rectangle on the
+ * light theme's white tile), in which case null and the glyph falls back to text-3.
+ */
+export function thumbTint(fill: string | undefined, tile: string): string | null {
+  if (!fill) return null;
+  const f = parseCss(fill);
+  if (f.a < 0.35) return null;
+  return contrastRatio(f, parseCss(tile)) < 1.5 ? null : fill;
+}
+
 /** Channel values shown in the picker for a model, rounded for display. */
 export function channels(model: Exclude<ColorModel, 'hex'>, c: RGB): number[] {
   if (model === 'rgb') return [c.r, c.g, c.b].map((v) => Math.round(v));
