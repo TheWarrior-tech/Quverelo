@@ -198,7 +198,7 @@ export function DialogHost() {
   const p = state.props ?? {};
   const k = state.key;
   switch (state.name) {
-    case 'new': return <NewDocumentDialog key={k} />;
+    case 'new': return <NewDocumentDialog key={k} category={p.category as never} preset={p.preset as string | undefined} />;
     case 'export': return <ExportDialog key={k} format={(p.format as 'png') ?? 'png'} />;
     case 'document-setup': return <DocumentSetupDialog key={k} />;
     case 'resize': return <ResizeDialog key={k} />;

@@ -5,6 +5,7 @@ import { editor } from '../../state/editor';
 import { closeDialog } from '../../state/bus';
 import { newBlank, newFromTemplate } from '../../state/io';
 import { TEMPLATES, type TemplateInfo } from '../../../core/templates';
+import { inferStudio, type NewDocCategory } from '../../../core/newDocument';
 import { Icon } from '../Icons';
 import { DocThumb } from '../Welcome';
 import { Dialog } from './DialogHost';
@@ -18,18 +19,17 @@ interface Preset {
   h: number;
   unit: Unit;
   dpi: number;
-  studio: StudioKind;
   margins: number; // in unit
   bleed: number; // in unit
   pages?: number;
   transparent?: boolean;
 }
 
-type CategoryId = 'print' | 'screen' | 'photo' | 'school' | 'templates';
+type CategoryId = NewDocCategory;
 
-const mm = (id: string, name: string, w: number, h: number, extra: Partial<Preset> = {}): Preset => ({ id, name, w, h, unit: 'mm', dpi: 300, studio: 'layout', margins: 12.7, bleed: 3, ...extra });
-const inch = (id: string, name: string, w: number, h: number, extra: Partial<Preset> = {}): Preset => ({ id, name, w, h, unit: 'in', dpi: 300, studio: 'layout', margins: 0.5, bleed: 0.125, ...extra });
-const px = (id: string, name: string, w: number, h: number, studio: StudioKind = 'vector', extra: Partial<Preset> = {}): Preset => ({ id, name, w, h, unit: 'px', dpi: 72, studio, margins: 0, bleed: 0, ...extra });
+const mm = (id: string, name: string, w: number, h: number, extra: Partial<Preset> = {}): Preset => ({ id, name, w, h, unit: 'mm', dpi: 300, margins: 12.7, bleed: 3, ...extra });
+const inch = (id: string, name: string, w: number, h: number, extra: Partial<Preset> = {}): Preset => ({ id, name, w, h, unit: 'in', dpi: 300, margins: 0.5, bleed: 0.125, ...extra });
+const px = (id: string, name: string, w: number, h: number, extra: Partial<Preset> = {}): Preset => ({ id, name, w, h, unit: 'px', dpi: 72, margins: 0, bleed: 0, ...extra });
 
 const PRESETS: Record<Exclude<CategoryId, 'templates'>, Preset[]> = {
   print: [
@@ -38,7 +38,7 @@ const PRESETS: Record<Exclude<CategoryId, 'templates'>, Preset[]> = {
     mm('a5', 'A5', 148, 210),
     mm('a6', 'A6 Postcard', 105, 148, { margins: 6 }),
     mm('dl', 'DL Flyer', 99, 210, { margins: 8 }),
-    mm('card', 'Business Card', 85, 55, { margins: 4, studio: 'vector' }),
+    mm('card', 'Business Card', 85, 55, { margins: 4 }),
     inch('letter', 'US Letter', 8.5, 11),
     inch('legal', 'US Legal', 8.5, 14),
     inch('tabloid', 'Tabloid', 11, 17),
@@ -46,8 +46,8 @@ const PRESETS: Record<Exclude<CategoryId, 'templates'>, Preset[]> = {
   screen: [
     px('hd', 'HD 1080p', 1920, 1080),
     px('4k', '4K UHD', 3840, 2160),
-    px('slide', 'Slides 16:9', 1920, 1080, 'layout', { margins: 80 }),
-    px('slide43', 'Slides 4:3', 1024, 768, 'layout', { margins: 48 }),
+    px('slide', 'Slides 16:9', 1920, 1080, { margins: 80 }),
+    px('slide43', 'Slides 4:3', 1024, 768, { margins: 48 }),
     px('square', 'Square Post', 1080, 1080),
     px('story', 'Story', 1080, 1920),
     px('desktop', 'Desktop', 1440, 1024),
@@ -55,21 +55,21 @@ const PRESETS: Record<Exclude<CategoryId, 'templates'>, Preset[]> = {
     px('banner', 'Web Banner', 1500, 500),
   ],
   photo: [
-    px('photo32', 'Photo 3:2', 6000, 4000, 'photo', { dpi: 300 }),
-    px('photo43', 'Photo 4:3', 4032, 3024, 'photo', { dpi: 300 }),
-    px('photo-sq', 'Square', 3000, 3000, 'photo', { dpi: 300 }),
-    inch('print46', '6 × 4 Print', 6, 4, { studio: 'photo', margins: 0, bleed: 0 }),
-    inch('print57', '7 × 5 Print', 7, 5, { studio: 'photo', margins: 0, bleed: 0 }),
-    inch('print108', '10 × 8 Print', 10, 8, { studio: 'photo', margins: 0, bleed: 0 }),
+    px('photo32', 'Photo 3:2', 6000, 4000, { dpi: 300 }),
+    px('photo43', 'Photo 4:3', 4032, 3024, { dpi: 300 }),
+    px('photo-sq', 'Square', 3000, 3000, { dpi: 300 }),
+    inch('print46', '6 × 4 Print', 6, 4, { margins: 0, bleed: 0 }),
+    inch('print57', '7 × 5 Print', 7, 5, { margins: 0, bleed: 0 }),
+    inch('print108', '10 × 8 Print', 10, 8, { margins: 0, bleed: 0 }),
   ],
   school: [
     mm('worksheet', 'Worksheet', 210, 297, { margins: 15 }),
     mm('booklet', 'A5 Booklet', 148, 210, { margins: 12, pages: 8 }),
-    mm('poster', 'Classroom Poster', 297, 420, { margins: 15, studio: 'vector' }),
-    mm('display', 'Display Banner', 420, 297, { margins: 15, studio: 'vector' }),
-    mm('cert', 'Certificate', 297, 210, { margins: 15, studio: 'vector' }),
+    mm('poster', 'Classroom Poster', 297, 420, { margins: 15 }),
+    mm('display', 'Display Banner', 420, 297, { margins: 15 }),
+    mm('cert', 'Certificate', 297, 210, { margins: 15 }),
     mm('flash', 'Flashcards', 105, 74, { margins: 6, pages: 2 }),
-    px('school-slide', 'Lesson Slides', 1920, 1080, 'layout', { margins: 80, pages: 6 }),
+    px('school-slide', 'Lesson Slides', 1920, 1080, { margins: 80, pages: 6 }),
   ],
 };
 
@@ -136,27 +136,72 @@ function TemplateGlyph({ t }: { t: TemplateInfo }) {
   return <DocThumb doc={doc} max={76} />;
 }
 
-export function NewDocumentDialog() {
+const MORE_KEY = 'quvrelo.newDoc.moreOptions';
+function readMore(): boolean {
+  try {
+    return localStorage.getItem(MORE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/** Finds a preset by id in any category. */
+function findPreset(id: string | undefined): { cat: Exclude<CategoryId, 'templates'>; preset: Preset } | null {
+  if (!id) return null;
+  for (const [cat, list] of Object.entries(PRESETS) as [Exclude<CategoryId, 'templates'>, Preset[]][]) {
+    const preset = list.find((p) => p.id === id);
+    if (preset) return { cat, preset };
+  }
+  return null;
+}
+
+/**
+ * One way to start a blank document (UX audit P1-7). Welcome's Start cards open
+ * this dialog preselected (`category`, `preset`). The studio is inferred from the
+ * category; "Open in" lives under More options for people who want to choose.
+ */
+export function NewDocumentDialog({ category, preset: presetArg }: { category?: CategoryId; preset?: string } = {}) {
   const studios = (['photo', 'vector', 'layout'] as StudioKind[]).filter((s) => editor.feature(s));
   const templates = TEMPLATES.filter((t) => editor.feature(t.studio));
-  const fallbackStudio = (s: StudioKind) => (studios.includes(s) ? s : studios[0] ?? 'layout');
 
-  const [cat, setCat] = useState<CategoryId>('print');
-  const [presetId, setPresetId] = useState<string | null>('a4');
+  const found = findPreset(presetArg);
+  const initialCat: CategoryId = found?.cat ?? (category && (category === 'templates' || PRESETS[category]) ? category : 'print');
+  const initial: Preset | null = found?.preset ?? (initialCat === 'templates' ? null : PRESETS[initialCat][0]);
+
+  const [cat, setCatState] = useState<CategoryId>(initialCat);
+  const [presetId, setPresetId] = useState<string | null>(initial?.id ?? null);
   const [templateId, setTemplateId] = useState<string>(templates[0]?.id ?? '');
   const [title, setTitle] = useState('Untitled');
-  const [unit, setUnit] = useState<Unit>('mm');
-  const [w, setW] = useState(210);
-  const [h, setH] = useState(297);
-  const [dpi, setDpi] = useState(300);
-  const [pages, setPages] = useState(1);
-  const [studio, setStudio] = useState<StudioKind>(fallbackStudio('layout'));
-  const [margins, setMargins] = useState(12.7);
-  const [bleed, setBleed] = useState(3);
-  const [transparent, setTransparent] = useState(false);
+  const [unit, setUnit] = useState<Unit>(initial?.unit ?? 'mm');
+  const [w, setW] = useState(initial?.w ?? 210);
+  const [h, setH] = useState(initial?.h ?? 297);
+  const [dpi, setDpi] = useState(initial?.dpi ?? 300);
+  const [pages, setPages] = useState(initial?.pages ?? 1);
+  const [margins, setMargins] = useState(initial?.margins ?? 12.7);
+  const [bleed, setBleed] = useState(initial?.bleed ?? 3);
+  const [transparent, setTransparent] = useState(!!initial?.transparent);
+  /** Studio picked by hand under More options; null = inferred. */
+  const [studioPick, setStudioPick] = useState<StudioKind | null>(null);
+  const [more, setMore] = useState(readMore);
 
   const list = cat === 'templates' ? [] : PRESETS[cat];
   const landscape = w > h;
+  const inferred = inferStudio(cat, { pages }, studios);
+  const studio: StudioKind = studioPick && studios.includes(studioPick) ? studioPick : inferred;
+
+  const setCat = (c: CategoryId) => {
+    setCatState(c);
+    setStudioPick(null);
+  };
+  const toggleMore = () => {
+    const next = !more;
+    setMore(next);
+    try {
+      localStorage.setItem(MORE_KEY, next ? '1' : '0');
+    } catch {
+      /* storage unavailable */
+    }
+  };
 
   const apply = (p: Preset) => {
     setPresetId(p.id);
@@ -164,7 +209,6 @@ export function NewDocumentDialog() {
     setW(p.w);
     setH(p.h);
     setDpi(p.dpi);
-    setStudio(fallbackStudio(p.studio));
     setMargins(p.margins);
     setBleed(p.bleed);
     setPages(p.pages ?? 1);
@@ -295,6 +339,7 @@ export function NewDocumentDialog() {
             <div className="preview-caption">
               <b>{presetId ? list.find((p) => p.id === presetId)?.name ?? 'Custom' : 'Custom'}</b>
               <span>{presetMeta({ w, h, unit })}</span>
+              <span className="opens-in" data-testid="opens-in">Opens in {studio[0].toUpperCase() + studio.slice(1)}</span>
             </div>
             <div className="fgrid">
               <Field label="Name" htmlFor="nd-title">
@@ -346,18 +391,28 @@ export function NewDocumentDialog() {
                   options={[{ value: 'w', label: 'White' }, { value: 't', label: 'Transparent' }]}
                 />
               </Field>
-              {studios.length > 1 && (
-                <Field label="Open in">
-                  <Segmented
-                    label="Open in studio"
-                    full
-                    value={studio}
-                    onChange={setStudio}
-                    options={studios.map((s) => ({ value: s, label: s[0].toUpperCase() + s.slice(1) }))}
-                  />
-                </Field>
-              )}
             </div>
+            {studios.length > 1 && (
+              <div className={`nd-more${more ? ' open' : ''}`}>
+                <button type="button" className="nd-more-toggle" aria-expanded={more} aria-controls="nd-more-body" onClick={toggleMore} data-testid="more-options">
+                  <Icon name={more ? 'chevron-down' : 'chevron-right'} size={16} />
+                  More options
+                </button>
+                {more && (
+                  <div className="fgrid" id="nd-more-body">
+                    <Field label="Open in" hint={studioPick ? undefined : 'Chosen from the category. Every studio can edit the document later.'}>
+                      <Segmented
+                        label="Open in studio"
+                        full
+                        value={studio}
+                        onChange={setStudioPick}
+                        options={studios.map((s) => ({ value: s, label: s[0].toUpperCase() + s.slice(1) }))}
+                      />
+                    </Field>
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
       </aside>
