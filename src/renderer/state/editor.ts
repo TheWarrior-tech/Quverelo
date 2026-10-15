@@ -9,10 +9,11 @@ import type { QuvreloDocument, Id, PathCommand, SceneNode, StudioKind } from '..
 import { DEFAULT_POLICY, featureEnabled, type FeatureId, type Policy } from '../../core/policy';
 import { DEFAULT_SETTINGS, type UserSettings } from '../../shared/api';
 import { AssetStore } from '../engine/assets';
+import type { CropOverlay, CropRatioId, CropRect } from '../../core/crop';
 
 export type ToolId =
   | 'move' | 'node' | 'hand' | 'zoom'
-  | 'marquee-rect' | 'marquee-ellipse' | 'lasso' | 'brush' | 'eraser' | 'fill' | 'eyedropper' | 'crop'
+  | 'marquee-rect' | 'marquee-ellipse' | 'lasso' | 'object-select' | 'brush' | 'eraser' | 'fill' | 'eyedropper' | 'crop'
   | 'pen' | 'pencil' | 'rect' | 'ellipse' | 'polygon' | 'star' | 'line'
   | 'text' | 'textframe' | 'imageframe';
 
@@ -30,6 +31,10 @@ export interface ToolOptions {
   fontFamily: string;
   fontSize: number;
   strokeWidth: number;
+  /** crop tool: aspect-ratio preset, orientation and guide overlay */
+  cropRatio: CropRatioId;
+  cropPortrait: boolean;
+  cropOverlay: CropOverlay;
 }
 
 export interface UiState {
@@ -38,6 +43,10 @@ export interface UiState {
   activeContainerId: Id | null;
   selection: Id[];
   pixelSelection: PathCommand[] | null;
+  /** live crop box while the Crop tool is active (null = whole canvas) */
+  crop: CropRect | null;
+  /** an on-device selection model run is in progress */
+  mlBusy: boolean;
   fillColor: string;
   strokeColor: string;
   strokeEnabled: boolean;
@@ -72,10 +81,13 @@ const DEFAULT_TOOL_OPTIONS: ToolOptions = {
   fontFamily: 'Inter',
   fontSize: 48,
   strokeWidth: 2,
+  cropRatio: 'free',
+  cropPortrait: false,
+  cropOverlay: 'thirds',
 };
 
 export const STUDIO_TOOLS: Record<StudioKind, ToolId[]> = {
-  photo: ['move', 'marquee-rect', 'marquee-ellipse', 'lasso', 'crop', 'brush', 'eraser', 'fill', 'eyedropper', 'text', 'hand', 'zoom'],
+  photo: ['move', 'marquee-rect', 'marquee-ellipse', 'lasso', 'object-select', 'crop', 'brush', 'eraser', 'fill', 'eyedropper', 'text', 'hand', 'zoom'],
   vector: ['move', 'node', 'pen', 'pencil', 'rect', 'ellipse', 'polygon', 'star', 'line', 'text', 'eyedropper', 'hand', 'zoom'],
   layout: ['move', 'node', 'textframe', 'imageframe', 'text', 'rect', 'ellipse', 'line', 'eyedropper', 'hand', 'zoom'],
 };
@@ -91,6 +103,8 @@ export class Editor {
     activeContainerId: null,
     selection: [],
     pixelSelection: null,
+    crop: null,
+    mlBusy: false,
     fillColor: '#8f959e',
     strokeColor: '#1b1b1f',
     strokeEnabled: false,
@@ -164,6 +178,7 @@ export class Editor {
       activeContainerId: doc.pages[0].id,
       selection: [],
       pixelSelection: null,
+      crop: null,
       editingTextId: null,
     };
     this.emitNow();
@@ -174,7 +189,7 @@ export class Editor {
     this.unsubHistory = null;
     this.session = null;
     this.assets.clear();
-    this.ui = { ...this.ui, selection: [], pixelSelection: null, editingTextId: null, activeContainerId: null };
+    this.ui = { ...this.ui, selection: [], pixelSelection: null, crop: null, editingTextId: null, activeContainerId: null };
     this.emitNow();
   }
 
@@ -215,12 +230,13 @@ export class Editor {
     if (studio === this.ui.studio) return;
     // entering a studio always starts on Move, so its context bar shows the
     // studio's own controls (page setup in Layout) rather than a stale tool
-    this.ui = { ...this.ui, studio, tool: 'move', editingTextId: null };
+    this.ui = { ...this.ui, studio, tool: 'move', crop: null, editingTextId: null };
     this.emit();
   }
 
   setTool(tool: ToolId): void {
-    this.ui = { ...this.ui, tool, editingTextId: tool === this.ui.tool ? this.ui.editingTextId : null };
+    // leaving the Crop tool discards an unapplied crop box
+    this.ui = { ...this.ui, tool, crop: tool === this.ui.tool ? this.ui.crop : null, editingTextId: tool === this.ui.tool ? this.ui.editingTextId : null };
     this.emit();
   }
 
