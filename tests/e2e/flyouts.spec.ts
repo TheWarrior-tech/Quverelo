@@ -164,7 +164,7 @@ test.describe('tool rail flyouts', () => {
     expect(await state<string>(page, 'editor.ui.tool')).toBe('marquee-ellipse');
     await expect(marquee).toHaveAttribute('data-tool', 'marquee-ellipse');
     // a member without a key of its own advertises the cycle shortcut
-    await expect(marquee).toHaveAttribute('data-tip', 'Ellipse Marquee');
+    await expect(marquee).toHaveAttribute('data-tip', 'Ellipse marquee');
     await expect(marquee).toHaveAttribute('data-keys', 'Shift+M');
     await expect(marquee).toHaveAttribute('aria-keyshortcuts', 'Shift+M');
     await page.keyboard.press('Shift+M'); // wraps

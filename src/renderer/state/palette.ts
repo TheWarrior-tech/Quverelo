@@ -145,7 +145,7 @@ function replacingDocument(run: () => void | Promise<void>): void {
     message: 'The open document has unsaved changes. Save it first?',
     actions: [
       { label: 'Save', primary: true, run: async () => { await runCommand('file.save'); if (!editor.history?.dirty) void run(); } },
-      { label: "Don't Save", run: () => void run() },
+      { label: "Don't save", run: () => void run() },
       { label: 'Cancel', run: () => undefined },
     ],
   });

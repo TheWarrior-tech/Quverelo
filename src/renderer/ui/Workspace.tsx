@@ -362,7 +362,7 @@ function UpdateIndicator() {
   const line = statusLine(u);
   if (!line) return null;
   return (
-    <button type="button" className="update-ind" data-update-status={u!.status} onClick={() => openDialog('updates')} aria-label={`${line}. Open Software Update`} data-tip="Software Update">
+    <button type="button" className="update-ind" data-update-status={u!.status} onClick={() => openDialog('updates')} aria-label={`${line}. Open software update`} data-tip="Software update">
       <Icon name="update" size={16} />
       <span>{line}</span>
     </button>

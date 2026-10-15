@@ -52,7 +52,7 @@ export function PaintEditor({ paint, onChange, onCommit, allowNone = true, allow
   return (
     <div className="paint-editor">
       <Segmented ariaLabel="Paint type" className="full" value={paint.type} onChange={setType} options={types.map((t) => ({ value: t, label: PAINT_LABELS[t], disabled: !allowed(t) && t !== paint.type, title: allowed(t) ? undefined : t === 'none' ? 'This needs a colour' : 'Gradients aren’t available here' }))} />
-      {paint.type === 'none' && <p className="hint">No paint. Choose Solid{allowGradient ? ' or a gradient' : ''} to add one.</p>}
+      {paint.type === 'none' && <p className="hint">No paint. Pick a type above to add one.</p>}
       {paint.type === 'solid' && <ColorPicker value={paint.color} onChange={(c) => onChange({ type: 'solid', color: c })} onCommit={onCommit} />}
       {grad && (
         <>

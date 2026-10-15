@@ -209,7 +209,7 @@ export async function save(saveAs = false): Promise<boolean> {
 // Import & place
 
 async function pickImages(): Promise<{ data: Uint8Array; name: string }[]> {
-  const files = await window.quvrelo.openFileDialog({ title: 'Place Image', filters: [{ name: 'Images', extensions: [...IMAGE_EXT, 'svg'] }], multi: true });
+  const files = await window.quvrelo.openFileDialog({ title: 'Place image', filters: [{ name: 'Images', extensions: [...IMAGE_EXT, 'svg'] }], multi: true });
   return files.map((f) => ({ data: f.data, name: f.name }));
 }
 

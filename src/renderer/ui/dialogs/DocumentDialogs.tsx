@@ -60,7 +60,7 @@ export function DocumentSetupDialog() {
   const UNIT_NAMES: Record<Unit, string> = { px: 'Pixels', mm: 'Millimetres', cm: 'Centimetres', in: 'Inches', pt: 'Points' };
   const step = unit === 'in' ? 0.1 : 1;
   return (
-    <Dialog title="Document Setup" onSubmit={apply} footer={<><button className="btn" onClick={closeDialog}>Cancel</button><button className="btn primary" onClick={apply}>Apply</button></>}>
+    <Dialog title="Document setup" onSubmit={apply} footer={<><button className="btn" onClick={closeDialog}>Cancel</button><button className="btn primary" onClick={apply}>Apply</button></>}>
       <div className="fgrid">
         <Field label="Units" htmlFor="ds-units">
           <select id="ds-units" value={unit} onChange={(e) => changeUnit(e.target.value as Unit)} aria-label="Document units">
@@ -128,7 +128,7 @@ export function ResizeDialog() {
     closeDialog();
   };
   return (
-    <Dialog title="Resize Document" size="sm" onSubmit={apply} footer={<><button className="btn" onClick={closeDialog}>Cancel</button><button className="btn primary" onClick={apply}>Resize</button></>}>
+    <Dialog title="Resize document" size="sm" onSubmit={apply} footer={<><button className="btn" onClick={closeDialog}>Cancel</button><button className="btn primary" onClick={apply}>Resize</button></>}>
       <div className="fgrid">
         <Field label="Mode">
           <Segmented label="Resize mode" full value={mode} onChange={setMode} options={[{ value: 'scale', label: 'Scale content' }, { value: 'canvas', label: 'Canvas only' }]} />

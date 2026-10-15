@@ -8,10 +8,10 @@ import { formatAccel, tip } from './tooltip';
 
 const TOOL_LABELS: Record<ToolId, string> = {
   move: 'Move (V)', node: 'Node (A)', hand: 'Hand (H)', zoom: 'Zoom (Z)',
-  'marquee-rect': 'Rectangle Marquee (M)', 'marquee-ellipse': 'Ellipse Marquee', lasso: 'Freehand Selection (L)', 'object-select': 'Object Select (W)',
-  brush: 'Paint Brush (B)', eraser: 'Eraser (E)', fill: 'Flood Fill (G)', eyedropper: 'Colour Picker (I)', crop: 'Crop (C)',
+  'marquee-rect': 'Rectangle marquee (M)', 'marquee-ellipse': 'Ellipse marquee', lasso: 'Freehand selection (L)', 'object-select': 'Object select (W)',
+  brush: 'Paint brush (B)', eraser: 'Eraser (E)', fill: 'Flood fill (G)', eyedropper: 'Colour picker (I)', crop: 'Crop (C)',
   pen: 'Pen (P)', pencil: 'Pencil (N)', rect: 'Rectangle (M)', ellipse: 'Ellipse (E)', polygon: 'Polygon (Y)', star: 'Star (S)', line: 'Line (L)',
-  text: 'Artistic Text (T)', textframe: 'Frame Text (X)', imageframe: 'Picture Frame (F)',
+  text: 'Artistic text (T)', textframe: 'Frame text (X)', imageframe: 'Picture frame (F)',
 };
 
 /** Second tooltip line: how to use the tool (≤ 60 characters, "Drag to … · Shift …"). */

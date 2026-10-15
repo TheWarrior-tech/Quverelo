@@ -256,7 +256,7 @@ export function NewDocumentDialog({ category, preset: presetArg }: { category?: 
 
   return (
     <Dialog
-      title="New Document"
+      title="New document"
       size="xl"
       split
       onSubmit={create}

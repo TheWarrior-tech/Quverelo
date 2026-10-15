@@ -67,6 +67,8 @@ Features: `"cv11" "ss03"` off; `"tnum" "calt"` on for numerals; tracking −0.00
 
 Weights: 400 body, 500 labels/controls in active state, 600 titles. Never 700+.
 
+**Case.** Sentence case for every string Quvrelo draws: buttons, dialog titles, tabs, headings, labels, tooltips, tool names, toasts (“Document setup…”, “Check for updates”, “Don't save”, “Rectangle marquee”). Two exceptions: native menu items keep platform Title Case (`shared/menu.ts`), and so do the command-palette rows that mirror them and any text that quotes a menu item as a path (“File › Place Image”); proper nouns (Quvrelo, font and platform names, keys) keep their capitals. Micro-labels are uppercase by CSS, never typed in capitals. Enforced by `tests/unit/sentenceCase.test.ts` over `ui/` and the UI-facing `state/` modules.
+
 ## 5. Space, size, grid
 
 4px base; allowed steps 4 · 8 · 12 · 16 · 24 · 32 · 48. Control heights: `24` (compact: panel inputs, segmented, small buttons), `28` (default buttons, top bar), `32` (dialog actions). Tool rail buttons `32×32` on a `44px` rail. Panel row height `28`, layer row `28`. Top bar `44` (`--h-top`), context bar `36`, status bar `24`. Shell columns (v3): tool rail `44` (`--w-tools`) · left rail `248` (`--w-rail`) · canvas · inspector `288` (`--w-inspector`). The rails run full height between top bar and status bar; the context bar sits over the canvas column only. All hairlines are 1 device-independent px drawn as `box-shadow`/`border` so they stay crisp at 150 %/200 %.

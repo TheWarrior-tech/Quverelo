@@ -18,9 +18,9 @@ export function AssignmentDialog() {
   const set = (k: keyof AssignmentInfo) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setInfo({ ...info, [k]: e.target.value });
   return (
     <Dialog
-      title="Assignment Details"
+      title="Assignment details"
       onSubmit={save}
-      footerStart={a && <button className="btn danger" onClick={() => { editor.commit('Remove assignment', (d) => { const { assignment: _x, ...rest } = d; return rest as typeof d; }); closeDialog(); }}>Remove Details</button>}
+      footerStart={a && <button className="btn danger" onClick={() => { editor.commit('Remove assignment', (d) => { const { assignment: _x, ...rest } = d; return rest as typeof d; }); closeDialog(); }}>Remove details</button>}
       footer={<><button className="btn" onClick={closeDialog}>Cancel</button><button className="btn primary" onClick={save}>Save</button></>}
     >
       <p>Add the brief, then share this file or save it to a school template folder. Students see it here and hand in with File › Hand In.</p>
@@ -54,7 +54,7 @@ export function HandInDialog() {
     }
   };
   return (
-    <Dialog title="Hand In" onSubmit={submit} footer={<><button className="btn" onClick={closeDialog}>Cancel</button><button className="btn primary" disabled={!name.trim() || busy} onClick={submit}>{busy ? 'Handing in…' : 'Hand In'}</button></>}>
+    <Dialog title="Hand in" onSubmit={submit} footer={<><button className="btn" onClick={closeDialog}>Cancel</button><button className="btn primary" disabled={!name.trim() || busy} onClick={submit}>{busy ? 'Handing in…' : 'Hand in'}</button></>}>
       {a ? (
         <div className="brief">
           <h4>{a.title}</h4>
