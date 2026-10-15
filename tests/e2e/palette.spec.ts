@@ -277,9 +277,9 @@ test.describe('tooltips', () => {
     L = await launch();
     const { page } = L;
     await newDoc(page);
-    // shell v3: Place image… ends the centre zone, Open… starts the actions zone
     const open = page.locator('.topbar button[aria-label="Open…"]');
-    await page.locator('.topbar button[aria-label="Place image…"]').focus();
+    // tab order: … Place image · studio switch · Search commands · Open (critique 2: search sits left of Open)
+    await page.locator('.topbar .topbar-search').focus();
     await page.keyboard.press('Tab');
     await expect(open).toBeFocused();
     const tipEl = page.getByRole('tooltip');
