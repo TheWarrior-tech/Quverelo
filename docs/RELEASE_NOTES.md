@@ -1,5 +1,20 @@
 ## Unreleased
 
+A new editor shell, faster photo selection and cropping, a command palette, and a redesigned start screen, merged into one release line.
+
+### Editor shell
+- **Top bar in three zones:** document name and save state on the left; studio switch, Undo/Redo and Place image in the centre; Open, Save, shortcuts, Preferences and **Export ▾** on the right. Export ▾ is the only filled button in the bar.
+- **Left rail with tabs** for Layers, Pages and Assets; the right-hand **inspector** is organised by concern: **Design**, **Adjust** (Photo) and **History**.
+- **Floating selection toolbar** under a selected object (fill, stroke, arrange, duplicate, delete; Boolean in Vector). <kbd>F6</kbd> moves into it. Turn it off in Preferences ▸ Canvas.
+- **One colour control everywhere** (the colour chip opens the same picker in the context bar, inspector and rail), one segmented control, quieter context-bar hints, and a **font picker** with search, Recent/Bundled/System/Installed groups, previews and live arrow-key preview (<kbd>Esc</kbd> reverts).
+- Clearer selection: accent handles with a white ring, a thin hover outline that never looks like a selection, and outlines on every member of a multi-selection.
+
+### Photo
+- **Object Select (<kbd>W</kbd>)** on the Photo rail: click an object to select it, click again to add, <kbd>Alt</kbd>-click to remove.
+- **Select subject** is the first button for every selection tool (<kbd>Ctrl/⌘</kbd>+<kbd>Alt</kbd>+<kbd>S</kbd>).
+- After a pixel selection, a **floating action strip** offers Remove background, Mask, Copy to layer, Crop and Invert. It takes the place of the object toolbar while a pixel selection exists, so only one floating bar shows at a time.
+- **Crop, rebuilt:** an adjustable box with 8 handles, ratio presets (Free, Original, 1:1, 4:3, 16:9 …) and portrait/landscape swap, exact W/H, a thirds or grid overlay, and **Apply** / **Cancel** (<kbd>Enter</kbd> / <kbd>Esc</kbd>).
+
 ### Command palette and tooltips
 - **Command palette.** <kbd>Ctrl/⌘</kbd>+<kbd>K</kbd> (or <kbd>Ctrl/⌘</kbd>+<kbd>/</kbd>) searches and runs every menu command, tool, template and recent file, with synonyms ("cutout" finds Select Subject, "print" finds Export PDF), shortcut keycaps, a Recent section and a one-line reason when a command can't run yet. Fully keyboard operable and screen-reader friendly.
 - **New tooltips.** Faster (400 ms), drawn in the app's own style with the shortcut as keycaps and a how-to line on tools; they also appear on keyboard focus, can be hovered, and close with <kbd>Esc</kbd>.
