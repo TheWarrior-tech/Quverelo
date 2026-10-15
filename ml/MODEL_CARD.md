@@ -90,6 +90,31 @@ How to read this:
   (`tests/unit/mlModel.test.ts`). Resizing in `src/core/ml/tensor.ts` reproduces PIL BILINEAR, the resize used in training,
   to within 1e-3 (fixture test).
 
+## Click-to-select pipeline in the app (zoom + edge refine)
+A single squash-resized pass over the whole photo is not enough for small objects. At 320 px the showcase
+cottage in `tests/fixtures/sample-photo.jpg` is only about 22×16 model pixels. On an object that small, v0 returns a blob the size of its
+click Gaussian, not the object (critique 3, N0: IoU 0.11, 9× the cottage's area). The pipeline in
+`src/core/ml/selectSubject.ts` is therefore:
+
+1. **Coarse pass.** The whole image goes in at 320, and we keep the component under the click. This only *localises* the object.
+2. **Focus passes.** When that component spans less than 75 % of the image's longer side, the model runs again on four square
+   crops of 0.5, 0.75, 1 and 1.25 × its size. The crops are centred on the click, shifted to stay inside the image and never padded.
+   They run at **256**, the training resolution, and their probabilities are averaged.
+3. **Edge refine** (`src/core/ml/refine.ts`). This is a GrabCut-style min cut. The averaged probability is the prior, and colour GMMs plus a
+   contrast-sensitive 8-neighbour smoothness term place the edge. Clicks are hard constraints. If the cut keeps less
+   than 25 % of the model's region, which happens in "stuff" like water, sky or grass, we keep the model's region instead.
+
+Logits are always upsampled bilinearly *before* the sigmoid and threshold. The click mapping (document → layer →
+analysis pixel → crop → model grid, a squash with no letterbox) is in `src/core/ml/coords.ts`.
+
+| Showcase regression (`tests/unit/mlObjectSelect.test.ts`) | IoU vs hand-traced cottage |
+|---|---|
+| Single pass (before) | 0.110 |
+| Zoom + refine (now), 7 clicks over walls and roof | 0.931–0.938 (the test requires ≥ 0.80 and an area ≤ 1.5× the cottage bbox) |
+
+Cost: 1 pass at 320 and 4 at 256, plus the cut on a region of at most 40k px. In the Electron app, one click on the showcase photo
+takes about 0.7 s end to end on the 2-vCPU sandbox (`tests/e2e/objsel-c3.spec.ts`).
+
 ## Latency (CPU)
 | Runtime | 320×320 | 512×512 |
 |---|---|---|
@@ -108,7 +133,7 @@ How to read this:
   (limbs, straws, hair).
 * "Subject" was derived from Open Images instance annotations, which are not exhaustive. The model has no notion of
   photographic saliency beyond what those annotations imply.
-* Training resolution was 224 to 256 px. Fine edges are limited by the 320 px inference size, and there is no matting or edge refinement yet.
+* Training resolution was 224 to 256 px. Select Subject is limited by the 320 px inference size. Click-to-select zooms in and snaps to colour edges (see above), but there is no matting, so hair and fur stay rough. The edge refine relies on colour contrast, so an object the same colour as its surroundings keeps the model's coarser mask.
 * Data bias: Open Images is Flickr-sourced and skews toward Western, everyday scenes. We have not done a fairness evaluation across
   people.
 * It is CPU only today. Nothing in the model prevents the WebGPU or GPU execution providers, but they are untested.

@@ -2,11 +2,12 @@
  * Renderer glue for the on-device QuvSelect model (onnxruntime-web, WASM, CPU, fully offline).
  * The model and the WASM binary are bundled by Vite as local assets: nothing is fetched from the network.
  */
-import { invert, multiply, scale } from '../../core/geometry';
+import type { invert } from '../../core/geometry';
 import { findNode } from '../../core/document';
 import { transformPath } from '../../core/path';
 import type { PathCommand, RasterNode } from '../../core/types';
 import { maskToPath } from '../../core/ml/maskToPath';
+import { analysisSize, analysisTransform } from '../../core/ml/coords';
 import { selectObject, selectSubject, type SegmentationBackend, type SelectionClick, type SelectionResult } from '../../core/ml/selectSubject';
 import type { Editor } from '../state/editor';
 import { createCanvas, ctx2d } from './assets';
@@ -56,7 +57,7 @@ interface RasterView {
   /** analysis pixel -> world */
   toWorld: ReturnType<typeof invert>;
   /** world -> analysis pixel */
-  toPixel: ReturnType<typeof multiply>;
+  toPixel: ReturnType<typeof invert>;
 }
 
 /** Rendered pixels of a raster layer (adjustments applied), downscaled for analysis. */
@@ -66,16 +67,16 @@ export function rasterView(ed: Editor, node: RasterNode): RasterView | null {
   const src = ed.assets.rendered(node.assetId, node.adjustments, false) ?? ed.assets.get(node.assetId);
   const m = worldToPixelMatrix(doc, node.id);
   if (!src || !m) return null;
-  const k = Math.min(1, ANALYSIS_MAX_SIDE / Math.max(src.width, src.height));
-  const width = Math.max(1, Math.round(src.width * k));
-  const height = Math.max(1, Math.round(src.height * k));
+  const { width, height } = analysisSize(src.width, src.height, ANALYSIS_MAX_SIDE);
   const c = createCanvas(width, height);
   const ctx = ctx2d(c);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high'; // antialiased downscale, closer to the PIL resize the model was trained on
   ctx.drawImage(src, 0, 0, width, height);
   const data = ctx.getImageData(0, 0, width, height).data;
-  // world -> node units (m) -> analysis pixels
-  const toPixel = multiply(scale(width / node.w, height / node.h), m);
-  return { node, width, height, data, toPixel, toWorld: invert(toPixel) };
+  // world -> node units (m) -> analysis pixels; see core/ml/coords.ts for the full click chain
+  const { toPixel, toWorld } = analysisTransform(m, node.w, node.h, width, height);
+  return { node, width, height, data, toPixel, toWorld };
 }
 
 export function resultToWorldPath(view: RasterView, r: SelectionResult): PathCommand[] | null {

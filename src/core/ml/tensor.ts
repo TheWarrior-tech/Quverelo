@@ -121,16 +121,27 @@ export function sigmoid(x: number): number {
 }
 
 /**
- * Logits at model resolution -> soft mask (0..255) at the source resolution.
- * The probability is upsampled (not the binary mask) so edges stay smooth.
+ * Logits at model resolution -> probability (0..1) at the source resolution.
+ * The *logits* are upsampled bilinearly first and the sigmoid applied afterwards, so the 0.5
+ * contour is the bilinear zero-crossing of the network output (thresholding after upsampling,
+ * never upsampling a thresholded or already-squashed mask).
  */
-export function logitsToMask(logits: Float32Array, size: number, width: number, height: number): MaskImage {
-  const prob = new Float32Array(logits.length);
-  for (let i = 0; i < logits.length; i++) prob[i] = sigmoid(logits[i]);
-  const up = resizePlane(prob, size, size, width, height);
+export function logitsToProb(logits: Float32Array, size: number, width: number, height: number): Float32Array {
+  const up = resizePlane(logits, size, size, width, height);
+  for (let i = 0; i < up.length; i++) up[i] = sigmoid(up[i]);
+  return up;
+}
+
+/** Probability plane -> soft mask bytes (0..255). */
+export function probToMask(prob: Float32Array, width: number, height: number): MaskImage {
   const data = new Uint8Array(width * height);
-  for (let i = 0; i < up.length; i++) data[i] = Math.round(Math.min(1, Math.max(0, up[i])) * 255);
+  for (let i = 0; i < prob.length; i++) data[i] = Math.round(Math.min(1, Math.max(0, prob[i])) * 255);
   return { width, height, data };
+}
+
+/** Logits at model resolution -> soft mask (0..255) at the source resolution (see logitsToProb). */
+export function logitsToMask(logits: Float32Array, size: number, width: number, height: number): MaskImage {
+  return probToMask(logitsToProb(logits, size, width, height), width, height);
 }
 
 /** Binary 0/1 mask at threshold (default 0.5). */
