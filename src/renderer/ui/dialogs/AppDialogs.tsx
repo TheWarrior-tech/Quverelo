@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import type { AppInfo, UserSettings } from '../../../shared/api';
 import { APP_MENU, type MenuCommand } from '../../../shared/menu';
 import { editor } from '../../state/editor';
-import { closeDialog, toast } from '../../state/bus';
+import { closeDialog, openDialog, toast } from '../../state/bus';
 import { runCommand, setSetting, shortcutTable } from '../../state/commands';
 import { useEditor } from '../hooks';
 import { Icon, Logo } from '../Icons';
 import { Dialog } from './DialogHost';
-import { Check, Keys, PrefRow, PrefSection } from './controls';
+import { Check, Keys, PrefRow, PrefSection, Segmented } from './controls';
+import { useUpdateState } from '../../state/updates';
 
 const isMac = navigator.platform.toLowerCase().includes('mac');
 /** Plain-text accelerator, e.g. for tooltips: "Ctrl+Shift+S" / "⇧⌘S". */
@@ -261,7 +262,19 @@ export function PreferencesDialog() {
   const s = ed.settings;
   const p = ed.policy;
   const [pane, setPane] = useState<PrefPane>('appearance');
-  const managed = !!(p.forceTheme || p.lockUiScale || p.lockSaveDirectory || p.disabledFeatures.length > 0);
+  const upd = useUpdateState();
+  const managed = !!(p.forceTheme || p.lockUiScale || p.lockSaveDirectory || p.disabledFeatures.length > 0 ||
+    p.disableUpdateCheck || p.autoDownload !== null || p.updateChannel !== null || p.autoInstall !== null);
+  const updOff = !upd || upd.mode === 'disabled';
+  const autoDlLocked = updOff || upd!.mode !== 'auto' || upd!.locks.autoDownload;
+  const channelLocked = updOff || upd!.locks.channel;
+  const autoDlDesc = updOff
+    ? (upd?.note ?? 'Updates are off.')
+    : upd!.locks.autoDownload
+      ? `Set by your organisation: ${upd!.autoDownload ? 'on' : 'off'}.`
+      : upd!.mode !== 'auto'
+        ? (upd!.note ?? 'This copy of Quvrelo cannot install updates by itself.')
+        : 'Download new versions in the background and install them when you restart.';
   const scale = Math.round(s.uiScale * 100);
   return (
     <Dialog title="Preferences" size="lg" split footer={<button className="btn primary" onClick={closeDialog}>Done</button>}>
@@ -291,6 +304,31 @@ export function PreferencesDialog() {
               </PrefRow>
               <PrefRow title="Autosave" description={p.autosaveIntervalSeconds ? `Every ${p.autosaveIntervalSeconds} seconds, kept for crash recovery.` : 'Turned off by your organisation.'}>
                 <span className="value-text" style={{ color: 'var(--c-text-3)' }}>{p.autosaveIntervalSeconds ? 'On' : 'Off'}</span>
+              </PrefRow>
+            </PrefSection>
+            <PrefSection title="Updates">
+              <PrefRow title="Automatically download updates" description={autoDlDesc} htmlFor="pref-autodl">
+                <Check
+                  id="pref-autodl"
+                  checked={upd ? upd.autoDownload : s.autoDownloadUpdates}
+                  disabled={autoDlLocked}
+                  onChange={(v) => setSetting({ autoDownloadUpdates: v })}
+                />
+              </PrefRow>
+              <PrefRow
+                title="Update channel"
+                description={channelLocked && !updOff ? 'Set by your organisation.' : 'Beta gets new features early and may be less polished.'}
+              >
+                <Segmented
+                  label="Update channel"
+                  value={upd?.channel ?? s.updateChannel}
+                  disabled={channelLocked}
+                  options={[{ value: 'stable', label: 'Stable' }, { value: 'beta', label: 'Beta' }]}
+                  onChange={(v) => setSetting({ updateChannel: v })}
+                />
+              </PrefRow>
+              <PrefRow title="Software update" description={upd ? `Quvrelo ${upd.current}` : undefined}>
+                <button className="btn" disabled={updOff} onClick={() => openDialog('updates')}>Check Now</button>
               </PrefRow>
             </PrefSection>
           </>

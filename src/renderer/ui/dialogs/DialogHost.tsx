@@ -7,6 +7,7 @@ import { ExportDialog } from './ExportDialog';
 import { DocumentSetupDialog, ResizeDialog } from './DocumentDialogs';
 import { AboutDialog, GuideDialog, PreferencesDialog, ShortcutsDialog } from './AppDialogs';
 import { AssignmentDialog, HandInDialog } from './AssignmentDialogs';
+import { UpdatesDialog } from './UpdatesDialog';
 import './dialogs.css';
 
 export type DialogSize = 'sm' | 'md' | 'lg' | 'xl';
@@ -207,6 +208,7 @@ export function DialogHost() {
     case 'about': return <AboutDialog key={k} />;
     case 'assignment': return <AssignmentDialog key={k} />;
     case 'hand-in': return <HandInDialog key={k} />;
+    case 'updates': return <UpdatesDialog key={k} />;
     case 'confirm': return <ConfirmDialog key={k} title={String(p.title)} message={String(p.message)} actions={p.actions as ConfirmAction[]} />;
     default: return null;
   }

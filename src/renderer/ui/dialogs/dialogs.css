@@ -1007,3 +1007,125 @@
 .orient.p { width: 9px; height: 12px; }
 .orient.l { width: 12px; height: 9px; }
 .dlg-side.narrow { width: 184px; }
+
+/* ---------- Software Update ---------- */
+
+.updates-dialog .about-head {
+  margin-bottom: 12px;
+}
+.upd-status {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--c-text);
+}
+.upd-status p {
+  margin: 0;
+}
+.upd-status .upd-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--c-text-3);
+}
+.upd-meta.num,
+.upd-pct {
+  font-variant-numeric: tabular-nums;
+}
+.upd-meta .upd-pct {
+  float: right;
+  color: var(--c-text-2);
+}
+.upd-error {
+  color: var(--c-danger);
+}
+.upd-progress {
+  height: 4px;
+  margin-top: 8px;
+  border-radius: var(--r-1);
+  background: var(--c-line-strong);
+  overflow: hidden;
+}
+.upd-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--c-accent);
+  transition: width var(--dur) var(--ease);
+}
+:root[data-reduce-motion='true'] .upd-progress > span {
+  transition: none;
+}
+.upd-cmd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 0 4px 0 8px;
+  min-height: 32px;
+  border-radius: var(--r-1);
+  background: var(--c-raised);
+  box-shadow: inset 0 0 0 1px var(--c-line);
+}
+.upd-cmd code {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--c-text);
+  overflow-x: auto;
+  white-space: nowrap;
+  user-select: all;
+}
+.upd-cmd .btn {
+  height: 24px;
+}
+.upd-notes {
+  margin: 0 0 16px;
+}
+.upd-notes > .micro {
+  margin-bottom: 8px;
+}
+.upd-notes-body {
+  max-height: 168px;
+  overflow-y: auto;
+  padding: 8px 12px;
+  border-radius: var(--r-1);
+  background: var(--c-raised);
+  box-shadow: inset 0 0 0 1px var(--c-line);
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--c-text-2);
+}
+.upd-notes-body p {
+  margin: 0;
+}
+.upd-notes-body p.head {
+  color: var(--c-text);
+  font-weight: 500;
+}
+.upd-notes-body .gap {
+  display: block;
+  height: 8px;
+}
+.upd-notes-body p.li {
+  position: relative;
+  padding-left: 14px;
+}
+.upd-notes-body p.li::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 8px;
+  width: 4px;
+  height: 4px;
+  border-radius: var(--r-full);
+  background: var(--c-text-3);
+}
+.upd-notes-body:focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: 1px;
+}
+.upd-more {
+  margin-top: 4px;
+  height: 24px;
+}

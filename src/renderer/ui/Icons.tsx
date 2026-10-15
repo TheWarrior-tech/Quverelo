@@ -107,6 +107,8 @@ const paths: Record<string, ReactElement> = {
   'arrow-down': P('M10 4v12M5.5 11.5L10 16l4.5-4.5'),
   check: P('M4.5 10.5l3.5 3.5 7.5-8'),
 
+  // updates: arrow into a tray
+  update: P('M10 3.5v9M6.5 9.5l3.5 3.5 3.5-3.5M3.5 13.5v2a1 1 0 001 1h11a1 1 0 001-1v-2'),
   // text alignment
   'text-left': P('M3.5 5h13M3.5 8.3h8M3.5 11.7h13M3.5 15h8'),
   'text-center': P('M3.5 5h13M6 8.3h8M3.5 11.7h13M6 15h8'),

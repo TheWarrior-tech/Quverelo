@@ -13,6 +13,8 @@ import { applyFillToSelection, applyStrokeToSelection, swapFillStroke } from './
 import { ColorPopoverBody, FillStrokeChips, type ChipTarget } from './color/Chips';
 import { Popover } from './controls/Panel';
 import { solid } from '../../core/document';
+import { statusLine, useUpdateState } from '../state/updates';
+import { openDialog } from '../state/bus';
 
 const TOOL_LABELS: Record<ToolId, string> = {
   move: 'Move (V)', node: 'Node (A)', hand: 'Hand (H)', zoom: 'Zoom (Z)',
@@ -207,6 +209,19 @@ function CanvasArea() {
   );
 }
 
+/** Quiet update indicator: only shown while downloading, when an update is ready, or one is available. */
+function UpdateIndicator() {
+  const u = useUpdateState();
+  const line = statusLine(u);
+  if (!line) return null;
+  return (
+    <button type="button" className="update-ind" data-update-status={u!.status} onClick={() => openDialog('updates')} aria-label={`${line}. Open Software Update`} title="Software Update">
+      <Icon name="update" size={16} />
+      <span>{line}</span>
+    </button>
+  );
+}
+
 function StatusBar() {
   const ed = useEditor();
   const doc = ed.doc!;
@@ -223,6 +238,7 @@ function StatusBar() {
       <span>{ed.ui.selection.length ? <><span className="num">{ed.ui.selection.length}</span> selected</> : 'Nothing selected'}</span>
       <span className="num">{ed.ui.status}</span>
       <div className="spacer" />
+      <UpdateIndicator />
       <label>
         Units{' '}
         <select value={ed.settings.units} onChange={(e) => setSetting({ units: e.target.value as never })} aria-label="Display units">
