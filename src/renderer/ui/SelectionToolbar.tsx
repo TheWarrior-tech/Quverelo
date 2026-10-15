@@ -35,7 +35,10 @@ function useSelectionBox(vp: Viewport): { sel: Box | null; area: Box | null; bus
       const h = vp.host.getBoundingClientRect();
       const r = vp.selectionRect();
       const sel = r ? { left: h.left + r.x, top: h.top + r.y, right: h.left + r.x + r.w, bottom: h.top + r.y + r.h } : null;
-      const area = { left: h.left, top: h.top, right: h.right, bottom: h.bottom };
+      // keep clear of the page indicator pill at the foot of the canvas (multi-page documents)
+      const pager = vp.host.parentElement?.querySelector('.page-indicator')?.getBoundingClientRect();
+      const bottom = pager && pager.height > 0 && pager.top < h.bottom ? Math.min(h.bottom, pager.top - 4) : h.bottom;
+      const area = { left: h.left, top: h.top, right: h.right, bottom };
       const busy = vp.interacting || zooming.current > 0;
       setState((s) => (s.busy === busy && (s.sel === sel || sameBox(s.sel, sel)) && sameBox(s.area, area) ? s : { sel, area, busy }));
     };
