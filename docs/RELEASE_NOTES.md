@@ -1,4 +1,4 @@
-## Unreleased
+## Quvrelo v0.4.0 — the premium editor shell
 
 A new editor shell, faster photo selection and cropping, a command palette, and a redesigned start screen, merged into one release line.
 
