@@ -1,0 +1,107 @@
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Icon } from '../Icons';
+
+export interface MenuItem {
+  id: string;
+  label: string;
+  icon?: string;
+  /** Display shortcut ('Ctrl+Shift+E'), shown right-aligned as text-3. */
+  keys?: string;
+  /** Second line in text-3 ("report.pdf"). */
+  detail?: string;
+  disabled?: boolean;
+  run: () => void;
+}
+
+export type MenuEntry = MenuItem | '-' | { heading: string };
+
+/**
+ * Dropdown menu (DESIGN.md §8 "Menus"): --c-popover, 8px radius, 28px items
+ * with 4px inner radius, shortcuts right-aligned in text-3. role="menu" with
+ * roving focus: ↑/↓/Home/End move, Enter/Space run, Esc closes and returns
+ * focus to the anchor, Tab closes.
+ */
+export function Menu({ anchor, onClose, label, items, align = 'start', minWidth = 224 }: { anchor: HTMLElement; onClose: () => void; label: string; items: MenuEntry[]; align?: 'start' | 'end'; minWidth?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  useLayoutEffect(() => {
+    const r = anchor.getBoundingClientRect();
+    const el = ref.current;
+    const w = el?.offsetWidth ?? minWidth;
+    const h = el?.offsetHeight ?? 200;
+    let left = align === 'end' ? r.right - w : r.left;
+    let top = r.bottom + 4;
+    left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+    if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 4);
+    setPos({ left, top });
+  }, [anchor, align, minWidth]);
+  const buttons = () => [...(ref.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not([aria-disabled="true"])') ?? [])];
+  useEffect(() => {
+    buttons()[0]?.focus();
+    const down = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (ref.current?.contains(t) || anchor.contains(t)) return;
+      onClose();
+    };
+    document.addEventListener('pointerdown', down, true);
+    return () => document.removeEventListener('pointerdown', down, true);
+  }, [anchor, onClose]);
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const list = buttons();
+    const i = list.indexOf(document.activeElement as HTMLButtonElement);
+    const go = (n: number) => list[(n + list.length) % list.length]?.focus();
+    if (e.key === 'ArrowDown') go(i + 1);
+    else if (e.key === 'ArrowUp') go(i < 0 ? list.length - 1 : i - 1);
+    else if (e.key === 'Home') go(0);
+    else if (e.key === 'End') go(list.length - 1);
+    else if (e.key === 'Escape') {
+      onClose();
+      anchor.focus();
+    } else if (e.key === 'Tab') {
+      onClose();
+      return;
+    } else return;
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  return createPortal(
+    <div ref={ref} className="menu" role="menu" aria-label={label} onKeyDown={onKeyDown} style={{ minWidth, ...(pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }) }}>
+      {items.map((it, k) => {
+        if (it === '-') return <div key={`sep${k}`} className="menu-sep" role="separator" />;
+        if ('heading' in it) return <div key={`h${k}`} className="menu-heading" role="presentation">{it.heading}</div>;
+        return (
+          <button
+            key={it.id}
+            type="button"
+            role="menuitem"
+            className="menu-item"
+            data-menu-item={it.id}
+            aria-disabled={it.disabled || undefined}
+            tabIndex={-1}
+            onClick={() => {
+              if (it.disabled) return;
+              onClose();
+              it.run();
+            }}
+          >
+            <span className="menu-icon" aria-hidden="true">{it.icon ? <Icon name={it.icon} size={16} /> : null}</span>
+            <span className="menu-label">
+              {it.label}
+              {it.detail && <span className="menu-detail">{it.detail}</span>}
+            </span>
+            {it.keys && <span className="menu-keys">{it.keys}</span>}
+          </button>
+        );
+      })}
+    </div>,
+    document.body,
+  );
+}
+
+/** Small helper so a button can own an open/closed menu anchored to itself. */
+export function useMenu(): [HTMLElement | null, (el: HTMLElement | null) => void, () => void] {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  return [anchor, (el) => setAnchor((cur) => (cur === el ? null : el)), () => setAnchor(null)];
+}
+
