@@ -107,7 +107,7 @@ export function NumberInput({ value, onChange, unit, prefix, label, min, max, st
     onChange(clamp(Math.round((value + d) * 1000) / 1000));
   };
   return (
-    <div className={`num-input${prefix ? ' has-prefix' : ''}${unit ? ' has-unit' : ''}`}>
+    <div className={`num-input${prefix ? ' has-prefix' : ''}${prefix && prefix.length > 1 ? ' word-prefix' : ''}${unit ? ' has-unit' : ''}`}>
       {prefix && <span className="pre" aria-hidden="true">{prefix}</span>}
       <input
         id={id}

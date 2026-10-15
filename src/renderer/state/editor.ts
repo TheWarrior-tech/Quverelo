@@ -95,7 +95,8 @@ const DEFAULT_TOOL_OPTIONS: ToolOptions = {
   fontFamily: 'Inter',
   fontSize: 48,
   strokeWidth: 2,
-  cropRatio: 'free',
+  // the photo's own proportions, so a 3:2 photo crops at 3:2 (critique 3 P2-2)
+  cropRatio: 'original',
   cropPortrait: false,
   cropOverlay: 'thirds',
 };

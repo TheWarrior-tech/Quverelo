@@ -94,6 +94,7 @@ function DocumentProperties() {
             value={s.background ? { type: 'solid', color: s.background } : { type: 'none' }}
             fallback="#ffffff"
             allowGradient={false}
+            transparent
             onChange={(p) => ed.commit('Background', (x) => ({ ...x, settings: { ...x.settings, background: p.type === 'solid' ? p.color : null } }), p.type === 'solid' ? 'bg' : undefined)}
           />
           <label className="check"><input type="checkbox" checked={!s.background} onChange={(e) => ed.commit('Background', (x) => ({ ...x, settings: { ...x.settings, background: e.target.checked ? null : '#ffffff' } }))} /> Transparent</label>

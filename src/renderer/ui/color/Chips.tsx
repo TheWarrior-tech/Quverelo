@@ -38,9 +38,9 @@ export function colourPopoverGeometry(anchor: HTMLElement): { anchorRect: Rect; 
 export type ChipTarget = 'fill' | 'stroke';
 
 /** One colour chip: a filled tile (fill) or a ring (stroke), with a "none" slash when disabled. */
-export function Chip({ kind, color, enabled }: { kind: ChipTarget; color: string; enabled: boolean }) {
+export function Chip({ kind, color, enabled, transparent = false }: { kind: ChipTarget; color: string; enabled: boolean; /** draw the transparency checker (a transparent document background), not the None diagonal */ transparent?: boolean }) {
   return (
-    <span className={`chip ${kind}${enabled ? '' : ' none'}`} style={{ ['--chip' as string]: color }} aria-hidden="true">
+    <span className={`chip ${kind}${transparent ? ' transparent' : enabled ? '' : ' none'}`} style={{ ['--chip' as string]: color }} aria-hidden="true">
       <span className="chip-paint" />
     </span>
   );
@@ -115,7 +115,7 @@ export function FillStrokeChips({ fill, stroke, target, onTarget, onSwap, size =
  * paint a gradient) are shown disabled, never hidden, so the row never changes
  * shape between places. There are no native colour inputs in the shell.
  */
-export function ColorChipButton({ kind, label, value, onChange, onCommit, allowNone = true, allowGradient = true, fallback, chevron = true, className, disabled, placement = 'below' }: {
+export function ColorChipButton({ kind, label, value, onChange, onCommit, allowNone = true, allowGradient = true, fallback, chevron = true, className, disabled, placement = 'below', transparent = false }: {
   kind: ChipTarget;
   label: string;
   value: Paint;
@@ -130,16 +130,18 @@ export function ColorChipButton({ kind, label, value, onChange, onCommit, allowN
   disabled?: boolean;
   /** preferred side; 'left' from the inspector opens beside the panel. The selection and inspector are always kept clear. */
   placement?: 'below' | 'left' | 'right';
+  /** a None value means "transparent" here (document background): the chip shows the checker */
+  transparent?: boolean;
   }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const color = firstColorOf(value, fallback ?? '#8f959e');
   const grad = value.type === 'linear' || value.type === 'radial';
   const enabled = value.type !== 'none';
-  const desc = !enabled ? 'none' : grad ? (value.type === 'linear' ? 'linear gradient' : 'radial gradient') : color.toUpperCase();
+  const desc = !enabled ? (transparent ? 'transparent' : 'none') : grad ? (value.type === 'linear' ? 'linear gradient' : 'radial gradient') : color.toUpperCase();
   return (
     <>
       <button type="button" className={`chip-select${chevron ? '' : ' bare'}${anchor ? ' open' : ''}${className ? ' ' + className : ''}`} aria-label={`${label} colour`} aria-haspopup="dialog" aria-expanded={!!anchor} data-tip={`${label}: ${desc}`} disabled={disabled} onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}>
-        <Chip kind={kind} color={grad && kind === 'fill' ? paintCss(value) : color} enabled={enabled} />
+        <Chip kind={kind} color={grad && kind === 'fill' ? paintCss(value) : color} enabled={enabled} transparent={transparent && !enabled} />
         {chevron && <Icon name="chevron-down" size={16} />}
       </button>
       {anchor && (

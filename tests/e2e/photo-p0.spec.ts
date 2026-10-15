@@ -134,6 +134,9 @@ test.describe('photo P0', () => {
     await expect(apply).toBeDisabled();
     await expect(cancel).toBeDisabled();
     await expect(page.locator('.contextbar [aria-label="Crop width (px)"]')).toHaveValue('1264');
+    // the ratio starts at the photo's own proportions (critique 3 P2-2)
+    await expect(page.locator('.contextbar select[aria-label="Crop ratio"]')).toHaveValue('original');
+    await page.locator('.contextbar select[aria-label="Crop ratio"]').selectOption('free');
 
     // drag the top-left handle inwards
     await drag(page, await docToScreen(page, 0, 0), await docToScreen(page, 200, 100));

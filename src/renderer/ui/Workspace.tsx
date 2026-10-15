@@ -369,7 +369,8 @@ function CanvasArea() {
           <button onClick={() => ed.setUi({ activeContainerId: doc.pages[0].id, selection: [] })}>Done</button>
         </div>
       )}
-      {doc.pages.length > 1 && pageIndex >= 0 && (
+      {/* one page navigator at a time: the canvas pill only when the context bar is not showing its own (critique 3 P2-10) */}
+      {doc.pages.length > 1 && pageIndex >= 0 && !contextBarShowsPages(ed) && (
         <div className="page-indicator">
           <button className="icon-btn sm" {...tip('Previous page', 'PageUp')} disabled={pageIndex === 0} onClick={() => runCommand('page.prev')}><Icon name="chevron-left" /></button>
           <span>Page {pageIndex + 1} of {doc.pages.length}</span>
@@ -378,6 +379,11 @@ function CanvasArea() {
       )}
     </section>
   );
+}
+
+/** True while the Layout context bar shows page navigation (ContextBar `layoutPageControls`). */
+export function contextBarShowsPages(ed: typeof editor): boolean {
+  return ed.ui.studio === 'layout' && ed.ui.tool === 'move' && ed.ui.selection.length === 0 && !ed.ui.editingTextId;
 }
 
 /** Quiet update indicator: only shown while downloading, when an update is ready, or one is available. */

@@ -756,6 +756,14 @@ label.check {
 .layer-row:not(:hover):not(.selected) .toggle:not(.set) {
   pointer-events: none;
 }
+/* at rest a toggle that carries no state takes no room, so the name uses the
+   whole row (critique 3 P2-16); it appears on hover, focus or selection */
+.layer-row:not(:hover):not(:focus-within):not(.selected) .toggle:not(.set) {
+  width: 0;
+  min-width: 0;
+  margin-left: -6px;
+  overflow: hidden;
+}
 .master-note {
   display: flex;
   align-items: center;
@@ -846,6 +854,11 @@ label.check {
 }
 .chip.none {
   background: var(--c-raised);
+}
+/* transparent document background: the checker shows through, no None diagonal (c2 P2-13) */
+.chip.transparent .chip-paint {
+  background: none;
+  box-shadow: inset 0 0 0 1px rgba(128, 128, 128, 0.4);
 }
 .chip.none .chip-paint {
   background: none;
