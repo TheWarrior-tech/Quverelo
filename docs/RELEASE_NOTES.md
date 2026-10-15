@@ -1,3 +1,26 @@
+## Unreleased
+
+Design critique 3 fixes.
+
+### Units and layout
+- **Every length reads in the document's own unit:** mm for Print presets, in for US paper, px for screen, social and photos. The inspector, context bar, status bar, rulers, Document setup and Export all use the same formatting. The status-bar **Units** menu now changes the document's unit (one undo step), and the global "Display units" preference is gone.
+- The Document section shows the page size in the document unit, with the output pixels underneath ("2480 × 3508 px at 300 dpi"). While a pixel selection exists, the status bar shows its size.
+- **The context bar never scrolls or cuts a word off.** When it runs out of room, it drops the hint first, then folds lower-priority groups into a **More ▾** menu. In Layout, margins, bleed, columns, facing pages and Document setup are back in the bar.
+
+### Photo
+- **Object Select** takes a closer look around the click and refines the edges, so clicking an object selects that object.
+- **Adjustment cards** share one header: the name, an eye toggle and a **⋯** menu with Reset and Delete. That leaves one reset per scope. Curves keeps "Reset Red curve" (and the same for other channels) next to its channel switch.
+- Photo always has an active pixel layer: on open, after a crop, and after you delete the active layer. The Adjust tab shows an empty state with a direct action when no layer is selected.
+- Crop handles and the Object Select click markers use the theme's handle colours, so they show yellow on black in High contrast. Crop now shades only the image, not the pasteboard.
+
+### Polish
+- **Colour popovers** sit next to the selection instead of covering it, in both the context bar and the selection toolbar.
+- **Export scale** is one field with a preset menu (2×, 3×, … or *Custom width…*) and a live hint showing the pixel size.
+- In High contrast, a checked flyout row is a solid yellow tile and a focused row has an outline ring, so the two never look the same.
+- Tool names appear in sentence case in the palette, flyouts and Shortcuts, and Shortcuts search counts match the filter.
+- Bundled templates now fit their text (checked against the real bundled font metrics), layer thumbnails have a frame, and inspector sections are named for what they edit (Corners, Sides, Points, Columns and links, Image fit).
+- Themed scrollbars everywhere, with no native arrows. Dialog scroll areas show a shade at the edge when there is more content past it.
+
 ## Quvrelo v0.4.0 — the premium editor shell
 
 A new editor shell, faster photo selection and cropping, a command palette, and a redesigned start screen, merged into one release line.
