@@ -90,4 +90,66 @@ test.describe('critique 4: state', () => {
     expect(await state<boolean>(page, story + '.kerning')).toBe(false);
     await shot(page, 'n11-text-inspector');
   });
+
+  test('review-3 leftovers: one page navigator, T·B·L·R margins, Gutter label, checker for transparent, no stray Ungroup, stroke width needs a stroke', async () => {
+    L = await launch();
+    const { page } = L;
+    await page.click('[data-template="newsletter"]');
+    await expect(page.locator('.workspace')).toBeVisible();
+    await page.click('.studio-switch [data-studio="layout"]');
+    await run(page, 'edit.deselect');
+    // Layout Move with nothing selected: the context bar navigates pages, the canvas pill does not
+    await expect(page.locator('.contextbar .page-count')).toBeVisible();
+    await expect(page.locator('.page-indicator')).toHaveCount(0);
+    // margins read T · B · L · R, as in Document setup
+    const order = await page.locator('.contextbar .ctx-margins input[role="spinbutton"]').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+    expect(order.map((l) => l!.split(' ')[0])).toEqual(['Top', 'Bottom', expect.stringMatching(/Left|Inside/), expect.stringMatching(/Right|Outside/)]);
+    // selecting an object hands page navigation to the canvas pill
+    await page.evaluate(() => {
+      const { editor } = (window as any).__quvrelo;
+      editor.select([editor.doc.pages[0].nodes[0].id]);
+    });
+    await expect(page.locator('.page-indicator')).toBeVisible();
+    await expect(page.locator('.contextbar .page-count')).toHaveCount(0);
+    // a single non-group layer offers no Ungroup
+    await expect(page.locator('.contextbar').getByRole('button', { name: 'Ungroup' })).toHaveCount(0);
+
+    // Document setup: margin order, "Gutter" label, checker when Transparent
+    await run(page, 'file.document-setup');
+    const dlg = page.locator('.dialog');
+    const dsOrder = await dlg.locator('input[aria-label$="margin"]').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+    expect(dsOrder).toEqual(['Top margin', 'Bottom margin', 'Left margin', 'Right margin']);
+    await expect(dlg.locator('.num-input', { has: page.locator('input[aria-label="Column gutter"]') }).locator('.pre')).toHaveText('Gutter');
+    await dlg.getByText('Transparent').click();
+    await expect(dlg.locator('.chip.transparent')).toBeVisible();
+    await expect(dlg.locator('input[type="color"]')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+
+    // shape tools: W is disabled while the stroke is None
+    await page.evaluate(() => (window as any).__quvrelo.editor.setUi({ strokeEnabled: false }));
+    await pickTool(page, 'rect');
+    const w = page.locator('.contextbar').getByRole('spinbutton', { name: 'Stroke width (px)' });
+    await expect(w).toBeDisabled();
+    await page.evaluate(() => (window as any).__quvrelo.editor.setUi({ strokeEnabled: true }));
+    await expect(w).toBeEnabled();
+  });
+
+  test('P2: the context-bar colour popover never rides over the top bar or the context bar', async () => {
+    L = await launch();
+    const { page } = L;
+    await page.click('[data-template="social"]');
+    await expect(page.locator('.workspace')).toBeVisible();
+    await page.evaluate(() => {
+      const { editor } = (window as any).__quvrelo;
+      editor.select([editor.doc.pages[0].nodes[editor.doc.pages[0].nodes.length - 1].id]);
+    });
+    await pickTool(page, 'rect');
+    await page.locator('.contextbar').getByRole('button', { name: 'Fill colour' }).click();
+    const pop = page.getByTestId('color-popover');
+    await expect(pop).toBeVisible();
+    const top = (await pop.boundingBox())!.y;
+    const bar = (await page.locator('.contextbar').boundingBox())!;
+    expect(top).toBeGreaterThanOrEqual(bar.y + bar.height);
+    await page.keyboard.press('Escape');
+  });
 });
