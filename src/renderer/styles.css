@@ -191,20 +191,16 @@ svg.icon.sm {
   stroke-width: 1.75;
 }
 
-/* numerals stay tabular wherever numbers are read or edited */
-input,
-select,
-kbd,
-.statusbar,
-.slider-row,
-.contextbar,
-.layer-row .meta,
-.page-thumb span,
-.template-card span,
-.recent-item small,
-.num {
+/* numerals stay tabular wherever numbers are read or edited. Scoped to
+   numeric-only elements: Inter's tnum also gives punctuation (hyphens, slashes)
+   tabular width, so prose must never get it (it spaces out "5-day"). */
+input[type='number'],
+input[inputmode='decimal'],
+.num,
+.statusbar .num,
+.slider-row input[type='number'],
+.page-thumb .num {
   font-variant-numeric: tabular-nums;
-  font-feature-settings: 'calt', 'tnum';
 }
 
 /* ---------- buttons ---------- */
@@ -480,13 +476,24 @@ kbd {
 
 .topbar {
   grid-area: top;
-  display: flex;
+  /* three columns so the studio switch is truly centred and never shifts */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: 2px;
+  column-gap: 12px;
   padding: 0 8px;
   height: 44px;
   background: var(--c-app);
   border-bottom: 1px solid var(--c-line);
+}
+.topbar-side {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.topbar-side.end {
+  justify-content: flex-end;
 }
 .topbar .sep {
   width: 1px;
@@ -529,6 +536,7 @@ kbd {
 
 .studio-switch {
   display: flex;
+  height: 28px;
   background: var(--c-raised);
   border: 1px solid var(--c-line);
   border-radius: var(--r-2);
@@ -539,14 +547,15 @@ kbd {
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 24px;
+  height: 22px;
   padding: 0 12px 0 10px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--r-1);
   background: transparent;
   color: var(--c-text-2);
   cursor: pointer;
   font-weight: 500;
+  outline: none;
   transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
 }
 .studio-switch button svg.icon {
@@ -554,23 +563,33 @@ kbd {
   height: 16px;
   stroke-width: 1.75;
 }
-.studio-switch button:hover {
+/* hover is a text change only, so it can never be mistaken for the active tile */
+.studio-switch button:not([aria-pressed='true']):hover {
   color: var(--c-text);
-  background: var(--c-hover);
 }
-.studio-switch button.active {
+.studio-switch button[aria-pressed='true'] {
   background: var(--c-press);
   color: var(--c-text);
+  box-shadow: inset 0 0 0 1px var(--c-line);
 }
-.studio-switch button.active svg.icon {
+.studio-switch button[aria-pressed='true'] svg.icon {
   color: var(--c-accent);
+  opacity: 1;
 }
-:root[data-theme='high-contrast'] .studio-switch button.active {
+.studio-switch button:focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: 1px;
+}
+:root[data-theme='high-contrast'] .studio-switch button[aria-pressed='true'] {
   background: var(--c-accent);
   color: var(--c-accent-ink);
+  box-shadow: none;
 }
-:root[data-theme='high-contrast'] .studio-switch button.active svg.icon {
+:root[data-theme='high-contrast'] .studio-switch button[aria-pressed='true'] svg.icon {
   color: var(--c-accent-ink);
+}
+:root[data-theme='high-contrast'] .studio-switch button:not([aria-pressed='true']):hover {
+  text-decoration: underline;
 }
 
 .contextbar {
@@ -596,9 +615,24 @@ kbd {
   gap: 6px;
 }
 .contextbar .group + .group,
-.contextbar .tool-name + .group {
+.contextbar .tool-name + .group,
+.contextbar .choice-row + .group {
+  position: relative;
   padding-left: 12px;
-  border-left: 1px solid var(--c-line);
+  border-left: 0;
+}
+/* group divider: a 16px hairline, not a full-height rule */
+.contextbar .group + .group::before,
+.contextbar .tool-name + .group::before,
+.contextbar .choice-row + .group::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 1px;
+  height: 16px;
+  margin-top: -8px;
+  background: var(--c-line-strong);
 }
 .contextbar label {
   font-size: 12px;
@@ -609,21 +643,49 @@ kbd {
 .contextbar input[type='range'] {
   width: 96px;
 }
+/* context bar controls are ghost buttons: no border, hover fill, 24px (DESIGN.md §8) */
 .contextbar .btn {
   height: 24px;
   padding: 0 8px;
+  gap: 6px;
   background: transparent;
-  border-color: var(--c-line);
+  border: 0;
+  box-shadow: none;
+  color: var(--c-text-2);
+  font-weight: 500;
+}
+.contextbar .btn svg.icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.75;
 }
 .contextbar .btn:hover {
   background: var(--c-hover);
-  border-color: var(--c-line-strong);
+  color: var(--c-text);
+}
+.contextbar .btn:active {
+  background: var(--c-press);
+}
+.contextbar .icon-btn.sm {
+  width: 24px;
+  height: 24px;
 }
 .contextbar .choice-row .btn {
   border-color: transparent;
 }
 .contextbar .choice-row .btn.selected {
   background: var(--c-press);
+}
+.contextbar .field-label,
+.contextbar .page-count {
+  color: var(--c-text-2);
+}
+.contextbar .page-count {
+  min-width: 72px;
+  text-align: center;
+}
+.contextbar .group > .group {
+  gap: 4px;
 }
 .contextbar .tool-name {
   font-weight: 600;
@@ -642,10 +704,13 @@ kbd {
   border: 1px solid var(--c-line);
   border-radius: var(--r-2);
 }
-.contextbar .choice-row + .group,
 .contextbar .group.choice-row {
-  padding-left: 2px;
+  /* a segmented control is self-contained: no divider before it */
+  padding: 2px;
   border-left: 1px solid var(--c-line);
+}
+.contextbar .group.choice-row::before {
+  display: none;
 }
 .choice-row .btn {
   height: 20px;
@@ -1149,6 +1214,34 @@ kbd {
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
 }
+/* facing pages: one spread per row, pages butt together at the spine */
+.pages-grid.spreads {
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+.spread {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+.spread .page-thumb:first-child:not(:only-child) {
+  align-items: flex-end;
+}
+.spread .page-thumb:last-child:not(:only-child) {
+  align-items: flex-start;
+}
+.spread.first {
+  padding-left: 50%;
+}
+.spread.first .page-thumb {
+  align-items: flex-start;
+}
+.spread .page-thumb {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
 .page-thumb {
   display: flex;
   flex-direction: column;
@@ -1160,23 +1253,25 @@ kbd {
   padding: 8px 4px 6px;
   border-radius: var(--r-1);
 }
-.page-thumb:hover {
-  background: var(--c-hover);
-}
 .page-thumb canvas {
   max-width: 100%;
+  border-radius: 2px;
   box-shadow: 0 0 0 1px var(--c-line-strong);
   background: #fff;
 }
-.page-thumb.active {
-  background: var(--c-accent-wash);
+.page-thumb:hover canvas {
+  box-shadow: 0 0 0 1px var(--c-text-3);
 }
+/* selection lives on the thumbnail only: no card, no wash */
 .page-thumb.active canvas {
   box-shadow: 0 0 0 2px var(--c-accent);
 }
 .page-thumb span {
   font-size: 11px;
   color: var(--c-text-2);
+}
+.page-thumb.active span {
+  color: var(--c-text);
 }
 
 .history-list {
@@ -1625,13 +1720,20 @@ kbd {
 }
 
 .toasts {
+  /* left/bottom are set from the canvas area's rect (App.tsx ToastStack) */
   position: fixed;
-  right: 16px;
+  left: 50%;
   bottom: 40px;
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 8px;
   z-index: 200;
+  pointer-events: none;
+}
+.toasts .toast {
+  pointer-events: auto;
 }
 .toast {
   display: flex;
@@ -1728,4 +1830,51 @@ kbd {
 }
 ::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* ---------- curves editor ---------- */
+
+.curves-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0 8px;
+}
+.curves-channels {
+  display: flex;
+  align-self: flex-start;
+  width: max-content;
+}
+.curves-channels .btn {
+  min-width: 36px;
+}
+.curves-channels .curves-reset {
+  margin-left: 8px;
+  color: var(--c-text-3);
+}
+.curves-graph {
+  display: block;
+  width: min(256px, 100%);
+  aspect-ratio: 1;
+  border-radius: var(--r-2);
+  box-shadow: 0 0 0 1px var(--c-line);
+  cursor: crosshair;
+  touch-action: none;
+}
+.curves-graph:focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: 1px;
+}
+.curves-fields {
+  display: flex;
+  gap: 12px;
+}
+.curves-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--c-text-2);
+}
+.curves-field input {
+  width: 52px;
 }

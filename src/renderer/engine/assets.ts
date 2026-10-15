@@ -111,7 +111,7 @@ export class AssetStore {
     if (!base) return null;
     const active = adjustments.filter((a) => a.enabled);
     if (!active.length) return base;
-    const key = `${id}|${preview ? 'p' : 'f'}|${JSON.stringify(active.map((a) => [a.type, a.params]))}`;
+    const key = `${id}|${preview ? 'p' : 'f'}|${JSON.stringify(active.map((a) => [a.type, a.params, a.curves ?? null]))}`;
     const hit = this.renderedCache.get(key);
     if (hit) return hit;
     let src = base;

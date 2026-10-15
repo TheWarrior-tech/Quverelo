@@ -1,3 +1,4 @@
+import { tip } from '../tooltip';
 import { useEffect, useState } from 'react';
 import { movePage, removeMaster, renamePage, setPageMaster } from '../../../core/commands';
 import type { QuvreloDocument } from '../../../core/types';
@@ -16,6 +17,14 @@ function useDebouncedDoc(doc: QuvreloDocument, ms = 500): QuvreloDocument {
   return d;
 }
 
+/** Page indices grouped into spreads: page 1 alone on the right, then pairs. */
+export function spreads(count: number): number[][] {
+  const out: number[][] = [];
+  if (count > 0) out.push([0]);
+  for (let i = 1; i < count; i += 2) out.push(i + 1 < count ? [i, i + 1] : [i]);
+  return out;
+}
+
 export function PagesPanel() {
   const ed = useEditor();
   const doc = useDebouncedDoc(ed.doc!);
@@ -23,26 +32,36 @@ export function PagesPanel() {
   const active = ed.ui.activeContainerId;
   const pageIdx = ed.activePageIndex;
   const curPage = live.pages[pageIdx];
+  const thumb = (i: number) => {
+    const p = live.pages[i];
+    return (
+      <button key={p.id} className={`page-thumb ${active === p.id ? 'active' : ''}`} onClick={() => ed.setUi({ activeContainerId: p.id, selection: [] })} aria-label={`Go to ${p.name}`} aria-current={active === p.id}>
+        {doc.pages[i] && doc.pages[i].id === p.id ? <DocThumb doc={doc} pageIndex={i} max={live.settings.facingPages ? 96 : 110} /> : <DocThumb doc={live} pageIndex={i} max={live.settings.facingPages ? 96 : 110} />}
+        <span>{p.name}{p.masterId ? ` · ${live.masters.find((m) => m.id === p.masterId)?.name.split('-')[0] ?? ''}` : ''}</span>
+      </button>
+    );
+  };
   return (
     <div>
       <div className="section">
         <div className="section-title">
           Pages ({live.pages.length})
           <span>
-            <button className="icon-btn sm" title="Add page" aria-label="Add page" onClick={() => runCommand('page.add')}><Icon name="plus" /></button>
+            <button className="icon-btn sm" {...tip('Add page', 'page.add')} onClick={() => runCommand('page.add')}><Icon name="plus" /></button>
             <button className="icon-btn sm" title="Duplicate page" aria-label="Duplicate page" onClick={() => runCommand('page.duplicate')}><Icon name="copy" /></button>
             <button className="icon-btn sm" title="Move page earlier" aria-label="Move page earlier" disabled={pageIdx <= 0} onClick={() => ed.commit('Move page', (d) => movePage(d, curPage.id, pageIdx - 1))}><Icon name="chevron-left" /></button>
             <button className="icon-btn sm" title="Move page later" aria-label="Move page later" disabled={pageIdx < 0 || pageIdx >= live.pages.length - 1} onClick={() => ed.commit('Move page', (d) => movePage(d, curPage.id, pageIdx + 1))}><Icon name="chevron-right" /></button>
             <button className="icon-btn sm" title="Delete page" aria-label="Delete page" disabled={live.pages.length < 2} onClick={() => runCommand('page.delete')}><Icon name="trash" /></button>
           </span>
         </div>
-        <div className="pages-grid">
-          {live.pages.map((p, i) => (
-            <button key={p.id} className={`page-thumb ${active === p.id ? 'active' : ''}`} onClick={() => ed.setUi({ activeContainerId: p.id, selection: [] })} aria-label={`Go to ${p.name}`} aria-current={active === p.id}>
-              {doc.pages[i] && doc.pages[i].id === p.id ? <DocThumb doc={doc} pageIndex={i} max={110} /> : <DocThumb doc={live} pageIndex={i} max={110} />}
-              <span>{p.name}{p.masterId ? ` · ${live.masters.find((m) => m.id === p.masterId)?.name.split('-')[0] ?? ''}` : ''}</span>
-            </button>
-          ))}
+        <div className={`pages-grid ${live.settings.facingPages ? 'spreads' : ''}`}>
+          {live.settings.facingPages
+            ? spreads(live.pages.length).map((idx, si) => (
+                <div key={si} className={`spread ${si === 0 && idx.length === 1 ? 'first' : ''}`}>
+                  {idx.map(thumb)}
+                </div>
+              ))
+            : live.pages.map((_, i) => thumb(i))}
         </div>
       </div>
       {curPage && (
@@ -69,7 +88,7 @@ export function PagesPanel() {
         {live.masters.length === 0 && <p className="empty-note" style={{ padding: 4 }}>Masters hold headers, footers and backgrounds shared by many pages.</p>}
         {live.masters.map((m) => (
           <div className="row" key={m.id}>
-            <span style={{ flex: 1, fontWeight: active === m.id ? 700 : 400 }}>{m.name}</span>
+            <span style={{ flex: 1, fontWeight: active === m.id ? 600 : 400 }}>{m.name}</span>
             <button className="btn" onClick={() => ed.setUi({ activeContainerId: m.id, selection: [] })}>{active === m.id ? 'Editing' : 'Edit'}</button>
             <button className="icon-btn sm" aria-label={`Delete ${m.name}`} title="Delete master" onClick={() => {
               ed.commit('Delete master', (d) => removeMaster(d, m.id));

@@ -177,7 +177,7 @@ reg('edit.duplicate', () => {
 reg('edit.delete', () => {
   if (editingText()) return;
   if (!sel().length) {
-    if (editor.ui.pixelSelection) return runCommand('select.clear');
+    if (editor.ui.pixelSelection && editor.ui.studio === 'photo') return runCommand('select.clear');
     return;
   }
   editor.commit('Delete', (d) => removeNodes(d, sel()));

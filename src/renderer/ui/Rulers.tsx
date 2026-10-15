@@ -23,9 +23,10 @@ function drawRuler(c: HTMLCanvasElement, vp: Viewport, orientation: 'h' | 'v') {
   const ctx = c.getContext('2d')!;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const css = getComputedStyle(document.documentElement);
-  ctx.fillStyle = css.getPropertyValue('--panel').trim() || '#26272b';
+  const tok = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback;
+  ctx.fillStyle = tok('--c-app', '#131415');
   ctx.fillRect(0, 0, w, h);
-  const text = css.getPropertyValue('--text-dim').trim() || '#aaa';
+  const text = tok('--c-text-3', '#8b8d93');
   const v = vp.vpt;
   const z = v[0];
   const unit = editor.settings.units;
@@ -36,24 +37,44 @@ function drawRuler(c: HTMLCanvasElement, vp: Viewport, orientation: 'h' | 'v') {
   const offset = orientation === 'h' ? v[4] : v[5];
   const startUnit = Math.floor(-offset / pxPerUnit / major) * major;
   const endUnit = (len - offset) / pxPerUnit;
-  // page extent highlight
   const doc = editor.doc;
+  const span = (a: number, b: number) => (orientation === 'h' ? ctx.fillRect(a, 0, b - a, h) : ctx.fillRect(0, a, w, b - a));
   if (doc) {
-    const a = offset;
-    const b = offset + (orientation === 'h' ? doc.settings.width : doc.settings.height) * z;
-    ctx.fillStyle = css.getPropertyValue('--panel-3').trim() || '#333';
-    if (orientation === 'h') ctx.fillRect(a, 0, b - a, h);
-    else ctx.fillRect(0, a, w, b - a);
+    const s = doc.settings;
+    const extent = orientation === 'h' ? s.width : s.height;
+    // page extent: one tone step up from the ruler
+    ctx.fillStyle = tok('--c-raised', '#1e1f21');
+    span(offset, offset + extent * z);
+    if (editor.ui.studio === 'layout') {
+      // Layout: margins as coral bands at the ruler's inner edge, bleed as a faint band outside the page
+      const m = s.margins;
+      const [m0, m1] = orientation === 'h' ? [m.left, m.right] : [m.top, m.bottom];
+      const band = (a: number, b: number, color: string) => {
+        ctx.fillStyle = color;
+        if (orientation === 'h') ctx.fillRect(a, h - 3, b - a, 3);
+        else ctx.fillRect(w - 3, a, 3, b - a);
+      };
+      if (s.bleed > 0) {
+        band(offset - s.bleed * z, offset, 'rgba(230,57,70,0.55)');
+        band(offset + extent * z, offset + (extent + s.bleed) * z, 'rgba(230,57,70,0.55)');
+      }
+      if (m0 > 0) band(offset, offset + m0 * z, 'rgba(255,107,74,0.6)');
+      if (m1 > 0) band(offset + (extent - m1) * z, offset + extent * z, 'rgba(255,107,74,0.6)');
+    }
   }
   ctx.strokeStyle = text;
   ctx.fillStyle = text;
   ctx.lineWidth = 1;
-  ctx.font = '10px Inter, sans-serif';
+  ctx.font = '500 9px Inter, sans-serif';
+  (ctx as CanvasRenderingContext2D & { fontVariantNumeric?: string }).fontVariantNumeric = 'tabular-nums';
+  ctx.textBaseline = 'alphabetic';
   ctx.beginPath();
+  const cross = orientation === 'h' ? h : w;
   for (let u = startUnit; u <= endUnit; u += minor) {
     const p = Math.round(offset + u * pxPerUnit) + 0.5;
     const isMajor = Math.abs(u / major - Math.round(u / major)) < 1e-6;
-    const tick = isMajor ? 22 : 6;
+    const isHalf = !isMajor && Math.abs((u * 2) / major - Math.round((u * 2) / major)) < 1e-6;
+    const tick = isMajor ? cross : isHalf ? 7 : 4;
     if (orientation === 'h') {
       ctx.moveTo(p, h);
       ctx.lineTo(p, h - tick);
@@ -63,12 +84,14 @@ function drawRuler(c: HTMLCanvasElement, vp: Viewport, orientation: 'h' | 'v') {
     }
     if (isMajor) {
       const label = String(Math.round(u * 100) / 100);
-      if (orientation === 'h') ctx.fillText(label, p + 3, 10);
-      else {
+      if (orientation === 'h') {
+        // inset 3px right of the tick; skip a label that would be clipped at the end
+        if (p + 3 + ctx.measureText(label).width < w) ctx.fillText(label, p + 3, 9);
+      } else {
         ctx.save();
-        ctx.translate(10, p + 3);
+        ctx.translate(9, p + 3);
         ctx.rotate(-Math.PI / 2);
-        ctx.fillText(label, -ctx.measureText(label).width - 2, 0);
+        ctx.fillText(label, -ctx.measureText(label).width, 0);
         ctx.restore();
       }
     }

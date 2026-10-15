@@ -3,6 +3,7 @@
  * tests, in the renderer, and in workers alike.
  */
 import type { Adjustment, AdjustmentType } from './types';
+import { curvesLuts, curvesOf, pointsToLut, type CurvesData } from './curves';
 
 export interface Pixels {
   width: number;
@@ -71,52 +72,18 @@ export function levels(src: Pixels, inBlack: number, inWhite: number, gamma: num
   );
 }
 
-/** Monotone cubic (Fritsch–Carlson) curve through points sorted by x. */
+/** Monotone cubic (Fritsch–Carlson) curve through the points, as a 256-entry LUT. */
 export function curveLut(points: { x: number; y: number }[]): Uint8ClampedArray {
-  const p = [...points].sort((a, b) => a.x - b.x);
-  const n = p.length;
-  if (n < 2) return buildLut((v) => v);
-  const dx: number[] = [];
-  const slope: number[] = [];
-  for (let i = 0; i < n - 1; i++) {
-    dx.push(p[i + 1].x - p[i].x || 1e-6);
-    slope.push((p[i + 1].y - p[i].y) / (dx[i]));
-  }
-  const m: number[] = [slope[0]];
-  for (let i = 1; i < n - 1; i++) m.push(slope[i - 1] * slope[i] <= 0 ? 0 : (slope[i - 1] + slope[i]) / 2);
-  m.push(slope[n - 2]);
-  for (let i = 0; i < n - 1; i++) {
-    if (slope[i] === 0) {
-      m[i] = m[i + 1] = 0;
-      continue;
-    }
-    const a = m[i] / slope[i];
-    const b = m[i + 1] / slope[i];
-    const s = a * a + b * b;
-    if (s > 9) {
-      const t = 3 / Math.sqrt(s);
-      m[i] = t * a * slope[i];
-      m[i + 1] = t * b * slope[i];
-    }
-  }
-  return buildLut((v) => {
-    if (v <= p[0].x) return p[0].y;
-    if (v >= p[n - 1].x) return p[n - 1].y;
-    let i = 0;
-    while (i < n - 2 && v > p[i + 1].x) i++;
-    const h = dx[i];
-    const t = (v - p[i].x) / h;
-    const t2 = t * t;
-    const t3 = t2 * t;
-    return (
-      (2 * t3 - 3 * t2 + 1) * p[i].y +
-      (t3 - 2 * t2 + t) * h * m[i] +
-      (-2 * t3 + 3 * t2) * p[i + 1].y +
-      (t3 - t2) * h * m[i + 1]
-    );
-  });
+  return pointsToLut(points);
 }
 
+/** Apply per-channel curves (composite RGB curve after each channel's own). */
+export function applyCurves(src: Pixels, data: CurvesData): Pixels {
+  const l = curvesLuts(data);
+  return applyLut(src, l.r, l.g, l.b);
+}
+
+/** Legacy three-offset tone curve (pre curve editor documents). */
 export function curves(src: Pixels, shadows: number, midtones: number, highlights: number): Pixels {
   return applyLut(
     src,
@@ -386,11 +353,8 @@ export const ADJUSTMENTS: AdjustmentSpec[] = [
     { key: 'outBlack', label: 'Output black', min: 0, max: 255, step: 1, default: 0 },
     { key: 'outWhite', label: 'Output white', min: 0, max: 255, step: 1, default: 255 },
   ] },
-  { type: 'curves', label: 'Curves', params: [
-    { key: 'shadows', label: 'Shadows', min: -100, max: 100, step: 1, default: 0 },
-    { key: 'midtones', label: 'Midtones', min: -100, max: 100, step: 1, default: 0 },
-    { key: 'highlights', label: 'Highlights', min: -100, max: 100, step: 1, default: 0 },
-  ] },
+  // edited with the curve editor (ui/panels/CurvesEditor.tsx); points live in Adjustment.curves
+  { type: 'curves', label: 'Curves', params: [] },
   { type: 'hue-saturation', label: 'Hue / Saturation', params: [
     { key: 'hue', label: 'Hue', min: -180, max: 180, step: 1, default: 0 },
     { key: 'saturation', label: 'Saturation', min: -100, max: 100, step: 1, default: 0 },
@@ -444,12 +408,12 @@ export function defaultParams(type: AdjustmentType): Record<string, number> {
   return Object.fromEntries(adjustmentSpec(type).params.map((p) => [p.key, p.default]));
 }
 
-export function applyAdjustment(src: Pixels, a: Pick<Adjustment, 'type' | 'params'>, scale = 1): Pixels {
+export function applyAdjustment(src: Pixels, a: Pick<Adjustment, 'type' | 'params' | 'curves'>, scale = 1): Pixels {
   const p = { ...defaultParams(a.type), ...a.params };
   switch (a.type) {
     case 'brightness-contrast': return brightnessContrast(src, p.brightness, p.contrast);
     case 'levels': return levels(src, p.inBlack, p.inWhite, p.gamma, p.outBlack, p.outWhite);
-    case 'curves': return curves(src, p.shadows, p.midtones, p.highlights);
+    case 'curves': return applyCurves(src, curvesOf({ curves: a.curves, params: a.params }));
     case 'hue-saturation': return hueSaturation(src, p.hue, p.saturation, p.lightness);
     case 'exposure': return exposure(src, p.exposure, p.offset, p.gamma);
     case 'black-white': return blackWhite(src, p.strength);

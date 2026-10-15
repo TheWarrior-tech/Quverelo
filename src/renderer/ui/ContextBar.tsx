@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { findNode } from '../../core/document';
-import { setStoryStyle, updateNode } from '../../core/commands';
-import type { SceneNode, TextAlign, TextStyle } from '../../core/types';
+import { setStoryStyle, updateNode, updateNodes } from '../../core/commands';
+import { PX_PER } from '../../core/units';
+import type { DocumentSettings, SceneNode, TextAlign, TextFrameNode, TextStyle } from '../../core/types';
 import { editor } from '../state/editor';
 import { runCommand } from '../state/commands';
 import { useEditor } from './hooks';
@@ -72,8 +73,97 @@ function Slider({ label, value, min, max, step = 1, onChange, fmt }: { label: st
     <label className="group">
       {label}
       <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(parseFloat(e.target.value))} aria-label={label} />
-      <span style={{ width: 40, color: 'var(--text-dim)' }}>{fmt ? fmt(value) : Math.round(value)}</span>
+      <span className="num" style={{ width: 40, color: 'var(--c-text-2)' }}>{fmt ? fmt(value) : Math.round(value)}</span>
     </label>
+  );
+}
+
+/** Document-unit number field: shows the user's display units, stores px. */
+function UnitNum({ label, title, px, onChange, width = 44 }: { label: string; title: string; px: number; onChange: (px: number) => void; width?: number }) {
+  const u = editor.settings.units;
+  const k = PX_PER[u];
+  return (
+    <label className="group" title={title}>
+      <span className="field-label">{label}</span>
+      <input type="number" aria-label={title} value={Math.round((px / k) * 100) / 100} min={0} step={u === 'px' ? 1 : 0.5} style={{ width }} onChange={(e) => {
+        const v = parseFloat(e.target.value);
+        if (!Number.isNaN(v)) onChange(Math.max(0, v * k));
+      }} />
+    </label>
+  );
+}
+
+function setDocSettings(patch: Partial<DocumentSettings>, label: string, key: string) {
+  editor.commit(label, (d) => ({ ...d, settings: { ...d.settings, ...patch } }), key);
+}
+
+/**
+ * Layout with nothing selected: page navigation and page setup (margins, bleed,
+ * columns, facing pages) right in the context bar, as in a DTP app.
+ */
+function LayoutPageControls() {
+  const ed = useEditor();
+  const doc = ed.doc!;
+  const s = doc.settings;
+  const i = ed.activePageIndex;
+  const m = s.margins;
+  const setMargin = (side: keyof typeof m) => (v: number) => setDocSettings({ margins: { ...m, [side]: v } }, 'Margins', 'margins');
+  return (
+    <>
+      <div className="group" role="group" aria-label="Pages">
+        <button className="icon-btn sm" {...tip('Previous page', 'page.prev')} disabled={i <= 0} onClick={() => runCommand('page.prev')}><Icon name="chevron-left" /></button>
+        <span className="page-count">{i >= 0 ? <>Page <span className="num">{i + 1}</span> of <span className="num">{doc.pages.length}</span></> : 'Master'}</span>
+        <button className="icon-btn sm" {...tip('Next page', 'page.next')} disabled={i < 0 || i >= doc.pages.length - 1} onClick={() => runCommand('page.next')}><Icon name="chevron-right" /></button>
+        <button className="icon-btn sm" {...tip('Add page', 'page.add')} onClick={() => runCommand('page.add')}><Icon name="plus" /></button>
+      </div>
+      <div className="group" role="group" aria-label="Margins">
+        <span className="field-label">Margins</span>
+        <UnitNum label="T" title="Top margin" px={m.top} onChange={setMargin('top')} />
+        <UnitNum label="L" title={s.facingPages ? 'Inside margin' : 'Left margin'} px={m.left} onChange={setMargin('left')} />
+        <UnitNum label="B" title="Bottom margin" px={m.bottom} onChange={setMargin('bottom')} />
+        <UnitNum label="R" title={s.facingPages ? 'Outside margin' : 'Right margin'} px={m.right} onChange={setMargin('right')} />
+      </div>
+      <div className="group">
+        <UnitNum label="Bleed" title="Bleed" px={s.bleed} onChange={(v) => setDocSettings({ bleed: v }, 'Bleed', 'bleed')} />
+        <label className="group" title="Columns">
+          <span className="field-label">Columns</span>
+          <input type="number" aria-label="Columns" value={s.columns} min={1} max={12} step={1} style={{ width: 40 }} onChange={(e) => {
+            const v = parseInt(e.target.value, 10);
+            if (v >= 1 && v <= 12) setDocSettings({ columns: v }, 'Columns', 'columns');
+          }} />
+        </label>
+        <UnitNum label="Gutter" title="Column gutter" px={s.columnGutter} onChange={(v) => setDocSettings({ columnGutter: v }, 'Gutter', 'gutter')} />
+        <button className={`btn ${s.facingPages ? 'selected' : ''}`} aria-pressed={s.facingPages} title="Show pages as two-page spreads" onClick={() => setDocSettings({ facingPages: !s.facingPages }, 'Facing pages', 'facing')}><Icon name="pages" /> Facing pages</button>
+      </div>
+      <div className="group">
+        <button className="btn" onClick={() => runCommand('file.document-setup')}>Document setup…</button>
+      </div>
+    </>
+  );
+}
+
+/** Text frame tool / selected frames: frame geometry and story linking. */
+function TextFrameControls({ frames }: { frames: TextFrameNode[] }) {
+  const ed = useEditor();
+  const f = frames[0];
+  const ids = frames.map((x) => x.id);
+  const set = (patch: Partial<TextFrameNode>, label: string, key: string) => ed.commit(label, (d) => updateNodes(d, ids, (n) => (n.type === 'textframe' ? { ...n, ...patch } : n)), key + ids.join());
+  const story = ed.doc!.stories[f.storyId];
+  const linked = !!story && story.chain.length > 1;
+  return (
+    <div className="group" role="group" aria-label="Text frame">
+      <label className="group" title="Frame columns">
+        <span className="field-label">Columns</span>
+        <input type="number" aria-label="Frame columns" value={f.columns} min={1} max={12} step={1} style={{ width: 40 }} onChange={(e) => {
+          const v = parseInt(e.target.value, 10);
+          if (v >= 1 && v <= 12) set({ columns: v }, 'Frame columns', 'fcol');
+        }} />
+      </label>
+      <UnitNum label="Gap" title="Column gap" px={f.columnGap} onChange={(v) => set({ columnGap: v }, 'Column gap', 'fgap')} />
+      <UnitNum label="Inset" title="Text inset" px={f.padding} onChange={(v) => set({ padding: v }, 'Text inset', 'finset')} />
+      <button className="icon-btn sm" {...tip('Link text frames')} title="Link frames: continue the story from the first selected frame into the second" disabled={frames.length !== 2} onClick={() => runCommand('text.link')}><Icon name="link" /></button>
+      {linked && <button className="btn" onClick={() => runCommand('text.unlink')}>Unlink</button>}
+    </div>
   );
 }
 
@@ -120,6 +210,8 @@ export function ContextBar() {
   const sel = ed.selectedNodes();
   const frame = sel.find((n) => n.type === 'imageframe');
   const textSelected = sel.some((n) => n.type === 'text' || n.type === 'textframe') || !!ed.ui.editingTextId;
+  const frames = sel.filter((n): n is TextFrameNode => n.type === 'textframe');
+  const layout = ed.ui.studio === 'layout';
   return (
     <div className="contextbar" role="toolbar" aria-label="Tool options">
       <span className="tool-name">{toolLabel(t).replace(/ \(.*\)/, '')}</span>
@@ -139,12 +231,16 @@ export function ContextBar() {
               <button key={m} className={`btn ${o.selectionMode === m ? 'selected' : ''}`} role="radio" aria-checked={o.selectionMode === m} onClick={() => ed.setToolOptions({ selectionMode: m })}>{m[0].toUpperCase() + m.slice(1)}</button>
             ))}
           </div>
-          <button className="btn" onClick={() => runCommand('select.all-pixels')}>Select all</button>
-          <button className="btn" onClick={() => runCommand('select.invert')} disabled={!ed.ui.pixelSelection}>Invert</button>
-          <button className="btn" onClick={() => runCommand('select.none')} disabled={!ed.ui.pixelSelection}>Deselect</button>
-          <button className="btn" onClick={() => runCommand('select.crop')} disabled={!ed.ui.pixelSelection}>Crop</button>
-          <button className="btn" onClick={() => runCommand('select.copy-to-layer')} disabled={!ed.ui.pixelSelection}>To new layer</button>
-          <button className="btn" onClick={() => runCommand('layer.mask-selection')} disabled={!ed.ui.pixelSelection || !sel.length}>Mask layer</button>
+          <div className="group">
+            <button className="icon-btn sm" {...tip('Select all', 'select.all-pixels')} onClick={() => runCommand('select.all-pixels')}><Icon name="select-all" /></button>
+            <button className="icon-btn sm" {...tip('Deselect', 'select.none')} onClick={() => runCommand('select.none')} disabled={!ed.ui.pixelSelection}><Icon name="deselect" /></button>
+            <button className="icon-btn sm" {...tip('Invert selection', 'select.invert')} onClick={() => runCommand('select.invert')} disabled={!ed.ui.pixelSelection}><Icon name="select-invert" /></button>
+          </div>
+          <div className="group">
+            <button className="btn" onClick={() => runCommand('select.crop')} disabled={!ed.ui.pixelSelection}><Icon name="crop" /> Crop to selection</button>
+            <button className="icon-btn sm" {...tip('Copy selection to a new layer', 'select.copy-to-layer')} onClick={() => runCommand('select.copy-to-layer')} disabled={!ed.ui.pixelSelection}><Icon name="copy" /></button>
+            <button className="btn" onClick={() => runCommand('layer.mask-selection')} disabled={!ed.ui.pixelSelection || !sel.length}><Icon name="mask" /> Mask layer</button>
+          </div>
         </>
       )}
       {t === 'crop' && <span style={{ color: 'var(--text-dim)' }}>Drag to set the crop area, then press Enter or double-click. Esc cancels.</span>}
@@ -171,7 +267,10 @@ export function ContextBar() {
           <span style={{ color: 'var(--text-faint)' }}>{t === 'pen' ? 'Click for corners, drag for curves, click the first point to close, Enter to finish' : 'Shift constrains · Alt draws from centre'}</span>
         </>
       )}
+      {layout && t === 'move' && sel.length === 0 && !ed.ui.editingTextId && <LayoutPageControls />}
+      {(t === 'textframe' || t === 'move') && frames.length > 0 && <TextFrameControls frames={frames} />}
       {(t === 'text' || t === 'textframe' || (t === 'move' && textSelected)) && <TextControls />}
+      {t === 'textframe' && frames.length === 0 && <span>Drag to draw a text frame · select two frames and Link to flow a story between them</span>}
       {t === 'node' && (
         <>
           <span style={{ color: 'var(--text-dim)' }}>Drag nodes and handles · double-click a node to toggle smooth/corner · Delete removes a node · Alt breaks handles</span>
