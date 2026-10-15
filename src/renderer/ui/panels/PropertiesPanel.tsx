@@ -86,6 +86,7 @@ function DocumentProperties() {
           <ColorChipButton
             kind="fill"
             label="Background"
+            placement="left"
             color={s.background ?? '#ffffff'}
             enabled={!!s.background}
             onChange={(c) => ed.commit('Background', (x) => ({ ...x, settings: { ...x.settings, background: c } }), 'bg')}

@@ -59,6 +59,7 @@ export function PaintRow({ kind, label, paint, onChange, allowNone = true, allow
         paint={paint.type === 'linear' || paint.type === 'radial' ? paintCss(paint) : undefined}
         enabled={on}
         chevron={false}
+        placement="left"
         popover={
           <div className="color-popover paint-popover">
             <div className="popover-head"><span className="popover-title">{label}</span></div>

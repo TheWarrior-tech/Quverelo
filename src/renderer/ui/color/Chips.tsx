@@ -84,7 +84,7 @@ export function FillStrokeChips({ fill, stroke, target, onTarget, onSwap, size =
  * `popover` swaps the default solid picker for a custom body (the inspector
  * passes the full paint editor with gradients).
  */
-export function ColorChipButton({ kind, label, color, enabled, onChange, onCommit, onToggle, popover, chevron = true, paint, className, disabled }: {
+export function ColorChipButton({ kind, label, color, enabled, onChange, onCommit, onToggle, popover, chevron = true, paint, className, disabled, placement = 'below' }: {
   kind: ChipTarget;
   label: string;
   color: string;
@@ -99,6 +99,8 @@ export function ColorChipButton({ kind, label, color, enabled, onChange, onCommi
   paint?: string;
   className?: string;
   disabled?: boolean;
+  /** 'left' opens beside the inspector instead of over it */
+  placement?: 'below' | 'left';
 }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const desc = enabled ? (paint && paint !== color ? 'gradient' : color.toUpperCase()) : 'none';
@@ -109,7 +111,7 @@ export function ColorChipButton({ kind, label, color, enabled, onChange, onCommi
         {chevron && <Icon name="chevron-down" size={16} />}
       </button>
       {anchor && (
-        <Popover anchor={anchor} label={`${label} colour`} onClose={() => setAnchor(null)}>
+        <Popover anchor={anchor} label={`${label} colour`} placement={placement} onClose={() => setAnchor(null)}>
           {popover ?? <ColorPopoverBody label={label} color={color} enabled={enabled} onChange={(c) => onChange?.(c)} onCommit={onCommit} onToggle={onToggle} />}
         </Popover>
       )}

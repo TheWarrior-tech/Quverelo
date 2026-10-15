@@ -91,7 +91,7 @@ export function useScrollEdges<T extends HTMLElement>() {
  * Anchored popover (non-modal): portals to <body> so scrolling toolbars don't clip it,
  * closes on Escape or an outside press and hands focus back to the anchor.
  */
-export function Popover({ anchor, onClose, children, label, placement = 'below', className, role = 'dialog' }: { anchor: HTMLElement; onClose: () => void; children: ReactNode; label: string; placement?: 'below' | 'above' | 'right'; className?: string; role?: 'dialog' | 'menu' | 'listbox' }) {
+export function Popover({ anchor, onClose, children, label, placement = 'below', className, role = 'dialog' }: { anchor: HTMLElement; onClose: () => void; children: ReactNode; label: string; placement?: 'below' | 'above' | 'right' | 'left'; className?: string; role?: 'dialog' | 'menu' | 'listbox' }) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   useLayoutEffect(() => {
@@ -99,8 +99,8 @@ export function Popover({ anchor, onClose, children, label, placement = 'below',
     const el = ref.current;
     const w = el?.offsetWidth ?? 248;
     const h = el?.offsetHeight ?? 320;
-    let left = placement === 'right' ? r.right + 8 : r.left;
-    let top = placement === 'right' ? r.top - 8 : placement === 'above' ? r.top - h - 6 : r.bottom + 6;
+    let left = placement === 'right' ? r.right + 8 : placement === 'left' ? r.left - w - 8 : r.left;
+    let top = placement === 'right' || placement === 'left' ? r.top - 8 : placement === 'above' ? r.top - h - 6 : r.bottom + 6;
     // flip when the preferred side has no room
     if (placement === 'below' && top + h > window.innerHeight - 8 && r.top - h - 6 >= 8) top = r.top - h - 6;
     if (placement === 'above' && top < 8) top = r.bottom + 6;
