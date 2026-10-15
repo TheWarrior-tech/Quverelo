@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { moveNodeTo, updateNode, updateNodes } from '../../../core/commands';
+import { layerDisplayName } from '../../../core/document';
 import { BLEND_MODES, type BlendMode, type Id, type SceneNode } from '../../../core/types';
 import { editor } from '../../state/editor';
 import { getViewport, runCommand } from '../../state/commands';
@@ -58,6 +59,7 @@ function focusSibling(from: HTMLElement, d: 1 | -1 | 'first' | 'last') {
 
 function LayerRow({ n, depth, containerId, index, dragId, setDragId, focusable }: { n: SceneNode; depth: number; containerId: Id; index: number; dragId: Id | null; setDragId: (id: Id | null) => void; focusable: boolean }) {
   const ed = useEditor();
+  const label = layerDisplayName(n, ed.doc);
   const [open, setOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [drop, setDrop] = useState<DropPlace | null>(null);
@@ -88,7 +90,7 @@ function LayerRow({ n, depth, containerId, index, dragId, setDragId, focusable }
         onDragStart={(e) => {
           setDragId(n.id);
           e.dataTransfer.effectAllowed = 'move';
-          e.dataTransfer.setData('text/plain', n.name);
+          e.dataTransfer.setData('text/plain', label);
         }}
         onDragEnd={() => setDragId(null)}
         onDragOver={(e) => {
@@ -113,7 +115,7 @@ function LayerRow({ n, depth, containerId, index, dragId, setDragId, focusable }
         role="treeitem"
         aria-level={depth + 1}
         aria-expanded={isGroup ? open : undefined}
-        aria-label={`${n.name}${n.visible ? '' : ', hidden'}${n.locked ? ', locked' : ''}`}
+        aria-label={`${label}${n.visible ? '' : ', hidden'}${n.locked ? ', locked' : ''}`}
         tabIndex={focusable ? 0 : -1}
         onKeyDown={(e) => {
           if (e.target !== e.currentTarget) return;
@@ -156,14 +158,14 @@ function LayerRow({ n, depth, containerId, index, dragId, setDragId, focusable }
             <input
               type="text"
               autoFocus
-              defaultValue={n.name}
+              defaultValue={label}
               aria-label="Layer name"
               onClick={(e) => e.stopPropagation()}
               onFocus={(e) => e.currentTarget.select()}
               onBlur={(e) => {
                 setRenaming(false);
                 const v = e.target.value.trim();
-                if (v && v !== n.name) ed.commit('Rename layer', (d) => updateNode(d, n.id, { name: v }));
+                if (v && v !== label) ed.commit('Rename layer', (d) => updateNode(d, n.id, { name: v }));
               }}
               onKeyDown={(e) => {
                 e.stopPropagation();
@@ -172,7 +174,7 @@ function LayerRow({ n, depth, containerId, index, dragId, setDragId, focusable }
               }}
             />
           ) : (
-            n.name
+            label
           )}
         </span>
         {n.mask && <span className="meta" data-tip="Has mask" aria-label="Has mask"><Icon name="mask" size={16} /></span>}

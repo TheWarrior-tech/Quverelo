@@ -1,6 +1,7 @@
 import { BLEND_MODES, type BlendMode, type Paint, type SceneNode, type Stroke } from '../../../core/types';
 import { updateNode, updateNodes, releaseMask } from '../../../core/commands';
 import { fromPx, toPx } from '../../../core/units';
+import { layerDisplayName } from '../../../core/document';
 import { editor } from '../../state/editor';
 import { runCommand } from '../../state/commands';
 import { renderBounds } from '../../engine/draw';
@@ -157,6 +158,7 @@ export function PropertiesPanel() {
   if (!ed.doc) return null;
   if (!nodes.length) return <DocumentProperties />;
   const n = nodes[0];
+  const name = layerDisplayName(n, ed.doc);
   const multi = nodes.length > 1;
   const u = ed.settings.units;
   const b = renderBounds(n);
@@ -188,9 +190,9 @@ export function PropertiesPanel() {
   const setStroke = (st: Stroke) => patchSel('Stroke', (m) => ('stroke' in m ? ({ ...m, stroke: st } as SceneNode) : m), 'stroke');
   return (
     <div className="properties">
-      <div className="prop-title" data-tip={multi ? undefined : n.name}>
-        <span className="prop-name">{multi ? `${nodes.length} objects` : n.name}</span>
-        {(multi || n.name !== KIND[n.type]) && <span className="prop-kind">{multi ? 'Mixed' : KIND[n.type]}</span>}
+      <div className="prop-title" data-tip={multi ? undefined : name}>
+        <span className="prop-name">{multi ? `${nodes.length} objects` : name}</span>
+        {(multi || name !== KIND[n.type]) && <span className="prop-kind">{multi ? 'Mixed' : KIND[n.type]}</span>}
       </div>
       <ArrangeBar count={nodes.length} />
 
