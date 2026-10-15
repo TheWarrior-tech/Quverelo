@@ -112,7 +112,6 @@ export class UpdateService {
   private cfg: UpdaterConfig | null = null;
   private timer: NodeJS.Timeout | null = null;
   private firstTimer: NodeJS.Timeout | null = null;
-  private info: UpdateInfo | null = null;
   private installRequested = false;
   state: UpdateState;
 
@@ -190,7 +189,6 @@ export class UpdateService {
     };
     u.on('checking-for-update', () => this.set({ status: 'checking', error: null }));
     u.on('update-available', (info: UpdateInfo) => {
-      this.info = info;
       const downloading = this.state.mode === 'auto' && u.autoDownload;
       this.set({
         status: downloading ? 'downloading' : 'available',
@@ -199,7 +197,6 @@ export class UpdateService {
       });
     });
     u.on('update-not-available', (info: UpdateInfo) => {
-      this.info = null;
       this.set({ status: 'up-to-date', latest: info?.version ?? null, releaseNotes: null, releaseName: null, checkedAt: new Date().toISOString() });
     });
     u.on('download-progress', (p: ProgressInfo) => {

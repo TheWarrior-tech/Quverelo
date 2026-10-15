@@ -57,7 +57,7 @@ vi.mock('electron-updater', () => ({
   PacmanUpdater: class extends FakeUpdater { constructor() { super('pacman'); } },
 }));
 
-const openExternal = vi.fn(async () => undefined);
+const openExternal = vi.fn(async (_url: string) => undefined);
 vi.mock('electron', () => ({
   app: { isPackaged: true, getVersion: () => '0.2.0', getName: () => 'Quvrelo' },
   shell: { openExternal: (u: string) => openExternal(u) },
