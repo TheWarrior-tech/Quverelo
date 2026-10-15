@@ -37,11 +37,22 @@ export function withStep(state: OnboardingState, step: OnboardingStep): Onboardi
   return { ...state, done: [...state.done, step] };
 }
 
-export function isComplete(state: OnboardingState): boolean {
-  return ONBOARDING_STEPS.every((s) => state.done.includes(s));
+/**
+ * Steps that can be done on this machine: "Place an image" and "Select a
+ * subject" need the Photo studio and image import; "Export" needs at least one
+ * export format or hand-in.
+ */
+export function availableSteps(feature: (f: string) => boolean): OnboardingStep[] {
+  const photo = feature('photo') && feature('import-images');
+  const exportable = ['export-png', 'export-jpg', 'export-svg', 'export-pdf', 'assignments'].some(feature);
+  return ONBOARDING_STEPS.filter((s) => (s === 'place' || s === 'subject' ? photo : s === 'export' ? exportable : true));
 }
 
-/** The checklist shows unless IT turned onboarding off, the user hid it, or every step is done. */
-export function checklistVisible(state: OnboardingState, policy: { disableOnboarding: boolean }): boolean {
-  return !policy.disableOnboarding && !state.dismissed && !isComplete(state);
+export function isComplete(state: OnboardingState, steps: readonly OnboardingStep[] = ONBOARDING_STEPS): boolean {
+  return steps.every((s) => state.done.includes(s));
+}
+
+/** The checklist shows unless IT turned onboarding off, the user hid it, or every available step is done. */
+export function checklistVisible(state: OnboardingState, policy: { disableOnboarding: boolean }, steps: readonly OnboardingStep[] = ONBOARDING_STEPS): boolean {
+  return !policy.disableOnboarding && !state.dismissed && steps.length > 0 && !isComplete(state, steps);
 }
