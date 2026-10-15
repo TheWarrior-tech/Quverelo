@@ -7,6 +7,7 @@ import { runCommand } from '../state/commands';
 import { useEditor } from './hooks';
 import { Icon } from './Icons';
 import { toolLabel } from './Workspace';
+import { tip } from './tooltip';
 
 export const BUNDLED_FONTS = ['Inter', 'Atkinson Hyperlegible', 'OpenDyslexic', 'Merriweather', 'Roboto Slab', 'Caveat'];
 export const SYSTEM_FONTS = ['Arial', 'Helvetica', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Georgia', 'Times New Roman', 'Garamond', 'Courier New', 'Comic Sans MS', 'Segoe UI', 'Calibri'];
@@ -94,17 +95,12 @@ export function TextControls() {
         {!fontOptions().includes(primaryFamily(style.fontFamily ?? '')) && <option>{primaryFamily(style.fontFamily ?? '')}</option>}
       </select>
       <Num label="" value={style.fontSize ?? 16} min={4} max={1000} step={1} onChange={(v) => apply({ fontSize: v })} width={56} />
-      <button className={`icon-btn sm ${style.fontWeight && style.fontWeight >= 600 ? 'active' : ''}`} aria-label="Bold" title="Bold" onClick={() => apply({ fontWeight: (style.fontWeight ?? 400) >= 600 ? 400 : 700 })}><b>B</b></button>
-      <button className={`icon-btn sm ${style.italic ? 'active' : ''}`} aria-label="Italic" title="Italic" onClick={() => apply({ italic: !style.italic })}><i>I</i></button>
-      <button className={`icon-btn sm ${style.underline ? 'active' : ''}`} aria-label="Underline" title="Underline" onClick={() => apply({ underline: !style.underline })}><u>U</u></button>
+      <button className={`icon-btn sm ${style.fontWeight && style.fontWeight >= 600 ? 'active' : ''}`} {...tip('Bold')} aria-pressed={(style.fontWeight ?? 400) >= 600} onClick={() => apply({ fontWeight: (style.fontWeight ?? 400) >= 600 ? 400 : 700 })}><b>B</b></button>
+      <button className={`icon-btn sm ${style.italic ? 'active' : ''}`} {...tip('Italic')} aria-pressed={!!style.italic} onClick={() => apply({ italic: !style.italic })}><i>I</i></button>
+      <button className={`icon-btn sm ${style.underline ? 'active' : ''}`} {...tip('Underline')} aria-pressed={!!style.underline} onClick={() => apply({ underline: !style.underline })}><u>U</u></button>
       {(['left', 'center', 'right', 'justify'] as TextAlign[]).map((a) => (
-        <button key={a} className={`icon-btn sm ${style.align === a ? 'active' : ''}`} aria-label={`Align ${a}`} title={`Align ${a}`} onClick={() => apply({ align: a })}>
-          <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" strokeWidth="2" fill="none">
-            {a === 'left' && <path d="M4 6h16M4 10h10M4 14h16M4 18h10" />}
-            {a === 'center' && <path d="M4 6h16M7 10h10M4 14h16M7 18h10" />}
-            {a === 'right' && <path d="M4 6h16M10 10h10M4 14h16M10 18h10" />}
-            {a === 'justify' && <path d="M4 6h16M4 10h16M4 14h16M4 18h16" />}
-          </svg>
+        <button key={a} className={`icon-btn sm ${style.align === a ? 'active' : ''}`} {...tip(`Align text ${a === 'center' ? 'centre' : a}`)} aria-pressed={style.align === a} onClick={() => apply({ align: a })}>
+          <Icon name={`text-${a}`} />
         </button>
       ))}
       {target && (
@@ -193,12 +189,12 @@ export function ContextBar() {
       )}
       {t === 'move' && sel.length > 0 && !textSelected && !frame && (
         <div className="group">
-          <button className="icon-btn sm" title="Flip horizontal" aria-label="Flip horizontal" onClick={() => runCommand('arrange.flip-h')}><Icon name="flip-h" /></button>
-          <button className="icon-btn sm" title="Flip vertical" aria-label="Flip vertical" onClick={() => runCommand('arrange.flip-v')}><Icon name="flip-v" /></button>
-          <button className="icon-btn sm" title="Rotate 90°" aria-label="Rotate 90 degrees" onClick={() => runCommand('arrange.rotate-cw')}><Icon name="rotate" /></button>
+          <button className="icon-btn sm" {...tip('Flip horizontal')} onClick={() => runCommand('arrange.flip-h')}><Icon name="flip-h" /></button>
+          <button className="icon-btn sm" {...tip('Flip vertical')} onClick={() => runCommand('arrange.flip-v')}><Icon name="flip-v" /></button>
+          <button className="icon-btn sm" {...tip('Rotate 90° clockwise')} onClick={() => runCommand('arrange.rotate-cw')}><Icon name="rotate" /></button>
           <button className="btn" onClick={() => runCommand(sel.length > 1 ? 'arrange.group' : 'arrange.ungroup')} disabled={sel.length === 1 && sel[0].type !== 'group'}>{sel.length > 1 ? 'Group' : 'Ungroup'}</button>
-          {sel.length >= 3 && <button className="icon-btn sm" title="Distribute horizontally" aria-label="Distribute horizontally" onClick={() => runCommand('arrange.distribute-h')}><Icon name="distribute-h" /></button>}
-          {sel.length >= 3 && <button className="icon-btn sm" title="Distribute vertically" aria-label="Distribute vertically" onClick={() => runCommand('arrange.distribute-v')}><Icon name="distribute-v" /></button>}
+          {sel.length >= 3 && <button className="icon-btn sm" {...tip('Distribute horizontally')} onClick={() => runCommand('arrange.distribute-h')}><Icon name="distribute-h" /></button>}
+          {sel.length >= 3 && <button className="icon-btn sm" {...tip('Distribute vertically')} onClick={() => runCommand('arrange.distribute-v')}><Icon name="distribute-v" /></button>}
         </div>
       )}
       {t === 'eyedropper' && <span style={{ color: 'var(--text-dim)' }}>Click to pick a fill colour · Shift-click picks a stroke colour</span>}

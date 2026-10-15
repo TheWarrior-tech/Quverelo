@@ -620,7 +620,9 @@ export class Viewport {
   // Overlay
 
   private updateAnts(): void {
-    const need = !!this.editor.ui.pixelSelection && !this.editor.settings.reduceMotion;
+    // honour both the in-app setting and the OS preference (DESIGN.md §2 rule 9)
+    const osReduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const need = !!this.editor.ui.pixelSelection && !this.editor.settings.reduceMotion && !osReduce;
     if (need && !this.antsTimer) {
       this.antsTimer = window.setInterval(() => {
         this.antsOffset = (this.antsOffset + 1) % 16;
