@@ -1,120 +1,120 @@
-2026-10-15T01:24:02.1318130Z ../../dist/assets/caveat-latin-ext-400-normal-D7hBUiug.woff2                     18.60 kB
-2026-10-15T01:24:02.1319050Z ../../dist/assets/caveat-latin-ext-700-normal-DFbRgDry.woff2                     19.57 kB
-2026-10-15T01:24:02.1320110Z ../../dist/assets/merriweather-cyrillic-ext-700-normal-DoooT6Vg.woff             22.79 kB
-2026-10-15T01:24:02.1325430Z ../../dist/assets/merriweather-cyrillic-ext-400-normal-Di6yW_eE.woff             22.82 kB
-2026-10-15T01:24:02.1326260Z ../../dist/assets/inter-latin-400-normal-C38fXH4l.woff2                          23.66 kB
-2026-10-15T01:24:02.1327070Z ../../dist/assets/caveat-latin-ext-400-normal-DtiRFvw0.woff                      24.09 kB
-2026-10-15T01:24:02.1327910Z ../../dist/assets/caveat-cyrillic-ext-400-normal-3iEGd-c5.woff2                  24.23 kB
-2026-10-15T01:24:02.1328730Z ../../dist/assets/inter-latin-500-normal-Cerq10X2.woff2                          24.27 kB
-2026-10-15T01:24:02.1329530Z ../../dist/assets/inter-latin-700-normal-Yt3aPRUw.woff2                          24.36 kB
-2026-10-15T01:24:02.1330510Z ../../dist/assets/inter-latin-800-normal-BYj_oED-.woff2                          24.40 kB
-2026-10-15T01:24:02.1331500Z ../../dist/assets/inter-latin-600-normal-LgqL8muc.woff2                          24.45 kB
-2026-10-15T01:24:02.1332320Z ../../dist/assets/caveat-latin-ext-700-normal-DjJQd59I.woff                      25.00 kB
-2026-10-15T01:24:02.1333190Z ../../dist/assets/caveat-cyrillic-ext-700-normal-CrK2-ngJ.woff2                  25.34 kB
-2026-10-15T01:24:02.1334030Z ../../dist/assets/merriweather-cyrillic-400-normal-AvfsDsMQ.woff2                25.48 kB
-2026-10-15T01:24:02.1334920Z ../../dist/assets/merriweather-cyrillic-700-normal-wbY04GlL.woff2                25.49 kB
-2026-10-15T01:24:02.1335860Z ../../dist/assets/caveat-cyrillic-ext-400-normal-Cg0RnRQ5.woff                   29.73 kB
-2026-10-15T01:24:02.1336880Z ../../dist/assets/caveat-cyrillic-ext-700-normal-DjFGiEhD.woff                   30.54 kB
-2026-10-15T01:24:02.1337730Z ../../dist/assets/inter-latin-400-normal-CyCys3Eg.woff                           30.70 kB
-2026-10-15T01:24:02.1338650Z ../../dist/assets/inter-latin-600-normal-CiBQ2DWP.woff                           31.26 kB
-2026-10-15T01:24:02.1339450Z ../../dist/assets/inter-latin-500-normal-BL9OpVg8.woff                           31.28 kB
-2026-10-15T01:24:02.1340260Z ../../dist/assets/inter-latin-800-normal-D1mf63XC.woff                           31.30 kB
-2026-10-15T01:24:02.1341270Z ../../dist/assets/inter-latin-700-normal-BLAVimhd.woff                           31.32 kB
-2026-10-15T01:24:02.1342260Z ../../dist/assets/merriweather-cyrillic-700-normal-CHCcU-4a.woff                 33.55 kB
-2026-10-15T01:24:02.1343370Z ../../dist/assets/merriweather-cyrillic-400-normal-DAcQ8g-H.woff                 33.62 kB
-2026-10-15T01:24:02.1344210Z ../../dist/assets/inter-latin-ext-400-normal-C1nco2VV.woff2                      35.00 kB
-2026-10-15T01:24:02.1345030Z ../../dist/assets/inter-latin-ext-500-normal-CV4jyFjo.woff2                      36.02 kB
-2026-10-15T01:24:02.1345850Z ../../dist/assets/inter-latin-ext-800-normal-DZJjya6U.woff2                      36.13 kB
-2026-10-15T01:24:02.1346770Z ../../dist/assets/inter-latin-ext-700-normal-Ca8adRJv.woff2                      36.24 kB
-2026-10-15T01:24:02.1347780Z ../../dist/assets/inter-latin-ext-600-normal-D2bJ5OIk.woff2                      36.26 kB
-2026-10-15T01:24:02.1348770Z ../../dist/assets/merriweather-latin-ext-700-normal-jHnxg2Kc.woff2               42.88 kB
-2026-10-15T01:24:02.1349770Z ../../dist/assets/merriweather-latin-ext-400-normal-CWVzVQq3.woff2               42.95 kB
-2026-10-15T01:24:02.1350660Z ../../dist/assets/caveat-cyrillic-400-normal-9cDH9rLW.woff2                      45.12 kB
-2026-10-15T01:24:02.1351580Z ../../dist/assets/caveat-cyrillic-700-normal-BIyejhEL.woff2                      45.40 kB
-2026-10-15T01:24:02.1352640Z ../../dist/assets/inter-latin-ext-400-normal-77YHD8bZ.woff                       47.56 kB
-2026-10-15T01:24:02.1353460Z ../../dist/assets/inter-latin-ext-500-normal-BxGbmqWO.woff                       48.49 kB
-2026-10-15T01:24:02.1354270Z ../../dist/assets/inter-latin-ext-800-normal-BOMpwxm3.woff                       48.59 kB
-2026-10-15T01:24:02.1355060Z ../../dist/assets/inter-latin-ext-700-normal-TidjK2hL.woff                       48.63 kB
-2026-10-15T01:24:02.1355860Z ../../dist/assets/merriweather-latin-700-normal-DoUP8Ce-.woff2                   48.66 kB
-2026-10-15T01:24:02.1356730Z ../../dist/assets/inter-latin-ext-600-normal-CIVaiw4L.woff                       48.67 kB
-2026-10-15T01:24:02.1357700Z ../../dist/assets/caveat-latin-400-normal-D6LQsQ_v.woff2                         48.84 kB
-2026-10-15T01:24:02.1358580Z ../../dist/assets/merriweather-latin-400-normal-G4kZaoXi.woff2                   49.17 kB
-2026-10-15T01:24:02.1359570Z ../../dist/assets/caveat-latin-700-normal-D8_1Nw6V.woff2                         51.02 kB
-2026-10-15T01:24:02.1360550Z ../../dist/assets/caveat-cyrillic-400-normal-CebvvJET.woff                       53.10 kB
-2026-10-15T01:24:02.1361310Z ../../dist/assets/caveat-cyrillic-700-normal-Bhcx9qBB.woff                       53.12 kB
-2026-10-15T01:24:02.1362130Z ../../dist/assets/merriweather-latin-ext-400-normal-CLqijLtt.woff                55.94 kB
-2026-10-15T01:24:02.1363060Z ../../dist/assets/merriweather-latin-ext-700-normal-CaBzXGOk.woff                56.10 kB
-2026-10-15T01:24:02.1363830Z ../../dist/assets/caveat-latin-400-normal-BzhAQZkN.woff                          60.11 kB
-2026-10-15T01:24:02.1364580Z ../../dist/assets/caveat-latin-700-normal-cPyBTTZN.woff                          62.18 kB
-2026-10-15T01:24:02.1365340Z ../../dist/assets/merriweather-latin-700-normal-D4-nzrAh.woff                    66.67 kB
-2026-10-15T01:24:02.1366130Z ../../dist/assets/merriweather-latin-400-normal-CvqO63Ah.woff                    67.00 kB
-2026-10-15T01:24:02.1366950Z ../../dist/assets/opendyslexic-latin-400-normal-nUhe5EwG.woff2                  115.28 kB
-2026-10-15T01:24:02.1367780Z ../../dist/assets/opendyslexic-latin-700-normal-Bnmt45Ln.woff2                  120.36 kB
-2026-10-15T01:24:02.1368590Z ../../dist/assets/opendyslexic-latin-400-normal-Cv3YY6GF.woff                   128.78 kB
-2026-10-15T01:24:02.1369350Z ../../dist/assets/opendyslexic-latin-700-normal-wYUJcbXi.woff                   135.08 kB
-2026-10-15T01:24:02.1370080Z ../../dist/assets/quvselect-B_ED_ycb.onnx                                     3,198.60 kB
-2026-10-15T01:24:02.1370900Z ../../dist/assets/ort-wasm-simd-threaded-DcHrbrbl.wasm                       14,239.90 kB │ gzip: 3,695.88 kB
-2026-10-15T01:24:02.1371740Z ../../dist/assets/index-OkES3CB3.css                                             96.92 kB │ gzip:    21.21 kB
-2026-10-15T01:24:02.1372640Z ../../dist/assets/ort.wasm.bundle.min-Bl57xpTE.js                                72.54 kB │ gzip:    24.43 kB
-2026-10-15T01:24:02.1373500Z ../../dist/assets/index-pPDFtrCI.js                                           1,524.55 kB │ gzip:   531.43 kB
-2026-10-15T01:24:02.1373930Z ✓ built in 2.46s
-2026-10-15T01:24:02.2465710Z 
-2026-10-15T01:24:02.2465980Z > quvrelo@0.2.0 build:main
-2026-10-15T01:24:02.2466230Z > node scripts/build-main.mjs
-2026-10-15T01:24:02.2466350Z 
-2026-10-15T01:24:02.3223950Z 
-2026-10-15T01:24:02.3224400Z   dist-electron/main.js  627.1kb
-2026-10-15T01:24:02.3224640Z 
-2026-10-15T01:24:02.3224900Z ⚡ Done in 23ms
-2026-10-15T01:24:02.3326860Z 
-2026-10-15T01:24:02.3396870Z   dist-electron/preload.js  2.8kb
-2026-10-15T01:24:02.3397270Z 
-2026-10-15T01:24:02.3397610Z ⚡ Done in 1ms
-2026-10-15T01:24:02.3464310Z ##[group]Run npx electron-builder --mac --x64 --publish never
-2026-10-15T01:24:02.3464640Z npx electron-builder --mac --x64 --publish never
-2026-10-15T01:24:02.3496440Z shell: /bin/bash -e {0}
-2026-10-15T01:24:02.3496600Z env:
-2026-10-15T01:24:02.3496730Z   CSC_IDENTITY_AUTO_DISCOVERY: false
-2026-10-15T01:24:02.3496900Z   MAC_SIGNING: false
-2026-10-15T01:24:02.3497030Z   CSC_LINK: 
-2026-10-15T01:24:02.3497160Z   CSC_KEY_PASSWORD: 
-2026-10-15T01:24:02.3497290Z   APPLE_ID: 
-2026-10-15T01:24:02.3497620Z   APPLE_APP_SPECIFIC_PASSWORD: 
-2026-10-15T01:24:02.3497820Z   APPLE_TEAM_ID: 
-2026-10-15T01:24:02.3505430Z ##[endgroup]
-2026-10-15T01:24:02.8070350Z   • electron-builder  version=26.15.3 os=25.6.0
-2026-10-15T01:24:02.8097560Z   • loaded configuration  file=package.json ("build" field)
-2026-10-15T01:24:03.2009640Z   • executing @electron/rebuild  electronVersion=38.8.6 arch=x64 buildFromSource=false workspaceRoot=/Users/runner/work/Quverelo/Quverelo projectDir=./ appDir=./
-2026-10-15T01:24:03.2109700Z   • installing native dependencies  arch=x64
-2026-10-15T01:24:03.2991250Z   • completed installing native dependencies
-2026-10-15T01:24:03.3004600Z   • packaging       platform=darwin arch=x64 electron=38.8.6 appOutDir=release/mac
-2026-10-15T01:24:03.7462020Z   • downloaded      label=electron progress=100%
-2026-10-15T01:24:06.1834690Z   • downloaded electron zip extracted successfully  output=/Users/runner/work/Quverelo/Quverelo/release/mac
-2026-10-15T01:24:06.1975750Z   • searching for node modules  pm=npm searchDir=/Users/runner/work/Quverelo/Quverelo
-2026-10-15T01:24:06.4721590Z   • searching for node modules  pm=traversal searchDir=/Users/runner/work/Quverelo/Quverelo
-2026-10-15T01:24:06.4722340Z   • using manual traversal of node_modules to build dependency tree
-2026-10-15T01:24:06.4729530Z   • no node modules returned while searching directories  searchDirectories=[""]
-2026-10-15T01:24:06.6687510Z   • skipped macOS code signing  reason=identity explicitly is set to null
-2026-10-15T01:24:06.6691090Z   • building        target=macOS zip arch=x64 file=release/Quvrelo-0.2.0-mac-x64.zip
-2026-10-15T01:24:06.6692040Z   • building        target=pkg arch=x64 file=release/Quvrelo-0.2.0-mac-x64.pkg
-2026-10-15T01:24:06.6693680Z   • empty password will be used for code signing  reason=CSC_KEY_PASSWORD is not defined
-2026-10-15T01:24:17.9652090Z   • building block map  blockMapFile=release/Quvrelo-0.2.0-mac-x64.zip.blockmap
-2026-10-15T01:24:21.7397260Z   ⨯ /Users/runner/work/Quverelo/Quverelo not a file
-2026-10-15T01:24:21.7544100Z ##[error]Process completed with exit code 1.
-2026-10-15T01:24:21.7696370Z Post job cleanup.
-2026-10-15T01:24:21.8835850Z [command]/opt/homebrew/bin/git version
-2026-10-15T01:24:21.8913810Z git version 2.55.0
-2026-10-15T01:24:21.8951880Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/3a5cbd5e-31d5-4dbb-a29c-a046ed0563ac/.gitconfig'
-2026-10-15T01:24:21.8965770Z Temporarily overriding HOME='/Users/runner/work/_temp/3a5cbd5e-31d5-4dbb-a29c-a046ed0563ac' before making global git config changes
-2026-10-15T01:24:21.8967900Z Adding repository directory to the temporary git global config as a safe directory
-2026-10-15T01:24:21.8972160Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/Quverelo/Quverelo
-2026-10-15T01:24:21.9061390Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
-2026-10-15T01:24:21.9138290Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
-2026-10-15T01:24:22.0275460Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
-2026-10-15T01:24:22.0326320Z http.https://github.com/.extraheader
-2026-10-15T01:24:22.0333180Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
-2026-10-15T01:24:22.0400520Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
-2026-10-15T01:24:22.1283240Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
-2026-10-15T01:24:22.1338220Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
-2026-10-15T01:24:22.2281900Z Cleaning up orphan processes
-2026-10-15T01:24:22.6425270Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-10-15T11:22:02.5977710Z with:
+2026-10-15T11:22:02.5978380Z   node-version: 22
+2026-10-15T11:22:02.5979020Z   cache: npm
+2026-10-15T11:22:02.5979840Z   always-auth: false
+2026-10-15T11:22:02.5980510Z   check-latest: false
+2026-10-15T11:22:02.6003920Z   token: ***
+2026-10-15T11:22:02.6004540Z env:
+2026-10-15T11:22:02.6005140Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-15T11:22:02.6005910Z   MAC_SIGNING: false
+2026-10-15T11:22:02.6006550Z ##[endgroup]
+2026-10-15T11:22:02.7271460Z Found in cache @ /Users/runner/hostedtoolcache/node/22.23.2/arm64
+2026-10-15T11:22:02.7276090Z (node:1132) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-15T11:22:02.7277940Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-15T11:22:02.7279820Z ##[group]Environment details
+2026-10-15T11:22:03.0881510Z node: v22.23.2
+2026-10-15T11:22:03.0882440Z npm: 10.9.8
+2026-10-15T11:22:03.0883190Z yarn: 1.22.22
+2026-10-15T11:22:03.0884500Z ##[endgroup]
+2026-10-15T11:22:03.0911630Z [command]/Users/runner/hostedtoolcache/node/22.23.2/arm64/bin/npm config get cache
+2026-10-15T11:22:03.2216370Z /Users/runner/.npm
+2026-10-15T11:22:03.3896830Z Cache hit for: node-cache-macOS-arm64-npm-f3d4b93b97dec9ed0a08163a79a6a41bf589c9225d6f84a6f025a71ae7cfd004
+2026-10-15T11:22:03.3956950Z (node:1132) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-15T11:22:04.5791500Z Received 83886080 of 109134304 (76.9%), 80.0 MBs/sec
+2026-10-15T11:22:04.7818910Z Received 109134304 of 109134304 (100.0%), 86.5 MBs/sec
+2026-10-15T11:22:04.7823030Z Cache Size: ~104 MB (109134304 B)
+2026-10-15T11:22:04.7873390Z [command]/opt/homebrew/bin/gtar -xf /Users/runner/work/_temp/51a6177e-f46b-4326-90f5-09721fa5c46d/cache.tzst -P -C /Users/runner/work/Quverelo/Quverelo --delay-directory-restore --use-compress-program unzstd
+2026-10-15T11:22:05.1157830Z Cache restored successfully
+2026-10-15T11:22:05.1180510Z Cache restored from key: node-cache-macOS-arm64-npm-f3d4b93b97dec9ed0a08163a79a6a41bf589c9225d6f84a6f025a71ae7cfd004
+2026-10-15T11:22:05.1282150Z ##[group]Run npm ci
+2026-10-15T11:22:05.1282360Z npm ci
+2026-10-15T11:22:05.1329170Z shell: /bin/bash -e {0}
+2026-10-15T11:22:05.1329370Z env:
+2026-10-15T11:22:05.1329580Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-15T11:22:05.1329830Z   MAC_SIGNING: false
+2026-10-15T11:22:05.1330000Z ##[endgroup]
+2026-10-15T11:22:06.9007950Z npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+2026-10-15T11:22:06.9231320Z npm warn deprecated npmlog@5.0.1: This package is no longer supported.
+2026-10-15T11:22:06.9487970Z npm warn deprecated rimraf@2.6.3: Rimraf versions prior to v4 are no longer supported
+2026-10-15T11:22:06.9544490Z npm warn deprecated lodash.isequal@4.5.0: This package is deprecated. Use require('node:util').isDeepStrictEqual instead.
+2026-10-15T11:22:06.9710510Z npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+2026-10-15T11:22:06.9942180Z npm warn deprecated abab@2.0.6: Use your platform's native atob() and btoa() methods instead
+2026-10-15T11:22:07.0057710Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-10-15T11:22:07.0213090Z npm warn deprecated whatwg-encoding@2.0.0: Use @exodus/bytes instead for a more spec-conformant and faster implementation
+2026-10-15T11:22:07.0538500Z npm warn deprecated are-we-there-yet@2.0.0: This package is no longer supported.
+2026-10-15T11:22:07.1103800Z npm warn deprecated gauge@3.0.2: This package is no longer supported.
+2026-10-15T11:22:07.1252330Z npm warn deprecated domexception@4.0.0: Use your platform's native DOMException instead
+2026-10-15T11:22:07.4069890Z npm warn deprecated boolean@3.2.0: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+2026-10-15T11:22:07.5534970Z npm warn deprecated tar@6.2.1: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-10-15T11:22:17.6078970Z 
+2026-10-15T11:22:17.6079500Z added 506 packages, and audited 507 packages in 12s
+2026-10-15T11:22:17.6079800Z 
+2026-10-15T11:22:17.6079990Z 73 packages are looking for funding
+2026-10-15T11:22:17.6080290Z   run `npm fund` for details
+2026-10-15T11:22:17.6495490Z 
+2026-10-15T11:22:17.6496300Z 17 vulnerabilities (9 moderate, 5 high, 3 critical)
+2026-10-15T11:22:17.6496570Z 
+2026-10-15T11:22:17.6496750Z To address issues that do not require attention, run:
+2026-10-15T11:22:17.6497010Z   npm audit fix
+2026-10-15T11:22:17.6497100Z 
+2026-10-15T11:22:17.6497320Z To address all issues (including breaking changes), run:
+2026-10-15T11:22:17.6497570Z   npm audit fix --force
+2026-10-15T11:22:17.6497750Z 
+2026-10-15T11:22:17.6497850Z Run `npm audit` for details.
+2026-10-15T11:22:17.7199660Z ##[group]Run npm run build
+2026-10-15T11:22:17.7199900Z npm run build
+2026-10-15T11:22:17.7233700Z shell: /bin/bash -e {0}
+2026-10-15T11:22:17.7233850Z env:
+2026-10-15T11:22:17.7233980Z   CSC_IDENTITY_AUTO_DISCOVERY: false
+2026-10-15T11:22:17.7234160Z   MAC_SIGNING: false
+2026-10-15T11:22:17.7234290Z ##[endgroup]
+2026-10-15T11:22:17.8687090Z 
+2026-10-15T11:22:17.9869740Z > quvrelo@0.3.0 build
+2026-10-15T11:22:17.9870250Z > npm run build:renderer && npm run build:main
+2026-10-15T11:22:17.9870440Z 
+2026-10-15T11:22:17.9870440Z 
+2026-10-15T11:22:17.9870660Z > quvrelo@0.3.0 build:renderer
+2026-10-15T11:22:17.9871940Z > vite build
+2026-10-15T11:22:17.9872210Z 
+2026-10-15T11:22:18.1662080Z vite v6.4.4 building for production...
+2026-10-15T11:22:18.2028560Z transforming...
+2026-10-15T11:22:19.2168530Z ✓ 345 modules transformed.
+2026-10-15T11:22:19.2182040Z ✗ Build failed in 1.04s
+2026-10-15T11:22:19.2182960Z error during build:
+2026-10-15T11:22:19.2184450Z src/renderer/ui/App.tsx (15:9): "TooltipHost" is not exported by "src/renderer/ui/tooltip.ts", imported by "src/renderer/ui/App.tsx".
+2026-10-15T11:22:19.2185350Z file: /Users/runner/work/Quverelo/Quverelo/src/renderer/ui/App.tsx:15:9
+2026-10-15T11:22:19.2185710Z 
+2026-10-15T11:22:19.2186000Z 13: import { DialogHost } from './dialogs/DialogHost';
+2026-10-15T11:22:19.2186400Z 14: import { CommandPalette } from './CommandPalette';
+2026-10-15T11:22:19.2186720Z 15: import { TooltipHost } from './Tooltip';
+2026-10-15T11:22:19.2186960Z              ^
+2026-10-15T11:22:19.2187190Z 16: import { openPalette } from '../state/palette';
+2026-10-15T11:22:19.2187430Z 
+2026-10-15T11:22:19.2187910Z     at getRollupError (file:///Users/runner/work/Quverelo/Quverelo/node_modules/rollup/dist/es/shared/parseAst.js:319:41)
+2026-10-15T11:22:19.2188620Z     at error (file:///Users/runner/work/Quverelo/Quverelo/node_modules/rollup/dist/es/shared/parseAst.js:315:42)
+2026-10-15T11:22:19.2189320Z     at Module.error (file:///Users/runner/work/Quverelo/Quverelo/node_modules/rollup/dist/es/shared/node-entry.js:17906:16)
+2026-10-15T11:22:19.2190120Z     at Module.traceVariable (file:///Users/runner/work/Quverelo/Quverelo/node_modules/rollup/dist/es/shared/node-entry.js:18343:29)
+2026-10-15T11:22:19.2190990Z     at ModuleScope.findVariable (file:///Users/runner/work/Quverelo/Quverelo/node_modules/rollup/dist/es/shared/node-entry.js:15926:39)
+2026-10-15T11:22:19.2192570Z     at FunctionScope.findVariable (file:///Users/runner/work/Quverelo/Quverelo/node_modules/rollup/dist/es/shared/node-entry.js:5966:38)
+2026-10-15T11:22:19.2193440Z     at FunctionBodyScope.findVariable (file:///Users/runner/work/Quverelo/Quverelo/node_modules/rollup/dist/es/shared/node-entry.js:5966:38)
+2026-10-15T11:22:19.2194390Z     at Identifier.bind (file:///Users/runner/work/Quverelo/Quverelo/node_modules/rollup/dist/es/shared/node-entry.js:5727:40)
+2026-10-15T11:22:19.2195610Z     at CallExpression.bind (file:///Users/runner/work/Quverelo/Quverelo/node_modules/rollup/dist/es/shared/node-entry.js:3046:28)
+2026-10-15T11:22:19.2196560Z     at CallExpression.bind (file:///Users/runner/work/Quverelo/Quverelo/node_modules/rollup/dist/es/shared/node-entry.js:13062:15)
+2026-10-15T11:22:19.2499010Z ##[error]Process completed with exit code 1.
+2026-10-15T11:22:19.2649680Z Post job cleanup.
+2026-10-15T11:22:19.3501960Z [command]/opt/homebrew/bin/git version
+2026-10-15T11:22:19.3570540Z git version 2.55.0
+2026-10-15T11:22:19.3590410Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/c229256f-8c9a-431f-8784-dba5643f5d21/.gitconfig'
+2026-10-15T11:22:19.3600530Z Temporarily overriding HOME='/Users/runner/work/_temp/c229256f-8c9a-431f-8784-dba5643f5d21' before making global git config changes
+2026-10-15T11:22:19.3601330Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-15T11:22:19.3603710Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/Quverelo/Quverelo
+2026-10-15T11:22:19.3670420Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-15T11:22:19.3727090Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-15T11:22:19.4431130Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-15T11:22:19.4483980Z http.https://github.com/.extraheader
+2026-10-15T11:22:19.4492080Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-15T11:22:19.4552870Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-15T11:22:19.5298190Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-15T11:22:19.5355020Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-15T11:22:19.6239540Z Cleaning up orphan processes
+2026-10-15T11:22:19.8384130Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
