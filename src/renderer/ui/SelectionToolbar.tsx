@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { SceneNode } from '../../core/types';
 import { updateNode } from '../../core/commands';
-import { solid } from '../../core/document';
 import type { Viewport } from '../engine/Viewport';
 import { editor } from '../state/editor';
 import { runCommand } from '../state/commands';
@@ -76,11 +75,10 @@ function ShapeGroup({ nodes }: { nodes: SceneNode[] }) {
   const n = nodes[0];
   const fill = nodeFill(n) ?? { type: 'none' as const };
   const stroke = 'stroke' in n ? n.stroke.paint : { type: 'none' as const };
-  const col = (p: typeof fill, fb: string) => (p.type === 'solid' ? p.color : p.type === 'none' ? fb : p.stops[0]?.color ?? fb);
   return (
     <>
-      <ColorChipButton kind="fill" label="Fill" chevron={false} color={col(fill, editor.ui.fillColor)} enabled={fill.type !== 'none'} onChange={(c) => applyFillToSelection(solid(c), 'stb-fill')} onToggle={(on) => applyFillToSelection(on ? solid(col(fill, editor.ui.fillColor)) : { type: 'none' })} />
-      <ColorChipButton kind="stroke" label="Stroke" chevron={false} color={col(stroke, editor.ui.strokeColor)} enabled={stroke.type !== 'none'} onChange={(c) => applyStrokeToSelection(solid(c), 'stb-stroke')} onToggle={(on) => applyStrokeToSelection(on ? solid(col(stroke, editor.ui.strokeColor)) : { type: 'none' })} />
+      <ColorChipButton kind="fill" label="Fill" chevron={false} value={fill} fallback={editor.ui.fillColor} onChange={(p) => applyFillToSelection(p, 'stb-fill')} />
+      <ColorChipButton kind="stroke" label="Stroke" chevron={false} value={stroke} fallback={editor.ui.strokeColor} onChange={(p) => applyStrokeToSelection(p, 'stb-stroke')} />
     </>
   );
 }
@@ -95,7 +93,7 @@ function TextGroup() {
       <NumberField className="stb-size" ariaLabel="Font size (pt)" label="Size" unit="pt" value={st.fontSize} min={4} max={1000} onChange={(v) => target.apply({ fontSize: v })} onCommit={(v) => target.apply({ fontSize: v })} />
       <button type="button" className={`icon-btn sm${st.fontWeight >= 600 ? ' active' : ''}`} {...tip('Bold')} aria-pressed={st.fontWeight >= 600} onClick={() => target.apply({ fontWeight: st.fontWeight >= 600 ? 400 : 700 })}><b>B</b></button>
       <button type="button" className={`icon-btn sm${st.italic ? ' active' : ''}`} {...tip('Italic')} aria-pressed={st.italic} onClick={() => target.apply({ italic: !st.italic })}><i>I</i></button>
-      <ColorChipButton kind="fill" label="Text colour" chevron={false} color={st.fill.type === 'solid' ? st.fill.color : '#000000'} enabled onChange={(c) => target.apply({ fill: solid(c) })} />
+      <ColorChipButton kind="fill" label="Text colour" chevron={false} value={st.fill} fallback="#000000" allowNone={false} onChange={(p) => target.apply({ fill: p })} />
     </>
   );
 }

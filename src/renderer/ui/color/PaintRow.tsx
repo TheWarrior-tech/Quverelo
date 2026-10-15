@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Paint } from '../../../core/types';
 import { Icon } from '../Icons';
-import { PaintEditor, paintCss } from '../ColorControls';
 import { ColorChipButton, type ChipTarget } from './Chips';
 import { parseCss, toHex } from './colorMath';
 
@@ -55,17 +54,13 @@ export function PaintRow({ kind, label, paint, onChange, allowNone = true, allow
       <ColorChipButton
         kind={kind}
         label={label}
-        color={color}
-        paint={paint.type === 'linear' || paint.type === 'radial' ? paintCss(paint) : undefined}
-        enabled={on}
+        value={paint}
+        fallback={color}
+        onChange={onChange}
+        allowNone={allowNone}
+        allowGradient={allowGradient}
         chevron={false}
         placement="left"
-        popover={
-          <div className="color-popover paint-popover">
-            <div className="popover-head"><span className="popover-title">{label}</span></div>
-            <PaintEditor paint={paint} onChange={onChange} allowNone={allowNone} allowGradient={allowGradient} />
-          </div>
-        }
       />
       {paint.type === 'solid' ? (
         <HexField value={paint.color} label={label} onCommit={(hex) => onChange({ type: 'solid', color: hex })} />

@@ -5,7 +5,7 @@
  */
 import { DocumentHistory } from '../../core/history';
 import { findNode, getContainer, referencedAssets } from '../../core/document';
-import type { QuvreloDocument, Id, PathCommand, SceneNode, StudioKind } from '../../core/types';
+import type { QuvreloDocument, Id, Paint, PathCommand, SceneNode, StudioKind } from '../../core/types';
 import { DEFAULT_POLICY, featureEnabled, type FeatureId, type Policy } from '../../core/policy';
 import { DEFAULT_SETTINGS, type UserSettings } from '../../shared/api';
 import { AssetStore } from '../engine/assets';
@@ -52,6 +52,9 @@ export interface UiState {
   strokeColor: string;
   strokeEnabled: boolean;
   fillEnabled: boolean;
+  /** gradient paint for new objects when the default fill/stroke is linear or radial (null = solid) */
+  fillGradient: Paint | null;
+  strokeGradient: Paint | null;
   zoom: number;
   editingTextId: Id | null;
   toolOptions: ToolOptions;
@@ -113,6 +116,8 @@ export class Editor {
     strokeColor: '#1b1b1f',
     strokeEnabled: false,
     fillEnabled: true,
+    fillGradient: null,
+    strokeGradient: null,
     zoom: 1,
     editingTextId: null,
     toolOptions: { ...DEFAULT_TOOL_OPTIONS },
@@ -214,6 +219,9 @@ export class Editor {
   }
 
   setUi(patch: Partial<UiState>): void {
+    // a flat colour picked anywhere (swatch, eyedropper, brush chip) replaces a default gradient
+    if ('fillColor' in patch && !('fillGradient' in patch)) patch = { ...patch, fillGradient: null };
+    if ('strokeColor' in patch && !('strokeGradient' in patch)) patch = { ...patch, strokeGradient: null };
     this.ui = { ...this.ui, ...patch };
     this.emit();
   }

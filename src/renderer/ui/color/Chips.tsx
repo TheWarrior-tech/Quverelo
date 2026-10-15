@@ -1,8 +1,10 @@
 import { tip } from '../tooltip';
-import { useRef, useState, type ReactNode } from 'react';
+import { useRef, useState } from 'react';
 import { Icon } from '../Icons';
 import { Popover } from '../controls/Panel';
-import { ColorPicker } from './ColorPicker';
+import type { Paint } from '../../../core/types';
+import { PaintEditor, paintCss } from '../ColorControls';
+import { firstColorOf } from '../../state/uiPaint';
 
 export type ChipTarget = 'fill' | 'stroke';
 
@@ -75,63 +77,59 @@ export function FillStrokeChips({ fill, stroke, target, onTarget, onSwap, size =
 }
 
 /**
- * The colour control (DESIGN.md §8, UX P1-3). Every colour in the chrome is
- * edited through this one trigger: a chip (optionally with a chevron) that
- * opens the shared picker in a popover. Context bar, selection toolbar,
- * inspector paint rows and document background all use it; there are no native
- * native colour inputs anywhere in the shell.
- *
- * `popover` swaps the default solid picker for a custom body (the inspector
- * passes the full paint editor with gradients).
+ * The colour control (DESIGN.md §8, UX P1-3, critique 2 P1-3). Every colour in
+ * the chrome is edited through this one trigger: a chip (optionally with a
+ * chevron) that opens `ColorPopoverBody` in a popover. Context bar, selection
+ * toolbar, tool rail, inspector paint rows and document background all use it,
+ * with the same body: paint-type tabs (None · Solid · Linear · Radial) first,
+ * then the picker or gradient editor. Types a target can't take (a brush can't
+ * paint a gradient) are shown disabled, never hidden, so the row never changes
+ * shape between places. There are no native colour inputs in the shell.
  */
-export function ColorChipButton({ kind, label, color, enabled, onChange, onCommit, onToggle, popover, chevron = true, paint, className, disabled, placement = 'below' }: {
+export function ColorChipButton({ kind, label, value, onChange, onCommit, allowNone = true, allowGradient = true, fallback, chevron = true, className, disabled, placement = 'below' }: {
   kind: ChipTarget;
   label: string;
-  color: string;
-  enabled: boolean;
-  onChange?: (c: string) => void;
+  value: Paint;
+  onChange: (p: Paint) => void;
   onCommit?: () => void;
-  onToggle?: (enabled: boolean) => void;
-  /** custom popover body (e.g. the inspector's paint editor) */
-  popover?: ReactNode;
+  allowNone?: boolean;
+  allowGradient?: boolean;
+  /** colour a None paint returns to when Solid is chosen */
+  fallback?: string;
   chevron?: boolean;
-  /** CSS paint for the chip when it is not a flat colour (gradients) */
-  paint?: string;
   className?: string;
   disabled?: boolean;
   /** 'left' opens beside the inspector instead of over it */
-  placement?: 'below' | 'left';
-}) {
+  placement?: 'below' | 'left' | 'right';
+  }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
-  const desc = enabled ? (paint && paint !== color ? 'gradient' : color.toUpperCase()) : 'none';
+  const color = firstColorOf(value, fallback ?? '#8f959e');
+  const grad = value.type === 'linear' || value.type === 'radial';
+  const enabled = value.type !== 'none';
+  const desc = !enabled ? 'none' : grad ? (value.type === 'linear' ? 'linear gradient' : 'radial gradient') : color.toUpperCase();
   return (
     <>
       <button type="button" className={`chip-select${chevron ? '' : ' bare'}${anchor ? ' open' : ''}${className ? ' ' + className : ''}`} aria-label={`${label} colour`} aria-haspopup="dialog" aria-expanded={!!anchor} data-tip={`${label}: ${desc}`} disabled={disabled} onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}>
-        <Chip kind={kind} color={paint ?? color} enabled={enabled} />
+        <Chip kind={kind} color={grad && kind === 'fill' ? paintCss(value) : color} enabled={enabled} />
         {chevron && <Icon name="chevron-down" size={16} />}
       </button>
       {anchor && (
         <Popover anchor={anchor} label={`${label} colour`} placement={placement} onClose={() => setAnchor(null)}>
-          {popover ?? <ColorPopoverBody label={label} color={color} enabled={enabled} onChange={(c) => onChange?.(c)} onCommit={onCommit} onToggle={onToggle} />}
+          <ColorPopoverBody label={label} value={value} onChange={onChange} onCommit={onCommit} allowNone={allowNone} allowGradient={allowGradient} fallback={fallback} />
         </Popover>
       )}
     </>
   );
 }
 
-export function ColorPopoverBody({ label, color, enabled, onChange, onCommit, onToggle }: { label: string; color: string; enabled: boolean; onChange: (c: string) => void; onCommit?: () => void; onToggle?: (enabled: boolean) => void }) {
+/** The one colour popover body: title, then the paint editor (type tabs first). */
+export function ColorPopoverBody({ label, value, onChange, onCommit, allowNone = true, allowGradient = true, fallback }: { label: string; value: Paint; onChange: (p: Paint) => void; onCommit?: () => void; allowNone?: boolean; allowGradient?: boolean; fallback?: string }) {
   return (
-    <div className="color-popover">
+    <div className="color-popover" data-testid="color-popover">
       <div className="popover-head">
         <span className="popover-title">{label}</span>
-        {onToggle && (
-          <label className="check">
-            <input type="checkbox" checked={!enabled} onChange={(e) => onToggle(!e.target.checked)} />
-            None
-          </label>
-        )}
       </div>
-      <ColorPicker value={color} onChange={(c) => { onChange(c); if (!enabled) onToggle?.(true); }} onCommit={onCommit} />
+      <PaintEditor paint={value} onChange={onChange} onCommit={onCommit} allowNone={allowNone} allowGradient={allowGradient} fallback={fallback} />
     </div>
   );
 }

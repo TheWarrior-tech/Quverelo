@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from 'react';
-import { findNode } from '../../core/document';
+import { findNode, solid } from '../../core/document';
+import { firstColorOf, uiPaint, uiPaintPatch } from '../state/uiPaint';
 import { setStoryStyle, updateNode, updateNodes } from '../../core/commands';
 import { PX_PER } from '../../core/units';
 import { primaryFamily } from './fonts';
@@ -255,7 +256,7 @@ export function ContextBar() {
           {t === 'brush' && (
             <div className="group">
               <span className="ctx-label">Colour</span>
-              <ColorChipButton kind="fill" label="Brush" color={ed.ui.fillColor} enabled onChange={(c) => ed.setUi({ fillColor: c, fillEnabled: true })} />
+              <ColorChipButton kind="fill" label="Brush" value={solid(ed.ui.fillColor)} allowNone={false} allowGradient={false} onChange={(p) => ed.setUi({ fillColor: firstColorOf(p, ed.ui.fillColor), fillEnabled: true })} />
             </div>
           )}
           <CtxHint>[ and ] change size · paints on the selected pixel layer</CtxHint>
@@ -290,7 +291,7 @@ export function ContextBar() {
           <Slider label="Tolerance" value={o.fillTolerance} min={0} max={255} onChange={(v) => ed.setToolOptions({ fillTolerance: v })} />
           <div className="group">
             <span className="ctx-label">Colour</span>
-            <ColorChipButton kind="fill" label="Flood fill" color={ed.ui.fillColor} enabled onChange={(c) => ed.setUi({ fillColor: c, fillEnabled: true })} />
+            <ColorChipButton kind="fill" label="Flood fill" value={solid(ed.ui.fillColor)} allowNone={false} allowGradient={false} onChange={(p) => ed.setUi({ fillColor: firstColorOf(p, ed.ui.fillColor), fillEnabled: true })} />
           </div>
           <CtxHint>Fills pixels on a pixel layer, or recolours a shape</CtxHint>
         </>
@@ -315,9 +316,9 @@ export function ContextBar() {
         <>
           <div className="group">
             <span className="ctx-label">Fill</span>
-            <ColorChipButton kind="fill" label="Fill" color={ed.ui.fillColor} enabled={ed.ui.fillEnabled} onChange={(c) => ed.setUi({ fillColor: c, fillEnabled: true })} onToggle={(on) => ed.setUi({ fillEnabled: on })} />
+            <ColorChipButton kind="fill" label="Fill" value={uiPaint(ed.ui, 'fill')} fallback={ed.ui.fillColor} onChange={(p) => ed.setUi(uiPaintPatch('fill', p, ed.ui))} />
             <span className="ctx-label">Stroke</span>
-            <ColorChipButton kind="stroke" label="Stroke" color={ed.ui.strokeColor} enabled={ed.ui.strokeEnabled} onChange={(c) => ed.setUi({ strokeColor: c, strokeEnabled: true })} onToggle={(on) => ed.setUi({ strokeEnabled: on })} />
+            <ColorChipButton kind="stroke" label="Stroke" value={uiPaint(ed.ui, 'stroke')} fallback={ed.ui.strokeColor} onChange={(p) => ed.setUi(uiPaintPatch('stroke', p, ed.ui))} />
             <NumberField className="ctx" label="W" ariaLabel="Stroke width (px)" unit="px" step={0.5} value={o.strokeWidth} min={0} max={200} onCommit={(v) => ed.setToolOptions({ strokeWidth: v })} onChange={(v) => ed.setToolOptions({ strokeWidth: v })} />
           </div>
           <CtxHint>{t === 'pen' ? 'Click: corner · drag: curve · click the first point to close · Enter finishes' : 'Shift constrains · Alt draws from centre'}</CtxHint>

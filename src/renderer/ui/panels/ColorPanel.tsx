@@ -36,7 +36,7 @@ export function applyStrokeToSelection(p: Paint, merge?: string): void {
 /** Exchange fill and stroke: the defaults for new objects, and the paints of selected shapes. */
 export function swapFillStroke(): void {
   const u = editor.ui;
-  editor.setUi({ fillColor: u.strokeColor, strokeColor: u.fillColor, fillEnabled: u.strokeEnabled, strokeEnabled: u.fillEnabled });
+  editor.setUi({ fillColor: u.strokeColor, strokeColor: u.fillColor, fillEnabled: u.strokeEnabled, strokeEnabled: u.fillEnabled, fillGradient: u.strokeGradient, strokeGradient: u.fillGradient });
   if (!u.selection.length) return;
   editor.commit('Swap fill and stroke', (d) => updateNodes(d, u.selection, (n) => {
     if (!('fill' in n) || !('stroke' in n) || n.type === 'textframe') return n;

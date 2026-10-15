@@ -26,9 +26,9 @@ export function paintCss(p: Paint): string {
 const PAINT_LABELS: Record<Paint['type'], string> = { none: 'None', solid: 'Solid', linear: 'Linear', radial: 'Radial' };
 
 /** Paint editor: none / solid / linear / radial gradient. */
-export function PaintEditor({ paint, onChange, onCommit, allowNone = true, allowGradient = true }: { paint: Paint; onChange: (p: Paint) => void; onCommit?: () => void; allowNone?: boolean; allowGradient?: boolean }) {
+export function PaintEditor({ paint, onChange, onCommit, allowNone = true, allowGradient = true, fallback = '#8f959e' }: { paint: Paint; onChange: (p: Paint) => void; onCommit?: () => void; allowNone?: boolean; allowGradient?: boolean; fallback?: string }) {
   const [stop, setStop] = useState(0);
-  const firstColor = paint.type === 'solid' ? paint.color : paint.type === 'none' ? '#3a86ff' : paint.stops[0]?.color ?? '#000000';
+  const firstColor = paint.type === 'solid' ? paint.color : paint.type === 'none' ? fallback : paint.stops[0]?.color ?? '#000000';
   const setType = (t: Paint['type']) => {
     if (t === paint.type) return;
     if (t === 'none') onChange({ type: 'none' });
@@ -39,7 +39,9 @@ export function PaintEditor({ paint, onChange, onCommit, allowNone = true, allow
     }
     onCommit?.();
   };
-  const types = (['none', 'solid', 'linear', 'radial'] as const).filter((t) => (allowNone || t !== 'none') && (allowGradient || t === 'none' || t === 'solid'));
+  // all four types always show, in the same order, so the first row never changes shape; ones this target can't take are disabled
+  const allowed = (t: Paint['type']) => (allowNone || t !== 'none') && (allowGradient || t === 'none' || t === 'solid');
+  const types = ['none', 'solid', 'linear', 'radial'] as const;
   const grad = paint.type === 'linear' || paint.type === 'radial' ? paint : null;
   const cur = grad ? Math.min(stop, grad.stops.length - 1) : 0;
   const setStops = (stops: { offset: number; color: string }[], commit = false) => {
@@ -49,8 +51,8 @@ export function PaintEditor({ paint, onChange, onCommit, allowNone = true, allow
   };
   return (
     <div className="paint-editor">
-      <Segmented ariaLabel="Paint type" className="full" value={paint.type} onChange={setType} options={types.map((t) => ({ value: t, label: PAINT_LABELS[t] }))} />
-      {paint.type === 'none' && <p className="hint">No paint. Choose Solid or a gradient to add one.</p>}
+      <Segmented ariaLabel="Paint type" className="full" value={paint.type} onChange={setType} options={types.map((t) => ({ value: t, label: PAINT_LABELS[t], disabled: !allowed(t) && t !== paint.type, title: allowed(t) ? undefined : t === 'none' ? 'This needs a colour' : 'Gradients aren’t available here' }))} />
+      {paint.type === 'none' && <p className="hint">No paint. Choose Solid{allowGradient ? ' or a gradient' : ''} to add one.</p>}
       {paint.type === 'solid' && <ColorPicker value={paint.color} onChange={(c) => onChange({ type: 'solid', color: c })} onCommit={onCommit} />}
       {grad && (
         <>

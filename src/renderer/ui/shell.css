@@ -335,9 +335,6 @@
 .paint-row.off .paint-name {
   color: var(--c-text-3);
 }
-.paint-popover {
-  width: 252px;
-}
 
 /* ---------- empty states ---------- */
 

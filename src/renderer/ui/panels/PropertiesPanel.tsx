@@ -11,6 +11,7 @@ import { Segmented } from '../controls/Segmented';
 import { MenuButton } from '../controls/Menu';
 import { ColorChipButton } from '../color/Chips';
 import { PaintRow } from '../color/PaintRow';
+import { uiPaint, uiPaintPatch } from '../../state/uiPaint';
 import { Icon } from '../Icons';
 import { tip } from '../tooltip';
 import { evalArithmetic } from '../controls/numeric';
@@ -68,13 +69,9 @@ function DocumentProperties() {
   const d = ed.doc!;
   const s = d.settings;
   const u = ed.settings.units;
-  const fill: Paint = ed.ui.fillEnabled ? { type: 'solid', color: ed.ui.fillColor } : { type: 'none' };
-  const stroke: Paint = ed.ui.strokeEnabled ? { type: 'solid', color: ed.ui.strokeColor } : { type: 'none' };
-  const setDefault = (target: 'fill' | 'stroke') => (p: Paint) => {
-    const c = p.type === 'solid' ? p.color : null;
-    if (target === 'fill') ed.setUi(c ? { fillColor: c, fillEnabled: true } : { fillEnabled: false });
-    else ed.setUi(c ? { strokeColor: c, strokeEnabled: true } : { strokeEnabled: false });
-  };
+  const fill = uiPaint(ed.ui, 'fill');
+  const stroke = uiPaint(ed.ui, 'stroke');
+  const setDefault = (target: 'fill' | 'stroke') => (p: Paint) => ed.setUi(uiPaintPatch(target, p, ed.ui));
   return (
     <div className="properties">
       <div className="prop-title"><span className="prop-name">{d.title}</span><span className="prop-kind">Document</span></div>
@@ -87,18 +84,18 @@ function DocumentProperties() {
             kind="fill"
             label="Background"
             placement="left"
-            color={s.background ?? '#ffffff'}
-            enabled={!!s.background}
-            onChange={(c) => ed.commit('Background', (x) => ({ ...x, settings: { ...x.settings, background: c } }), 'bg')}
-            onToggle={(on) => ed.commit('Background', (x) => ({ ...x, settings: { ...x.settings, background: on ? x.settings.background ?? '#ffffff' : null } }))}
+            value={s.background ? { type: 'solid', color: s.background } : { type: 'none' }}
+            fallback="#ffffff"
+            allowGradient={false}
+            onChange={(p) => ed.commit('Background', (x) => ({ ...x, settings: { ...x.settings, background: p.type === 'solid' ? p.color : null } }), p.type === 'solid' ? 'bg' : undefined)}
           />
           <label className="check"><input type="checkbox" checked={!s.background} onChange={(e) => ed.commit('Background', (x) => ({ ...x, settings: { ...x.settings, background: e.target.checked ? null : '#ffffff' } }))} /> Transparent</label>
         </Field>
         <div className="row"><span className="row-spacer" /><button className="btn sm" onClick={() => runCommand('file.document-setup')}>Document setup…</button></div>
       </Section>
       <Section id="defaults" title="New objects">
-        <Field label="Fill"><PaintRow kind="fill" label="Default fill" paint={fill} allowGradient={false} onChange={setDefault('fill')} /></Field>
-        <Field label="Stroke"><PaintRow kind="stroke" label="Default stroke" paint={stroke} allowGradient={false} onChange={setDefault('stroke')} /></Field>
+        <Field label="Fill"><PaintRow kind="fill" label="Default fill" paint={fill} fallback={ed.ui.fillColor} onChange={setDefault('fill')} /></Field>
+        <Field label="Stroke"><PaintRow kind="stroke" label="Default stroke" paint={stroke} fallback={ed.ui.strokeColor} onChange={setDefault('stroke')} /></Field>
       </Section>
       <p className="hint pad">Select an object to edit it here. Double-click text to type, or a picture frame to place an image.</p>
     </div>

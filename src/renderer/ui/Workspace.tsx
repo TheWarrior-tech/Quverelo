@@ -15,7 +15,7 @@ import { tip } from './tooltip';
 import { applyFillToSelection, applyStrokeToSelection, swapFillStroke } from './panels/ColorPanel';
 import { ColorPopoverBody, FillStrokeChips, type ChipTarget } from './color/Chips';
 import { Popover } from './controls/Panel';
-import { solid } from '../../core/document';
+import { uiPaint, uiPaintPatch } from '../state/uiPaint';
 import { statusLine, useUpdateState } from '../state/updates';
 import { LeftRail } from './panels/LeftRail';
 import { SelectionToolbar } from './SelectionToolbar';
@@ -222,12 +222,11 @@ function RailChips() {
         <Popover anchor={open.el} placement="right" label={isFill ? 'Fill colour' : 'Stroke colour'} onClose={() => setOpen(null)}>
           <ColorPopoverBody
             label={isFill ? 'Fill' : 'Stroke'}
-            color={isFill ? ed.ui.fillColor : ed.ui.strokeColor}
-            enabled={isFill ? ed.ui.fillEnabled : ed.ui.strokeEnabled}
-            onToggle={(on) => ed.setUi(isFill ? { fillEnabled: on } : { strokeEnabled: on })}
-            onChange={(c) => {
-              ed.setUi(isFill ? { fillColor: c, fillEnabled: true } : { strokeColor: c, strokeEnabled: true });
-              if (ed.ui.selection.length) (isFill ? applyFillToSelection : applyStrokeToSelection)(solid(c), isFill ? 'rail-fill' : 'rail-stroke');
+            value={uiPaint(ed.ui, open.t)}
+            fallback={isFill ? ed.ui.fillColor : ed.ui.strokeColor}
+            onChange={(p) => {
+              ed.setUi(uiPaintPatch(open.t, p, ed.ui));
+              if (ed.ui.selection.length) (isFill ? applyFillToSelection : applyStrokeToSelection)(p, isFill ? 'rail-fill' : 'rail-stroke');
             }}
           />
         </Popover>
