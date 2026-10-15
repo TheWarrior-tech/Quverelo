@@ -317,6 +317,20 @@ function drawArtisticText(ctx: CanvasRenderingContext2D, n: Extract<SceneNode, {
   });
 }
 
+/**
+ * Whether an unstroked frame gets the dashed editor guide. Text frames that
+ * hold text show none at rest (the hover / selection outline on the overlay
+ * covers hover and selection); they get it only while their text is being
+ * edited, or when empty so an empty frame never becomes invisible. Image
+ * frames keep it (their empty placeholder needs a boundary).
+ */
+export function frameGuideVisible(n: Extract<SceneNode, { type: 'textframe' | 'imageframe' }>, env: Pick<DrawEnv, 'doc' | 'hiddenNodeId'>): boolean {
+  if (n.type !== 'textframe') return true;
+  if (env.hiddenNodeId === n.id) return true;
+  const story = env.doc.stories[n.storyId];
+  return !story || !story.text.trim();
+}
+
 function drawFrameBox(ctx: CanvasRenderingContext2D, n: Extract<SceneNode, { type: 'textframe' | 'imageframe' }>, env: DrawEnv) {
   const box = { x: -n.w / 2, y: -n.h / 2, w: n.w, h: n.h };
   const fill = makeFillStyle(ctx, n.fill, box);
@@ -325,7 +339,7 @@ function drawFrameBox(ctx: CanvasRenderingContext2D, n: Extract<SceneNode, { typ
     ctx.fillRect(box.x, box.y, box.w, box.h);
   }
   if (applyStroke(ctx, n.stroke, box)) ctx.strokeRect(box.x, box.y, box.w, box.h);
-  else if (env.editor) {
+  else if (env.editor && frameGuideVisible(n, env)) {
     ctx.save();
     ctx.strokeStyle = 'rgba(80,140,255,0.45)';
     ctx.lineWidth = 1 / Math.max(0.01, env.zoom);

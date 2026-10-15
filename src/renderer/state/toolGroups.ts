@@ -31,7 +31,7 @@ export const STUDIO_RAIL: Record<StudioKind, RailEntry[]> = {
   photo: [
     'move', g('photo-marquee', 'Marquee tools', 'M', ['marquee-rect', 'marquee-ellipse']), 'lasso', 'object-select', 'crop',
     '|', 'brush', 'eraser', 'fill', 'eyedropper',
-    '|', 'text',
+    '|', 'text', g('photo-shapes', 'Shape tools', 'U', ['rect', 'ellipse', 'polygon', 'star']),
     '|', 'hand', 'zoom',
   ],
   vector: [
@@ -48,6 +48,36 @@ export const STUDIO_RAIL: Record<StudioKind, RailEntry[]> = {
     '|', 'hand', 'zoom',
   ],
 };
+
+/**
+ * Single-letter tool shortcuts, per studio (plus `common`). Photo's shapes use
+ * U (Photoshop's shape key) because M is the marquee and E the eraser there;
+ * the other Photo shapes are reached with Shift+U.
+ */
+export const TOOL_KEYS: Record<'common' | StudioKind, Record<string, ToolId>> = {
+  common: { v: 'move', h: 'hand', z: 'zoom', t: 'text', i: 'eyedropper' },
+  photo: { m: 'marquee-rect', l: 'lasso', w: 'object-select', b: 'brush', e: 'eraser', g: 'fill', c: 'crop', u: 'rect' },
+  vector: { a: 'node', p: 'pen', n: 'pencil', m: 'rect', e: 'ellipse', l: 'line', s: 'star', y: 'polygon' },
+  layout: { a: 'node', f: 'imageframe', m: 'rect', e: 'ellipse', l: 'line', x: 'textframe' },
+};
+
+/** The tool a single key selects in a studio. */
+export function toolForKeyIn(studio: StudioKind, key: string): ToolId | null {
+  const k = key.toLowerCase();
+  return TOOL_KEYS[studio][k] ?? TOOL_KEYS.common[k] ?? null;
+}
+
+/** A tool's own shortcut letter in a studio ('U'), if it has one there. */
+export function toolKeyIn(studio: StudioKind, tool: ToolId): string | undefined {
+  const own = Object.entries(TOOL_KEYS[studio]).find(([, t]) => t === tool)?.[0];
+  const k = own ?? Object.entries(TOOL_KEYS.common).find(([, t]) => t === tool)?.[0];
+  return k?.toUpperCase();
+}
+
+/** The studio whose rail holds a group. */
+export function studioOfGroup(group: ToolGroup): StudioKind | null {
+  return (Object.keys(STUDIO_RAIL) as StudioKind[]).find((s) => STUDIO_RAIL[s].some((e) => isGroup(e) && e.id === group.id)) ?? null;
+}
 
 export function isGroup(e: RailEntry): e is ToolGroup {
   return typeof e === 'object';

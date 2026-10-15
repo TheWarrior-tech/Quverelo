@@ -1,7 +1,8 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { editor, type ToolId } from '../state/editor';
-import { visibleTool, type ToolGroup } from '../state/toolGroups';
+import { studioOfGroup, toolKeyIn, visibleTool, type ToolGroup } from '../state/toolGroups';
+import type { StudioKind } from '../../core/types';
 import { useEditor } from './hooks';
 import { Icon } from './Icons';
 import { formatAccel, tip } from './tips';
@@ -36,10 +37,13 @@ export function toolLabel(t: ToolId): string {
  * Tool name and its shortcut as an accelerator ('V', or 'Shift+M' for a
  * flyout member without a key of its own, which is reached by cycling).
  */
-export function toolParts(t: ToolId, group?: ToolGroup | null): [string, string | undefined] {
+export function toolParts(t: ToolId, group?: ToolGroup | null, studio?: StudioKind): [string, string | undefined] {
   const m = /^(.*) \((.+)\)$/.exec(TOOL_LABELS[t]);
-  if (m) return [m[1], m[2]];
-  return [TOOL_LABELS[t], group ? `Shift+${group.key}` : undefined];
+  const name = m ? m[1] : TOOL_LABELS[t];
+  // keys are per studio (Rectangle is M in Vector, U in Photo); fall back to the label's letter
+  const where = studio ?? (group ? studioOfGroup(group) : null);
+  const own = where ? toolKeyIn(where, t) : m?.[2];
+  return [name, own ?? (group ? `Shift+${group.key}` : undefined)];
 }
 
 /** Hold this long on a group button to open its flyout. */
@@ -203,7 +207,7 @@ function ToolFlyout({ id, group, anchor, checked, fromPointer, onClose }: { id: 
         break;
       default: {
         // a tool's own shortcut letter picks it
-        const t = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey ? group.tools.find((x) => toolParts(x)[1]?.toLowerCase() === e.key.toLowerCase()) : undefined;
+        const t = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey ? group.tools.find((x) => toolParts(x, group)[1]?.toLowerCase() === e.key.toLowerCase()) : undefined;
         if (t) pick(t);
         else handled = e.key !== 'Enter' && e.key !== ' ';
       }

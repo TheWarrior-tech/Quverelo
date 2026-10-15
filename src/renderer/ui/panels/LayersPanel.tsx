@@ -1,14 +1,17 @@
 import { useState } from 'react';
-import { moveNodeTo, updateNode, updateNodes } from '../../../core/commands';
-import { BLEND_MODES, type BlendMode, type Id, type SceneNode } from '../../../core/types';
+import { moveNodeTo, updateNode } from '../../../core/commands';
+import { layerDisplayName } from '../../../core/document';
+import type { Adjustment, AdjustmentType, Id, RasterNode, SceneNode } from '../../../core/types';
+import { ADJUSTMENTS, defaultParams } from '../../../core/pixels';
+import { newId } from '../../../core/ids';
+import { Menu, useMenu, type MenuEntry } from '../controls/Menu';
 import { editor } from '../../state/editor';
 import { getViewport, runCommand } from '../../state/commands';
 import { useEditor } from '../hooks';
 import { Icon } from '../Icons';
-import { NumberField } from '../controls/NumberField';
 import { useScrollEdges } from '../controls/Panel';
 import { EmptyState } from '../controls/EmptyState';
-import { tip } from '../tips';
+import { shortcutFor, tip } from '../tips';
 import { dropIndex, isNoopDrop } from './layerDrop';
 
 const TYPE_ICON: Record<SceneNode['type'], string> = {
@@ -58,6 +61,7 @@ function focusSibling(from: HTMLElement, d: 1 | -1 | 'first' | 'last') {
 
 function LayerRow({ n, depth, containerId, index, dragId, setDragId, focusable }: { n: SceneNode; depth: number; containerId: Id; index: number; dragId: Id | null; setDragId: (id: Id | null) => void; focusable: boolean }) {
   const ed = useEditor();
+  const label = layerDisplayName(n, ed.doc);
   const [open, setOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [drop, setDrop] = useState<DropPlace | null>(null);
@@ -88,7 +92,7 @@ function LayerRow({ n, depth, containerId, index, dragId, setDragId, focusable }
         onDragStart={(e) => {
           setDragId(n.id);
           e.dataTransfer.effectAllowed = 'move';
-          e.dataTransfer.setData('text/plain', n.name);
+          e.dataTransfer.setData('text/plain', label);
         }}
         onDragEnd={() => setDragId(null)}
         onDragOver={(e) => {
@@ -113,7 +117,7 @@ function LayerRow({ n, depth, containerId, index, dragId, setDragId, focusable }
         role="treeitem"
         aria-level={depth + 1}
         aria-expanded={isGroup ? open : undefined}
-        aria-label={`${n.name}${n.visible ? '' : ', hidden'}${n.locked ? ', locked' : ''}`}
+        aria-label={`${label}${n.visible ? '' : ', hidden'}${n.locked ? ', locked' : ''}`}
         tabIndex={focusable ? 0 : -1}
         onKeyDown={(e) => {
           if (e.target !== e.currentTarget) return;
@@ -156,14 +160,14 @@ function LayerRow({ n, depth, containerId, index, dragId, setDragId, focusable }
             <input
               type="text"
               autoFocus
-              defaultValue={n.name}
+              defaultValue={label}
               aria-label="Layer name"
               onClick={(e) => e.stopPropagation()}
               onFocus={(e) => e.currentTarget.select()}
               onBlur={(e) => {
                 setRenaming(false);
                 const v = e.target.value.trim();
-                if (v && v !== n.name) ed.commit('Rename layer', (d) => updateNode(d, n.id, { name: v }));
+                if (v && v !== label) ed.commit('Rename layer', (d) => updateNode(d, n.id, { name: v }));
               }}
               onKeyDown={(e) => {
                 e.stopPropagation();
@@ -172,7 +176,7 @@ function LayerRow({ n, depth, containerId, index, dragId, setDragId, focusable }
               }}
             />
           ) : (
-            n.name
+            label
           )}
         </span>
         {n.mask && <span className="meta" data-tip="Has mask" aria-label="Has mask"><Icon name="mask" size={16} /></span>}
@@ -198,24 +202,15 @@ export function LayersPanel() {
   const c = ed.activeContainer;
   if (!c) return null;
   const sel = ed.selectedNodes();
-  const first = sel[0];
   const doc = ed.doc!;
   const page = doc.pages.find((p) => p.id === c.id);
   const master = page?.masterId ? doc.masters.find((m) => m.id === page.masterId) : null;
   const rows = [...c.nodes].reverse();
   const focusId = rows.find((n) => ed.ui.selection.includes(n.id))?.id ?? rows[0]?.id;
-  const setOpacity = (v: number) => ed.commit('Opacity', (d) => updateNodes(d, ed.ui.selection, (m) => ({ ...m, opacity: v / 100 })), 'layer-opacity');
-  const mixedOpacity = sel.some((m) => m.opacity !== first?.opacity);
-  const photo = ed.ui.studio === 'photo';
+  // Opacity and blend live in one place, Design › Appearance, in every studio
+  // (critique 2 P1-4); rows keep their eye/lock quick actions.
   return (
     <div className="layers-panel">
-      {/* Photo keeps Photoshop's blend · opacity header; Vector and Layout edit these in the inspector */}
-      {photo && <div className={`layers-head${first ? '' : ' disabled'}`}>
-        <select value={first?.blend ?? 'normal'} disabled={!first} aria-label="Layer blend mode" onChange={(e) => ed.commit('Blend mode', (d) => updateNodes(d, ed.ui.selection, (m) => ({ ...m, blend: e.target.value as BlendMode })))}>
-          {BLEND_MODES.map((m) => <option key={m} value={m}>{m.replace(/-/g, ' ').replace(/\b\w/g, (x) => x.toUpperCase())}</option>)}
-        </select>
-        <NumberField className="opacity-field" label="Opacity" ariaLabel="Layer opacity percent" unit="%" digits={0} min={0} max={100} value={Math.round((first?.opacity ?? 1) * 100)} mixed={mixedOpacity} disabled={!first} onChange={setOpacity} onCommit={setOpacity} />
-      </div>}
       <div className="layers-scroll" ref={scrollRef}>
         {c.nodes.length === 0 && <LayersEmpty />}
         <ul className="layer-list" role="tree" aria-label="Layers" aria-multiselectable="true">
@@ -231,7 +226,7 @@ export function LayersPanel() {
         )}
       </div>
       <div className="layer-actions" role="toolbar" aria-label="Layer actions">
-        <button className="icon-btn sm" {...tip('New pixel layer', 'layer.new-pixel')} onClick={() => runCommand('layer.new-pixel')}><Icon name="plus" /></button>
+        <AddLayerMenu />
         <button className="icon-btn sm" {...tip('Group', 'arrange.group')} disabled={sel.length < 2} onClick={() => runCommand('arrange.group')}><Icon name="group" /></button>
         <button className="icon-btn sm" {...tip('Mask to pixel selection', 'layer.mask-selection')} disabled={!sel.length || !ed.ui.pixelSelection} onClick={() => runCommand('layer.mask-selection')}><Icon name="mask" /></button>
         <button className="icon-btn sm" {...tip('Duplicate', 'edit.duplicate')} disabled={!sel.length} onClick={() => runCommand('edit.duplicate')}><Icon name="copy" /></button>
@@ -241,6 +236,51 @@ export function LayersPanel() {
         <button className="icon-btn sm" {...tip('Delete', 'edit.delete')} disabled={!sel.length} onClick={() => runCommand('edit.delete')}><Icon name="trash" /></button>
       </div>
     </div>
+  );
+}
+
+const FILTER_TYPES = new Set<AdjustmentType>(['blur', 'sharpen', 'noise', 'vignette']);
+
+/** Menu entries behind the Layers footer "+" (UX audit P1-8). */
+export function addLayerItems(opts: { studio: string; selection: SceneNode[]; canPlace: boolean }): MenuEntry[] {
+  const raster = opts.selection.find((n): n is RasterNode => n.type === 'raster');
+  const items: MenuEntry[] = [
+    { id: 'pixel', label: 'Pixel layer', icon: 'pixel', keys: shortcutFor('layer.new-pixel'), run: () => runCommand('layer.new-pixel') },
+    { id: 'group', label: 'Group selection', icon: 'group', keys: shortcutFor('arrange.group'), disabled: opts.selection.length < 2, detail: opts.selection.length < 2 ? 'Select two or more layers' : undefined, run: () => runCommand('arrange.group') },
+  ];
+  if (opts.canPlace) items.push({ id: 'place', label: 'Place image…', icon: 'image', keys: shortcutFor('file.place'), run: () => runCommand('file.place') });
+  if (opts.studio === 'photo') {
+    items.push('-', { heading: 'Adjustment' });
+    ADJUSTMENTS.filter((x) => !FILTER_TYPES.has(x.type)).forEach((a, i) => {
+      items.push({
+        id: `adj-${a.type}`,
+        label: a.label,
+        icon: 'adjust',
+        disabled: !raster,
+        detail: !raster && i === 0 ? 'Select a pixel layer first' : undefined,
+        run: () => {
+          if (!raster) return;
+          const adj: Adjustment = { id: newId('adj'), type: a.type, enabled: true, params: defaultParams(a.type) };
+          editor.commit('Adjustment', (d) => updateNode(d, raster.id, { adjustments: [...raster.adjustments, adj] } as Partial<SceneNode>));
+        },
+      });
+    });
+  }
+  return items;
+}
+
+/** Footer "+": opens the add menu (Pixel layer · Group · Place image… · Adjustment). */
+function AddLayerMenu() {
+  const ed = useEditor();
+  const [anchor, toggle, close] = useMenu();
+  const items = addLayerItems({ studio: ed.ui.studio, selection: ed.selectedNodes(), canPlace: ed.feature('import-images') });
+  return (
+    <>
+      <button type="button" className="icon-btn sm layer-add" {...tip('Add layer')} aria-haspopup="menu" aria-expanded={!!anchor} onClick={(e) => toggle(e.currentTarget)}>
+        <Icon name="plus" />
+      </button>
+      {anchor && <Menu anchor={anchor} label="Add layer" items={items} side="above" minWidth={208} onClose={close} />}
+    </>
   );
 }
 

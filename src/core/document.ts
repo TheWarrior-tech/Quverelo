@@ -360,3 +360,34 @@ export function countNodes(nodes: SceneNode[]): number {
   walk(nodes, () => c++);
   return c;
 }
+
+/** Default layer names given by `make.text` / `make.textframe`; a text layer still carrying one is auto-named from its content. */
+const AUTO_TEXT_NAMES: Record<string, string> = { text: 'Text', textframe: 'Text Frame' };
+export const AUTO_NAME_LENGTH = 24;
+
+/** First words of a text, whitespace collapsed, cut at a word boundary to `max` characters with an ellipsis. */
+export function textSnippet(text: string, max = AUTO_NAME_LENGTH): string {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  if (flat.length <= max) return flat;
+  const cut = flat.slice(0, max);
+  const space = cut.lastIndexOf(' ');
+  return `${(space > max / 2 ? cut.slice(0, space) : cut).replace(/[\s,.;:–-]+$/, '')}…`;
+}
+
+/** Whether this layer's name is still the automatic default (never renamed). */
+export function hasAutoName(n: SceneNode): boolean {
+  const def = AUTO_TEXT_NAMES[n.type];
+  return def !== undefined && n.name === def;
+}
+
+/**
+ * The name a layer is shown under. Text layers that have not been renamed are
+ * named by the first words of their content ("Open Evening", "Thursday 2…"),
+ * like Figma; an empty text frame keeps "Text Frame". Everything else shows
+ * its stored name.
+ */
+export function layerDisplayName(n: SceneNode, doc: Pick<QuvreloDocument, 'stories'> | null | undefined): string {
+  if (!hasAutoName(n)) return n.name;
+  const text = n.type === 'text' ? n.text : n.type === 'textframe' ? doc?.stories[n.storyId]?.text ?? '' : '';
+  return textSnippet(text) || n.name;
+}

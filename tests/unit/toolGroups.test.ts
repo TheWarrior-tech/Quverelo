@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { StudioKind } from '../../src/core/types';
-import { STUDIO_RAIL, cycleTool, groupOf, isGroup, remember, studioGroups, studioTools, visibleTool } from '../../src/renderer/state/toolGroups';
+import { STUDIO_RAIL, TOOL_KEYS, cycleTool, groupOf, isGroup, remember, studioGroups, studioOfGroup, studioTools, toolForKeyIn, toolKeyIn, visibleTool } from '../../src/renderer/state/toolGroups';
 
 const STUDIOS: StudioKind[] = ['photo', 'vector', 'layout'];
 
@@ -12,7 +12,7 @@ describe('tool rail groups', () => {
       expect(tools[0], s).toBe('move');
     }
     // the tools each studio offered before flyouts are all still reachable
-    expect(new Set(studioTools('photo'))).toEqual(new Set(['move', 'marquee-rect', 'marquee-ellipse', 'lasso', 'object-select', 'crop', 'brush', 'eraser', 'fill', 'eyedropper', 'text', 'hand', 'zoom']));
+    expect(new Set(studioTools('photo'))).toEqual(new Set(['move', 'marquee-rect', 'marquee-ellipse', 'lasso', 'object-select', 'crop', 'brush', 'eraser', 'fill', 'eyedropper', 'text', 'rect', 'ellipse', 'polygon', 'star', 'hand', 'zoom']));
     expect(new Set(studioTools('vector'))).toEqual(new Set(['move', 'node', 'pen', 'pencil', 'rect', 'ellipse', 'polygon', 'star', 'line', 'text', 'eyedropper', 'hand', 'zoom']));
     expect(new Set(studioTools('layout'))).toEqual(new Set(['move', 'node', 'textframe', 'imageframe', 'text', 'rect', 'ellipse', 'line', 'eyedropper', 'hand', 'zoom']));
   });
@@ -74,5 +74,32 @@ describe('tool rail groups', () => {
     const m = groupOf('photo', 'marquee-rect')!;
     expect(cycleTool(m, 'marquee-rect', {})).toBe('marquee-ellipse');
     expect(cycleTool(m, 'marquee-ellipse', {})).toBe('marquee-rect');
+  });
+
+  it('Photo has a Shapes flyout (critique 2 P1-10) on U, clear of marquee M and eraser E', () => {
+    const g = groupOf('photo', 'star')!;
+    expect(g.id).toBe('photo-shapes');
+    expect(g.tools).toEqual(['rect', 'ellipse', 'polygon', 'star']);
+    expect(g.key).toBe('U');
+    expect(studioOfGroup(g)).toBe('photo');
+    // placed after Text, in the same rail section
+    const rail = STUDIO_RAIL.photo;
+    expect(rail[rail.indexOf('text') + 1]).toBe(g);
+    expect(toolForKeyIn('photo', 'u')).toBe('rect');
+    expect(toolForKeyIn('photo', 'm')).toBe('marquee-rect');
+    expect(toolForKeyIn('photo', 'e')).toBe('eraser');
+    expect(toolKeyIn('photo', 'rect')).toBe('U');
+    expect(toolKeyIn('vector', 'rect')).toBe('M');
+    expect(toolKeyIn('photo', 'ellipse')).toBeUndefined();
+    expect(cycleTool(g, 'rect', {})).toBe('ellipse');
+  });
+
+  it('every key maps to a tool its studio offers, and each tool has at most one key per studio', () => {
+    for (const s of STUDIOS) {
+      const tools = new Set(studioTools(s));
+      const keyed = Object.values({ ...TOOL_KEYS.common, ...TOOL_KEYS[s] });
+      for (const t of keyed) expect(tools.has(t), `${s}:${t}`).toBe(true);
+      expect(new Set(Object.values(TOOL_KEYS[s])).size, s).toBe(Object.values(TOOL_KEYS[s]).length);
+    }
   });
 });

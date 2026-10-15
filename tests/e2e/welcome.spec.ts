@@ -209,14 +209,15 @@ test.describe('Canvas empty state and drop overlay', () => {
     await expect.poll(() => onboardingDone(page)).toContain('text');
   });
 
-  test('"Draw a shape" in Photo switches to Vector with the Rectangle tool', async () => {
+  test('"Draw a shape" in Photo stays in Photo with the Rectangle tool (Photo has shapes now)', async () => {
     L = await launch();
     const { page } = L;
     await page.locator('[data-start-alt="photo"]').click();
     await page.getByTestId('create-document').click();
     expect(await state<string>(page, 'editor.ui.studio')).toBe('photo');
+    await expect(page.getByTestId('canvas-empty').locator('[data-empty-action="shape"] .ce-keys')).toHaveText('U');
     await page.getByTestId('canvas-empty').locator('[data-empty-action="shape"]').click();
-    expect(await state<string>(page, 'editor.ui.studio')).toBe('vector');
+    expect(await state<string>(page, 'editor.ui.studio')).toBe('photo');
     expect(await state<string>(page, 'editor.ui.tool')).toBe('rect');
   });
 

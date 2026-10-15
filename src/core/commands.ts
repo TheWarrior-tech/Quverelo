@@ -29,6 +29,17 @@ export function addNodes(doc: QuvreloDocument, containerId: Id, nodes: SceneNode
   return setContainerNodes(doc, containerId, list);
 }
 
+/**
+ * Insert index directly above the topmost of `ids` among a container's
+ * top-level nodes (Photo draws new shape layers above the active layer, like
+ * Photoshop); undefined (= on top) when none of them is top-level there.
+ */
+export function indexAbove(nodes: SceneNode[], ids: Id[]): number | undefined {
+  let top = -1;
+  nodes.forEach((n, i) => { if (ids.includes(n.id)) top = i; });
+  return top < 0 ? undefined : top + 1;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type LoosePatch = { [key: string]: any };
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { StudioKind } from '../../core/types';
 import { editor, STUDIO_TOOLS } from '../state/editor';
-import { STUDIO_RAIL, groupOf, isGroup } from '../state/toolGroups';
+import { STUDIO_RAIL, groupOf, isGroup, toolKeyIn } from '../state/toolGroups';
 import { RailGroup, TOOL_HINTS, toolParts } from './ToolFlyout';
 import { runCommand, setViewport, setSetting } from '../state/commands';
 import { Viewport } from '../engine/Viewport';
@@ -22,7 +22,9 @@ import { SelectionToolbar } from './SelectionToolbar';
 import { openDialog, toast } from '../state/bus';
 import { enabledExportFormats, exportFormatFor, lastExportFor } from '../state/io';
 import { Menu, type MenuEntry } from './controls/Menu';
-import { shortcutFor } from './tips';
+import { accelFor, shortcutFor } from './tips';
+import { openPalette } from '../state/palette';
+import { Keys } from './dialogs/controls';
 
 export { toolLabel } from './ToolFlyout';
 
@@ -110,8 +112,25 @@ function DocIdentity() {
 }
 
 /**
+ * Visible entry point to the command palette (critique 2 P1-9, MOBBIN
+ * "command surfaces as inline controls"): a quiet field-like button reading
+ * "Search commands" with its Ctrl K keycaps. Collapses to an icon below 1280px.
+ */
+function CommandSearch() {
+  const accel = accelFor('help.command-palette') ?? 'CmdOrCtrl+K';
+  const t = tip('Search commands', 'help.command-palette');
+  return (
+    <button type="button" className="topbar-search" aria-label="Search commands" aria-haspopup="dialog" aria-keyshortcuts={t['aria-keyshortcuts']} data-tip={t['data-tip']} data-keys={t['data-keys']} onClick={() => openPalette()}>
+      <Icon name="search" />
+      <span className="topbar-search-label">Search commands</span>
+      <span className="topbar-search-keys" aria-hidden="true"><Keys combo={accel} /></span>
+    </button>
+  );
+}
+
+/**
  * Top bar in three semantic zones (DESIGN.md §8 v3, MOBBIN #4):
- * document identity | studio switch + tools | outbound actions, with Export as
+ * document identity + undo/redo/place | studio switch | search + outbound actions, with Export as
  * the single filled (primary) button in the bar.
  */
 function Topbar() {
@@ -121,15 +140,17 @@ function Topbar() {
     <header className="topbar" role="toolbar" aria-label="Main toolbar">
       <div className="topbar-zone identity">
         <DocIdentity />
-      </div>
-      <div className="topbar-zone centre">
-        <StudioSwitch />
         <span className="sep" aria-hidden="true" />
         <button className="icon-btn" {...tip('Undo', 'edit.undo')} disabled={!h?.canUndo} onClick={() => runCommand('edit.undo')}><Icon name="undo" /></button>
         <button className="icon-btn" {...tip('Redo', 'edit.redo')} disabled={!h?.canRedo} onClick={() => runCommand('edit.redo')}><Icon name="redo" /></button>
         {ed.feature('import-images') && <button className="icon-btn" {...tip('Place image…', 'file.place')} onClick={() => runCommand('file.place')}><Icon name="image" /></button>}
       </div>
+      {/* the centre column holds only the studio switch, so it sits on the window's centre line */}
+      <div className="topbar-zone centre">
+        <StudioSwitch />
+      </div>
       <div className="topbar-zone actions">
+        <CommandSearch />
         <button className="icon-btn" {...tip('Open…', 'file.open')} onClick={() => runCommand('file.open')}><Icon name="open" /></button>
         <button className="icon-btn" {...tip('Save', 'file.save')} onClick={() => runCommand('file.save')}><Icon name="save" /></button>
         <button className="icon-btn" {...tip('Keyboard shortcuts', 'help.shortcuts')} onClick={() => runCommand('help.shortcuts')}><Icon name="keyboard" /></button>
@@ -250,7 +271,7 @@ function ToolPalette() {
         ) : isGroup(e) ? (
           <RailGroup key={e.id} group={e} />
         ) : (
-          <button key={e} className={`icon-btn ${ed.ui.tool === e ? 'active' : ''}`} {...tip(...toolParts(e, groupOf(ed.ui.studio, e)))} data-tip-hint={TOOL_HINTS[e]} aria-pressed={ed.ui.tool === e} data-tool={e} onClick={() => ed.setTool(e)}>
+          <button key={e} className={`icon-btn ${ed.ui.tool === e ? 'active' : ''}`} {...tip(...toolParts(e, groupOf(ed.ui.studio, e), ed.ui.studio))} data-tip-hint={TOOL_HINTS[e]} aria-pressed={ed.ui.tool === e} data-tool={e} onClick={() => ed.setTool(e)}>
             <Icon name={e} />
           </button>
         ),
@@ -297,7 +318,7 @@ function CanvasEmptyState() {
             <button type="button" className="ce-action" onClick={drawShape} data-empty-action="shape">
               <Icon name="rect" size={16} />
               <span>Draw a shape</span>
-              <span className="ce-keys">{shapesHere ? 'M' : ''}</span>
+              <span className="ce-keys">{shapesHere ? toolKeyIn(ed.ui.studio, 'rect') : ''}</span>
             </button>
           )}
           <button type="button" className="ce-action" onClick={addText} data-empty-action="text">
@@ -395,7 +416,10 @@ function StatusBar() {
       <button className="icon-btn sm" {...tip('Zoom out', 'view.zoom-out')} onClick={() => runCommand('view.zoom-out')}><Icon name="minus" /></button>
       <button className="btn ghost zoom-value" onClick={() => runCommand('view.zoom-fit')} {...tip('Zoom to fit', 'view.zoom-fit')} aria-label={`Zoom ${zoom}%, fit to window`}><span className="num">{zoom}%</span></button>
       <button className="icon-btn sm" {...tip('Zoom in', 'view.zoom-in')} onClick={() => runCommand('view.zoom-in')}><Icon name="plus" /></button>
-      <span>{ed.settings.snapping ? 'Snap on' : 'Snap off'}</span>
+      <span className="sep" aria-hidden="true" />
+      <button type="button" className={`btn ghost snap-toggle${ed.settings.snapping ? ' on' : ''}`} aria-pressed={ed.settings.snapping} {...tip('Snapping', 'view.snapping')} aria-label="Snap" onClick={() => runCommand('view.snapping')}>
+        <Icon name="magnet" /> Snap
+      </button>
     </footer>
   );
 }

@@ -115,6 +115,8 @@ const paths: Record<string, ReactElement> = {
   'arrow-up': P('M10 16V4M5.5 8.5L10 4l4.5 4.5'),
   'arrow-down': P('M10 4v12M5.5 11.5L10 16l4.5-4.5'),
   check: P('M4.5 10.5l3.5 3.5 7.5-8'),
+  // snapping: a horseshoe magnet with its pole bands
+  magnet: P('M4.5 3.5H8v6.5a2 2 0 004 0V3.5h3.5v6.5a5.5 5.5 0 01-11 0zM4.5 7H8M12 7h3.5'),
   search: <><circle cx="8.5" cy="8.5" r="5" />{P('M12.3 12.3l4.2 4.2')}</>,
   // empty/drop states: a file arriving into a tray
   drop: P('M10 3.5v8M6.8 8.3l3.2 3.2 3.2-3.2M3.5 12v3.5a1 1 0 001 1h11a1 1 0 001-1V12'),

@@ -4,7 +4,7 @@
  */
 import { apply, invert, boundsOfPoints, type Point } from '../../core/geometry';
 import { findNode, make, makeStroke, solid, NO_PAINT, worldMatrix, nodeToPath } from '../../core/document';
-import { addNodes, addTextFrame, convertToCurves, updateNode, removeNodes } from '../../core/commands';
+import { addNodes, indexAbove, addTextFrame, convertToCurves, updateNode, removeNodes } from '../../core/commands';
 import {
   centrePath, ellipsePath, pathToString, pathToSubpaths, polygonPoints, pointsToPath, rectPath, starPoints,
   subpathsToPath, transformPath, translatePath, type Anchor, type Subpath,
@@ -63,7 +63,9 @@ function currentStroke(ed: Editor, force = false) {
 }
 
 function addAndSelect(ed: Editor, node: SceneNode, label: string): void {
-  ed.commit(label, (d) => addNodes(d, containerId(ed), [node]));
+  // Photo: a shape becomes a vector layer directly above the active layer (Vector/Layout: on top)
+  const at = ed.ui.studio === 'photo' ? indexAbove(ed.activeContainer?.nodes ?? [], ed.ui.selection) : undefined;
+  ed.commit(label, (d) => addNodes(d, containerId(ed), [node], at));
   ed.select([node.id]);
 }
 

@@ -1071,6 +1071,35 @@ kbd {
   min-width: 44px;
   font-weight: 500;
 }
+.statusbar > .sep {
+  width: 1px;
+  height: 12px;
+  margin: 0 -8px;
+  background: var(--c-line-strong);
+}
+/* Snap is a real toggle (critique 2 P2-2): ghost button, aria-pressed; on = pressed fill + accent magnet (the "on" role) */
+.statusbar .snap-toggle {
+  height: 20px;
+  min-width: 0;
+  gap: 4px;
+  padding: 0 6px 0 4px;
+  color: var(--c-text-3);
+}
+.statusbar .snap-toggle svg.icon {
+  width: 16px;
+  height: 16px;
+}
+.statusbar .snap-toggle.on {
+  background: var(--c-press);
+  color: var(--c-text);
+}
+.statusbar .snap-toggle.on svg.icon {
+  color: var(--c-accent);
+}
+:root[data-theme='high-contrast'] .statusbar .snap-toggle.on {
+  background: #000;
+  box-shadow: inset 0 0 0 1px var(--c-accent);
+}
 
 .history-list {
   list-style: none;
