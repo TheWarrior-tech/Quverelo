@@ -71,5 +71,12 @@ Press <kbd>F1</kbd> at any time to see every keyboard shortcut.
 - **Undo** <kbd>Ctrl/⌘</kbd>+<kbd>Z</kbd>, **Redo** <kbd>Ctrl/⌘</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>, or click any step in the **History** panel.
 - Work is **autosaved** for recovery every minute. If the app closes unexpectedly, the welcome screen offers to restore your work.
 
+## Updates
+Quvrelo checks for updates in the background and downloads them for you. When one is ready you'll see **"Quvrelo x.y.z is ready — Restart"** at the bottom of the canvas and *Restart to update* in the status bar. Click **Restart**, or keep working: it installs the next time you quit. You never lose work: if your document has unsaved changes you're asked to save first.
+- *Help ▸ Check for Updates* shows your version, what's new and the download progress.
+- *Preferences ▸ General ▸ Updates*: turn off automatic downloads, or switch to the **Beta** channel to try new features early.
+- If you installed Quvrelo with an MSI, a Linux package (deb/rpm) or Flatpak, or your copy isn't signed (macOS), Quvrelo tells you about new versions and links to the download (or shows the command to run) instead of installing them itself.
+- At school or work your IT team may manage updates; those settings then show *Set by your organisation*.
+
 ## Accessibility
 *File ▸ Preferences* (<kbd>Ctrl/⌘</kbd>+<kbd>,</kbd>): dark, light and high-contrast themes, interface size (75–200%), dyslexia-friendly interface font and reduce motion. The bundled **Atkinson Hyperlegible** and **OpenDyslexic** fonts are also available for your documents.

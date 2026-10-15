@@ -3,8 +3,8 @@
 Quvrelo is designed to be deployed to shared school and office computers with no per-user setup:
 
 - **No accounts, no licence keys, no sign-in.**
-- **No telemetry.** The app never contacts the internet on its own. The renderer process is blocked from all network requests. The only network call is *Help ▸ Check for Updates*, which runs only when a user clicks it and can be removed with `"disableUpdateCheck": true`.
-- **No automatic updates.** You stay in control of versions; deploy new installers through your usual tooling.
+- **No telemetry.** The renderer process is blocked from all network requests. The only network traffic is the update check (see [Updates](#7-updates)): it downloads a small `latest*.yml` file from the update feed and sends nothing about the user or their work. Turn it off completely with `"disableUpdateCheck": true`.
+- **Updates are yours to control.** Out of the box Quvrelo updates itself from GitHub Releases. For managed fleets either point it at your own server (`updateFeedUrl`) or turn updates off and deploy new installers through your usual tooling.
 
 ## 1. Installers
 
@@ -82,7 +82,11 @@ Make the file read-only for standard users. Invalid keys are ignored and listed 
 | `handInDirectory` | string \| null | `null` | Folder used by *File ▸ Hand In*. Work is copied to `<handInDirectory>\<Class>\<Student> - <Assignment> - <timestamp>.quvrelo`. If unset, students choose a folder. |
 | `templateDirectories` | string[] | `[]` | Folders containing `.quvrelo` files shown as "School templates" on the welcome screen (network shares are fine; unavailable folders are skipped). |
 | `disabledFeatures` | string[] | `[]` | Features to remove from the UI. See the list below. |
-| `disableUpdateCheck` | boolean | `false` | Removes *Help ▸ Check for Updates*, so the app makes no network requests at all. |
+| `disableUpdateCheck` | boolean | `false` | Turns off every update check (automatic and *Help ▸ Check for Updates*, which is removed), so the app makes no network requests at all. |
+| `updateFeedUrl` | string \| null | `null` (GitHub Releases) | Your own update server (`http://` or `https://`). See [Updates](#7-updates). |
+| `autoDownload` | boolean \| null | `null` (user choice, on) | `false`: never download in the background; users see "Update available" and click *Download*. `true`: always download. Either value locks the Preferences toggle. |
+| `autoInstall` | boolean \| null | `null` (on) | `false`: a downloaded update is installed only when the user clicks *Restart*, never silently when the app quits. |
+| `updateChannel` | `"stable"` \| `"beta"` \| null | `null` (user choice, stable) | Locks the update channel. |
 | `autosaveIntervalSeconds` | number | `60` | Crash-recovery autosave interval (0–3600; `0` disables autosave). |
 | `forceTheme` | `"dark"` \| `"light"` \| `"high-contrast"` \| null | `null` | Forces a theme for everyone. |
 | `uiScale` | number | `1` | Default interface scale (0.75–2). |
@@ -182,8 +186,8 @@ sudo flatpak uninstall --system -y com.quvrelo.app
   ```sh
   sudo flatpak override --system --filesystem=/srv/handin com.quvrelo.app
   ```
-- **Fully offline:** the network permission exists only for *Help ▸ Check for Updates*. To remove it as well as the menu item, set `"disableUpdateCheck": true` and run `sudo flatpak override --system --unshare=network com.quvrelo.app`.
-- **Updates:** a bundle installed from a file does not update itself. Install the newer bundle over it with `sudo flatpak install --system -y --noninteractive --reinstall ./Quvrelo-<new>.flatpak`.
+- **Fully offline:** the network permission exists only for the update check. To remove it, set `"disableUpdateCheck": true` and run `sudo flatpak override --system --unshare=network com.quvrelo.app`.
+- **Updates:** the Flatpak never replaces itself. It tells the user a new version exists and shows `flatpak update com.quvrelo.app`. A bundle installed from a file is updated by installing the newer bundle over it: `sudo flatpak install --system -y --noninteractive --reinstall ./Quvrelo-<new>.flatpak`.
 - User data for the Flatpak lives in `~/.var/app/com.quvrelo.app/config/Quvrelo/` rather than `~/.config/Quvrelo/`.
 
 ## 4. Data locations
@@ -202,6 +206,77 @@ Recovery files are deleted when a document is saved or closed without saving. No
 
 ## 6. Network & security summary
 - Electron with `contextIsolation`, `sandbox` and no Node integration in the renderer.
-- A session-level request filter cancels all non-local requests from the UI.
+- A session-level request filter cancels all non-local requests from the UI. The update check runs in the main process in its own network session; it is the only outbound traffic and `disableUpdateCheck` removes it.
 - Files are written atomically (temporary file + rename) to avoid corruption on network drives.
 - The app does not install services, drivers, scheduled tasks or browser extensions.
+
+## 7. Updates
+
+Quvrelo uses [electron-updater](https://www.electron.build/auto-update) (MIT). It checks **30 seconds after launch and then every 4 hours**, downloads in the background, verifies the download's **SHA-512** against the feed's `latest*.yml` (and, on macOS, the code signature), and then shows *"Quvrelo x.y.z is ready — Restart"*. If the user doesn't restart, the update installs when they quit. Restarting never loses work: an unsaved document gets the normal *Save / Don't Save / Cancel* prompt first, and *Cancel* keeps the app open. Users can also open *Help ▸ Check for Updates* at any time, and choose **Stable** or **Beta** and turn off background downloads in *Preferences ▸ General*.
+
+### What each installer does
+
+| Installed with | Behaviour |
+|---|---|
+| Windows **NSIS** (`Quvrelo-Setup-*.exe`) | Full automatic update, delta download (`.blockmap`). Per-user installs update silently. Per-machine installs (`/allusers`) show a UAC prompt when installing the update; on managed machines use the MSI or `disableUpdateCheck`. |
+| Windows **MSI** | Notify only: "Download Update" opens the release page. Deploy the new MSI with your tooling. |
+| Windows portable / unpacked folder | Off. |
+| macOS **DMG / PKG**, signed and notarised | Full automatic update through Squirrel.Mac (uses the `.zip` + delta `.blockmap`). |
+| macOS, **unsigned** build | Notify only: "Download Update" opens the release page. Squirrel.Mac refuses to update an app without a Developer ID signature, and Quvrelo detects this at launch (`codesign`). Current CI builds are unsigned until the signing secrets are added (below). |
+| Linux **AppImage** | Full automatic update (the AppImage file is replaced; delta download from its embedded blockmap). The AppImage's folder must be writable by the user. |
+| Linux **deb / rpm** | Notify only, because installing needs root. The dialog shows the command, e.g. `sudo apt install ./Quvrelo-x.y.z-amd64.deb` / `sudo dnf install ./Quvrelo-x.y.z-x86_64.rpm`, and a *Download Package* button. Manage versions with your package repository. |
+| Linux **Flatpak** | Notify only; shows `flatpak update com.quvrelo.app`. |
+| Development builds | Off. |
+
+### Policy keys
+
+See the [key table](#keys): `disableUpdateCheck`, `updateFeedUrl`, `autoDownload`, `autoInstall`, `updateChannel`. Locked settings are shown greyed out in *Preferences ▸ General* with "Set by your organisation". Example for a school that hosts its own updates and wants to choose when they install:
+
+```json
+{
+  "updateFeedUrl": "https://deploy.school.example/quvrelo/",
+  "autoDownload": true,
+  "autoInstall": false,
+  "updateChannel": "stable"
+}
+```
+
+### Disabling per platform
+
+The policy file is per machine, so deploy `{"disableUpdateCheck": true}` only to the machines (or OS images) that should not update: e.g. through Intune/GPO to Windows, a configuration profile/MDM script to Macs, or your Linux config management to `/etc/quvrelo/policy.json`. MSI, deb, rpm and Flatpak installs never replace themselves anyway; they only tell the user a new version exists. To silence even that, set `disableUpdateCheck`.
+
+### Hosting updates on an internal server
+
+Any static web server works (IIS, nginx, Apache, a NAS share served over HTTP). Set `updateFeedUrl` to the folder. Copy **every asset of a GitHub release** into it, keeping the file names; the client requests `<updateFeedUrl>/<channel file>` and then the files it lists:
+
+```
+https://deploy.school.example/quvrelo/
+├── latest.yml                        Windows (NSIS)
+├── latest-mac.yml                    macOS (x64 + arm64)
+├── latest-linux.yml                  Linux x64 (AppImage, deb, rpm)
+├── latest-linux-arm64.yml            Linux arm64 (if you ship it)
+├── Quvrelo-Setup-x.y.z.exe   + .exe.blockmap
+├── Quvrelo-x.y.z-mac-x64.zip + .zip.blockmap
+├── Quvrelo-x.y.z-mac-arm64.zip + .zip.blockmap
+├── Quvrelo-x.y.z-mac-*.dmg   (+ .blockmap)
+├── Quvrelo-x.y.z-x86_64.AppImage
+├── Quvrelo-x.y.z-amd64.deb, Quvrelo-x.y.z-x86_64.rpm
+└── beta.yml, beta-mac.yml, beta-linux.yml   only if you offer the Beta channel
+```
+
+- Copy the installers **before** the `.yml` files, so clients never see metadata that points at a file that isn't there yet.
+- Keep the previous version's files for a while: delta downloads read the old version's blockmap.
+- Beta: prerelease builds (`vX.Y.Z-beta.N`) ship `beta*.yml`. Clients on the Beta channel read only `beta*.yml` from a generic feed, so when you publish a stable release also copy its `latest*.yml` to the matching `beta*.yml` names (otherwise Beta users stay on the last beta).
+- Use HTTPS where you can. The SHA-512 in the `.yml` protects against corrupted downloads; HTTPS (and, on Windows/macOS, code signing) protects against a tampered feed.
+- The server needs no special configuration. Byte-range requests (supported by every common web server) make delta downloads efficient.
+
+### The public feed and the private repository
+
+Without `updateFeedUrl` the app reads GitHub Releases of `TheWarrior-tech/Quverelo`: the release Atom feed and the `latest*.yml` assets, **anonymously**. No GitHub token is, or ever will be, embedded in the app. **While the repository is private, clients cannot read it, so automatic updates do not work** (the dialog says no published update was found). Updates start working as soon as the repository is public, or immediately for machines with an `updateFeedUrl`.
+
+### Release side (maintainers)
+
+CI (`.github/workflows/build.yml`) builds on `v*` tags and uploads, for every platform, the installers plus `latest*.yml` and the `.blockmap` files (macOS also gets the `.zip` targets that Squirrel.Mac needs; the x64 and arm64 metadata are merged into one `latest-mac.yml`). The release job fails if any platform's metadata, a file it references or a delta blockmap is missing. Tags with a hyphen (`v0.3.0-beta.1`) are published as **prereleases**, which only the Beta channel sees.
+
+**macOS signing** (needed for macOS auto-update): add repository secrets `MAC_CSC_LINK` (base64 Developer ID Application `.p12`), `MAC_CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID`. CI then signs with the hardened runtime and notarises; without them the mac build stays unsigned and those users get "Download Update" instead. **Windows signing** is optional for updates (the SHA-512 is always checked) but avoids SmartScreen warnings; once the NSIS installer is signed, electron-updater also verifies the publisher of each update.
+

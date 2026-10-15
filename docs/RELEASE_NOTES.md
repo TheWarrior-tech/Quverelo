@@ -1,3 +1,15 @@
+## Unreleased
+
+### Over-the-air updates
+- **Automatic updates:** Quvrelo checks 30 seconds after launch and every 4 hours, downloads in the background (delta downloads on Windows and AppImage), verifies each update's SHA-512, and shows *"Quvrelo x.y.z is ready — Restart"*. Otherwise it installs when you quit. Unsaved work always gets the save prompt first.
+- **Help ▸ Check for Updates** opens a proper dialog: your version and channel, status and download progress, release notes, *Restart Now* / *Later*.
+- **Preferences ▸ General ▸ Updates:** turn background downloads off, or choose the **Stable** or **Beta** channel.
+- **Per platform:** Windows installer (NSIS), AppImage and signed macOS builds update themselves. MSI, unsigned macOS builds, deb/rpm and Flatpak tell you about the new version and link to the download or show the package-manager command.
+- **For IT:** new `policy.json` keys `updateFeedUrl` (host updates on your own server), `autoDownload`, `autoInstall` and `updateChannel`; `disableUpdateCheck` turns all update traffic off. See the admin guide, section "Updates".
+- **Note:** while the GitHub repository is private, apps cannot read the public update feed; updates work once it is public or with an `updateFeedUrl`.
+
+---
+
 ## Quvrelo v0.2.0 — premium redesign
 
 A top-to-bottom redesign of how Quvrelo looks and feels, plus our first in-house machine-learning feature.
