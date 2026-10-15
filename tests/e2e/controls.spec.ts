@@ -4,7 +4,7 @@
  */
 import { test, expect } from '@playwright/test';
 import * as path from 'node:path';
-import { docToScreen, drag, launch, state } from './helpers';
+import { docToScreen, drag, launch, state, pickTool } from './helpers';
 
 const out = process.env.QUVRELO_REVIEW_DIR;
 
@@ -12,9 +12,9 @@ test('numeric fields, colour picker, layers and panel splitters', async () => {
   const { app, page } = await launch();
   await page.click('[data-template="social"]');
   await expect(page.locator('.workspace')).toBeVisible();
-  await page.click('[data-tool="rect"]');
+  await pickTool(page, 'rect');
   await drag(page, await docToScreen(page, 100, 120), await docToScreen(page, 420, 340));
-  await page.click('[data-tool="move"]');
+  await pickTool(page, 'move');
   await page.click('[data-panel="properties"]');
 
   // arrow keys step by 1, Shift by 10

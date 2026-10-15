@@ -15,11 +15,12 @@ import { cloneNode, findNode, getContainer, make } from '../../core/document';
 import { pathBounds, rectPath, translatePath } from '../../core/path';
 import { newId } from '../../core/ids';
 import type { QuvreloDocument, Id, PathNode, RasterNode, SceneNode } from '../../core/types';
-import { editor } from './editor';
+import { editor, type ToolId } from './editor';
 import { closeDialog, openDialog, toast } from './bus';
 import * as io from './io';
 import type { Viewport } from '../engine/Viewport';
 import { isEditable } from '../engine/Viewport';
+import { cycleTool, groupOf } from './toolGroups';
 import { activeRaster, commitRasterCanvas, createPixelLayer, editRaster, selectionInPixels } from '../engine/pixelOps';
 import { createCanvas, ctx2d, cloneCanvas } from '../engine/assets';
 import { rasterView, resultToWorldPath, runSelectSubject } from '../engine/mlSelect';
@@ -615,6 +616,7 @@ export function shortcutTable(): { group: string; items: [string, string][] }[] 
         ['Shift + drag', 'Constrain proportions / angle'], ['Alt + drag', 'Draw from centre / disable snapping'],
         ['Double-click', 'Edit text, place image, or edit nodes'], ['Enter (pen/crop)', 'Finish'], ['Esc', 'Cancel / leave text editing'],
         ['[ / ]', 'Brush size'], ['Page Up / Down', 'Previous / next page'], ['Tab', 'Hide / show panels'],
+        ['Shift + tool key', 'Cycle the tools in that flyout group'], ['Right-click / hold a tool', 'Open its flyout'],
       ],
     },
   ];
@@ -657,6 +659,15 @@ export function handleKeydown(e: KeyboardEvent): boolean {
       const t = toolForKey(e.key);
       if (t) {
         editor.setTool(t as never);
+        return true;
+      }
+    }
+    // Shift + a tool key cycles through that tool's flyout group (Shift+M: marquees / shapes)
+    if (e.key.length === 1 && e.shiftKey) {
+      const t = toolForKey(e.key) as ToolId | null;
+      const group = t && groupOf(editor.ui.studio, t);
+      if (group) {
+        editor.setTool(cycleTool(group, editor.ui.tool, editor.ui.railTools));
         return true;
       }
     }

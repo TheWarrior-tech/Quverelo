@@ -6,7 +6,7 @@ import { test, expect } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { docToScreen, drag, launch, run, shot, shotsDir } from './helpers';
+import { docToScreen, drag, launch, run, shot, shotsDir, pickTool } from './helpers';
 
 const photo = path.resolve('tests/fixtures/sample-photo.jpg');
 
@@ -29,7 +29,7 @@ test.describe('README screenshots', () => {
       editor.select([editor.doc.pages[0].nodes[0].id]);
     });
     for (const a of ['vibrance', 'curves', 'vignette']) await page.locator('select[aria-label="Add adjustment"]').selectOption(a);
-    await page.click('[data-tool="marquee-ellipse"]');
+    await pickTool(page, 'marquee-ellipse');
     await drag(page, await docToScreen(page, 700, 330), await docToScreen(page, 1000, 560));
     await page.waitForTimeout(600);
     await shot(page, '02-photo');
@@ -39,9 +39,9 @@ test.describe('README screenshots', () => {
   test('vector studio', async () => {
     const { app, page } = await launch();
     await page.click('[data-template="poster-a4"]');
-    await page.click('[data-tool="star"]');
+    await pickTool(page, 'star');
     await drag(page, await docToScreen(page, 560, 820), await docToScreen(page, 720, 980));
-    await page.click('[data-tool="move"]');
+    await pickTool(page, 'move');
     await page.evaluate(() => {
       const { editor } = (window as any).__quvrelo;
       const n = editor.doc.pages[0].nodes;

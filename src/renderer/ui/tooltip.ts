@@ -41,8 +41,9 @@ export function tip(label: string, shortcut?: string): { 'aria-label': string; t
     display = formatAccel(accels.get(shortcut)!);
     aria = ariaKeys(accels.get(shortcut)!);
   } else if (shortcut && !shortcut.includes('.')) {
-    display = shortcut;
-    aria = shortcut;
+    // literal key ('V', 'PageUp') or accelerator ('Shift+M')
+    display = shortcut.includes('+') ? formatAccel(shortcut) : shortcut;
+    aria = ariaKeys(shortcut);
   }
   return { 'aria-label': label, title: display ? `${label} (${display})` : label, ...(aria ? { 'aria-keyshortcuts': aria } : {}) };
 }

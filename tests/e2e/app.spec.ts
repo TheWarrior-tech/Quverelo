@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { docToScreen, drag, launch, run, state, type Launched } from './helpers';
+import { docToScreen, drag, launch, run, state, pickTool, railTools, type Launched } from './helpers';
 
 const fixture = path.resolve('tests/fixtures/gradient.png');
 
@@ -28,9 +28,9 @@ test.describe('Quvrelo', () => {
     await expect(page.locator('.workspace')).toBeVisible();
     expect(await state<string>(page, 'editor.ui.studio')).toBe('vector');
     const before = await state<number>(page, 'editor.doc.pages[0].nodes.length');
-    await page.click('[data-tool="rect"]');
+    await pickTool(page, 'rect');
     await drag(page, await docToScreen(page, 100, 120), await docToScreen(page, 420, 340));
-    await page.click('[data-tool="ellipse"]');
+    await pickTool(page, 'ellipse');
     await drag(page, await docToScreen(page, 300, 250), await docToScreen(page, 600, 560));
     expect(await state<number>(page, 'editor.doc.pages[0].nodes.length')).toBe(before + 2);
     // select both new shapes and add them together
@@ -48,14 +48,14 @@ test.describe('Quvrelo', () => {
     await run(page, 'edit.redo');
     expect(await state<number>(page, 'editor.doc.pages[0].nodes.length')).toBe(before + 1);
     // pen tool
-    await page.click('[data-tool="pen"]');
+    await pickTool(page, 'pen');
     for (const [x, y] of [[700, 700], [900, 650], [950, 900]]) {
       const p = await docToScreen(page, x, y);
       await page.mouse.click(p.x, p.y);
     }
     await page.keyboard.press('Enter');
     expect(await state<string>(page, 'editor.doc.pages[0].nodes.at(-1).type')).toBe('path');
-    await page.click('[data-tool="move"]');
+    await pickTool(page, 'move');
     await page.waitForTimeout(300);
     // export SVG through the dialog
     await run(page, 'file.export-svg');
@@ -82,12 +82,12 @@ test.describe('Quvrelo', () => {
     expect(await state<number>(page, 'editor.doc.pages[0].nodes[0].adjustments.length')).toBe(1);
     // paint a stroke
     const asset0 = await state<string>(page, 'editor.doc.pages[0].nodes[0].assetId');
-    await page.click('[data-tool="brush"]');
+    await pickTool(page, 'brush');
     await drag(page, await docToScreen(page, 40, 40), await docToScreen(page, 280, 160), 12);
     const asset1 = await state<string>(page, 'editor.doc.pages[0].nodes[0].assetId');
     expect(asset1).not.toBe(asset0);
     // marquee + clear
-    await page.click('[data-tool="marquee-rect"]');
+    await pickTool(page, 'marquee-rect');
     await drag(page, await docToScreen(page, 20, 20), await docToScreen(page, 120, 100));
     expect(await state<boolean>(page, '!!editor.ui.pixelSelection')).toBe(true);
     await run(page, 'select.clear');
@@ -96,7 +96,7 @@ test.describe('Quvrelo', () => {
     await page.click('[data-testid="export-go"]');
     await expect.poll(() => fs.readdirSync(saveDir).filter((f) => f.endsWith('.png')).length).toBe(1);
     // crop to selection
-    await page.click('[data-tool="marquee-rect"]');
+    await pickTool(page, 'marquee-rect');
     await drag(page, await docToScreen(page, 10, 10), await docToScreen(page, 210, 110));
     await run(page, 'select.crop');
     expect(await state<number>(page, 'Math.round(editor.doc.settings.width)')).toBe(200);
@@ -114,7 +114,7 @@ test.describe('Quvrelo', () => {
     await page.waitForTimeout(400);
     // text frame tool creates a frame and starts editing
     await run(page, 'page.next');
-    await page.click('[data-tool="textframe"]');
+    await pickTool(page, 'textframe');
     await drag(page, await docToScreen(page, 80, 900), await docToScreen(page, 500, 1000));
     await expect(page.locator('.text-edit-overlay')).toBeVisible();
     await page.keyboard.type('Hello from Quvrelo');
@@ -152,10 +152,10 @@ test.describe('Quvrelo', () => {
     await page.click('[data-template="blank-a4"]');
     for (const studio of ['photo', 'vector', 'layout']) {
       await run(page, `studio.${studio}`);
-      const tools = await page.locator('.toolpalette [data-tool]').evaluateAll((els) => els.map((e) => e.getAttribute('data-tool')!));
+      const tools = await railTools(page);
       expect(tools.length).toBeGreaterThan(8);
       for (const t of tools) {
-        await page.click(`.toolpalette [data-tool="${t}"]`);
+        await pickTool(page, t);
         await expect(page.locator(`.toolpalette [data-tool="${t}"]`)).toHaveClass(/active/);
         const p = await docToScreen(page, 300, 300);
         const q = await docToScreen(page, 360, 380);

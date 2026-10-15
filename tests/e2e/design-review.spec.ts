@@ -4,7 +4,7 @@
  */
 import { test, expect } from '@playwright/test';
 import * as path from 'node:path';
-import { docToScreen, drag, launch, run } from './helpers';
+import { docToScreen, drag, launch, run, pickTool } from './helpers';
 
 const out = process.env.QUVRELO_REVIEW_DIR;
 const photo = path.resolve('tests/fixtures/sample-photo.jpg');
@@ -44,13 +44,13 @@ test.describe('design review', () => {
         editor.select([editor.doc.pages[0].nodes[0].id]);
       });
       for (const a of ['vibrance', 'curves']) await page.locator('select[aria-label="Add adjustment"]').selectOption(a);
-      await page.click('[data-tool="marquee-ellipse"]');
+      await pickTool(page, 'marquee-ellipse');
       await drag(page, await docToScreen(page, 700, 330), await docToScreen(page, 1000, 560));
       await snap('photo');
       await page.click('.studio-switch [data-studio="vector"]');
-      await page.click('[data-tool="star"]');
+      await pickTool(page, 'star');
       await drag(page, { x: 400, y: 300 }, { x: 560, y: 440 });
-      await page.click('[data-tool="rect"]');
+      await pickTool(page, 'rect');
       await drag(page, { x: 640, y: 320 }, { x: 800, y: 420 });
       await snap('vector');
       await page.click('[data-panel="colour"]');

@@ -3,7 +3,7 @@
  */
 import { test, expect, type Page } from '@playwright/test';
 import * as path from 'node:path';
-import { docToScreen, drag, launch, run, state, type Launched } from './helpers';
+import { docToScreen, drag, launch, run, state, pickTool, type Launched } from './helpers';
 
 const photo = path.resolve('tests/fixtures/sample-photo.jpg');
 
@@ -43,7 +43,7 @@ test.describe('canvas chrome', () => {
     L = await launch({ QUVRELO_E2E_OPEN: photo });
     const { page } = L;
     await openPhoto(page);
-    await page.click('[data-tool="marquee-ellipse"]');
+    await pickTool(page, 'marquee-ellipse');
     await drag(page, await docToScreen(page, 700, 330), await docToScreen(page, 1000, 560));
     expect(await state<boolean>(page, '!!editor.ui.pixelSelection')).toBe(true);
     await page.waitForTimeout(150);
@@ -56,7 +56,7 @@ test.describe('canvas chrome', () => {
     // the selection is kept in the model for when you go back
     expect(await state<boolean>(page, '!!editor.ui.pixelSelection')).toBe(true);
 
-    await page.click('[data-tool="rect"]');
+    await pickTool(page, 'rect');
     await drag(page, await docToScreen(page, 300, 300), await docToScreen(page, 500, 420));
     await page.waitForTimeout(150);
     const withRectTool = await overlayStats(page);
@@ -95,9 +95,9 @@ test.describe('canvas chrome', () => {
     const { page } = L;
     await openPhoto(page);
     await page.click('.studio-switch [data-studio="vector"]');
-    await page.click('[data-tool="star"]');
+    await pickTool(page, 'star');
     await drag(page, { x: 400, y: 300 }, { x: 560, y: 440 });
-    await page.click('[data-tool="move"]');
+    await pickTool(page, 'move');
     await page.evaluate(() => (window as any).__quvrelo.editor.select([]));
     await page.waitForTimeout(200);
     const before = await canvasPixels(page);
@@ -165,7 +165,7 @@ test.describe('canvas chrome', () => {
     const { page } = L;
     await openPhoto(page);
     await page.click('.studio-switch [data-studio="vector"]');
-    await page.click('[data-tool="rect"]');
+    await pickTool(page, 'rect');
     await page.click('.studio-switch [data-studio="layout"]');
     expect(await state<string>(page, 'editor.ui.tool')).toBe('move');
     await page.evaluate(() => (window as any).__quvrelo.editor.select([]));
