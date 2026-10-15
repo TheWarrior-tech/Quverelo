@@ -29,7 +29,7 @@ export function browserFallbackApi(): QuvreloApi {
     });
   return {
     getPolicy: async () => DEFAULT_POLICY,
-    getAppInfo: async () => ({ version: 'dev', platform: 'browser', arch: '', electron: '', policySource: null, policyWarnings: [], userDataPath: '', e2e: false }),
+    getAppInfo: async () => ({ version: 'dev', platform: 'browser', arch: '', electron: '', policySource: null, policyWarnings: [], userDataPath: '', homePath: '', e2e: false }),
     getSettings: async () => loadSettings(),
     setSettings: async (s) => {
       const next = { ...loadSettings(), ...s };

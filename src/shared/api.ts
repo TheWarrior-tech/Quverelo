@@ -1,5 +1,6 @@
 /** Contract between the renderer and the main process (exposed by preload as window.quvrelo). */
 import type { Policy, UpdateChannel } from '../core/policy';
+import type { OnboardingState } from '../core/onboarding';
 
 export interface FileFilter {
   name: string;
@@ -38,6 +39,8 @@ export interface UserSettings {
   autoDownloadUpdates: boolean;
   /** Update channel. Policy "updateChannel" overrides. */
   updateChannel: UpdateChannel;
+  /** First-run checklist progress (Welcome ▸ Get started). Policy "disableOnboarding" hides it. */
+  onboarding?: OnboardingState;
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -61,6 +64,8 @@ export interface AppInfo {
   policySource: string | null;
   policyWarnings: string[];
   userDataPath: string;
+  /** The user's home folder, so paths can be shown as "~/…". */
+  homePath: string;
   e2e: boolean;
 }
 

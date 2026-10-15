@@ -54,6 +54,8 @@ export interface Policy {
   templateDirectories: string[];
   /** Show the welcome screen at launch. */
   showWelcomeScreen: boolean;
+  /** Hide first-run onboarding (the Welcome "Get started" checklist) for every user. */
+  disableOnboarding: boolean;
   /** Maximum undo steps (memory control on shared machines). */
   maxUndoSteps: number;
   /** Organisation name shown in About and the title bar. */
@@ -77,6 +79,7 @@ export const DEFAULT_POLICY: Policy = {
   lockUiScale: false,
   templateDirectories: [],
   showWelcomeScreen: true,
+  disableOnboarding: false,
   maxUndoSteps: 250,
   organizationName: null,
 };
@@ -136,6 +139,7 @@ export function parsePolicy(raw: unknown, source: string | null = null): PolicyR
   bool('lockUiScale');
   strArr('templateDirectories');
   bool('showWelcomeScreen');
+  bool('disableOnboarding');
   numIn('maxUndoSteps', 10, 2000);
   strOrNull('organizationName');
 
