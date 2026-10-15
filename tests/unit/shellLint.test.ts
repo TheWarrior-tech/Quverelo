@@ -87,4 +87,24 @@ describe('shell lint', () => {
     }
     expect(bad).toEqual([]);
   });
+
+  it('keeps themed scrollbars: no global scrollbar-width/colour, one ::-webkit-scrollbar block (CRITIQUE-3 N7)', () => {
+    const css = [path.resolve('src/renderer/styles.css'), ...fs.readdirSync(UI, { recursive: true }).map(String).filter((f) => f.endsWith('.css')).map((f) => path.join(UI, f))];
+    const bad: string[] = [];
+    let webkitBlocks = 0;
+    for (const f of css) {
+      const src = fs.readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+      webkitBlocks += (src.match(/(^|\n)\s*::-webkit-scrollbar\s*\{/g) ?? []).length;
+      // Chromium 121+ lets these win over ::-webkit-scrollbar, bringing back native arrows:
+      // allowed only as "none" on one element, or inside @supports not selector(::-webkit-scrollbar)
+      const outsideSupports = src.replace(/@supports\s+not\s+selector\(::-webkit-scrollbar\)\s*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, '');
+      for (const m of outsideSupports.matchAll(/([^{}]*)\{([^{}]*)\}/g)) {
+        const [sel, body] = [m[1].trim(), m[2]];
+        if (/scrollbar-color\s*:/.test(body)) bad.push(`${path.relative(process.cwd(), f)}: ${sel} sets scrollbar-color`);
+        if (/scrollbar-width\s*:(?!\s*none)/.test(body)) bad.push(`${path.relative(process.cwd(), f)}: ${sel} sets scrollbar-width`);
+      }
+    }
+    expect(bad).toEqual([]);
+    expect(webkitBlocks).toBe(1);
+  });
 });

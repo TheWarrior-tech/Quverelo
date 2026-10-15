@@ -1137,3 +1137,65 @@
 .nd-more .fgrid {
   margin-top: 8px;
 }
+
+/* ---------- scroll edges in dialogs (DESIGN §6, CRITIQUE-3 N7) ----------
+ * The same hairline + short shade as the panels, shown only while content is
+ * hidden past that edge, so a row under the footer reads as "more below". */
+.dialog-body:not(.split)::before,
+.dialog-body:not(.split)::after,
+.dlg-side::before,
+.dlg-side::after,
+.dlg-main::before,
+.dlg-main::after,
+.dlg-aside::before,
+.dlg-aside::after {
+  content: '';
+  display: block;
+  flex: none;
+  position: sticky;
+  height: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+}
+.dialog-body:not(.split)::before,
+.dlg-side::before,
+.dlg-main::before,
+.dlg-aside::before {
+  top: 0;
+  box-shadow: 0 0 0 0.5px var(--c-line-strong), 0 1px 8px 1px rgba(0, 0, 0, 0.45);
+}
+.dialog-body:not(.split)::after,
+.dlg-side::after,
+.dlg-main::after,
+.dlg-aside::after {
+  bottom: 0;
+  box-shadow: 0 0 0 0.5px var(--c-line-strong), 0 -1px 8px 1px rgba(0, 0, 0, 0.45);
+}
+/* span the padding so the hairline runs edge to edge */
+.dialog-body:not(.split)::before,
+.dialog-body:not(.split)::after,
+.dlg-aside::before,
+.dlg-aside::after { margin: 0 -16px; }
+.dlg-main::before,
+.dlg-main::after { margin: 0 -20px; }
+.dlg-side::before,
+.dlg-side::after { margin: 0 -8px; }
+/* the side list is a flex column with a 2px gap: the pseudo rows take none of it */
+.dlg-side::before { margin-bottom: -2px; }
+.dlg-side::after { margin-top: -2px; }
+.dialog [data-scroll-top]::before,
+.dialog [data-scroll-bottom]::after {
+  opacity: 1;
+}
+:root[data-theme='light'] .dialog :is(.dialog-body, .dlg-side, .dlg-main, .dlg-aside)::before {
+  box-shadow: 0 0 0 0.5px var(--c-line-strong), 0 1px 6px 1px rgba(20, 24, 28, 0.1);
+}
+:root[data-theme='light'] .dialog :is(.dialog-body, .dlg-side, .dlg-main, .dlg-aside)::after {
+  box-shadow: 0 0 0 0.5px var(--c-line-strong), 0 -1px 6px 1px rgba(20, 24, 28, 0.1);
+}
+:root[data-theme='high-contrast'] .dialog :is(.dialog-body, .dlg-side, .dlg-main, .dlg-aside)::before,
+:root[data-theme='high-contrast'] .dialog :is(.dialog-body, .dlg-side, .dlg-main, .dlg-aside)::after {
+  box-shadow: 0 0 0 1px #fff;
+}
