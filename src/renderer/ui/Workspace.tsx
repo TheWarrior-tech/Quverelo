@@ -1,3 +1,4 @@
+import { layerDisplayName } from '../../core/document';
 import { useEffect, useRef, useState } from 'react';
 import type { StudioKind, Unit } from '../../core/types';
 import { UNITS, formatSize } from '../../core/units';
@@ -405,13 +406,17 @@ function StatusBar() {
   const s = doc.settings;
   const u = ed.unit;
   const pix = ed.ui.studio === 'photo' && ed.ui.pixelSelection?.length ? pathBounds(ed.ui.pixelSelection) : null;
+  // Photo names its active layer when nothing is selected (CRITIQUE-4 R2)
+  const activeNode = ed.ui.studio === 'photo' ? ed.activeLayer() : null;
+  const activeName = activeNode ? layerDisplayName(activeNode, doc) : null;
   return (
     <footer className="statusbar">
       <span className="num" data-testid="status-size">{formatSize(s.width, s.height, u)}</span>
       <span data-testid="status-selection">
         {pix
           ? <>Selection <span className="num">{formatSize(pix.w, pix.h, 'px', 0)}</span></>
-          : ed.ui.selection.length ? <><span className="num">{ed.ui.selection.length}</span> selected</> : 'Nothing selected'}
+          : ed.ui.selection.length ? <><span className="num">{ed.ui.selection.length}</span> selected</>
+          : activeName ? <>Layer {activeName}</> : 'Nothing selected'}
       </span>
       <span className="num">{ed.ui.status}</span>
       <div className="spacer" />

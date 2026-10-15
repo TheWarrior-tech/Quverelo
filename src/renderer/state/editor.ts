@@ -43,6 +43,14 @@ export interface UiState {
   tool: ToolId;
   activeContainerId: Id | null;
   selection: Id[];
+  /**
+   * The active layer (CRITIQUE-4 R2). Separate from the object selection:
+   * selecting a layer sets both, but clearing the selection (Esc, Deselect,
+   * Crop, Object Select, a click on empty pasteboard) keeps it. Photo always
+   * has one while the page holds a pixel layer; the Adjust panel, brush,
+   * eraser, fill, Object Select and Copy to layer act on it.
+   */
+  activeLayerId: Id | null;
   pixelSelection: PathCommand[] | null;
   /** live crop box while the Crop tool is active (null = whole canvas) */
   crop: CropRect | null;
@@ -109,6 +117,7 @@ export class Editor {
     tool: 'move',
     activeContainerId: null,
     selection: [],
+    activeLayerId: null,
     pixelSelection: null,
     crop: null,
     mlBusy: false,
@@ -196,6 +205,7 @@ export class Editor {
       tool: 'move',
       activeContainerId: doc.pages[0].id,
       selection: [],
+      activeLayerId: null,
       pixelSelection: null,
       crop: null,
       editingTextId: null,
@@ -209,7 +219,7 @@ export class Editor {
     this.unsubHistory = null;
     this.session = null;
     this.assets.clear();
-    this.ui = { ...this.ui, selection: [], pixelSelection: null, crop: null, editingTextId: null, activeContainerId: null };
+    this.ui = { ...this.ui, selection: [], activeLayerId: null, pixelSelection: null, crop: null, editingTextId: null, activeContainerId: null };
     this.emitNow();
   }
 
@@ -244,7 +254,9 @@ export class Editor {
   select(ids: Id[]): void {
     const same = ids.length === this.ui.selection.length && ids.every((id, i) => id === this.ui.selection[i]);
     if (same) return;
-    this.ui = { ...this.ui, selection: ids };
+    // selecting a layer makes it the active layer too; an empty selection keeps it
+    const activeLayerId = ids.length ? ids[ids.length - 1] : this.ui.activeLayerId;
+    this.ui = { ...this.ui, selection: ids, activeLayerId };
     this.emit();
   }
 
@@ -260,18 +272,35 @@ export class Editor {
 
   /**
    * Photo always has an active pixel layer, as in Photoshop and Affinity
-   * (CRITIQUE-3 N4): with nothing selected, the top-most pixel layer of the
-   * active page becomes the selection. Called on open, on entering Photo, after
-   * a crop and after the active layer is deleted. Returns true when it selected one.
+   * (CRITIQUE-3 N4, CRITIQUE-4 R2): when no valid layer is active, the
+   * top-most pixel layer of the active page becomes the active layer. This
+   * never touches the object selection. Called on open, on entering Photo,
+   * after a crop, a delete and an undo. Returns true when it changed the layer.
    */
   ensureActiveLayer(emit = true): boolean {
-    if (this.ui.studio !== 'photo' || this.ui.selection.length) return false;
+    if (this.ui.studio !== 'photo') return false;
     const c = this.activeContainer;
-    const top = c ? topPixelLayer(c.nodes) : null;
+    if (!c) return false;
+    const cur = this.ui.activeLayerId;
+    if (cur && findNodeIn(c.nodes, cur)) return false;
+    const top = topPixelLayer(c.nodes);
     if (!top) return false;
-    this.ui = { ...this.ui, selection: [top.id] };
+    this.ui = { ...this.ui, activeLayerId: top.id };
     if (emit) this.emit();
     return true;
+  }
+
+  /** The active layer node (null when none, or it left the active page). */
+  activeLayer(): SceneNode | null {
+    const id = this.ui.activeLayerId;
+    const c = this.activeContainer;
+    return id && c ? findNodeIn(c.nodes, id) : null;
+  }
+
+  /** The layers an action targets: the selection, else the active layer. */
+  targetIds(): Id[] {
+    if (this.ui.selection.length) return this.ui.selection;
+    return this.activeLayer() ? [this.ui.activeLayerId!] : [];
   }
 
   setTool(tool: ToolId): void {
@@ -315,14 +344,14 @@ export class Editor {
   private validateUi(): void {
     const d = this.doc;
     if (!d) return;
-    let { activeContainerId, selection, editingTextId } = this.ui;
+    let { activeContainerId, selection, editingTextId, activeLayerId } = this.ui;
     if (!activeContainerId || !getContainer(d, activeContainerId)) activeContainerId = d.pages[0].id;
-    const had = selection.length;
     selection = selection.filter((id) => !!findNode(d, id));
     if (editingTextId && !findNode(d, editingTextId)) editingTextId = null;
-    this.ui = { ...this.ui, activeContainerId, selection, editingTextId };
+    if (activeLayerId && !findNode(d, activeLayerId)) activeLayerId = null;
+    this.ui = { ...this.ui, activeContainerId, selection, editingTextId, activeLayerId };
     // the active layer was deleted (or undone away): activate the top pixel layer
-    if (had && !selection.length) this.ensureActiveLayer(false);
+    this.ensureActiveLayer(false);
   }
 
   /** Free pixel buffers that no history entry references any more. */
@@ -341,6 +370,18 @@ export class Editor {
     }
     this.assets.gc(keep);
   }
+}
+
+/** A node anywhere in a stack (groups searched). */
+export function findNodeIn(nodes: SceneNode[], id: Id): SceneNode | null {
+  for (const n of nodes) {
+    if (n.id === id) return n;
+    if (n.type === 'group') {
+      const hit = findNodeIn(n.children, id);
+      if (hit) return hit;
+    }
+  }
+  return null;
 }
 
 /** Top-most pixel layer in a stack (nodes are bottom-to-top; groups are searched too). Visible layers win. */

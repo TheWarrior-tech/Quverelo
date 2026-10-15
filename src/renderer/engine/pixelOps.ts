@@ -23,11 +23,17 @@ export function selectionInPixels(doc: QuvreloDocument, id: Id, sel: PathCommand
   return toPath2D(transformPath(sel, m));
 }
 
-/** Selected raster node in the active container (or null). */
+/**
+ * The pixel layer photo tools act on: a selected raster, else (nothing
+ * selected) the active layer when it is a raster (CRITIQUE-4 R2).
+ */
 export function activeRaster(ed: Editor): RasterNode | null {
   const sel = ed.selectedNodes();
   const r = sel.find((n) => n.type === 'raster');
-  return (r as RasterNode) ?? null;
+  if (r) return r as RasterNode;
+  if (sel.length) return null;
+  const a = ed.activeLayer();
+  return a?.type === 'raster' ? a : null;
 }
 
 /** Create an empty full-page pixel layer, select it and return it. */
@@ -41,7 +47,7 @@ export function createPixelLayer(ed: Editor, name = 'Pixel Layer'): RasterNode |
   const assetId = ed.assets.add(canvas, 'image/png');
   const node = make.raster({ assetId, w: W, h: H, x: W / 2, y: H / 2, name });
   // insert above the current selection
-  const selIds = ed.ui.selection;
+  const selIds = ed.targetIds();
   const idx = selIds.length ? container.nodes.findIndex((n) => n.id === selIds[selIds.length - 1]) : -1;
   ed.commit('New pixel layer', (d) => {
     const withAsset = { ...d, assets: { ...d.assets, [assetId]: ed.assets.ref(assetId, name) } };

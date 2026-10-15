@@ -11,6 +11,7 @@ import { tip } from '../tips';
 import { runCommand } from '../../state/commands';
 import { canvasToPixels, createCanvas, ctx2d } from '../../engine/assets';
 import { useEditor } from '../hooks';
+import { activeRaster } from '../../engine/pixelOps';
 import { Icon } from '../Icons';
 import { CurvesEditor } from './CurvesEditor';
 
@@ -152,7 +153,8 @@ function AdjustmentHeader({ label, enabled, curves, onToggle, onReset, onDelete 
 
 export function AdjustmentsPanel() {
   const ed = useEditor();
-  const n = ed.selectedNodes().find((x): x is RasterNode => x.type === 'raster');
+  // the active layer when nothing is selected (CRITIQUE-4 R2), so Adjust never asks when one exists
+  const n = activeRaster(ed) ?? undefined;
   if (!n) {
     // Photo keeps an active layer (CRITIQUE-3 N4); this only shows when the user
     // deselected, or the page truly has no pixels yet.

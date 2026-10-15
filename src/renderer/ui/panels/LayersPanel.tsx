@@ -79,6 +79,8 @@ function LayerRow({ n, depth, containerId, index, dragId, setDragId, focusable }
   const [renaming, setRenaming] = useState(false);
   const [drop, setDrop] = useState<DropPlace | null>(null);
   const selected = ed.ui.selection.includes(n.id);
+  // Photo: the active layer reads as selected even with an empty object selection (CRITIQUE-4 R2)
+  const active = !selected && ed.ui.studio === 'photo' && !ed.ui.selection.length && ed.ui.activeLayerId === n.id;
   const isGroup = n.type === 'group';
   const canDrop = depth === 0 && !!dragId && dragId !== n.id;
   const click = (e: React.MouseEvent) => {
@@ -95,7 +97,7 @@ function LayerRow({ n, depth, containerId, index, dragId, setDragId, focusable }
   return (
     <>
       <li
-        className={`layer-row${selected ? ' selected' : ''}${n.visible ? '' : ' hidden-layer'}${n.locked ? ' locked' : ''}${drop ? ` drop-${drop}` : ''}${dragId === n.id ? ' dragging' : ''}`}
+        className={`layer-row${selected || active ? ' selected' : ''}${active ? ' active-layer' : ''}${n.visible ? '' : ' hidden-layer'}${n.locked ? ' locked' : ''}${drop ? ` drop-${drop}` : ''}${dragId === n.id ? ' dragging' : ''}`}
         style={{ ['--depth' as string]: depth }}
         onClick={click}
         onMouseEnter={() => getViewport()?.setHover(n.id)}
@@ -126,7 +128,7 @@ function LayerRow({ n, depth, containerId, index, dragId, setDragId, focusable }
           const from = fromIndex();
           ed.commit('Reorder layers', (d) => moveNodeTo(d, dragId, containerId, dropIndex(from, index, place)));
         }}
-        aria-selected={selected}
+        aria-selected={selected || active}
         role="treeitem"
         aria-level={depth + 1}
         aria-expanded={isGroup ? open : undefined}
@@ -219,7 +221,7 @@ export function LayersPanel() {
   const page = doc.pages.find((p) => p.id === c.id);
   const master = page?.masterId ? doc.masters.find((m) => m.id === page.masterId) : null;
   const rows = [...c.nodes].reverse();
-  const focusId = rows.find((n) => ed.ui.selection.includes(n.id))?.id ?? rows[0]?.id;
+  const focusId = rows.find((n) => ed.ui.selection.includes(n.id))?.id ?? rows.find((n) => n.id === ed.ui.activeLayerId)?.id ?? rows[0]?.id;
   // Opacity and blend live in one place, Design › Appearance, in every studio
   // (critique 2 P1-4); rows keep their eye/lock quick actions.
   return (
