@@ -767,6 +767,46 @@
 .ex-preview .page-preview {
   height: 240px;
 }
+.dialog.export-dialog {
+  /* the body is as tall as its content: no dead space under a short form (critique 2 P1-11) */
+  width: min(880px, 100%);
+  height: auto;
+  min-height: 0;
+}
+.export-dialog .ex-form {
+  overflow-x: hidden;
+}
+.export-dialog .dialog-body.split {
+  flex: 0 1 auto;
+}
+.ex-scale {
+  display: grid;
+  grid-template-columns: 64px 96px minmax(88px, 1fr);
+  gap: 8px;
+  align-self: stretch;
+}
+.ex-scale .nf {
+  width: auto;
+  height: 28px;
+}
+.dialog .ex-scale .nf input[type='text'] {
+  height: 26px;
+  padding: 0 4px 0 2px;
+  border: none;
+  box-shadow: none;
+}
+.ex-scale .nf.no-label input[type='text'] {
+  padding-left: 8px;
+}
+.ex-form input.invalid {
+  box-shadow: inset 0 0 0 1px var(--c-danger);
+}
+.ex-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--c-text-3);
+}
 .ex-file {
   margin-top: 4px;
   font-size: 12px;
