@@ -14,7 +14,10 @@ import { ColorPopoverBody, FillStrokeChips, type ChipTarget } from './color/Chip
 import { Popover } from './controls/Panel';
 import { solid } from '../../core/document';
 import { statusLine, useUpdateState } from '../state/updates';
-import { openDialog } from '../state/bus';
+import { openDialog, toast } from '../state/bus';
+import { enabledExportFormats, exportFormatFor, lastExportFor } from '../state/io';
+import { Menu, type MenuEntry } from './controls/Menu';
+import { shortcutFor } from './tooltip';
 
 const TOOL_LABELS: Record<ToolId, string> = {
   move: 'Move (V)', node: 'Node (A)', hand: 'Hand (H)', zoom: 'Zoom (Z)',
@@ -84,8 +87,7 @@ function Topbar() {
       <button className="icon-btn" {...tip('New document', 'file.new')} onClick={() => runCommand('file.new')}><Icon name="new" /></button>
       <button className="icon-btn" {...tip('Open', 'file.open')} onClick={() => runCommand('file.open')}><Icon name="open" /></button>
       <button className="icon-btn" {...tip('Save', 'file.save')} onClick={() => runCommand('file.save')}><Icon name="save" /></button>
-      <button className="icon-btn" {...tip('Export PNG', 'file.export-png')} onClick={() => runCommand('file.export-png')}><Icon name="export" /></button>
-      <button className="icon-btn" {...tip('Place image', 'file.place')} onClick={() => runCommand('file.place')}><Icon name="image" /></button>
+      {ed.feature('import-images') && <button className="icon-btn" {...tip('Place image…', 'file.place')} onClick={() => runCommand('file.place')}><Icon name="image" /></button>}
       <div className="sep" />
       <button className="icon-btn" {...tip('Undo', 'edit.undo')} disabled={!h?.canUndo} onClick={() => runCommand('edit.undo')}><Icon name="undo" /></button>
       <button className="icon-btn" {...tip('Redo', 'edit.redo')} disabled={!h?.canRedo} onClick={() => runCommand('edit.redo')}><Icon name="redo" /></button>
@@ -111,8 +113,70 @@ function Topbar() {
       <div className="sep" />
       <button className="icon-btn" {...tip('Keyboard shortcuts', 'help.shortcuts')} onClick={() => runCommand('help.shortcuts')}><Icon name="keyboard" /></button>
       <button className="icon-btn" {...tip('Preferences', 'app.preferences')} onClick={() => runCommand('app.preferences')}><Icon name="settings" /></button>
+      <ExportSplit />
       </div>
     </header>
+  );
+}
+
+const FORMAT_NAMES = { png: 'PNG', jpg: 'JPEG', svg: 'SVG', pdf: 'PDF' } as const;
+
+/**
+ * Top-bar "Export ▾" split button (UX audit P0-5). The main half opens the
+ * Export dialog on the right format (last used for this document, PDF for Layout
+ * documents); the chevron opens Export… · Export again · one row per format ·
+ * Hand in… (when assignments are on).
+ */
+function ExportSplit() {
+  const ed = useEditor();
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const formats = enabledExportFormats();
+  const assignments = ed.feature('assignments');
+  if (!formats.length && !assignments) return null;
+  const last = lastExportFor(ed.doc?.id);
+  const def = formats.length ? exportFormatFor() : null;
+  const fileName = (p: string) => p.split(/[\\/]/).pop() ?? p;
+  const items: MenuEntry[] = [];
+  if (formats.length) {
+    items.push(
+      { id: 'export', label: 'Export…', icon: 'export', keys: shortcutFor('file.export'), detail: def ? `Opens on ${FORMAT_NAMES[def]}` : undefined, run: () => void runCommand('file.export') },
+      {
+        id: 'export-again',
+        label: 'Export again',
+        keys: shortcutFor('file.export-again'),
+        detail: last ? `${FORMAT_NAMES[last.req.format]} · ${last.paths.length === 1 ? fileName(last.paths[0]) : `${last.paths.length} files`}` : 'Export once first',
+        disabled: !last,
+        run: () => void runCommand('file.export-again'),
+      },
+      '-',
+      { heading: 'Format' },
+      ...formats.map((f) => ({ id: `export-${f}`, label: `${FORMAT_NAMES[f]}…`, keys: shortcutFor(`file.export-${f}`), run: () => void runCommand(`file.export-${f}`) })),
+    );
+  }
+  if (assignments) {
+    if (items.length) items.push('-');
+    items.push({ id: 'hand-in', label: 'Hand in…', icon: 'handin', detail: ed.doc?.assignment?.title ? `To ${ed.doc.assignment.className || 'class'}` : undefined, run: () => void runCommand('file.hand-in') });
+  }
+  const main = () => (formats.length ? void runCommand('file.export') : void runCommand('file.hand-in'));
+  return (
+    <div className="split-btn" data-testid="export-split">
+      <button type="button" className="split-main" onClick={main} {...tip(formats.length ? 'Export…' : 'Hand in…', formats.length ? 'file.export' : undefined)} aria-label={undefined}>
+        <Icon name="export" size={16} />
+        <span>Export</span>
+      </button>
+      <button
+        type="button"
+        className="split-more"
+        aria-haspopup="menu"
+        aria-expanded={!!anchor}
+        {...tip('More export options')}
+        onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}
+        data-testid="export-menu"
+      >
+        <Icon name="chevron-down" size={16} />
+      </button>
+      {anchor && <Menu anchor={anchor} label="Export" align="end" items={items} onClose={() => setAnchor(null)} />}
+    </div>
   );
 }
 
@@ -170,6 +234,57 @@ function ToolPalette() {
   );
 }
 
+/**
+ * Canvas empty state (UX audit P0-3c): a quiet panel over an empty page with the
+ * three likeliest first actions. Gone as soon as the page has a layer.
+ */
+function CanvasEmptyState() {
+  const ed = useEditor();
+  const shapesHere = STUDIO_TOOLS[ed.ui.studio].includes('rect');
+  const canPlace = ed.feature('import-images');
+  const drawShape = () => {
+    if (!shapesHere) {
+      if (!ed.feature('vector')) return;
+      ed.setStudio('vector');
+      toast('Switched to Vector for shapes. Drag on the page to draw a rectangle.');
+    } else toast('Drag on the page to draw a rectangle');
+    ed.setTool('rect');
+  };
+  const addText = () => {
+    ed.setTool('text');
+    toast('Click on the page to start typing');
+  };
+  return (
+    <div className="canvas-empty" data-testid="canvas-empty">
+      <div className="canvas-empty-card" role="group" aria-labelledby="canvas-empty-title">
+        <p id="canvas-empty-title" className="canvas-empty-title">This page is empty</p>
+        <div className="canvas-empty-actions">
+          {canPlace && (
+            <button type="button" className="ce-action" onClick={() => runCommand('file.place')} data-empty-action="place">
+              <Icon name="image" size={16} />
+              <span>Place image…</span>
+              {shortcutFor('file.place') && <span className="ce-keys">{shortcutFor('file.place')}</span>}
+            </button>
+          )}
+          {(shapesHere || ed.feature('vector')) && (
+            <button type="button" className="ce-action" onClick={drawShape} data-empty-action="shape">
+              <Icon name="rect" size={16} />
+              <span>Draw a shape</span>
+              <span className="ce-keys">{shapesHere ? 'M' : ''}</span>
+            </button>
+          )}
+          <button type="button" className="ce-action" onClick={addText} data-empty-action="text">
+            <Icon name="text" size={16} />
+            <span>Add text</span>
+            <span className="ce-keys">T</span>
+          </button>
+        </div>
+        {canPlace && <p className="canvas-empty-hint"><Icon name="drop" size={16} />or drop an image here</p>}
+      </div>
+    </div>
+  );
+}
+
 function CanvasArea() {
   const ed = useEditor();
   const hostRef = useRef<HTMLDivElement>(null);
@@ -187,11 +302,14 @@ function CanvasArea() {
   const doc = ed.doc!;
   const pageIndex = ed.activePageIndex;
   const master = doc.masters.find((m) => m.id === ed.ui.activeContainerId);
+  const container = ed.activeContainer;
+  const empty = !master && !!container && container.nodes.length === 0;
   return (
     <section className={`canvas-area ${ed.settings.showRulers ? '' : 'no-rulers'}`} aria-label="Canvas">
       <div className="ruler-corner" title="Toggle rulers" onDoubleClick={() => setSetting({ showRulers: false })} />
       {vp && <Rulers viewport={vp} />}
       <div className="viewport" ref={hostRef} />
+      {empty && <CanvasEmptyState />}
       {master && (
         <div className="master-banner" style={{ gridArea: '2 / 2' }}>
           Editing master “{master.name}”
