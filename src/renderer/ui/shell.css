@@ -291,39 +291,37 @@
   height: 20px;
 }
 .paint-hex {
+  position: relative;
   flex: 1;
   min-width: 0;
   display: flex;
-  align-items: center;
-  height: 24px;
-  border: 1px solid var(--c-line-strong);
-  border-radius: var(--r-1);
-  background: var(--c-raised);
-  transition: border-color var(--dur) var(--ease);
-}
-.paint-hex:hover {
-  border-color: var(--c-text-3);
-}
-.paint-hex:focus-within {
-  border-color: var(--c-accent);
-  box-shadow: 0 0 0 1px var(--c-accent);
 }
 .paint-hex-hash {
-  padding: 0 0 0 6px;
+  position: absolute;
+  left: 7px;
+  top: 4px;
   color: var(--c-text-3);
+  pointer-events: none;
 }
+/* the input is the bordered box, so the standard 2px focus ring lands on it (DESIGN.md §9) */
 .paint-hex input {
   flex: 1;
   width: 0;
   min-width: 0;
-  height: 22px;
-  padding: 0 6px 0 2px;
-  border: none;
-  background: transparent;
-  outline: none;
-  box-shadow: none;
+  height: 24px;
+  padding: 0 6px 0 17px;
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-1);
+  background: var(--c-raised);
   text-transform: uppercase;
   font-variant-numeric: tabular-nums;
+  transition: border-color var(--dur) var(--ease);
+}
+.paint-hex input:hover {
+  border-color: var(--c-text-3);
+}
+.paint-hex input:focus {
+  border-color: var(--c-accent);
 }
 .paint-name {
   flex: 1;
@@ -338,9 +336,6 @@
 }
 .paint-popover {
   width: 252px;
-}
-:root[data-theme='high-contrast'] .paint-hex:focus-within {
-  box-shadow: 0 0 0 2px var(--c-focus);
 }
 
 /* ---------- empty states ---------- */
@@ -745,4 +740,13 @@
 }
 .grid4 .nf input {
   padding: 0 4px 0 2px;
+}
+
+/* adjustments histogram (was inline) */
+canvas.histogram {
+  display: block;
+  width: 100%;
+  height: 60px;
+  background: var(--c-app);
+  border-radius: var(--r-1);
 }

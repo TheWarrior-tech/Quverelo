@@ -79,7 +79,7 @@ export function FillStrokeChips({ fill, stroke, target, onTarget, onSwap, size =
  * edited through this one trigger: a chip (optionally with a chevron) that
  * opens the shared picker in a popover. Context bar, selection toolbar,
  * inspector paint rows and document background all use it; there are no native
- * <input type="color"> controls anywhere in the shell.
+ * native colour inputs anywhere in the shell.
  *
  * `popover` swaps the default solid picker for a custom body (the inspector
  * passes the full paint editor with gradients).

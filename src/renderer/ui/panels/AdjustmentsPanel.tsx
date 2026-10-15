@@ -41,7 +41,7 @@ function Histogram({ node }: { node: RasterNode }) {
     draw(h.g, 'rgba(60,255,60,0.55)');
     draw(h.b, 'rgba(60,120,255,0.55)');
   }, [node.assetId, node.adjustments]);
-  return <canvas ref={ref} width={276} height={60} style={{ width: '100%', height: 60, background: 'var(--bg)', borderRadius: 4 }} aria-label="Histogram" role="img" />;
+  return <canvas ref={ref} width={276} height={60} className="histogram" aria-label="Histogram" role="img" />;
 }
 
 export function AdjustmentsPanel() {
