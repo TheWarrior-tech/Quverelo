@@ -1183,7 +1183,7 @@ kbd {
   align-items: center;
   gap: 8px;
   min-height: 28px;
-  padding: 4px 8px 4px 6px;
+  padding: 4px 8px;
   border: none;
   border-radius: var(--r-1);
   background: none;
@@ -1236,13 +1236,19 @@ kbd {
   color: var(--c-text-3);
   font-variant-numeric: tabular-nums;
 }
+.menu.with-icons .menu-item {
+  padding-left: 6px;
+}
+.menu.with-icons .menu-heading {
+  padding-left: 30px;
+}
 .menu-sep {
   height: 1px;
   margin: 4px -4px;
   background: var(--c-line);
 }
 .menu-heading {
-  padding: 4px 8px 2px 30px;
+  padding: 4px 8px 2px;
   font-size: 11px;
   line-height: 16px;
   font-weight: 500;

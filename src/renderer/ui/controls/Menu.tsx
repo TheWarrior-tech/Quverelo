@@ -65,8 +65,9 @@ export function Menu({ anchor, onClose, label, items, align = 'start', minWidth 
     e.preventDefault();
     e.stopPropagation();
   };
+  const withIcons = items.some((it) => typeof it === 'object' && 'id' in it && !!it.icon);
   return createPortal(
-    <div ref={ref} className="menu" role="menu" aria-label={label} onKeyDown={onKeyDown} style={{ minWidth, ...(pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }) }}>
+    <div ref={ref} className={`menu${withIcons ? ' with-icons' : ''}`} role="menu" aria-label={label} onKeyDown={onKeyDown} style={{ minWidth, ...(pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }) }}>
       {items.map((it, k) => {
         if (it === '-') return <div key={`sep${k}`} className="menu-sep" role="separator" />;
         if ('heading' in it) return <div key={`h${k}`} className="menu-heading" role="presentation">{it.heading}</div>;
@@ -85,7 +86,7 @@ export function Menu({ anchor, onClose, label, items, align = 'start', minWidth 
               it.run();
             }}
           >
-            <span className="menu-icon" aria-hidden="true">{it.icon ? <Icon name={it.icon} size={16} /> : null}</span>
+            {withIcons && <span className="menu-icon" aria-hidden="true">{it.icon ? <Icon name={it.icon} size={16} /> : null}</span>}
             <span className="menu-label">
               {it.label}
               {it.detail && <span className="menu-detail">{it.detail}</span>}

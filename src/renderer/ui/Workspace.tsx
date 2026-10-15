@@ -139,7 +139,7 @@ function ExportSplit() {
   const items: MenuEntry[] = [];
   if (formats.length) {
     items.push(
-      { id: 'export', label: 'Export…', icon: 'export', keys: shortcutFor('file.export'), detail: def ? `Opens on ${FORMAT_NAMES[def]}` : undefined, run: () => void runCommand('file.export') },
+      { id: 'export', label: 'Export…', keys: shortcutFor('file.export'), detail: def ? `Opens on ${FORMAT_NAMES[def]}` : undefined, run: () => void runCommand('file.export') },
       {
         id: 'export-again',
         label: 'Export again',
@@ -155,7 +155,7 @@ function ExportSplit() {
   }
   if (assignments) {
     if (items.length) items.push('-');
-    items.push({ id: 'hand-in', label: 'Hand in…', icon: 'handin', detail: ed.doc?.assignment?.title ? `To ${ed.doc.assignment.className || 'class'}` : undefined, run: () => void runCommand('file.hand-in') });
+    items.push({ id: 'hand-in', label: 'Hand in…', detail: ed.doc?.assignment?.title ? `To ${ed.doc.assignment.className || 'class'}` : undefined, run: () => void runCommand('file.hand-in') });
   }
   const main = () => (formats.length ? void runCommand('file.export') : void runCommand('file.hand-in'));
   return (
