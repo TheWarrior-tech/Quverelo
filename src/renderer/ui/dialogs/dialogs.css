@@ -360,11 +360,6 @@
   font-weight: 400;
   color: var(--c-text-3);
 }
-:root[data-theme='high-contrast'] .nav-item[aria-current='true'],
-:root[data-theme='high-contrast'] .nav-item[aria-selected='true'] {
-  background: var(--c-popover);
-  box-shadow: inset 0 0 0 2px var(--c-accent);
-}
 .dlg-main {
   flex: 1;
   min-width: 0;
@@ -1194,7 +1189,7 @@
 }
 :root[data-theme='high-contrast'] .dialog :is(.dialog-body, .dlg-side, .dlg-main, .dlg-aside)::before,
 :root[data-theme='high-contrast'] .dialog :is(.dialog-body, .dlg-side, .dlg-main, .dlg-aside)::after {
-  box-shadow: 0 0 0 1px #fff;
+  box-shadow: 0 0 0 0.5px #fff; /* one 1px hairline, like every HC border */
 }
 
 /* slider rows inside dialogs keep the panel field metrics (24 high) */
