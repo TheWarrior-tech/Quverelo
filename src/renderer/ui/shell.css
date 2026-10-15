@@ -130,7 +130,7 @@
   width: 16px;
   height: 16px;
 }
-:root[data-theme='high-contrast'] .topbar .export-btn {
+:root[data-theme='high-contrast'] .topbar .export-btn:not(:focus-visible) {
   outline: 1px solid var(--c-accent);
 }
 
