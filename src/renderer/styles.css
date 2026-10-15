@@ -1237,17 +1237,15 @@ kbd {
   gap: 8px;
   padding: 4px 0 8px;
 }
-.curves-channels {
+.curves-head {
   display: flex;
-  align-self: flex-start;
-  width: max-content;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: min(256px, 100%);
 }
-.curves-channels .btn {
-  min-width: 36px;
-}
-.curves-channels .curves-reset {
-  margin-left: 8px;
-  color: var(--c-text-3);
+.curves-channels button {
+  min-width: 32px;
 }
 .curves-graph {
   display: block;
@@ -1265,15 +1263,23 @@ kbd {
 .curves-fields {
   display: flex;
   gap: 12px;
+  width: min(256px, 100%);
 }
 .curves-field {
   display: flex;
+  flex: 1;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
   color: var(--c-text-2);
 }
-.curves-field input {
-  width: 52px;
+.curves-field .nf {
+  flex: 1;
+  min-width: 0;
+}
+.curves-field .nf.no-label input {
+  padding-left: 6px;
 }
 
 /* ---------- tooltip (ui/Tooltip.tsx, DESIGN.md §8, UX audit P1-1) ---------- */

@@ -3,7 +3,7 @@
  */
 import { test, expect, type Page } from '@playwright/test';
 import * as path from 'node:path';
-import { docToScreen, drag, launch, run, state, pickTool, type Launched } from './helpers';
+import { docToScreen, drag, launch, run, shot, state, pickTool, type Launched } from './helpers';
 
 const photo = path.resolve('tests/fixtures/sample-photo.jpg');
 
@@ -134,13 +134,40 @@ test.describe('canvas chrome', () => {
     await expect(page.locator('input[aria-label="Curve point output"]')).toHaveValue(String(rgb[1].y));
     // channel switch edits the red curve only
     await page.getByRole('radio', { name: 'R', exact: true }).click();
-    await expect(page.locator('input[aria-label="Curve point output"]')).toBeDisabled();
+    // no point selected: the fields show the black point instead of sitting empty (critique 2 P1-2)
+    await expect(page.locator('input[aria-label="Curve point input"]')).toHaveValue('0');
+    await expect(page.locator('input[aria-label="Curve point output"]')).toHaveValue('0');
+    await expect(page.locator('input[aria-label="Curve point output"]')).toBeEnabled();
+    // Reset sits beside the channel switch, not inside it, and is off while the curve is straight
+    const reset = page.getByRole('button', { name: 'Reset the R curve' });
+    await expect(reset).toBeDisabled();
+    expect(await page.locator('[role="radiogroup"][aria-label="Curve channel"] button').count()).toBe(4);
     await graph.click({ position: { x: box.width * 0.25, y: box.height * 0.75 } });
     expect(await state<number>(page, 'editor.doc.pages[0].nodes[0].adjustments[0].curves.r.length')).toBe(3);
     expect(await state<number>(page, 'editor.doc.pages[0].nodes[0].adjustments[0].curves.rgb.length')).toBe(3);
+    // typed Input/Output move the selected point
+    const out = page.locator('input[aria-label="Curve point output"]');
+    await out.fill('100');
+    await out.press('Enter');
+    await expect.poll(() => state<number>(page, 'editor.doc.pages[0].nodes[0].adjustments[0].curves.r[1].y')).toBe(100);
+    const inp = page.locator('input[aria-label="Curve point input"]');
+    await inp.fill('70');
+    await inp.press('Enter');
+    await expect.poll(() => state<number>(page, 'editor.doc.pages[0].nodes[0].adjustments[0].curves.r[1].x')).toBe(70);
+    await expect(reset).toBeEnabled();
     // keyboard: delete the selected red point
+    await graph.focus();
     await page.keyboard.press('Delete');
     expect(await state<number>(page, 'editor.doc.pages[0].nodes[0].adjustments[0].curves.r.length')).toBe(2);
+    // the black point can be set from the fields with nothing selected
+    await out.fill('20');
+    await out.press('Enter');
+    await expect.poll(() => state<string>(page, 'JSON.stringify(editor.doc.pages[0].nodes[0].adjustments[0].curves.r[0])')).toBe('{"x":0,"y":20}');
+    await reset.click();
+    await expect.poll(() => state<number>(page, 'editor.doc.pages[0].nodes[0].adjustments[0].curves.r[0].y')).toBe(0);
+    // histogram has a header with a channel menu
+    await expect(page.getByRole('combobox', { name: 'Histogram channel' })).toBeVisible();
+    await shot(page, 'curves');
   });
 
   test('toasts sit over the canvas, clear of the panels, and go away', async () => {

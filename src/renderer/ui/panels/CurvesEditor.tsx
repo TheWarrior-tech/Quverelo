@@ -4,11 +4,18 @@ import { histogram } from '../../../core/pixels';
 import type { Adjustment, RasterNode } from '../../../core/types';
 import { editor } from '../../state/editor';
 import { canvasToPixels, createCanvas, ctx2d } from '../../engine/assets';
+import { Segmented } from '../controls/Segmented';
+import { NumberField } from '../controls/NumberField';
+import { Icon } from '../Icons';
 
 /** Graph edge in CSS px; one CSS px per input level at full size. */
 export const CURVE_SIZE = 256;
 const HIT = 8; // px radius for grabbing a point
 const KNOB = 8;
+/** end points (black and white point) are smaller, solid knobs */
+const END_KNOB = 7;
+/** inset of the plot inside the graph, CSS px */
+const PAD = 6;
 const LABEL: Record<CurveChannel, string> = { rgb: 'RGB', r: 'R', g: 'G', b: 'B' };
 const TINT: Record<CurveChannel, string> = { rgb: '', r: '#ff6b6b', g: '#5fd47c', b: '#6ba4ff' };
 
@@ -70,28 +77,32 @@ export function CurvesEditor({ node, adj, onChange, onBegin, onEnd }: {
     const c = ref.current;
     if (!c) return;
     const dpr = window.devicePixelRatio || 1;
-    const size = c.clientWidth || CURVE_SIZE;
-    if (c.width !== Math.round(size * dpr)) {
-      c.width = Math.round(size * dpr);
-      c.height = Math.round(size * dpr);
+    const full = c.clientWidth || CURVE_SIZE;
+    if (c.width !== Math.round(full * dpr)) {
+      c.width = Math.round(full * dpr);
+      c.height = Math.round(full * dpr);
     }
     const ctx = c.getContext('2d')!;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, full, full);
+    ctx.fillStyle = cssVar('--c-canvas', '#0d0e0f');
+    ctx.fillRect(0, 0, full, full);
+    // plot area inset so the end-point knobs at (0,0) and (255,255) are whole
+    ctx.translate(PAD, PAD);
+    const size = full - 2 * PAD;
     const k = size / 255;
     const X = (v: number) => v * k;
     const Y = (v: number) => size - v * k;
-    ctx.clearRect(0, 0, size, size);
-    ctx.fillStyle = cssVar('--c-canvas', '#0d0e0f');
-    ctx.fillRect(0, 0, size, size);
-    // histogram ghost (20 %)
+    // histogram ghost: a quiet text-3 area (18 % dark, 12 % light) so the curve stays the subject
     if (hist) {
       const arr = channel === 'rgb' ? hist.l : hist[channel];
       let max = 1;
       for (let i = 0; i < 256; i++) max = Math.max(max, arr[i]);
       // soften spikes so the shape stays readable
       const norm = (v: number) => Math.sqrt(v / max);
-      ctx.globalAlpha = 0.2;
-      ctx.fillStyle = TINT[channel] || cssVar('--c-text', '#ececed');
+      const light = document.documentElement.dataset.theme === 'light';
+      ctx.globalAlpha = light ? 0.12 : 0.18;
+      ctx.fillStyle = TINT[channel] || cssVar('--c-text-3', '#8b8d93');
       ctx.beginPath();
       ctx.moveTo(0, size);
       for (let i = 0; i < 256; i++) ctx.lineTo(X(i), size - norm(arr[i]) * size * 0.9);
@@ -140,17 +151,21 @@ export function CurvesEditor({ node, adj, onChange, onBegin, onEnd }: {
       else ctx.lineTo(X(x), Y(f(x)));
     }
     ctx.stroke();
-    // control points
+    // control points: end points are small solid knobs (text fill, app-coloured ring); inner points are rings
     const accent = cssVar('--c-accent', '#3cc4b0');
+    const ring = cssVar('--c-app', '#131415');
+    const text = cssVar('--c-text', '#ececed');
     points.forEach((p, i) => {
       const cx = X(p.x);
       const cy = Y(p.y);
+      const end = i === 0 || i === points.length - 1;
+      const on = i === sel;
       ctx.beginPath();
-      ctx.arc(cx, cy, KNOB / 2, 0, Math.PI * 2);
-      ctx.fillStyle = i === sel ? '#ffffff' : cssVar('--c-canvas', '#0d0e0f');
+      ctx.arc(cx, cy, (end ? END_KNOB : KNOB) / 2, 0, Math.PI * 2);
+      ctx.fillStyle = on ? '#ffffff' : end ? text : cssVar('--c-canvas', '#0d0e0f');
       ctx.fill();
-      ctx.lineWidth = i === sel ? 2 : 1.5;
-      ctx.strokeStyle = i === sel ? accent : cssVar('--c-text', '#ececed');
+      ctx.lineWidth = on ? 2 : end ? 1 : 1.5;
+      ctx.strokeStyle = on ? accent : end ? ring : text;
       ctx.stroke();
     });
   });
@@ -159,14 +174,14 @@ export function CurvesEditor({ node, adj, onChange, onBegin, onEnd }: {
   const toLevel = (e: { clientX: number; clientY: number }) => {
     const r = ref.current!.getBoundingClientRect();
     return {
-      x: ((e.clientX - r.left) / r.width) * 255,
-      y: (1 - (e.clientY - r.top) / r.height) * 255,
+      x: ((e.clientX - r.left - PAD) / (r.width - 2 * PAD)) * 255,
+      y: (1 - (e.clientY - r.top - PAD) / (r.height - 2 * PAD)) * 255,
       out: e.clientX < r.left - 24 || e.clientX > r.right + 24 || e.clientY < r.top - 24 || e.clientY > r.bottom + 24,
     };
   };
   const nearest = (lx: number, ly: number) => {
     const r = ref.current!.getBoundingClientRect();
-    const k = r.width / 255;
+    const k = (r.width - 2 * PAD) / 255;
     let best = -1;
     let bd = HIT;
     points.forEach((p, i) => {
@@ -274,34 +289,49 @@ export function CurvesEditor({ node, adj, onChange, onBegin, onEnd }: {
     }
   };
 
+  // the fields edit the selected point; with none selected they show (and edit) the black point
+  const shown = sel ?? 0;
   const field = (axis: 'x' | 'y', label: string) => (
     <label className="curves-field">
       <span>{label}</span>
-      <input
-        type="number"
+      <NumberField
+        ariaLabel={`Curve point ${label.toLowerCase()}`}
+        value={Math.round(points[shown]?.[axis] ?? 0)}
         min={0}
         max={255}
         step={1}
-        disabled={sel === null}
-        aria-label={`Curve point ${label.toLowerCase()}`}
-        value={sel === null ? '' : Math.round(points[sel][axis])}
-        onChange={(e) => {
-          const v = parseFloat(e.target.value);
-          if (sel === null || Number.isNaN(v)) return;
-          const p = points[sel];
-          commit(moved(points, sel, axis === 'x' ? v : p.x, axis === 'y' ? v : p.y), `curves:${adj.id}:field`);
+        digits={0}
+        onCommit={(v) => {
+          const p = points[shown];
+          if (!p) return;
+          setSelected(shown);
+          commit(moved(points, shown, axis === 'x' ? v : p.x, axis === 'y' ? v : p.y), `curves:${adj.id}:field`);
         }}
       />
     </label>
   );
+  const identity = points.length === 2 && points[0].x === 0 && points[0].y === 0 && points[1].x === 255 && points[1].y === 255;
 
   return (
     <div className="curves-editor">
-      <div className="choice-row curves-channels" role="radiogroup" aria-label="Curve channel">
-        {CURVE_CHANNELS.map((ch) => (
-          <button key={ch} type="button" className={`btn ${channel === ch ? 'selected' : ''}`} role="radio" aria-checked={channel === ch} onClick={() => { setChannel(ch); setSelected(null); }}>{LABEL[ch]}</button>
-        ))}
-        <button type="button" className="btn ghost curves-reset" data-tip={`Reset the ${LABEL[channel]} curve`} onClick={() => { commit([{ x: 0, y: 0 }, { x: 255, y: 255 }], `curves:${adj.id}:reset`); setSelected(null); }}>Reset</button>
+      <div className="curves-head">
+        <Segmented
+          ariaLabel="Curve channel"
+          className="curves-channels"
+          value={channel}
+          onChange={(ch) => { setChannel(ch); setSelected(null); }}
+          options={CURVE_CHANNELS.map((ch) => ({ value: ch, label: LABEL[ch] }))}
+        />
+        <button
+          type="button"
+          className="icon-btn sm curves-reset"
+          aria-label={`Reset the ${LABEL[channel]} curve`}
+          data-tip={`Reset the ${LABEL[channel]} curve`}
+          disabled={identity}
+          onClick={() => { commit([{ x: 0, y: 0 }, { x: 255, y: 255 }], `curves:${adj.id}:reset`); setSelected(null); }}
+        >
+          <Icon name="undo" />
+        </button>
       </div>
       <canvas
         ref={ref}
