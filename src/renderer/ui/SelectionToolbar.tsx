@@ -90,7 +90,7 @@ function TextGroup() {
   return (
     <>
       <FontPicker compact value={primaryFamily(st.fontFamily)} onPreview={(f) => target.apply({ fontFamily: f })} onCommit={(f) => target.apply({ fontFamily: f })} />
-      <NumberField className="stb-size" ariaLabel="Font size (pt)" label="Size" unit="pt" value={st.fontSize} min={4} max={1000} onChange={(v) => target.apply({ fontSize: v })} onCommit={(v) => target.apply({ fontSize: v })} />
+      <NumberField className="stb-size" ariaLabel="Font size (pt)" label="Size" unit="pt" digits={1} value={st.fontSize} min={4} max={1000} onChange={(v) => target.apply({ fontSize: v })} onCommit={(v) => target.apply({ fontSize: v })} />
       <button type="button" className={`icon-btn sm${st.fontWeight >= 600 ? ' active' : ''}`} {...tip('Bold')} aria-pressed={st.fontWeight >= 600} onClick={() => target.apply({ fontWeight: st.fontWeight >= 600 ? 400 : 700 })}><b>B</b></button>
       <button type="button" className={`icon-btn sm${st.italic ? ' active' : ''}`} {...tip('Italic')} aria-pressed={st.italic} onClick={() => target.apply({ italic: !st.italic })}><i>I</i></button>
       <ColorChipButton kind="fill" label="Text colour" chevron={false} value={st.fill} fallback="#000000" allowNone={false} onChange={(p) => target.apply({ fill: p })} />

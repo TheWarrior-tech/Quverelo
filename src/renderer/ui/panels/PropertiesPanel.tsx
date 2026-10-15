@@ -277,8 +277,8 @@ export function PropertiesPanel() {
             <>
               <div className="grid3">
                 <NumField label="Col" ariaLabel="Columns" value={n.columns} min={1} max={12} digits={0} onChange={(v) => patch('Columns', { columns: Math.round(v) } as Partial<SceneNode>, k('col'))} onCommit={(v) => patch('Columns', { columns: Math.round(v) } as Partial<SceneNode>, k('col'))} />
-                <NumField label="Gap" ariaLabel="Column gap (px)" value={n.columnGap} min={0} onChange={(v) => patch('Column gap', { columnGap: v } as Partial<SceneNode>, k('gap'))} onCommit={(v) => patch('Column gap', { columnGap: v } as Partial<SceneNode>, k('gap'))} />
-                <NumField label="Inset" ariaLabel="Inset (px)" value={n.padding} min={0} onChange={(v) => patch('Inset', { padding: v } as Partial<SceneNode>, k('inset'))} onCommit={(v) => patch('Inset', { padding: v } as Partial<SceneNode>, k('inset'))} />
+                <NumField label="Gap" ariaLabel={`Column gap (${u})`} lengthUnit={u} digits={lenDigits} step={lenStep} value={conv(n.columnGap)} min={0} onChange={(v) => patch('Column gap', { columnGap: back(v) } as Partial<SceneNode>, k('gap'))} onCommit={(v) => patch('Column gap', { columnGap: back(v) } as Partial<SceneNode>, k('gap'))} />
+                <NumField label="Inset" ariaLabel={`Inset (${u})`} lengthUnit={u} digits={lenDigits} step={lenStep} value={conv(n.padding)} min={0} onChange={(v) => patch('Inset', { padding: back(v) } as Partial<SceneNode>, k('inset'))} onCommit={(v) => patch('Inset', { padding: back(v) } as Partial<SceneNode>, k('inset'))} />
               </div>
               <Field label="Frame fill">
                 <PaintRow kind="fill" label="Frame fill" paint={n.fill} onChange={(p) => editor.commit('Frame fill', (d) => updateNode(d, n.id, { fill: p } as Partial<SceneNode>), 'ffill')} />

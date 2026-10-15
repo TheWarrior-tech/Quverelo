@@ -165,7 +165,7 @@ function textControls() {
       <Pri n={Infinity}>
         <div className="group" data-keep-text-edit role="group" aria-label="Font">
           <FontPicker value={primaryFamily(style.fontFamily ?? 'Inter')} onPreview={(f) => target?.apply({ fontFamily: f })} onCommit={(f) => apply({ fontFamily: f })} />
-          <NumberField className="ctx" ariaLabel="Font size (pt)" label="Size" unit="pt" value={style.fontSize ?? 16} min={4} max={1000} onCommit={(v) => apply({ fontSize: v })} onChange={(v) => apply({ fontSize: v })} />
+          <NumberField className="ctx" ariaLabel="Font size (pt)" label="Size" unit="pt" digits={1} value={style.fontSize ?? 16} min={4} max={1000} onCommit={(v) => apply({ fontSize: v })} onChange={(v) => apply({ fontSize: v })} />
         </div>
       </Pri>
       <Pri n={7}>
