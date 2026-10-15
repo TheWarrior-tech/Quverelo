@@ -5,7 +5,7 @@ import { PDFArray, PDFDocument, PDFName, PDFRawStream, PDFDict } from 'pdf-lib';
 import { createDocument, make, solid } from '../../src/core/document';
 import { addNodes, addTextFrame } from '../../src/core/commands';
 import { exportVectorPdf, gradientCoords, parseCssColor, pathOps, type VectorPdfHooks } from '../../src/core/pdfVector';
-import { bundledFaceFor, matchWeight } from '../../src/core/pdfFonts';
+import { BUNDLED_FACES, bundledFaceFor, matchWeight } from '../../src/core/pdfFonts';
 import { formatPageRange, parsePageRange } from '../../src/core/pageRange';
 import { flowStory, lineHeightPx, monoMeasure } from '../../src/core/textflow';
 import type { QuvreloDocument, SceneNode } from '../../src/core/types';
@@ -158,5 +158,22 @@ describe('pdf helpers', () => {
     expect(parsePageRange('a', 4)).toMatchObject({ ok: false });
     expect(parsePageRange('', 4)).toMatchObject({ ok: false });
     expect(formatPageRange([0, 1, 2, 4])).toBe('1–3, 5');
+  });
+});
+
+describe('bundled PDF fonts', () => {
+  it('embeds exactly the faces main.tsx loads, and every file exists', () => {
+    const main = readFileSync('src/renderer/main.tsx', 'utf8');
+    const loaded = [...main.matchAll(/@fontsource\/([a-z-]+)\/(\d+)\.css/g)].map((m) => `${m[1]}/${m[2]}`).sort();
+    const declared = Object.values(BUNDLED_FACES).flatMap((f) => f.weights.map((w) => `${f.pkg}/${w}`)).sort();
+    expect(declared).toEqual(loaded);
+    const urls = readFileSync('src/renderer/engine/pdfFontFiles.ts', 'utf8');
+    for (const f of Object.values(BUNDLED_FACES)) {
+      for (const w of f.weights) {
+        const file = `files/${f.pkg}-latin-${w}-normal.woff`;
+        expect(urls).toContain(`'${f.pkg}/${file}'`);
+        expect(readFileSync(`node_modules/@fontsource/${f.pkg}/${file}`).length).toBeGreaterThan(1000);
+      }
+    }
   });
 });
