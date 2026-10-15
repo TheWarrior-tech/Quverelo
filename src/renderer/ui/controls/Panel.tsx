@@ -108,18 +108,28 @@ export function Popover({ anchor, onClose, children, label, placement = 'below',
     top = Math.max(8, Math.min(top, window.innerHeight - h - 8));
     setPos({ left, top });
   }, [anchor, placement]);
+  // focus the first control once, after the popover is placed (a hidden element can't take focus);
+  // never again on re-render, or typing in a field would lose focus when the value commits
+  const focused = useRef(false);
   useEffect(() => {
-    const first = ref.current?.querySelector<HTMLElement>('[data-autofocus]') ?? ref.current?.querySelector<HTMLElement>('[tabindex="0"], input, button:not(:disabled)');
+    if (!pos || focused.current) return;
+    focused.current = true;
+    const root = ref.current;
+    const first = ['[data-autofocus]', '[tabindex="0"]', 'input', 'button:not(:disabled)'].map((q) => root?.querySelector<HTMLElement>(q)).find(Boolean);
     first?.focus();
+  }, [pos]);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
     const down = (e: PointerEvent) => {
       const t = e.target as Node;
       if (ref.current?.contains(t) || anchor.contains(t)) return;
-      onClose();
+      closeRef.current();
     };
     const key = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        onClose();
+        closeRef.current();
         anchor.focus();
       }
     };
@@ -129,7 +139,7 @@ export function Popover({ anchor, onClose, children, label, placement = 'below',
       document.removeEventListener('pointerdown', down, true);
       document.removeEventListener('keydown', key, true);
     };
-  }, [anchor, onClose]);
+  }, [anchor]);
   return createPortal(
     <div ref={ref} className={`popover${className ? ' ' + className : ''}`} role={role} aria-label={label} style={pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }}>
       {children}
