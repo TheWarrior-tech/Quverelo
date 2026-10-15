@@ -147,9 +147,11 @@ function TextFrameControls({ frames }: { frames: TextFrameNode[] }) {
 }
 
 /**
- * Text style controls. A plain function (ContextBar already subscribes) so the
- * priority+ row sees each group: font and size never collapse; style, alignment
- * and spacing go to "More" in that reverse order when space runs out.
+ * The one quick text set outside the inspector (CRITIQUE-4 N11, DESIGN.md §8):
+ * font · size · B I U · alignment. Leading, tracking and OpenType live only in
+ * Inspector › Text. A plain function (ContextBar already subscribes) so the
+ * priority+ row sees each group: font and size never collapse; alignment then
+ * style go to "More" when space runs out.
  */
 function textControls() {
   const target = activeTextTarget();
@@ -184,14 +186,6 @@ function textControls() {
           ))}
         </div>
       </Pri>
-      {target && (
-        <Pri n={3}>
-          <div className="group" data-keep-text-edit role="group" aria-label="Spacing">
-            <NumberField className="ctx" ariaLabel="Leading (line height multiple)" label="Leading" value={style.lineHeight ?? 1.3} min={0.6} max={4} step={0.05} onCommit={(v) => apply({ lineHeight: v })} onChange={(v) => apply({ lineHeight: v })} />
-            <NumberField className="ctx" ariaLabel="Tracking (thousandths of an em)" label="Tracking" digits={0} value={style.letterSpacing ?? 0} min={-200} max={1000} step={10} onCommit={(v) => apply({ letterSpacing: v })} onChange={(v) => apply({ letterSpacing: v })} />
-          </div>
-        </Pri>
-      )}
     </>
   );
 }

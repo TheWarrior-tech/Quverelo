@@ -132,6 +132,9 @@ const paths: Record<string, ReactElement> = {
   'text-center': P('M3.5 5h13M6 8.3h8M3.5 11.7h13M6 15h8'),
   'text-right': P('M3.5 5h13M8.5 8.3h8M3.5 11.7h13M8.5 15h8'),
   'text-justify': P('M3.5 5h13M3.5 8.3h13M3.5 11.7h13M3.5 15h13'),
+  // type spacing: leading (two baselines, vertical span) and tracking (two stems, horizontal span)
+  leading: P('M3.5 4h13M3.5 16h13M10 6.5v7M8 8.5l2-2 2 2M8 11.5l2 2 2-2'),
+  tracking: P('M3.5 4.5v11M16.5 4.5v11M6.5 10h7M8.5 8l-2 2 2 2M11.5 8l2 2-2 2'),
 };
 
 /** True when the set has a glyph called `name` (unknown names fall back to a square). */

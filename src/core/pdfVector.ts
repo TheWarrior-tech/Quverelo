@@ -421,6 +421,8 @@ async function writeText(
   const fillProblem = paintProblem(style.fill);
   if (fillProblem) return fillProblem;
   if (style.fill.type !== 'solid' && style.fill.type !== 'none') return 'gradient text';
+  // small caps are a font feature pdf-lib cannot shape: the canvas draws that text
+  if (style.caps && style.caps !== 'normal') return 'small caps';
   const sp = stroke ? strokeProblem(stroke) : null;
   if (sp) return sp;
   const face = await w.hooks.font(style);

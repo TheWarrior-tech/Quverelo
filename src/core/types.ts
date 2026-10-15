@@ -142,7 +142,13 @@ export interface TextStyle {
   letterSpacing: number; // em/1000 (tracking)
   align: TextAlign;
   fill: Paint;
+  /** OpenType basics (inspector › Text › More type options); absent = font defaults. Pair kerning, default on. */
+  kerning?: boolean;
+  /** capitals: small caps from the font's smcp/c2sc features */
+  caps?: TextCaps;
 }
+
+export type TextCaps = 'normal' | 'small-caps' | 'all-small-caps';
 
 /** Artistic text: a single block of text that grows with its content. */
 export interface TextNode extends NodeBase {

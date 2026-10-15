@@ -16,7 +16,7 @@ type Row = { kind: 'head'; title: string } | { kind: 'font'; family: string; ind
  * Esc reverts to the font you started with. The list is windowed so a machine
  * with thousands of installed families stays fast.
  */
-export function FontPicker({ value, onPreview, onCommit, compact = false }: { value: string; onPreview: (family: string) => void; onCommit: (family: string) => void; compact?: boolean }) {
+export function FontPicker({ value, onPreview, onCommit, compact = false, full = false }: { value: string; onPreview: (family: string) => void; onCommit: (family: string) => void; compact?: boolean; /** fill the row (inspector › Text) */ full?: boolean }) {
   useEditor(); // re-render when local fonts load
   const family = primaryFamily(value || 'Inter');
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
@@ -24,7 +24,7 @@ export function FontPicker({ value, onPreview, onCommit, compact = false }: { va
     <>
       <button
         type="button"
-        className={`font-trigger${compact ? ' compact' : ''}${anchor ? ' open' : ''}`}
+        className={`font-trigger${compact ? ' compact' : ''}${full ? ' full' : ''}${anchor ? ' open' : ''}`}
         aria-label={`Font: ${family}`}
         aria-haspopup="listbox"
         aria-expanded={!!anchor}
