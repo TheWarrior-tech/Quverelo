@@ -8,8 +8,10 @@ import type { FileFilter } from '../../shared/api';
 import { canvasToBytes, createCanvas, ctx2d } from '../engine/assets';
 import { exportPdf, exportRaster, exportSvg, renderPageCanvas } from '../engine/export';
 import { importSvg } from '../engine/svgImport';
+import { defaultExportFormat, pagesStillValid, type ExportFormat } from '../../core/exportDefaults';
 import { editor } from './editor';
-import { toast } from './bus';
+import { openDialog, toast } from './bus';
+import { markStep } from './onboarding';
 
 const QUVRELO_FILTER: FileFilter[] = [{ name: 'Quvrelo Document', extensions: ['quvrelo'] }];
 const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'];
@@ -49,6 +51,7 @@ export function newFromTemplate(id: string): void {
   editor.assets.clear();
   const doc = t.build();
   editor.openSession(doc, null, t.studio);
+  markStep('create');
 }
 
 export function newBlank(opts: { title: string; width: number; height: number; unit: QuvreloDocument['settings']['unit']; pages: number; studio: StudioKind; margins: number; bleed: number; background: string | null; dpi: number }): void {
@@ -68,6 +71,7 @@ export function newBlank(opts: { title: string; width: number; height: number; u
     },
   });
   editor.openSession(doc, null, opts.studio);
+  markStep('create');
 }
 
 async function loadQuvreloBytes(data: Uint8Array, path: string | null): Promise<void> {
@@ -95,6 +99,7 @@ async function openImageAsDocument(bytes: Uint8Array, name: string, path: string
   doc = { ...doc, assets: { [id]: editor.assets.ref(id, name) } };
   doc = addNodes(doc, doc.pages[0].id, [node]);
   editor.openSession(doc, null, 'photo');
+  markStep('place');
   void path;
 }
 
@@ -115,6 +120,26 @@ export async function openFileData(data: Uint8Array, name: string, path: string 
     await openImageAsDocument(data, name, path);
   }
   toast(`Opened ${name}`, 'success');
+}
+
+/**
+ * "Edit a photo…" on Welcome (UX audit P0-3a): an image-only open dialog. The
+ * picked photo becomes a new Photo document with the image as its background
+ * layer. Resolves true when a photo was opened.
+ */
+export async function openPhotoDialog(): Promise<boolean> {
+  const files = await window.quvrelo.openFileDialog({
+    title: 'Edit a Photo',
+    filters: [{ name: 'Images', extensions: IMAGE_EXT }],
+  });
+  if (!files.length) return false;
+  try {
+    await openFileData(files[0].data, files[0].name, files[0].path);
+    return true;
+  } catch (e) {
+    toast(`Could not open ${files[0].name}: ${(e as Error).message}`, 'error');
+    return false;
+  }
 }
 
 export async function openDialogAndLoad(): Promise<void> {
@@ -233,6 +258,7 @@ export async function placeImages(files?: { data: Uint8Array; name: string }[]):
     added.push(node.id);
   }
   editor.select(added);
+  if (list.some((f) => mimeFor(f.name) !== 'image/svg+xml')) markStep('place');
 }
 
 export async function importSvgFile(): Promise<void> {
@@ -273,28 +299,90 @@ export interface ExportRequest {
   cropMarks: boolean;
 }
 
-export async function runExport(req: ExportRequest): Promise<string | null> {
+/**
+ * Writes the export and returns every path written (null when cancelled).
+ * `targets` overwrites known files without asking ("Export again"); a missing
+ * or disallowed target falls back to the save dialog in the main process.
+ */
+export async function runExportFiles(req: ExportRequest, targets: (string | null)[] = []): Promise<string[] | null> {
   const doc = editor.doc;
   if (!doc) return null;
   const title = doc.title || 'Untitled';
+  const written: string[] = [];
   if (req.format === 'pdf') {
     const data = await exportPdf(doc, editor.assets, { dpi: req.dpi, includeBleed: req.includeBleed, cropMarks: req.cropMarks, quality: req.quality, pages: req.pages });
-    return window.quvrelo.saveFile({ path: null, data, defaultName: `${title}.pdf`, filters: [{ name: 'PDF', extensions: ['pdf'] }], title: 'Export PDF' });
-  }
-  let last: string | null = null;
-  for (const i of req.pages) {
-    const suffix = req.pages.length > 1 || doc.pages.length > 1 ? ` - ${doc.pages[i].name}` : '';
-    if (req.format === 'svg') {
-      const svg = exportSvg(doc, editor.assets, i, req.includeBleed);
-      last = await window.quvrelo.saveFile({ path: null, data: new TextEncoder().encode(svg), defaultName: `${title}${suffix}.svg`, filters: [{ name: 'SVG', extensions: ['svg'] }], title: 'Export SVG' });
-    } else {
-      const data = await exportRaster(doc, editor.assets, { pageIndex: i, scale: req.scale, includeBleed: req.includeBleed, transparent: req.transparent, format: req.format, quality: req.quality });
-      const ext = req.format === 'jpg' ? 'jpg' : 'png';
-      last = await window.quvrelo.saveFile({ path: null, data, defaultName: `${title}${suffix}.${ext}`, filters: [{ name: ext.toUpperCase(), extensions: [ext] }], title: `Export ${ext.toUpperCase()}` });
+    const p = await window.quvrelo.saveFile({ path: targets[0] ?? null, data, defaultName: `${title}.pdf`, filters: [{ name: 'PDF', extensions: ['pdf'] }], title: 'Export PDF' });
+    if (!p) return null;
+    written.push(p);
+  } else {
+    for (const [k, i] of req.pages.entries()) {
+      const suffix = req.pages.length > 1 || doc.pages.length > 1 ? ` - ${doc.pages[i].name}` : '';
+      let p: string | null;
+      if (req.format === 'svg') {
+        const svg = exportSvg(doc, editor.assets, i, req.includeBleed);
+        p = await window.quvrelo.saveFile({ path: targets[k] ?? null, data: new TextEncoder().encode(svg), defaultName: `${title}${suffix}.svg`, filters: [{ name: 'SVG', extensions: ['svg'] }], title: 'Export SVG' });
+      } else {
+        const data = await exportRaster(doc, editor.assets, { pageIndex: i, scale: req.scale, includeBleed: req.includeBleed, transparent: req.transparent, format: req.format, quality: req.quality });
+        const ext = req.format === 'jpg' ? 'jpg' : 'png';
+        p = await window.quvrelo.saveFile({ path: targets[k] ?? null, data, defaultName: `${title}${suffix}.${ext}`, filters: [{ name: ext.toUpperCase(), extensions: [ext] }], title: `Export ${ext.toUpperCase()}` });
+      }
+      if (!p) return null;
+      written.push(p);
     }
-    if (!last) return null;
   }
-  return last;
+  lastExports.set(doc.id, { req: { ...req, pages: [...req.pages] }, paths: written });
+  markStep('export');
+  return written;
+}
+
+export async function runExport(req: ExportRequest): Promise<string | null> {
+  const paths = await runExportFiles(req);
+  return paths ? paths[paths.length - 1] : null;
+}
+
+/** Last export per document (by id) for this run of the app: settings and the files written. */
+const lastExports = new Map<string, { req: ExportRequest; paths: string[] }>();
+
+export function lastExportFor(docId: string | undefined): { req: ExportRequest; paths: string[] } | null {
+  return (docId && lastExports.get(docId)) || null;
+}
+
+const EXPORT_FORMATS: ExportFormat[] = ['png', 'jpg', 'svg', 'pdf'];
+
+/** Formats the policy allows, in menu order. */
+export function enabledExportFormats(): ExportFormat[] {
+  return EXPORT_FORMATS.filter((f) => editor.feature(`export-${f}` as never));
+}
+
+/** The format Export… opens on: last used for this document, PDF for Layout documents, else PNG. */
+export function exportFormatFor(): ExportFormat {
+  const doc = editor.doc;
+  return defaultExportFormat(doc?.studio, lastExportFor(doc?.id)?.req.format, enabledExportFormats());
+}
+
+/**
+ * "Export again" (UX audit P0-5): repeats the last export of this document with
+ * the same settings and files, skipping the dialog. With nothing to repeat it
+ * opens the Export dialog instead.
+ */
+export async function exportAgain(): Promise<string[] | null> {
+  const doc = editor.doc;
+  if (!doc) return null;
+  const last = lastExportFor(doc.id);
+  const pages = last ? pagesStillValid(last.req.pages, doc.pages.length) : null;
+  if (!last || !pages || !enabledExportFormats().includes(last.req.format)) {
+    openDialog('export', { format: exportFormatFor() });
+    return null;
+  }
+  const same = pages.length === last.req.pages.length;
+  try {
+    const paths = await runExportFiles({ ...last.req, pages }, same ? last.paths : []);
+    if (paths) toast(paths.length === 1 ? `Exported again: ${paths[0].split(/[\\/]/).pop()}` : `Exported ${paths.length} files again`, 'success');
+    return paths;
+  } catch (e) {
+    toast(`Export failed: ${(e as Error).message}`, 'error');
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -355,6 +443,7 @@ export async function handIn(studentName: string): Promise<string | null> {
   editor.commit('Hand in', () => stamped);
   const data = await packCurrent();
   const path = await window.quvrelo.handIn({ data, fileName: info?.title || doc.title, className, studentName });
+  markStep('export');
   toast(`Handed in to ${path}`, 'success');
   return path;
 }
