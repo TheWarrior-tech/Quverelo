@@ -751,10 +751,11 @@
   justify-content: center;
 }
 .selection-toolbar .nf.stb-size {
-  width: 84px;
+  width: 92px;
 }
+/* room for four digits and a decimal ("17.5", "120.5") without clipping */
 .selection-toolbar .nf.stb-size input {
-  width: 32px;
+  width: 40px;
   flex: none;
 }
 .selection-toolbar .btn.sm {
