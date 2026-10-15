@@ -139,7 +139,7 @@ test.describe('canvas chrome', () => {
     await expect(page.locator('input[aria-label="Curve point output"]')).toHaveValue('0');
     await expect(page.locator('input[aria-label="Curve point output"]')).toBeEnabled();
     // Reset sits beside the channel switch, not inside it, and is off while the curve is straight
-    const reset = page.getByRole('button', { name: 'Reset the R curve' });
+    const reset = page.getByRole('button', { name: 'Reset Red curve' });
     await expect(reset).toBeDisabled();
     expect(await page.locator('[role="radiogroup"][aria-label="Curve channel"] button').count()).toBe(4);
     await graph.click({ position: { x: box.width * 0.25, y: box.height * 0.75 } });
@@ -196,12 +196,16 @@ test.describe('canvas chrome', () => {
     await page.click('.studio-switch [data-studio="layout"]');
     expect(await state<string>(page, 'editor.ui.tool')).toBe('move');
     await page.evaluate(() => (window as any).__quvrelo.editor.select([]));
-    await expect(page.locator('.contextbar [aria-label="Top margin"]')).toBeVisible();
-    await page.locator('.contextbar [aria-label="Top margin"]').fill('40');
-    await page.locator('.contextbar [aria-label="Top margin"]').press('Enter');
+    // margins read in the document unit (a photo document is px)
+    await expect(page.locator('.contextbar [aria-label="Top margin (px)"]')).toBeVisible();
+    await page.locator('.contextbar [aria-label="Top margin (px)"]').fill('40');
+    await page.locator('.contextbar [aria-label="Top margin (px)"]').press('Enter');
     expect(await state<number>(page, 'Math.round(editor.doc.settings.margins.top)')).toBe(40);
     await page.locator('.contextbar [aria-label="Add page"]').click();
-    await page.locator('.contextbar button[aria-pressed]', { hasText: 'Facing pages' }).click();
+    // groups that don't fit the canvas column sit under More (critique 3 N2)
+    const facing = page.locator('.contextbar button[aria-pressed]', { hasText: 'Facing pages' });
+    if (!(await facing.count())) await page.getByRole('button', { name: 'More options' }).click();
+    await page.locator('.contextbar button[aria-pressed], .ctx-more-pop button[aria-pressed]').filter({ hasText: 'Facing pages' }).click();
     await expect(page.locator('.pages-grid.spreads .spread')).toHaveCount(2);
   });
 });

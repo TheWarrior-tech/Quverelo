@@ -1,6 +1,6 @@
 import { BLEND_MODES, type BlendMode, type Paint, type SceneNode, type Stroke } from '../../../core/types';
 import { updateNode, updateNodes, releaseMask } from '../../../core/commands';
-import { fromPx, toPx } from '../../../core/units';
+import { UNIT_DIGITS, UNIT_STEP, formatSize, fromPx, pixelsAt, toPx } from '../../../core/units';
 import { layerDisplayName } from '../../../core/document';
 import { editor } from '../../state/editor';
 import { runCommand } from '../../state/commands';
@@ -69,7 +69,7 @@ function DocumentProperties() {
   const ed = useEditor();
   const d = ed.doc!;
   const s = d.settings;
-  const u = ed.settings.units;
+  const u = ed.unit;
   const fill = uiPaint(ed.ui, 'fill');
   const stroke = uiPaint(ed.ui, 'stroke');
   const setDefault = (target: 'fill' | 'stroke') => (p: Paint) => ed.setUi(uiPaintPatch(target, p, ed.ui));
@@ -78,7 +78,12 @@ function DocumentProperties() {
       <div className="prop-title"><span className="prop-name">{d.title}</span><span className="prop-kind">Document</span></div>
       <Section id="doc" title="Document">
         <Field label="Title" htmlFor="doc-title"><input id="doc-title" type="text" value={d.title} onChange={(e) => ed.commit('Rename document', (x) => ({ ...x, title: e.target.value }), 'title')} /></Field>
-        <Field label="Size"><span className="value num">{Math.round(fromPx(s.width, u) * 100) / 100} × {Math.round(fromPx(s.height, u) * 100) / 100} {u}</span></Field>
+        <Field label="Size">
+          <span className="value num doc-size" data-testid="doc-size">
+            {formatSize(s.width, s.height, u)}
+            {u !== 'px' && <span className="value-hint">{`${pixelsAt(s.width, s.dpi)} × ${pixelsAt(s.height, s.dpi)} px at ${s.dpi} dpi`}</span>}
+          </span>
+        </Field>
         <Field label="Pages"><span className="value num">{d.pages.length}</span></Field>
         <Field label="Background">
           <ColorChipButton
@@ -157,7 +162,7 @@ export function PropertiesPanel() {
   const n = nodes[0];
   const name = layerDisplayName(n, ed.doc);
   const multi = nodes.length > 1;
-  const u = ed.settings.units;
+  const u = ed.unit;
   const b = renderBounds(n);
   const conv = (px: number) => fromPx(px, u);
   const back = (v: number) => toPx(v, u);
@@ -179,7 +184,8 @@ export function PropertiesPanel() {
   const hasFill = 'fill' in n && n.type !== 'textframe';
   const hasStroke = 'stroke' in n;
   const k = (f: string) => `scrub:${f}:${n.id}`;
-  const lenDigits = u === 'px' || u === 'pt' ? 1 : 2;
+  const lenDigits = UNIT_DIGITS[u];
+  const lenStep = UNIT_STEP[u];
   const mixedOpacity = nodes.some((m) => m.opacity !== n.opacity);
   const mixedBlend = nodes.some((m) => m.blend !== n.blend);
   const story = n.type === 'textframe' ? ed.doc.stories[n.storyId] : null;
@@ -229,10 +235,10 @@ export function PropertiesPanel() {
       {!multi && (
         <Section id="transform" title={<>Transform <span className="count">{u}</span></>}>
           <div className="grid4">
-            <NumField label="X" ariaLabel={`X (${u})`} lengthUnit={u} digits={lenDigits} value={conv(b.x)} onChange={(v) => moveTo(v, null, k('x'))} onCommit={(v) => moveTo(v, null, k('x'))} />
-            <NumField label="Y" ariaLabel={`Y (${u})`} lengthUnit={u} digits={lenDigits} value={conv(b.y)} onChange={(v) => moveTo(null, v, k('y'))} onCommit={(v) => moveTo(null, v, k('y'))} />
-            <NumField label="W" ariaLabel={`Width (${u})`} lengthUnit={u} digits={lenDigits} value={conv(b.w)} min={0.01} onChange={(v) => resize(v, null, k('w'))} onCommit={(v) => resize(v, null, k('w'))} />
-            <NumField label="H" ariaLabel={`Height (${u})`} lengthUnit={u} digits={lenDigits} value={conv(b.h)} min={0.01} onChange={(v) => resize(null, v, k('h'))} onCommit={(v) => resize(null, v, k('h'))} />
+            <NumField label="X" ariaLabel={`X (${u})`} lengthUnit={u} digits={lenDigits} step={lenStep} value={conv(b.x)} onChange={(v) => moveTo(v, null, k('x'))} onCommit={(v) => moveTo(v, null, k('x'))} />
+            <NumField label="Y" ariaLabel={`Y (${u})`} lengthUnit={u} digits={lenDigits} step={lenStep} value={conv(b.y)} onChange={(v) => moveTo(null, v, k('y'))} onCommit={(v) => moveTo(null, v, k('y'))} />
+            <NumField label="W" ariaLabel={`Width (${u})`} lengthUnit={u} digits={lenDigits} step={lenStep} value={conv(b.w)} min={0.01} onChange={(v) => resize(v, null, k('w'))} onCommit={(v) => resize(v, null, k('w'))} />
+            <NumField label="H" ariaLabel={`Height (${u})`} lengthUnit={u} digits={lenDigits} step={lenStep} value={conv(b.h)} min={0.01} onChange={(v) => resize(null, v, k('h'))} onCommit={(v) => resize(null, v, k('h'))} />
           </div>
           <div className="grid4">
             <NumField label="R" ariaLabel="Rotation (degrees)" unit="°" digits={1} value={n.rotation} step={1} onChange={(v) => patch('Rotate', { rotation: ((v % 360) + 360) % 360 }, k('r'))} onCommit={(v) => patch('Rotate', { rotation: ((v % 360) + 360) % 360 }, k('r'))} />
@@ -247,7 +253,7 @@ export function PropertiesPanel() {
         <Section id={`shape-${n.type}`} title={SHAPE_TITLE[n.type]}>
           {n.type === 'rect' && (
             <div className="grid2">
-              <NumField label="Radius" ariaLabel="Corner radius (px)" unit="px" value={n.radius} min={0} onChange={(v) => patch('Corner radius', { radius: v } as Partial<SceneNode>, k('rad'))} onCommit={(v) => patch('Corner radius', { radius: v } as Partial<SceneNode>, k('rad'))} />
+              <NumField label="Radius" ariaLabel={`Corner radius (${u})`} unit={u} lengthUnit={u} digits={lenDigits} step={lenStep} value={conv(n.radius)} min={0} onChange={(v) => patch('Corner radius', { radius: back(v) } as Partial<SceneNode>, k('rad'))} onCommit={(v) => patch('Corner radius', { radius: back(v) } as Partial<SceneNode>, k('rad'))} />
             </div>
           )}
           {n.type === 'polygon' && (
@@ -290,8 +296,8 @@ export function PropertiesPanel() {
               />
               <SliderField label="Zoom" ariaLabel="Image zoom" unit="%" min={10} max={400} value={Math.round(n.contentScale * 100)} onChange={(v) => patch('Image zoom', { contentScale: v / 100 } as Partial<SceneNode>, 'cscale')} />
               <div className="grid2">
-                <NumField label="X" ariaLabel="Image offset X (px)" unit="px" value={n.contentX} onChange={(v) => patch('Image offset', { contentX: v } as Partial<SceneNode>, k('cx'))} onCommit={(v) => patch('Image offset', { contentX: v } as Partial<SceneNode>, k('cx'))} />
-                <NumField label="Y" ariaLabel="Image offset Y (px)" unit="px" value={n.contentY} onChange={(v) => patch('Image offset', { contentY: v } as Partial<SceneNode>, k('cy'))} onCommit={(v) => patch('Image offset', { contentY: v } as Partial<SceneNode>, k('cy'))} />
+                <NumField label="X" ariaLabel={`Image offset X (${u})`} unit={u} lengthUnit={u} digits={lenDigits} step={lenStep} value={conv(n.contentX)} onChange={(v) => patch('Image offset', { contentX: back(v) } as Partial<SceneNode>, k('cx'))} onCommit={(v) => patch('Image offset', { contentX: back(v) } as Partial<SceneNode>, k('cx'))} />
+                <NumField label="Y" ariaLabel={`Image offset Y (${u})`} unit={u} lengthUnit={u} digits={lenDigits} step={lenStep} value={conv(n.contentY)} onChange={(v) => patch('Image offset', { contentY: back(v) } as Partial<SceneNode>, k('cy'))} onCommit={(v) => patch('Image offset', { contentY: back(v) } as Partial<SceneNode>, k('cy'))} />
               </div>
               <div className="row"><button className="btn sm" onClick={() => runCommand('file.place')}><Icon name="image" /> Replace image…</button></div>
             </>

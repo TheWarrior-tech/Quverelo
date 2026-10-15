@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { resizeDocument } from '../../../core/commands';
-import { fromPx, toPx } from '../../../core/units';
+import { UNITS, UNIT_NAMES, UNIT_STEP, lengthIn, toPx } from '../../../core/units';
 import type { Unit } from '../../../core/types';
 import { editor } from '../../state/editor';
 import { closeDialog } from '../../state/bus';
@@ -8,13 +8,12 @@ import { getViewport } from '../../state/commands';
 import { Dialog } from './DialogHost';
 import { Check, Field, NumberInput, Segmented } from './controls';
 
-const r2 = (v: number) => Math.round(v * 100) / 100;
-
 export function DocumentSetupDialog() {
   const doc = editor.doc!;
   const s = doc.settings;
   const [unit, setUnit] = useState<Unit>(s.unit);
-  const c = (px: number) => r2(fromPx(px, unit));
+  // every value through the one unit formatter, so 15 mm margins read 15 here and in the inspector
+  const c = (px: number) => lengthIn(px, unit);
   const [w, setW] = useState(c(s.width));
   const [h, setH] = useState(c(s.height));
   const [m, setM] = useState({ top: c(s.margins.top), right: c(s.margins.right), bottom: c(s.margins.bottom), left: c(s.margins.left) });
@@ -25,21 +24,22 @@ export function DocumentSetupDialog() {
   const [bg, setBg] = useState(s.background ?? '#ffffff');
   const [transparent, setTransparent] = useState(!s.background);
   const apply = () => {
-    const px = (v: number) => toPx(v, unit);
+    // an untouched field keeps its exact px value (no drift from display rounding)
+    const keep = (v: number, orig: number) => (v === lengthIn(orig, unit) ? orig : toPx(v, unit));
     editor.commit('Document setup', (d) => {
       let out = d;
-      const W = px(w);
-      const H = px(h);
+      const W = keep(w, d.settings.width);
+      const H = keep(h, d.settings.height);
       if (Math.abs(W - d.settings.width) > 0.01 || Math.abs(H - d.settings.height) > 0.01) out = resizeDocument(out, W, H, { x: 0, y: 0 });
       return {
         ...out,
         settings: {
           ...out.settings,
           unit,
-          margins: { top: px(m.top), right: px(m.right), bottom: px(m.bottom), left: px(m.left) },
-          bleed: px(bleed),
+          margins: { top: keep(m.top, s.margins.top), right: keep(m.right, s.margins.right), bottom: keep(m.bottom, s.margins.bottom), left: keep(m.left, s.margins.left) },
+          bleed: keep(bleed, s.bleed),
           columns,
-          columnGutter: px(gutter),
+          columnGutter: keep(gutter, s.columnGutter),
           dpi,
           background: transparent ? null : bg,
         },
@@ -49,7 +49,7 @@ export function DocumentSetupDialog() {
     closeDialog();
   };
   const changeUnit = (u: Unit) => {
-    const k = (v: number) => r2(fromPx(toPx(v, unit), u));
+    const k = (v: number) => lengthIn(toPx(v, unit), u);
     setW(k(w));
     setH(k(h));
     setM({ top: k(m.top), right: k(m.right), bottom: k(m.bottom), left: k(m.left) });
@@ -57,14 +57,13 @@ export function DocumentSetupDialog() {
     setGutter(k(gutter));
     setUnit(u);
   };
-  const UNIT_NAMES: Record<Unit, string> = { px: 'Pixels', mm: 'Millimetres', cm: 'Centimetres', in: 'Inches', pt: 'Points' };
-  const step = unit === 'in' ? 0.1 : 1;
+  const step = UNIT_STEP[unit];
   return (
     <Dialog title="Document setup" onSubmit={apply} footer={<><button className="btn" onClick={closeDialog}>Cancel</button><button className="btn primary" onClick={apply}>Apply</button></>}>
       <div className="fgrid">
         <Field label="Units" htmlFor="ds-units">
           <select id="ds-units" value={unit} onChange={(e) => changeUnit(e.target.value as Unit)} aria-label="Document units">
-            {(['px', 'mm', 'cm', 'in', 'pt'] as Unit[]).map((u) => <option key={u} value={u}>{UNIT_NAMES[u]}</option>)}
+            {UNITS.map((u) => <option key={u} value={u}>{UNIT_NAMES[u]}</option>)}
           </select>
         </Field>
         <Field label="Page size">

@@ -29,7 +29,7 @@ function drawRuler(c: HTMLCanvasElement, vp: Viewport, orientation: 'h' | 'v') {
   const text = tok('--c-text-3', '#8b8d93');
   const v = vp.vpt;
   const z = v[0];
-  const unit = editor.settings.units;
+  const unit = editor.unit;
   const pxPerUnit = PX_PER[unit] * z; // screen px per unit
   const major = niceStep(pxPerUnit);
   const minor = major / 5;
