@@ -32,7 +32,7 @@ export function Segmented<T extends string>({ value, options, onChange, ariaLabe
           aria-checked={o.value === value}
           aria-label={o.ariaLabel}
           tabIndex={i === idx ? 0 : -1}
-          title={o.title ?? o.ariaLabel}
+          data-tip={o.title ?? o.ariaLabel}
           disabled={o.disabled}
           className={`${o.value === value ? 'on' : ''}${o.ariaLabel ? ' icon-seg' : ''}`.trim() || undefined}
           onClick={() => onChange(o.value)}

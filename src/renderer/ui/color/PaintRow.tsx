@@ -74,11 +74,11 @@ export function PaintRow({ kind, label, paint, onChange, allowNone = true, allow
       )}
       {allowNone &&
         (on ? (
-          <button type="button" className="icon-btn xs" aria-label={`Remove ${label.toLowerCase()}`} title={`Remove ${label.toLowerCase()}`} onClick={() => onChange({ type: 'none' })}>
+          <button type="button" className="icon-btn xs" aria-label={`Remove ${label.toLowerCase()}`} data-tip={`Remove ${label.toLowerCase()}`} onClick={() => onChange({ type: 'none' })}>
             <Icon name="minus" size={16} />
           </button>
         ) : (
-          <button type="button" className="icon-btn xs" aria-label={`Add ${label.toLowerCase()}`} title={`Add ${label.toLowerCase()}`} onClick={() => onChange({ type: 'solid', color })}>
+          <button type="button" className="icon-btn xs" aria-label={`Add ${label.toLowerCase()}`} data-tip={`Add ${label.toLowerCase()}`} onClick={() => onChange({ type: 'solid', color })}>
             <Icon name="plus" size={16} />
           </button>
         ))}

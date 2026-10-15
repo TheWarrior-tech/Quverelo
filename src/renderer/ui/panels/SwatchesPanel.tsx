@@ -28,9 +28,9 @@ export function SwatchesPanel() {
     <div className="swatches-panel">
       <Section
         title={<>Document <span className="count num">{doc.swatches.length}</span></>}
-        actions={<button className="icon-btn xs" aria-label="Add current fill colour as swatch" title="Add current fill colour" onClick={() => ed.commit('Add swatch', (d) => addSwatch(d, ed.ui.fillColor))}><Icon name="plus" size={16} /></button>}
+        actions={<button className="icon-btn xs" aria-label="Add current fill colour as swatch" data-tip="Add current fill colour" onClick={() => ed.commit('Add swatch', (d) => addSwatch(d, ed.ui.fillColor))}><Icon name="plus" size={16} /></button>}
       >
-        <div className="swatches" role="listbox" aria-label="Swatches" title={HINT}>
+        <div className="swatches" role="listbox" aria-label="Swatches" data-tip={HINT}>
           {doc.swatches.map((s) => {
             const on = !!current && sameRgb(s.color, current);
             return (
@@ -38,7 +38,7 @@ export function SwatchesPanel() {
                 key={s.id}
                 className={`swatch${on ? ' on' : ''}`}
                 style={{ ['--sw' as string]: s.color }}
-                title={`${s.name} · ${HINT}`}
+                data-tip={`${s.name} · ${HINT}`}
                 aria-label={`Swatch ${s.name}`}
                 aria-selected={on}
                 role="option"
@@ -56,7 +56,7 @@ export function SwatchesPanel() {
         <Section title="Recent">
           <div className="swatches" role="listbox" aria-label="Recent colours">
             {recent.map((c) => (
-              <button key={c} className="swatch" role="option" aria-selected={false} style={{ ['--sw' as string]: c }} title={`${c} · Click: fill · Shift-click: stroke`} aria-label={`Recent colour ${c}`} onClick={(e) => pick(c, e)} />
+              <button key={c} className="swatch" role="option" aria-selected={false} style={{ ['--sw' as string]: c }} data-tip={`${c} · Click: fill · Shift-click: stroke`} aria-label={`Recent colour ${c}`} onClick={(e) => pick(c, e)} />
             ))}
           </div>
         </Section>

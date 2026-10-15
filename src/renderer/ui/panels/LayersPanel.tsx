@@ -175,12 +175,12 @@ function LayerRow({ n, depth, containerId, index, dragId, setDragId, focusable }
             n.name
           )}
         </span>
-        {n.mask && <span className="meta" title="Has mask" aria-label="Has mask"><Icon name="mask" size={16} /></span>}
-        {n.type === 'raster' && n.adjustments.length > 0 && <span className="meta" title={`${n.adjustments.length} live adjustment${n.adjustments.length > 1 ? 's' : ''}`}><Icon name="adjust" size={16} /></span>}
-        <button className={`icon-btn xs toggle lock${n.locked ? ' set' : ''}`} tabIndex={-1} aria-label={n.locked ? 'Unlock layer' : 'Lock layer'} aria-pressed={n.locked} title={n.locked ? 'Unlock' : 'Lock'} onClick={(e) => { e.stopPropagation(); toggleLock(); }}>
+        {n.mask && <span className="meta" data-tip="Has mask" aria-label="Has mask"><Icon name="mask" size={16} /></span>}
+        {n.type === 'raster' && n.adjustments.length > 0 && <span className="meta" data-tip={`${n.adjustments.length} live adjustment${n.adjustments.length > 1 ? 's' : ''}`}><Icon name="adjust" size={16} /></span>}
+        <button className={`icon-btn xs toggle lock${n.locked ? ' set' : ''}`} tabIndex={-1} aria-label={n.locked ? 'Unlock layer' : 'Lock layer'} aria-pressed={n.locked} data-tip={n.locked ? 'Unlock' : 'Lock'} onClick={(e) => { e.stopPropagation(); toggleLock(); }}>
           <Icon name={n.locked ? 'lock' : 'unlock'} size={16} />
         </button>
-        <button className={`icon-btn xs toggle eye${n.visible ? '' : ' set'}`} tabIndex={-1} aria-label={n.visible ? 'Hide layer' : 'Show layer'} aria-pressed={!n.visible} title={n.visible ? 'Hide (Alt+H)' : 'Show (Alt+H)'} onClick={(e) => { e.stopPropagation(); toggleVisible(); }}>
+        <button className={`icon-btn xs toggle eye${n.visible ? '' : ' set'}`} tabIndex={-1} aria-label={n.visible ? 'Hide layer' : 'Show layer'} aria-pressed={!n.visible} data-tip={n.visible ? 'Hide (Alt+H)' : 'Show (Alt+H)'} onClick={(e) => { e.stopPropagation(); toggleVisible(); }}>
           <Icon name={n.visible ? 'eye' : 'eye-off'} size={16} />
         </button>
       </li>

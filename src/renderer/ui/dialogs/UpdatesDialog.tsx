@@ -186,7 +186,7 @@ export function UpdatesDialog() {
       )}
       <dl className="about-rows upd-rows">
         {rows.map(([k, val]) => (
-          <div key={k}><dt>{k}</dt><dd title={val}>{val}</dd></div>
+          <div key={k}><dt>{k}</dt><dd data-tip={val}>{val}</dd></div>
         ))}
       </dl>
       {s.mode === 'auto' && s.status !== 'disabled' && (

@@ -28,7 +28,7 @@ export function FontPicker({ value, onPreview, onCommit, compact = false }: { va
         aria-label={`Font: ${family}`}
         aria-haspopup="listbox"
         aria-expanded={!!anchor}
-        title={`Font: ${family}`}
+        data-tip={`Font: ${family}`}
         onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}
       >
         <span className="font-trigger-name" style={{ fontFamily: `"${family}"` }}>{family}</span>

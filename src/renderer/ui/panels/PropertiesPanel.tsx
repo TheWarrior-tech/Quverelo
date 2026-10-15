@@ -188,7 +188,7 @@ export function PropertiesPanel() {
   const setStroke = (st: Stroke) => patchSel('Stroke', (m) => ('stroke' in m ? ({ ...m, stroke: st } as SceneNode) : m), 'stroke');
   return (
     <div className="properties">
-      <div className="prop-title" title={multi ? undefined : n.name}>
+      <div className="prop-title" data-tip={multi ? undefined : n.name}>
         <span className="prop-name">{multi ? `${nodes.length} objects` : n.name}</span>
         {(multi || n.name !== KIND[n.type]) && <span className="prop-kind">{multi ? 'Mixed' : KIND[n.type]}</span>}
       </div>
@@ -275,7 +275,7 @@ export function PropertiesPanel() {
                 <PaintRow kind="fill" label="Frame fill" paint={n.fill} onChange={(p) => editor.commit('Frame fill', (d) => updateNode(d, n.id, { fill: p } as Partial<SceneNode>), 'ffill')} />
               </Field>
               <div className="row">
-                <button className="btn sm" onClick={() => runCommand('text.link')} title="Select this frame and another, then link">Link frames</button>
+                <button className="btn sm" onClick={() => runCommand('text.link')} data-tip="Select this frame and another, then link">Link frames</button>
                 <button className="btn sm ghost" onClick={() => runCommand('text.unlink')}>Unlink</button>
               </div>
             </>

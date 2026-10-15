@@ -301,7 +301,7 @@ export function CurvesEditor({ node, adj, onChange, onBegin, onEnd }: {
         {CURVE_CHANNELS.map((ch) => (
           <button key={ch} type="button" className={`btn ${channel === ch ? 'selected' : ''}`} role="radio" aria-checked={channel === ch} onClick={() => { setChannel(ch); setSelected(null); }}>{LABEL[ch]}</button>
         ))}
-        <button type="button" className="btn ghost curves-reset" title={`Reset the ${LABEL[channel]} curve`} onClick={() => { commit([{ x: 0, y: 0 }, { x: 255, y: 255 }], `curves:${adj.id}:reset`); setSelected(null); }}>Reset</button>
+        <button type="button" className="btn ghost curves-reset" data-tip={`Reset the ${LABEL[channel]} curve`} onClick={() => { commit([{ x: 0, y: 0 }, { x: 255, y: 255 }], `curves:${adj.id}:reset`); setSelected(null); }}>Reset</button>
       </div>
       <canvas
         ref={ref}

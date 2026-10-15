@@ -230,7 +230,7 @@ export function ExportDialog({ format: initial }: { format: Format }) {
 
       <aside className="dlg-aside ex-preview" aria-label="Preview">
         <div className="page-preview" ref={previewRef} />
-        <div className="ex-file" title={fileName}>{fileName}</div>
+        <div className="ex-file" data-tip={fileName}>{fileName}</div>
         <dl className="kv">
           <dt>Dimensions</dt>
           <dd>{format === 'svg' ? `${Math.round(doc.settings.width + 2 * b)} × ${Math.round(doc.settings.height + 2 * b)} px` : `${pxW} × ${pxH} px`}</dd>

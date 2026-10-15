@@ -113,7 +113,7 @@ export function SelectionActions({ viewport }: { viewport: Viewport }) {
       {ACTIONS.map((a, i) => (
         <span key={a.id} className="sel-actions-item">
           {i === 1 && <span className="sel-actions-sep" aria-hidden="true" />}
-          <button className="btn" data-sel-action={a.id} title={a.hint} onClick={() => runCommand(a.command)}>
+          <button className="btn" data-sel-action={a.id} data-tip={a.hint} onClick={() => runCommand(a.command)}>
             <Icon name={a.icon} /> {a.label}
           </button>
         </span>

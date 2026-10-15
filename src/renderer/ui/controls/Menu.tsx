@@ -35,7 +35,7 @@ export function MenuButton({ label, icon, items, className, showLabel = false, p
         aria-haspopup="menu"
         aria-expanded={!!anchor}
         aria-label={label}
-        title={label}
+        data-tip={label}
         onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}
       >
         {icon && <Icon name={icon} size={16} />}

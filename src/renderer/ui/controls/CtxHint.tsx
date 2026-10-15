@@ -7,7 +7,7 @@ import type { ReactNode } from 'react';
  */
 export function CtxHint({ children, title }: { children: ReactNode; title?: string }) {
   return (
-    <span className="ctx-hint" title={title ?? (typeof children === 'string' ? children : undefined)}>
+    <span className="ctx-hint" data-tip={title ?? (typeof children === 'string' ? children : undefined)}>
       {children}
     </span>
   );

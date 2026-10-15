@@ -73,7 +73,7 @@ export function AssetsPanel() {
       <Section id="lib-shapes" title="Shapes & symbols">
         <div className="asset-grid">
           {SHAPES.map((s) => (
-            <button key={s.name} className="asset-tile" title={s.name} aria-label={`Insert ${s.name}`} onClick={() => insertShape(s)}>
+            <button key={s.name} className="asset-tile" data-tip={s.name} aria-label={`Insert ${s.name}`} onClick={() => insertShape(s)}>
               <svg viewBox="-4 -4 108 108"><path d={s.d} fill={s.stroke ? 'none' : 'currentColor'} stroke="currentColor" strokeWidth={s.stroke ? 6 : 0} /></svg>
             </button>
           ))}
@@ -89,7 +89,7 @@ export function AssetsPanel() {
             {images.map((a) => {
               const c = ed.assets.get(a.id)!;
               return (
-                <button key={a.id} className="asset-tile" title={a.name} aria-label={`Place ${a.name}`} onClick={() => placeAsset(a.id)}>
+                <button key={a.id} className="asset-tile" data-tip={a.name} aria-label={`Place ${a.name}`} onClick={() => placeAsset(a.id)}>
                   <img src={c.toDataURL('image/jpeg', 0.6)} alt="" />
                 </button>
               );
