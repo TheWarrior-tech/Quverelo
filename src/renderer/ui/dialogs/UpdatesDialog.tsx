@@ -1,5 +1,5 @@
 /** Help ▸ Check for Updates (docs/DESIGN.md §8 Dialogs). */
-import { useEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import type { UpdateState } from '../../../shared/api';
 import { closeDialog, toast } from '../../state/bus';
 import {
@@ -106,7 +106,9 @@ export function UpdatesDialog() {
   const s = useUpdateState();
   const [notesFor, setNotesFor] = useState<string | null>(null);
 
-  useEffect(() => {
+  // in the same commit as the dialog itself, so 'ready' arriving right after it opens or closes
+  // is judged against what is on screen (no toast under an open dialog, a toast once it is gone)
+  useLayoutEffect(() => {
     setUpdatesDialogOpen(true);
     const st = s?.status;
     if (st !== 'disabled' && st !== 'downloading' && st !== 'ready' && st !== 'checking') void checkForUpdates();

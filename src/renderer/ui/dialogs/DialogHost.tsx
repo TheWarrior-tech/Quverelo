@@ -1,5 +1,5 @@
 import { tip } from '../tips';
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Icon } from '../Icons';
 import { closeDialog, onDialog, type DialogName } from '../../state/bus';
 import { NewDocumentDialog } from './NewDocumentDialog';
@@ -58,7 +58,10 @@ export function Dialog({ title, children, footer, footerStart, size, wide, split
   const closeRef = useRef(close);
   closeRef.current = close;
 
-  useEffect(() => {
+  // Layout effect, not a passive one: focus and the Esc/Enter/Tab handler are in place in the
+  // same commit that puts the dialog on screen. A passive effect can run a task later, and a
+  // key pressed in that gap (Esc right after Ctrl+,) went nowhere and left the dialog open.
+  useLayoutEffect(() => {
     const root = ref.current;
     const prev = document.activeElement as HTMLElement | null;
     if (root) {
