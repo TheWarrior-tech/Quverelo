@@ -47,7 +47,7 @@ test.describe('README screenshots', () => {
       const n = editor.doc.pages[0].nodes;
       editor.select([n[n.length - 1].id]);
     });
-    await page.click('[data-panel="colour"]');
+    await page.click('[data-panel="properties"]');
     await page.waitForTimeout(500);
     await shot(page, '03-vector');
     await app.close();
