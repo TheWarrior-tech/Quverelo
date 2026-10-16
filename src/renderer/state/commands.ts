@@ -469,20 +469,26 @@ async function selectSubject(): Promise<boolean> {
     toast('Add or select a photo layer first');
     return false;
   }
+  // end-to-end time: pixels out of the layer, model, matte and the selection path (not just the network)
+  const t0 = performance.now();
   const view = rasterView(editor, r);
   if (!view) return false;
+  const tView = performance.now() - t0;
   subjectBusy = true;
   editor.setUi({ status: 'Selecting subject…', mlBusy: true });
   try {
     const res = await runSelectSubject(view);
+    const tPath = performance.now();
     const path = resultToWorldPath(view, res);
+    const ms = performance.now() - t0;
+    console.info(`[ml] select subject ${view.width}x${view.height}: pixels ${Math.round(tView)} ms, model+matte ${Math.round(res.ms)} ms ${JSON.stringify(Object.fromEntries(Object.entries(res.stages ?? {}).map(([k, v]) => [k, Math.round(v)])))}, path ${Math.round(performance.now() - tPath)} ms, total ${Math.round(ms)} ms`);
     if (!path) {
       editor.setUi({ status: '' });
       toast('No clear subject found');
       return false;
     }
     markStep('subject');
-    editor.setUi({ pixelSelection: path, status: `Subject selected (${res.source === 'ml' ? 'on-device model' : 'basic fallback'}, ${Math.round(res.ms)} ms)` });
+    editor.setUi({ pixelSelection: path, status: `Subject selected (${res.source === 'ml' ? 'on-device model' : 'basic fallback'}, ${Math.round(ms)} ms)` });
     return true;
   } finally {
     subjectBusy = false;

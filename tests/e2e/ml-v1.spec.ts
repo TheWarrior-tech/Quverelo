@@ -33,6 +33,7 @@ test('Select Subject: model backend loads offline and a 1024 px analysis runs en
   const backend = logs.find((t) => t.startsWith('[ml] backend'));
   expect(backend, logs.join('\n')).toBeTruthy();
   console.log(`${backend}; Select Subject end-to-end ms (first, warm, warm): ${times.join(', ')}`);
+  console.log(logs.filter((t) => t.startsWith('[ml] select subject')).join('\n'));
   // the first run includes creating the session; warm runs are the per-use cost. CI-safe bound; the
   // measured figure is recorded in ml/MODEL_CARD.md
   expect(Math.min(times[1], times[2])).toBeLessThan(2000);

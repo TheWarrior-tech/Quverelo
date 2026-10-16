@@ -35,6 +35,8 @@ export interface SelectionResult {
   /** backend error that caused a fallback, if any */
   error?: string;
   ms: number;
+  /** Select Subject stage times in ms (model = input tensor + network + upsampling)  */
+  stages?: { model: number; matte: number; clean: number };
 }
 
 export interface SelectOptions {
@@ -230,9 +232,11 @@ async function segment(img: RgbaImage, clicks: SelectionClick[], opts: SelectOpt
         const W = img.width;
         for (let y = 0; y < img.height; y++) for (let x = 0; x < W; x++) prob[y * W + x] = 0.5 * (prob[y * W + x] + f[y * W + (W - 1 - x)]);
       }
+      const t1 = now();
       const mask = opts.matte === false ? probToMask(prob, img.width, img.height) : refineMatte(img, prob, { modelScale: Math.max(img.width, img.height) / size, subsample: matteSubsample(img.width, img.height) });
+      const t2 = now();
       const binary = cleanMask(binarize(mask, thr), img.width, img.height, clicks);
-      return { mask, binary, source: 'ml', ms: now() - t0 };
+      return { mask, binary, source: 'ml', ms: now() - t0, stages: { model: t1 - t0, matte: t2 - t1, clean: now() - t2 } };
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     }

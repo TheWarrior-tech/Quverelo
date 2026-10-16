@@ -223,7 +223,7 @@ export function refineMatte(img: RgbaImage, prob: Float32Array, opts: MatteOptio
   };
   if (sub === 1) {
     const F: Float32Array[] = [], B: Float32Array[] = [];
-    let fw = new Float32Array(0), bw = new Float32Array(0);
+    let fw: Float32Array = new Float32Array(0), bw: Float32Array = new Float32Array(0);
     for (let c = 0; c < 3; c++) {
       const f = maskedMean(I[c], fgSure, W, H, R), b = maskedMean(I[c], bgSure, W, H, R);
       F.push(f.mean); B.push(b.mean); fw = f.weight; bw = b.weight;
@@ -245,7 +245,7 @@ export function refineMatte(img: RgbaImage, prob: Float32Array, opts: MatteOptio
   const fgW = down(fgSure), bgW = down(bgSure);
   const Is = [down(I[0]), down(I[1]), down(I[2])] as [Float32Array, Float32Array, Float32Array];
   const F: Float32Array[] = [], B: Float32Array[] = [];
-  let fwS = new Float32Array(0), bwS = new Float32Array(0);
+  let fwS: Float32Array = new Float32Array(0), bwS: Float32Array = new Float32Array(0);
   for (let c = 0; c < 3; c++) {
     const f = maskedMean(Is[c], fgW, w, h, Rs), b = maskedMean(Is[c], bgW, w, h, Rs);
     F.push(f.mean); B.push(b.mean); fwS = f.weight; bwS = b.weight;
