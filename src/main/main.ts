@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, shell, session, type MenuIte
 import { promises as fs, existsSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { pathToFileURL } from 'node:url';
 import { DEFAULT_POLICY, featureEnabled, isSavePathAllowed, parsePolicy, type Policy, type PolicyResult } from '../core/policy';
 import { APP_MENU } from '../shared/menu';
 import { safeName, stamp } from '../core/classroomNames';
@@ -456,6 +457,11 @@ if (!E2E && !app.requestSingleInstanceLock()) {
       if (!allowed && E2E) ((globalThis as { __quvreloBlocked?: string[] }).__quvreloBlocked ??= []).push(details.url);
       cb({ cancel: !allowed });
     });
+    // Linux spell checking uses Hunspell dictionaries that Chromium would otherwise download
+    // from Google. Point it at a local folder instead (IT may place <lang>.bdic files there).
+    if (process.platform !== 'darwin' && process.platform !== 'win32') {
+      session.defaultSession.setSpellCheckerDictionaryDownloadURL(pathToFileURL(path.join(process.resourcesPath, 'dictionaries') + path.sep).href);
+    }
     registerIpc();
     buildMenu();
     await createWindow();
