@@ -108,7 +108,7 @@ export function commandIcon(id: string): string | undefined {
     'arrange.rotate-cw': 'rotate', 'arrange.rotate-ccw': 'rotate', 'layer.new-pixel': 'pixel', 'layer.rasterize': 'pixel', 'layer.merge-down': 'arrow-down',
     'layer.mask-selection': 'mask', 'layer.mask-shape': 'mask', 'layer.release-mask': 'mask', 'layer.convert-curves': 'node',
     'layer.lock': 'lock', 'layer.hide': 'eye', 'select.all-pixels': 'select-all', 'select.none': 'deselect', 'select.invert': 'select-invert',
-    'select.subject': 'subject', 'select.remove-background': 'remove-bg', 'select.crop': 'crop', 'select.fill': 'fill', 'select.clear': 'eraser', 'select.copy-to-layer': 'copy',
+    'select.subject': 'subject', 'select.remove-background': 'remove-bg', 'select.cutout': 'remove-bg', 'select.crop': 'crop', 'select.fill': 'fill', 'select.clear': 'eraser', 'select.copy-to-layer': 'copy',
     'page.add': 'pages', 'page.duplicate': 'pages', 'page.delete': 'pages', 'page.prev': 'chevron-left', 'page.next': 'chevron-right',
     'master.add': 'pages', 'text.link': 'link', 'text.unlink': 'link', 'doc.resize': 'rect', 'view.zoom-in': 'zoom', 'view.zoom-out': 'zoom',
     'view.zoom-fit': 'zoom', 'view.zoom-100': 'zoom', 'help.shortcuts': 'keyboard', 'help.command-palette': 'keyboard', 'help.check-updates': 'update',

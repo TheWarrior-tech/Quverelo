@@ -8,12 +8,21 @@ import { transformPath } from '../../core/path';
 import type { PathCommand, RasterNode } from '../../core/types';
 import { maskToPath } from '../../core/ml/maskToPath';
 import { analysisSize, analysisTransform } from '../../core/ml/coords';
+import { upsampleMatte } from '../../core/ml/tensor';
 import { selectObject, selectSubject, type SegmentationBackend, type SelectionClick, type SelectionResult } from '../../core/ml/selectSubject';
 import type { Editor } from '../state/editor';
 import { createCanvas, ctx2d } from './assets';
 import { worldToPixelMatrix } from './pixelOps';
-import modelUrl from '../../../ml/models/quvselect.onnx?url';
 import wasmUrl from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url';
+import { pickModel } from '../../core/ml/models';
+
+/**
+ * Bundled models (local files, never fetched at runtime). QuvSelect v1 is a CI-downloaded release asset
+ * (scripts/fetch-ml-models.mjs, ml/models/manifest.json); when a build does not have it, the committed v0
+ * model is used. import.meta.glob keeps the build working either way.
+ */
+const MODEL_URLS = import.meta.glob('../../../ml/models/quvselect*.onnx', { query: '?url', import: 'default', eager: true }) as Record<string, string>;
+const MODEL = pickModel(MODEL_URLS);
 
 /** Longest side the image is analysed at (the model itself runs at 320 px; this bounds pre/post cost). */
 const ANALYSIS_MAX_SIDE = 1024;
@@ -30,15 +39,19 @@ export function getSegmentationBackend(): Promise<SegmentationBackend | null> {
         ort.env.wasm.wasmPaths = { wasm: wasmUrl };
         ort.env.wasm.numThreads = globalThis.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1;
         ort.env.wasm.proxy = false;
-        const session = await ort.InferenceSession.create(modelUrl, { executionProviders: ['wasm'], graphOptimizationLevel: 'all' });
+        if (!MODEL) throw new Error('no bundled QuvSelect model');
+        const session = await ort.InferenceSession.create(MODEL.url, { executionProviders: ['wasm'], graphOptimizationLevel: 'all' });
         const backend: SegmentationBackend = {
-          name: 'quvselect-onnx-wasm',
+          name: `${MODEL.id}-onnx-wasm`,
+          inputSize: MODEL.inputSize,
+          focusPasses: MODEL.focusPasses,
           async run(input, size) {
             const t = new ort.Tensor('float32', input, [1, 6, size, size]);
             const out = await session.run({ input: t });
             return out.logits.data as Float32Array;
           },
         };
+        console.info(`[ml] backend ${backend.name} (input ${MODEL.inputSize} px, ${ort.env.wasm.numThreads} thread(s))`);
         return backend;
       } catch (e) {
         console.warn('[ml] ONNX backend unavailable, using fallback:', e);
@@ -86,7 +99,33 @@ export function resultToWorldPath(view: RasterView, r: SelectionResult): PathCom
 
 export async function runSelectSubject(view: RasterView): Promise<SelectionResult> {
   const backend = await getSegmentationBackend();
-  return selectSubject(view, { backend });
+  const res = await selectSubject(view, { backend });
+  lastSubject = { nodeId: view.node.id, assetId: view.node.assetId, result: res };
+  return res;
+}
+
+/** The most recent Select Subject result, so Cut Out Subject can reuse its soft matte without re-running. */
+let lastSubject: { nodeId: string; assetId: string; result: SelectionResult } | null = null;
+export function cachedSubject(view: RasterView): SelectionResult | null {
+  return lastSubject && lastSubject.nodeId === view.node.id && lastSubject.assetId === view.node.assetId && lastSubject.result.source === 'ml' ? lastSubject.result : null;
+}
+
+/**
+ * Soft-edged cut-out: the layer's rendered pixels at full resolution with the soft alpha matte applied.
+ * The matte is computed at analysis resolution (<= ANALYSIS_MAX_SIDE) and upsampled bilinearly.
+ */
+export function cutoutCanvas(ed: Editor, view: RasterView, res: SelectionResult): HTMLCanvasElement | null {
+  const src = ed.assets.rendered(view.node.assetId, view.node.adjustments, false) ?? ed.assets.get(view.node.assetId);
+  if (!src) return null;
+  const W = src.width, H = src.height;
+  const c = createCanvas(W, H);
+  const ctx = ctx2d(c);
+  ctx.drawImage(src, 0, 0);
+  const id = ctx.getImageData(0, 0, W, H);
+  const alpha = upsampleMatte(res.mask, W, H);
+  for (let i = 0; i < alpha.length; i++) id.data[i * 4 + 3] = Math.round((id.data[i * 4 + 3] * alpha[i]) / 255);
+  ctx.putImageData(id, 0, 0);
+  return c;
 }
 
 export async function runSelectObject(view: RasterView, clicks: SelectionClick[], previous: SelectionResult | null): Promise<SelectionResult> {

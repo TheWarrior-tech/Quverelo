@@ -1,0 +1,20 @@
+{
+ "repo": "TheWarrior-tech/Quverelo",
+ "releaseTag": "ml-quvselect-v1",
+ "checkpoint_step": 2000,
+ "licence": "MIT (weights, Quvrelo); encoder initialised from timm mobilenetv3_large_100.ra_in1k (Apache-2.0); data Open Images (CC BY), see ml/DATA_SOURCES.md",
+ "models": [
+  {
+   "id": "quvselect-v1",
+   "file": "quvselect_v1.onnx",
+   "bytes": 12633087,
+   "sha256": "f6642d821439695ea78ac8c43e9a7f1a9b045106706cc33e76e8a5f0b5c72506"
+  },
+  {
+   "id": "quvselect-v1-int8",
+   "file": "quvselect_v1_int8.onnx",
+   "bytes": 3660726,
+   "sha256": "98cb338e96685f1d42adaa5ee61fbfbbe4c9853d95a3a6c562e48625270bf80b"
+  }
+ ]
+}

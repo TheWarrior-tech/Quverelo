@@ -153,25 +153,24 @@ export function binarize(mask: MaskImage, threshold = 128): Uint8Array {
 
 /** 4-connected component labelling of a 0/1 mask; returns labels (0 = background) and areas (index = label). */
 export function labelComponents(bin: Uint8Array, w: number, h: number): { labels: Int32Array; areas: number[] } {
-  const labels = new Int32Array(w * h);
+  const n = w * h;
+  const labels = new Int32Array(n);
   const areas = [0];
-  const stack: number[] = [];
+  const stack = new Int32Array(n); // each pixel is pushed at most once (it is labelled when pushed)
   let next = 1;
-  for (let s = 0; s < w * h; s++) {
+  for (let s = 0; s < n; s++) {
     if (!bin[s] || labels[s]) continue;
-    let area = 0;
+    let area = 0, top = 0;
     labels[s] = next;
-    stack.push(s);
-    while (stack.length) {
-      const p = stack.pop()!;
+    stack[top++] = s;
+    while (top) {
+      const p = stack[--top];
       area++;
       const x = p % w;
-      const nb = [x > 0 ? p - 1 : -1, x < w - 1 ? p + 1 : -1, p - w, p + w];
-      for (const q of nb) {
-        if (q < 0 || q >= w * h || !bin[q] || labels[q]) continue;
-        labels[q] = next;
-        stack.push(q);
-      }
+      if (x > 0 && bin[p - 1] && !labels[p - 1]) { labels[p - 1] = next; stack[top++] = p - 1; }
+      if (x < w - 1 && bin[p + 1] && !labels[p + 1]) { labels[p + 1] = next; stack[top++] = p + 1; }
+      if (p >= w && bin[p - w] && !labels[p - w]) { labels[p - w] = next; stack[top++] = p - w; }
+      if (p + w < n && bin[p + w] && !labels[p + w]) { labels[p + w] = next; stack[top++] = p + w; }
     }
     areas.push(area);
     next++;
@@ -204,12 +203,25 @@ export function cleanMask(bin: Uint8Array, w: number, h: number, clicks: Selecti
     }
     if (!keep.size) return bin; // click landed outside the predicted mask: leave it to the user
   } else {
-    const max = Math.max(...areas.slice(1));
+    let max = 0;
+    for (let l = 1; l < areas.length; l++) if (areas[l] > max) max = areas[l];
     areas.forEach((a, l) => {
       if (l && a >= minFrac * max) keep.add(l);
     });
   }
+  const keepL = new Uint8Array(areas.length);
+  for (const l of keep) keepL[l] = 1;
   const out = new Uint8Array(bin.length);
-  for (let i = 0; i < out.length; i++) out[i] = keep.has(labels[i]) ? 1 : 0;
+  for (let i = 0; i < out.length; i++) out[i] = keepL[labels[i]];
+  return out;
+}
+
+/** Soft mask (0..255) -> alpha bytes at another resolution (bilinear / antialiased like resizePlane). */
+export function upsampleMatte(mask: MaskImage, width: number, height: number): Uint8ClampedArray {
+  const f = new Float32Array(mask.data.length);
+  for (let i = 0; i < f.length; i++) f[i] = mask.data[i];
+  const r = mask.width === width && mask.height === height ? f : resizePlane(f, mask.width, mask.height, width, height);
+  const out = new Uint8ClampedArray(width * height);
+  for (let i = 0; i < out.length; i++) out[i] = r[i];
   return out;
 }

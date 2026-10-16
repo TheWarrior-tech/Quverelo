@@ -1,0 +1,1 @@
+{"model": "data/ref/u2netp.onnx", "n_subject": 717, "subject_mIoU": 0.6539, "subject_IoU_ge_0.8_frac": 0.4561}

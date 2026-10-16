@@ -44,7 +44,8 @@ describe.skipIf(!existsSync(MODEL))('QuvSelect ONNX model (onnxruntime-web, CPU)
       name: 'test-ort-web',
       run: async (x, size) => (await session.run({ input: new ort.Tensor('float32', x, [1, 6, size, size]) })).logits.data as Float32Array,
     };
-    const res = await selectSubject(img, { backend });
+    // parity with the Python reference: compare the raw network mask (no edge refinement / matting)
+    const res = await selectSubject(img, { backend, matte: false });
     expect(res.source).toBe('ml');
     const frac = res.binary.reduce((a, b) => a + b, 0) / res.binary.length;
     expect(Math.abs(frac - fx.subject_fg_frac)).toBeLessThan(0.08);

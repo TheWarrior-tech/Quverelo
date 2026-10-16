@@ -16,7 +16,8 @@
  *   - the selection's bounding box stays within 8 analysis px of the reference bounding box.
  *
  * Runs the shipped ONNX model with onnxruntime-web (WASM, CPU) through the same TS pipeline
- * the app uses (selectObject); skipped if the model file is missing.
+ * the app uses (selectObject, with the focus-pass setting the app uses for that model, src/core/ml/models.ts);
+ * skipped if the model file is missing.
  */
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
@@ -26,8 +27,13 @@ import jpeg from 'jpeg-js';
 import { analysisSize } from '../../src/core/ml/coords';
 import { resizePlane } from '../../src/core/ml/tensor';
 import { selectObject, type SegmentationBackend } from '../../src/core/ml/selectSubject';
+import { MODEL_PREFERENCE } from '../../src/core/ml/models';
 
-const MODEL = resolve(__dirname, '../../ml/models/quvselect.onnx');
+/** every bundled model that is present: v0 (committed) and v1 (release asset, ml/models/manifest.json) */
+const MODELS = [
+  { name: 'QuvSelect v1', path: resolve(__dirname, '../../ml/models/quvselect_v1.onnx'), focusPasses: MODEL_PREFERENCE.find((m) => m.id === 'quvselect-v1')!.focusPasses },
+  { name: 'QuvSelect v0', path: resolve(__dirname, '../../ml/models/quvselect.onnx'), focusPasses: MODEL_PREFERENCE.find((m) => m.id === 'quvselect-v0')!.focusPasses },
+];
 const PHOTO = resolve(__dirname, '../fixtures/sample-photo.jpg');
 
 /** Hand-traced cottage outline, full-resolution pixels of sample-photo.jpg (1264x848). */
@@ -89,12 +95,14 @@ function stats(m: Uint8Array, ref: Uint8Array, w: number) {
   return { iou: union ? inter / union : 0, area, bbox: { x0, y0, x1, y1 } };
 }
 
-describe.skipIf(!existsSync(MODEL))('Object Select accuracy on the showcase photo (QuvSelect v0)', () => {
+for (const { name, path: MODEL, focusPasses } of MODELS)
+describe.skipIf(!existsSync(MODEL))(`Object Select accuracy on the showcase photo (${name})`, () => {
   it('a click on the cottage selects the cottage tightly (IoU >= 0.8, area <= 1.5x its bbox)', async () => {
     ort.env.wasm.numThreads = 1;
     const session = await ort.InferenceSession.create(readFileSync(MODEL), { executionProviders: ['wasm'] });
     const backend: SegmentationBackend = {
       name: 'test-ort-web',
+      focusPasses, // as the app configures this model (src/core/ml/models.ts)
       run: async (x, size) => (await session.run({ input: new ort.Tensor('float32', x, [1, 6, size, size]) })).logits.data as Float32Array,
     };
     const { img, k } = loadAnalysisImage();
@@ -117,7 +125,7 @@ describe.skipIf(!existsSync(MODEL))('Object Select accuracy on the showcase phot
       expect(s.bbox.y1).toBeLessThanOrEqual(rs.bbox.y1 + 8);
     }
     // eslint-disable-next-line no-console
-    console.info(`[objsel] cottage IoU per click: ${ious.map((v) => v.toFixed(3)).join(' ')}`);
+    console.info(`[objsel] ${name} cottage IoU per click: ${ious.map((v) => v.toFixed(3)).join(' ')}`);
   }, 60_000);
 
   it('documents the old single-pass behaviour (no zoom, no edge refine) (logged, not asserted: the model may improve)', async () => {
@@ -132,7 +140,7 @@ describe.skipIf(!existsSync(MODEL))('Object Select accuracy on the showcase phot
     const res = await selectObject(img, [{ x: REVIEW_CLICK.x * k, y: REVIEW_CLICK.y * k, positive: true }], { backend, focus: false, refine: false });
     const s = stats(res.binary, ref, img.width);
     // eslint-disable-next-line no-console
-    console.info(`[objsel] single-pass IoU ${s.iou.toFixed(3)}, area ${(s.area / stats(ref, ref, img.width).area).toFixed(1)}x the cottage`);
+    console.info(`[objsel] ${name} single-pass IoU ${s.iou.toFixed(3)}, area ${(s.area / stats(ref, ref, img.width).area).toFixed(1)}x the cottage`);
     expect(res.source).toBe('ml');
   }, 60_000);
 });
