@@ -3,6 +3,7 @@
  * viewport and turns gestures into model commits.
  */
 import { apply, invert, boundsOfPoints, type Point } from '../../core/geometry';
+import type { GradientPaint } from '../../core/types';
 import { hairline } from './hairline';
 import { findNode, make, makeStroke, solid, NO_PAINT, worldMatrix, nodeToPath } from '../../core/document';
 import { addNodes, indexAbove, addTextFrame, convertToCurves, updateNode, removeNodes } from '../../core/commands';
@@ -11,15 +12,25 @@ import {
   subpathsToPath, transformPath, translatePath, type Anchor, type Subpath,
 } from '../../core/path';
 import { booleanPaths } from '../../core/boolean';
+import {
+  bendSegment, breakAt, closeSubpath, deleteNodes, dragHandle, insertNode, joinSelected, moveNodes, nearestOnPath, nodeKind, nodesInRect,
+  reversePath, setNodeKind, type NodeKind, type NodeRef,
+} from '../../core/pathEdit';
+import { addArtboard, artboardAt, reparentToArtboards } from '../../core/artboards';
+import { gradientHandles, insertStop, isGradient, setGradientHandles } from '../../core/gradient';
+import { shapeBox } from '../../core/vectorExpand';
+import { getPaint, setPaint } from '../../core/paintAccess';
+import { publishNodeEdit, setNodeActionHandler, type NodeAction } from '../state/nodeEdit';
+import { toast } from '../state/bus';
 import { floodMask } from '../../core/pixels';
-import type { PathCommand, PathNode, SceneNode, RasterNode } from '../../core/types';
+import type { PathCommand, PathNode, SceneNode, RasterNode, QuvreloDocument } from '../../core/types';
 import type { Editor, ToolId } from '../state/editor';
 import type { Viewport } from './Viewport';
 import { cloneCanvas, createCanvas, ctx2d, canvasToPixels } from './assets';
 import {
   activeRaster, commitRasterCanvas, createPixelLayer, editRaster, makeDab, parseColor, selectionInPixels, toHex, worldToPixelMatrix,
 } from './pixelOps';
-import { drawPage } from './draw';
+import { drawPage, renderLocalBounds } from './draw';
 import { runCommand } from '../state/commands';
 import {
   CROP_HANDLES, cursorFor, handlePoints, hitCrop, moveWithin, rectFromDrag, resizeCrop, roundCrop, type CropHit, type CropRect,
@@ -66,7 +77,12 @@ function currentStroke(ed: Editor, force = false) {
 function addAndSelect(ed: Editor, node: SceneNode, label: string): void {
   // Photo: a shape becomes a vector layer directly above the active layer (Vector/Layout: on top)
   const at = ed.ui.studio === 'photo' ? indexAbove(ed.activeContainer?.nodes ?? [], ed.targetIds()) : undefined;
-  ed.commit(label, (d) => addNodes(d, containerId(ed), [node], at));
+  const cid = containerId(ed);
+  // Vector: drawn over an artboard, it goes onto that board
+  ed.commit(label, (d) => {
+    const added = addNodes(d, cid, [node], at);
+    return ed.ui.studio === 'vector' && d.pages.some((p) => p.id === cid) ? reparentToArtboards(added, [node.id], cid) : added;
+  });
   ed.select([node.id]);
 }
 
@@ -145,7 +161,7 @@ class ShapeTool implements Tool {
     const p = this.cur!;
     let w = p.x - s.x;
     let h = p.y - s.y;
-    if (this.constrain && this.kind !== 'line') {
+    if (this.constrain && this.kind !== 'line' && this.kind !== 'arrow') {
       const m = Math.max(Math.abs(w), Math.abs(h));
       w = Math.sign(w || 1) * m;
       h = Math.sign(h || 1) * m;
@@ -208,6 +224,9 @@ class ShapeTool implements Tool {
       case 'rect':
         addAndSelect(ed, make.rect({ ...base, radius: opts.cornerRadius, fill, stroke }), 'Rectangle');
         break;
+      case 'rrect':
+        addAndSelect(ed, make.rect({ ...base, name: 'Rounded Rectangle', radius: opts.roundRadius, fill, stroke }), 'Rounded rectangle');
+        break;
       case 'ellipse':
         addAndSelect(ed, make.ellipse({ ...base, fill, stroke }), 'Ellipse');
         break;
@@ -217,15 +236,17 @@ class ShapeTool implements Tool {
       case 'star':
         addAndSelect(ed, make.star({ ...base, points: opts.starPoints, innerRatio: opts.starInner, fill, stroke }), 'Star');
         break;
-      case 'line': {
+      case 'line':
+      case 'arrow': {
         const e = this.lineEnd();
         const cx = (s.x + e.x) / 2;
         const cy = (s.y + e.y) / 2;
         const color = ed.ui.strokeEnabled ? ed.ui.strokeColor : ed.ui.fillColor;
+        const arrow = this.kind === 'arrow';
         addAndSelect(ed, make.path({
-          name: 'Line', x: cx, y: cy, d: [['M', s.x - cx, s.y - cy], ['L', e.x - cx, e.y - cy]],
-          stroke: { ...makeStroke(color, Math.max(1, opts.strokeWidth)), cap: 'round' },
-        }), 'Line');
+          name: arrow ? 'Arrow' : 'Line', x: cx, y: cy, d: [['M', s.x - cx, s.y - cy], ['L', e.x - cx, e.y - cy]],
+          stroke: { ...makeStroke(color, Math.max(1, opts.strokeWidth)), cap: 'round', ...(arrow ? { endArrow: 'triangle' as const } : {}) },
+        }), arrow ? 'Arrow' : 'Line');
         break;
       }
       case 'imageframe':
@@ -259,7 +280,8 @@ class ShapeTool implements Tool {
       case 'ellipse': d = ellipsePath(r.w, r.h); break;
       case 'polygon': d = pointsToPath(polygonPoints(r.w, r.h, opts.polygonSides)); break;
       case 'star': d = pointsToPath(starPoints(r.w, r.h, opts.starPoints, opts.starInner)); break;
-      case 'line': {
+      case 'line':
+      case 'arrow': {
         const e = this.lineEnd();
         ctx.beginPath();
         ctx.moveTo(this.start.x, this.start.y);
@@ -268,7 +290,7 @@ class ShapeTool implements Tool {
         ctx.restore();
         return;
       }
-      default: d = rectPath(r.w, r.h, this.kind === 'rect' ? opts.cornerRadius : 0);
+      default: d = rectPath(r.w, r.h, this.kind === 'rect' ? opts.cornerRadius : this.kind === 'rrect' ? opts.roundRadius : 0);
     }
     const p = new Path2D(pathToString(translatePath(d, r.x + r.w / 2, r.y + r.h / 2)));
     ctx.fill(p);
@@ -307,32 +329,83 @@ class TextTool implements Tool {
 // ---------------------------------------------------------------------------
 // Pen & pencil
 
+/** Snap the vector from `o` to `p` to the nearest 45°. */
+function snap45(o: Point, p: Point): Point {
+  const dx = p.x - o.x;
+  const dy = p.y - o.y;
+  const ang = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4);
+  const len = Math.hypot(dx, dy);
+  return { x: o.x + Math.cos(ang) * len, y: o.y + Math.sin(ang) * len };
+}
+
+/**
+ * Pen tool: click for a sharp node, drag for a smooth one (Alt while dragging
+ * makes a cusp: only the outgoing handle moves), Shift snaps to 45°. Click the
+ * first node to close; Enter / Esc / double-click finishes an open curve.
+ * Starting on an end node of the selected open curve continues that curve.
+ */
 class PenTool implements Tool {
   cursor = CROSS;
   private anchors: Anchor[] = [];
   private dragging = false;
   private mouse: Point | null = null;
+  /** continuing an existing curve: its node id, the other subpaths and where ours sits */
+  private cont: { id: string; others: Subpath[]; index: number } | null = null;
   constructor(private c: ToolContext) {}
 
-  onDown(p: Point) {
+  private tryContinue(p: Point): boolean {
+    const ed = this.c.editor;
+    const doc = ed.doc;
+    const n = ed.selectedNodes()[0];
+    if (!doc || !n || n.type !== 'path' || ed.selectedNodes().length !== 1) return false;
+    const loc = findNode(doc, n.id)!;
+    const subs = pathToSubpaths(transformPath(n.d, worldMatrix(loc)));
+    const r = 8 / this.c.viewport.canvas.getZoom();
+    for (let i = 0; i < subs.length; i++) {
+      const s = subs[i];
+      if (s.closed || s.anchors.length < 2) continue;
+      const first = s.anchors[0];
+      const last = s.anchors[s.anchors.length - 1];
+      const atEnd = Math.hypot(p.x - last.x, p.y - last.y) < r;
+      const atStart = Math.hypot(p.x - first.x, p.y - first.y) < r;
+      if (!atEnd && !atStart) continue;
+      this.anchors = (atEnd ? s : reversePath([s])[0]).anchors.map((a) => ({ ...a }));
+      this.cont = { id: n.id, others: subs.filter((_, j) => j !== i), index: i };
+      return true;
+    }
+    return false;
+  }
+
+  onDown(p: Point, e: MouseEvent) {
+    if (!this.anchors.length && this.tryContinue(p)) {
+      this.dragging = true;
+      this.c.viewport.drawOverlay();
+      return;
+    }
     const first = this.anchors[0];
     const z = this.c.viewport.canvas.getZoom();
     if (first && this.anchors.length > 2 && Math.hypot(p.x - first.x, p.y - first.y) < 8 / z) {
       this.finish(true);
       return;
     }
-    this.anchors.push({ x: p.x, y: p.y, inX: null, inY: null, outX: null, outY: null });
+    const prev = this.anchors[this.anchors.length - 1];
+    const q = prev && e.shiftKey ? snap45(prev, p) : p;
+    this.anchors.push({ x: q.x, y: q.y, inX: null, inY: null, outX: null, outY: null });
     this.dragging = true;
   }
-  onMove(p: Point) {
+  onMove(p: Point, e: MouseEvent) {
     this.mouse = p;
     if (this.dragging) {
       const a = this.anchors[this.anchors.length - 1];
-      if (Math.hypot(p.x - a.x, p.y - a.y) > 2) {
-        a.outX = p.x;
-        a.outY = p.y;
-        a.inX = 2 * a.x - p.x;
-        a.inY = 2 * a.y - p.y;
+      const q = e.shiftKey ? snap45(a, p) : p;
+      if (Math.hypot(q.x - a.x, q.y - a.y) > 2) {
+        a.outX = q.x;
+        a.outY = q.y;
+        // Alt: cusp, the incoming handle stays where it was
+        if (!e.altKey) {
+          a.inX = 2 * a.x - q.x;
+          a.inY = 2 * a.y - q.y;
+        }
       }
     }
     this.c.viewport.drawOverlay();
@@ -359,7 +432,18 @@ class PenTool implements Tool {
   }
   finish(closed: boolean) {
     const ed = this.c.editor;
-    if (this.anchors.length >= 2) {
+    if (this.cont && this.anchors.length >= 2) {
+      const { id, others, index } = this.cont;
+      const doc = ed.doc;
+      const loc = doc ? findNode(doc, id) : null;
+      if (doc && loc) {
+        const mine: Subpath = { anchors: this.anchors, closed };
+        const subs = [...others];
+        subs.splice(index, 0, mine);
+        const local = transformPath(subpathsToPath(subs), invert(worldMatrix(loc)));
+        ed.commit('Pen', (d) => updateNode<PathNode>(d, id, { d: local, closed: subs.some((x) => x.closed) }));
+      }
+    } else if (this.anchors.length >= 2) {
       const d = subpathsToPath([{ anchors: this.anchors, closed }]);
       const c = centrePath(d);
       const node = make.path({
@@ -371,11 +455,13 @@ class PenTool implements Tool {
       addAndSelect(ed, node, 'Pen');
     }
     this.anchors = [];
+    this.cont = null;
     this.c.viewport.drawOverlay();
   }
   deactivate() {
     if (this.anchors.length >= 2) this.finish(false);
     this.anchors = [];
+    this.cont = null;
   }
   drawOverlay(ctx: CanvasRenderingContext2D, z: number) {
     if (!this.anchors.length) return;
@@ -504,15 +590,36 @@ export function smoothPath(pts: Point[]): PathCommand[] {
 
 type NodeHit = { sub: number; anchor: number; part: 'anchor' | 'in' | 'out' };
 
+type NodeDrag =
+  | { mode: 'handle'; hit: NodeHit; kind: NodeKind | 'free' }
+  | { mode: 'nodes'; last: Point; start: Point }
+  | { mode: 'segment'; sub: number; segment: number; t: number; start: Point; base: Subpath[] }
+  | { mode: 'marquee'; start: Point; cur: Point; additive: boolean };
+
+const refKey = (r: NodeRef) => `${r.sub}:${r.anchor}`;
+
+/**
+ * Node tool (Affinity Designer's): edit a path's nodes and handles.
+ *  - click / Shift-click / drag a marquee to select nodes; drag them to move
+ *  - drag a handle (Alt breaks a smooth node into a cusp)
+ *  - click a segment to add a node there; drag a segment to bend it
+ *  - double-click a node: sharp ↔ smooth; Delete removes nodes; arrows nudge
+ *  - context bar / Layer menu: sharp, smooth, symmetric, break, join, close, reverse
+ * Shapes (rectangle, ellipse, …) and compounds become curves on the first edit.
+ */
 class NodeTool implements Tool {
   cursor = 'default';
   private subs: Subpath[] | null = null; // in world coordinates
   private nodeId: string | null = null;
-  private drag: NodeHit | null = null;
-  private selected: { sub: number; anchor: number } | null = null;
+  private loadedDoc: unknown = null;
+  private drag: NodeDrag | null = null;
+  private selected: NodeRef[] = [];
   private moved = false;
+  /** the document before a drag's live previews (undo returns to it) */
+  private base: QuvreloDocument | null = null;
   constructor(private c: ToolContext) {
     this.load();
+    setNodeActionHandler((a) => this.action(a));
   }
 
   private load() {
@@ -520,132 +627,518 @@ class NodeTool implements Tool {
     const doc = ed.doc;
     const sel = ed.selectedNodes();
     const n = sel[0];
+    const prevId = this.nodeId;
     this.subs = null;
     this.nodeId = null;
-    if (!doc || !n || sel.length !== 1) return;
-    const d = nodeToPath(n);
-    if (!d || !['rect', 'ellipse', 'polygon', 'star', 'path'].includes(n.type)) return;
+    this.loadedDoc = doc;
+    if (!doc || !n || sel.length !== 1) return this.publish();
+    const editable = ['rect', 'ellipse', 'polygon', 'star', 'path'].includes(n.type) || (n.type === 'group' && !!n.compound);
+    const d = editable ? nodeToPath(n) : null;
+    if (!d) return this.publish();
     const loc = findNode(doc, n.id)!;
     this.nodeId = n.id;
     this.subs = pathToSubpaths(transformPath(d, worldMatrix(loc)));
+    if (prevId !== n.id) this.selected = [];
+    this.selected = this.selected.filter((r) => this.subs![r.sub]?.anchors[r.anchor]);
+    this.publish();
+  }
+
+  private publish() {
+    if (!this.subs) {
+      publishNodeEdit(null);
+      return;
+    }
+    const kinds = new Set(this.selected.map((r) => nodeKind(this.subs![r.sub].anchors[r.anchor])));
+    publishNodeEdit({
+      active: true,
+      selected: this.selected.length,
+      total: this.subs.reduce((n, s) => n + s.anchors.length, 0),
+      kind: kinds.size === 0 ? null : kinds.size === 1 ? [...kinds][0] : 'mixed',
+      openSubpaths: this.subs.filter((s) => !s.closed).length,
+    });
+  }
+
+  private isSelected(r: NodeRef) {
+    return this.selected.some((x) => x.sub === r.sub && x.anchor === r.anchor);
+  }
+
+  private tol() {
+    return 7 / this.c.viewport.canvas.getZoom();
   }
 
   private hit(p: Point): NodeHit | null {
     if (!this.subs) return null;
-    const r = 7 / this.c.viewport.canvas.getZoom();
+    const r = this.tol();
+    for (let s = 0; s < this.subs.length; s++) {
+      const anchors = this.subs[s].anchors;
+      for (let i = 0; i < anchors.length; i++) {
+        const a = anchors[i];
+        if (Math.hypot(p.x - a.x, p.y - a.y) < r) return { sub: s, anchor: i, part: 'anchor' };
+      }
+    }
     for (let s = 0; s < this.subs.length; s++) {
       const anchors = this.subs[s].anchors;
       for (let i = 0; i < anchors.length; i++) {
         const a = anchors[i];
         if (a.outX !== null && Math.hypot(p.x - a.outX, p.y - a.outY!) < r) return { sub: s, anchor: i, part: 'out' };
         if (a.inX !== null && Math.hypot(p.x - a.inX, p.y - a.inY!) < r) return { sub: s, anchor: i, part: 'in' };
-        if (Math.hypot(p.x - a.x, p.y - a.y) < r) return { sub: s, anchor: i, part: 'anchor' };
       }
     }
     return null;
   }
 
-  onDown(p: Point, _e: MouseEvent, target: SceneNode | null) {
+  onDown(p: Point, e: MouseEvent, target: SceneNode | null) {
+    if (this.loadedDoc !== this.c.editor.doc && !this.drag) this.load();
     const h = this.hit(p);
-    if (h) {
-      this.drag = h;
-      this.selected = { sub: h.sub, anchor: h.anchor };
-      this.moved = false;
+    this.moved = false;
+    this.base = this.c.editor.doc;
+    if (h && this.subs) {
+      const ref = { sub: h.sub, anchor: h.anchor };
+      if (h.part === 'anchor') {
+        if (e.shiftKey) {
+          this.selected = this.isSelected(ref) ? this.selected.filter((x) => refKey(x) !== refKey(ref)) : [...this.selected, ref];
+        } else if (!this.isSelected(ref)) this.selected = [ref];
+        this.drag = { mode: 'nodes', last: p, start: p };
+      } else {
+        const a = this.subs[h.sub].anchors[h.anchor];
+        this.drag = { mode: 'handle', hit: h, kind: e.altKey ? 'free' : nodeKind(a) };
+        if (!this.isSelected(ref)) this.selected = [ref];
+      }
+      this.publish();
       this.c.viewport.drawOverlay();
       return;
     }
-    if (target) {
+    if (this.subs) {
+      const near = nearestOnPath(this.subs, p);
+      if (near && near.distance < this.tol()) {
+        this.drag = { mode: 'segment', sub: near.sub, segment: near.segment, t: near.t, start: p, base: this.subs };
+        return;
+      }
+    }
+    if (target && target.id !== this.nodeId) {
       this.c.editor.select([target.id]);
+      this.selected = [];
       this.load();
+    } else if (this.subs) {
+      this.drag = { mode: 'marquee', start: p, cur: p, additive: e.shiftKey };
+      if (!e.shiftKey) this.selected = [];
     } else {
       this.c.editor.select([]);
       this.subs = null;
       this.nodeId = null;
+      this.publish();
     }
-    this.selected = null;
     this.c.viewport.drawOverlay();
   }
 
   onMove(p: Point, e: MouseEvent) {
-    if (!this.drag || !this.subs) return;
-    this.moved = true;
-    const a = this.subs[this.drag.sub].anchors[this.drag.anchor];
-    if (this.drag.part === 'anchor') {
-      const dx = p.x - a.x;
-      const dy = p.y - a.y;
-      a.x = p.x;
-      a.y = p.y;
-      if (a.inX !== null) {
-        a.inX += dx;
-        a.inY! += dy;
-      }
-      if (a.outX !== null) {
-        a.outX += dx;
-        a.outY! += dy;
-      }
-    } else {
-      const key = this.drag.part;
-      if (key === 'out') {
-        a.outX = p.x;
-        a.outY = p.y;
-        if (!e.altKey && a.inX !== null) {
-          const len = Math.hypot(a.inX - a.x, a.inY! - a.y);
-          const ang = Math.atan2(p.y - a.y, p.x - a.x) + Math.PI;
-          a.inX = a.x + Math.cos(ang) * len;
-          a.inY = a.y + Math.sin(ang) * len;
-        }
-      } else {
-        a.inX = p.x;
-        a.inY = p.y;
-        if (!e.altKey && a.outX !== null) {
-          const len = Math.hypot(a.outX - a.x, a.outY! - a.y);
-          const ang = Math.atan2(p.y - a.y, p.x - a.x) + Math.PI;
-          a.outX = a.x + Math.cos(ang) * len;
-          a.outY = a.y + Math.sin(ang) * len;
-        }
-      }
+    const d = this.drag;
+    if (!d || !this.subs) return;
+    if (d.mode === 'marquee') {
+      d.cur = p;
+      this.c.viewport.drawOverlay();
+      return;
     }
+    if (d.mode === 'nodes') {
+      let dx = p.x - d.last.x;
+      let dy = p.y - d.last.y;
+      if (e.shiftKey) {
+        // constrain to the dominant axis from where the drag started
+        const tx = p.x - d.start.x;
+        const ty = p.y - d.start.y;
+        if (Math.abs(tx) > Math.abs(ty)) dy = d.start.y - d.last.y;
+        else dx = d.start.x - d.last.x;
+      }
+      if (!dx && !dy) return;
+      this.subs = moveNodes(this.subs, this.selected, dx, dy);
+      d.last = { x: d.last.x + dx, y: d.last.y + dy };
+    } else if (d.mode === 'handle') {
+      const list = this.subs[d.hit.sub].anchors;
+      const kind = e.altKey ? 'free' : d.kind;
+      if (kind === 'free') d.kind = 'free';
+      this.subs = this.subs.map((s, i) => (i !== d.hit.sub ? s : { ...s, anchors: list.map((a, j) => (j === d.hit.anchor ? dragHandle(a, d.hit.part as 'in' | 'out', p, kind) : a)) }));
+    } else if (d.mode === 'segment') {
+      if (Math.hypot(p.x - d.start.x, p.y - d.start.y) < 2 / this.c.viewport.canvas.getZoom() && !this.moved) return;
+      this.subs = bendSegment(d.base, d.sub, d.segment, d.t, p);
+    }
+    this.moved = true;
     this.apply(true);
   }
 
   onUp() {
-    if (this.drag && this.moved) this.apply(false);
+    const d = this.drag;
     this.drag = null;
+    if (!d || !this.subs) return;
+    if (d.mode === 'marquee') {
+      const r = { x: Math.min(d.start.x, d.cur.x), y: Math.min(d.start.y, d.cur.y), w: Math.abs(d.cur.x - d.start.x), h: Math.abs(d.cur.y - d.start.y) };
+      const inside = nodesInRect(this.subs, r);
+      const keys = new Set(this.selected.map(refKey));
+      this.selected = d.additive ? [...this.selected, ...inside.filter((x) => !keys.has(refKey(x)))] : inside;
+      this.publish();
+      this.c.viewport.drawOverlay();
+      return;
+    }
+    if (d.mode === 'segment' && !this.moved) {
+      const r = insertNode(this.subs, d.sub, d.segment, d.t);
+      this.subs = r.subs;
+      this.selected = [r.ref];
+      this.apply(false, 'Add node');
+      return;
+    }
+    if (this.moved) this.apply(false);
   }
 
   onDblClick(p: Point) {
     const h = this.hit(p);
-    if (!h || !this.subs) return;
+    if (!h || h.part !== 'anchor' || !this.subs) return;
     const a = this.subs[h.sub].anchors[h.anchor];
-    if (a.inX !== null || a.outX !== null) {
-      a.inX = a.inY = a.outX = a.outY = null;
-    } else {
-      // make smooth: handles along neighbour direction
-      const list = this.subs[h.sub].anchors;
-      const prev = list[(h.anchor - 1 + list.length) % list.length];
-      const next = list[(h.anchor + 1) % list.length];
-      const dx = (next.x - prev.x) / 6;
-      const dy = (next.y - prev.y) / 6;
-      a.inX = a.x - dx;
-      a.inY = a.y - dy;
-      a.outX = a.x + dx;
-      a.outY = a.y + dy;
+    const ref = { sub: h.sub, anchor: h.anchor };
+    this.selected = [ref];
+    this.subs = setNodeKind(this.subs, [ref], a.inX !== null || a.outX !== null ? 'sharp' : 'smooth');
+    this.apply(false, 'Convert node');
+  }
+
+  /** Context bar / menu actions. */
+  action(a: NodeAction) {
+    if (this.loadedDoc !== this.c.editor.doc) this.load();
+    if (!this.subs) return;
+    const all = this.subs.flatMap((s, si) => s.anchors.map((_, ai) => ({ sub: si, anchor: ai })));
+    const target = this.selected.length ? this.selected : all;
+    switch (a) {
+      case 'select-all':
+        this.selected = all;
+        this.publish();
+        this.c.viewport.drawOverlay();
+        return;
+      case 'sharp':
+      case 'smooth':
+      case 'symmetric':
+        this.subs = setNodeKind(this.subs, target, a);
+        return this.apply(false, 'Convert node');
+      case 'break': {
+        if (this.selected.length !== 1) {
+          toast('Select one node to break the curve at');
+          return;
+        }
+        const ref = this.selected[0];
+        this.subs = breakAt(this.subs, ref);
+        this.selected = [];
+        return this.apply(false, 'Break curve');
+      }
+      case 'join':
+        this.subs = joinSelected(this.subs, this.selected);
+        this.selected = [];
+        return this.apply(false, 'Join curves');
+      case 'close':
+        this.subs = this.subs.reduce((acc, s, i) => (s.closed ? acc : closeSubpath(acc, i)), this.subs);
+        return this.apply(false, 'Close curve');
+      case 'reverse':
+        this.subs = reversePath(this.subs);
+        this.selected = this.selected.map((r) => ({ sub: r.sub, anchor: this.subs![r.sub].anchors.length - 1 - r.anchor }));
+        return this.apply(false, 'Reverse curve');
+      case 'delete':
+        return this.deleteSelected();
     }
-    this.apply(false);
+  }
+
+  private deleteSelected() {
+    if (!this.subs || !this.selected.length) return;
+    const left = deleteNodes(this.subs, this.selected);
+    this.selected = [];
+    if (!left.length && this.nodeId) {
+      const id = this.nodeId;
+      this.c.editor.commit('Delete', (d) => removeNodes(d, [id]));
+      this.subs = null;
+      this.nodeId = null;
+      this.publish();
+      this.c.viewport.drawOverlay();
+      return;
+    }
+    this.subs = left;
+    this.apply(false, 'Delete node');
   }
 
   onKey(e: KeyboardEvent) {
-    if ((e.key === 'Delete' || e.key === 'Backspace') && this.selected && this.subs) {
-      const sp = this.subs[this.selected.sub];
-      if (sp.anchors.length > 2) {
-        sp.anchors.splice(this.selected.anchor, 1);
-        this.selected = null;
-        this.apply(false);
-      } else if (this.nodeId) {
-        const id = this.nodeId;
-        this.c.editor.commit('Delete', (d) => removeNodes(d, [id]));
-        this.subs = null;
+    if ((e.key === 'Delete' || e.key === 'Backspace') && this.selected.length && this.subs) {
+      this.deleteSelected();
+      return true;
+    }
+    if (e.key.startsWith('Arrow') && this.selected.length && this.subs) {
+      const k = e.shiftKey ? 10 : 1;
+      const dx = e.key === 'ArrowLeft' ? -k : e.key === 'ArrowRight' ? k : 0;
+      const dy = e.key === 'ArrowUp' ? -k : e.key === 'ArrowDown' ? k : 0;
+      this.subs = moveNodes(this.subs, this.selected, dx, dy);
+      this.apply(false, 'Nudge nodes', 'node-nudge');
+      return true;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a' && this.subs) {
+      this.action('select-all');
+      return true;
+    }
+    if (e.key === 'Escape') {
+      if (this.selected.length) {
+        this.selected = [];
+        this.publish();
+        this.c.viewport.drawOverlay();
+        return true;
       }
+      this.c.editor.setTool('move');
+      return true;
+    }
+    return false;
+  }
+
+  deactivate() {
+    setNodeActionHandler(null);
+    publishNodeEdit(null);
+  }
+
+  /** Write world-space anchors back to the node (preview while dragging). */
+  private apply(preview: boolean, label = 'Edit nodes', merge?: string) {
+    const ed = this.c.editor;
+    const doc = ed.doc;
+    if (!doc || !this.subs || !this.nodeId) return;
+    const loc = findNode(doc, this.nodeId);
+    if (!loc) return;
+    const id = this.nodeId;
+    const local = transformPath(subpathsToPath(this.subs), invert(worldMatrix(loc)));
+    const closed = this.subs.some((s) => s.closed);
+    const update = (d0: typeof doc) => {
+      let d1 = d0;
+      if (findNode(d0, id)?.node.type !== 'path') d1 = convertToCurves(d1, id);
+      return updateNode<PathNode>(d1, id, { d: local, closed });
+    };
+    if (preview) ed.preview(update);
+    else {
+      // a drag previewed in place: put the pre-drag document back so the edit is one undo step
+      if (this.moved && this.base && this.base !== ed.doc) ed.history?.replace(this.base);
+      this.base = null;
+      ed.commit(label, update, merge);
+    }
+    this.loadedDoc = ed.doc;
+    this.publish();
+    this.c.viewport.drawOverlay();
+  }
+
+  drawOverlay(ctx: CanvasRenderingContext2D, z: number) {
+    if (!this.drag && (!this.subs || this.loadedDoc !== this.c.editor.doc)) this.load();
+    if (!this.subs) return;
+    ctx.save();
+    ctx.strokeStyle = '#2fb8a6';
+    ctx.lineWidth = 1 / z;
+    ctx.stroke(new Path2D(pathToString(subpathsToPath(this.subs))));
+    const sel = new Set(this.selected.map(refKey));
+    this.subs.forEach((s, si) => drawNodeAnchors(ctx, s.anchors, z, (i) => sel.has(`${si}:${i}`), s.closed));
+    const d = this.drag;
+    if (d?.mode === 'marquee') {
+      ctx.setLineDash([4 / z, 3 / z]);
+      ctx.fillStyle = 'rgba(47,184,166,0.08)';
+      const x = Math.min(d.start.x, d.cur.x);
+      const y = Math.min(d.start.y, d.cur.y);
+      ctx.fillRect(x, y, Math.abs(d.cur.x - d.start.x), Math.abs(d.cur.y - d.start.y));
+      ctx.strokeRect(x, y, Math.abs(d.cur.x - d.start.x), Math.abs(d.cur.y - d.start.y));
+    }
+    ctx.restore();
+  }
+}
+
+/** Node tool anchors: selected nodes filled; smooth nodes round, sharp square; path start marked. */
+function drawNodeAnchors(ctx: CanvasRenderingContext2D, anchors: Anchor[], z: number, isSel: (i: number) => boolean, closed: boolean) {
+  const s = 7 / z;
+  anchors.forEach((a, i) => {
+    ctx.strokeStyle = '#2fb8a6';
+    ctx.lineWidth = 1 / z;
+    for (const [hx, hy] of [[a.inX, a.inY], [a.outX, a.outY]]) {
+      if (hx === null || hy === null) continue;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(hx, hy);
+      ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(hx, hy, s / 2.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.fillStyle = isSel(i) ? '#2fb8a6' : '#ffffff';
+    ctx.lineWidth = (i === 0 && !closed ? 2 : 1) / z;
+    if (nodeKind(a) === 'sharp') {
+      ctx.fillRect(a.x - s / 2, a.y - s / 2, s, s);
+      ctx.strokeRect(a.x - s / 2, a.y - s / 2, s, s);
+    } else {
+      ctx.beginPath();
+      ctx.arc(a.x, a.y, s / 1.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Gradient tool
+
+type GradHit = { part: 'start' | 'end' } | { part: 'stop'; index: number };
+
+/**
+ * Gradient tool (Affinity's G): drag across the selected object to lay a
+ * gradient (linear, radial or conical, from the context bar) on its fill or
+ * stroke. Drag the end handles to move it, drag a stop along the ramp to
+ * re-position it, double-click the ramp to add a stop (in the colour already
+ * there), Delete removes the selected stop. Stop colours are edited in the
+ * colour popover of the inspector or context bar.
+ */
+class GradientTool implements Tool {
+  cursor = CROSS;
+  private drag: { hit: GradHit | 'new'; start: Point } | null = null;
+  private stop = -1;
+  constructor(private c: ToolContext) {}
+
+  private target() {
+    const ed = this.c.editor;
+    const doc = ed.doc;
+    const sel = ed.selectedNodes();
+    if (!doc || sel.length !== 1) return null;
+    const n = sel[0];
+    const slot = ed.ui.toolOptions.gradientTarget;
+    const paint = getPaint(n, slot);
+    if (!paint) return null;
+    const loc = findNode(doc, n.id)!;
+    const m = worldMatrix(loc);
+    const box = n.type === 'text' ? renderLocalBounds(n) : n.type === 'group' ? renderLocalBounds(n) : shapeBox(n);
+    return { n, slot, paint, m, inv: invert(m), box };
+  }
+
+  private handlesWorld(t: NonNullable<ReturnType<GradientTool['target']>>) {
+    if (!isGradient(t.paint)) return null;
+    const h = gradientHandles(t.paint, t.box);
+    const s = apply(t.m, h.start);
+    const e = apply(t.m, h.end);
+    const stops = t.paint.stops.map((st) => ({ x: s.x + (e.x - s.x) * st.offset, y: s.y + (e.y - s.y) * st.offset, color: st.color }));
+    return { s, e, stops };
+  }
+
+  private hit(p: Point): GradHit | null {
+    const t = this.target();
+    if (!t) return null;
+    const h = this.handlesWorld(t);
+    if (!h) return null;
+    const r = 8 / this.c.viewport.canvas.getZoom();
+    for (let i = 0; i < h.stops.length; i++) {
+      if (Math.hypot(p.x - h.stops[i].x, p.y - h.stops[i].y) < r && h.stops.length > 0 && (i !== 0 || Math.hypot(p.x - h.s.x, p.y - h.s.y) > r / 3)) {
+        // the end stops sit on the handles: the handles win unless the pointer is clearly on the stop
+        if ((i === 0 && Math.hypot(p.x - h.s.x, p.y - h.s.y) < r) || (i === h.stops.length - 1 && Math.hypot(p.x - h.e.x, p.y - h.e.y) < r)) continue;
+        return { part: 'stop', index: i };
+      }
+    }
+    if (Math.hypot(p.x - h.s.x, p.y - h.s.y) < r) return { part: 'start' };
+    if (Math.hypot(p.x - h.e.x, p.y - h.e.y) < r) return { part: 'end' };
+    return null;
+  }
+
+  onDown(p: Point, _e: MouseEvent, target: SceneNode | null) {
+    const ed = this.c.editor;
+    const h = this.hit(p);
+    if (h) {
+      if (h.part === 'stop') this.stop = h.index;
+      this.drag = { hit: h, start: p };
+      this.base = ed.doc;
+      this.c.viewport.drawOverlay();
+      return;
+    }
+    const sel = ed.selectedNodes();
+    if (target && (sel.length !== 1 || sel[0].id !== target.id)) {
+      ed.select([target.id]);
+      this.stop = -1;
+    }
+    if (!this.target()) {
+      if (!target) ed.select([]);
+      this.c.viewport.drawOverlay();
+      return;
+    }
+    this.drag = { hit: 'new', start: p };
+    this.base = ed.doc;
+  }
+
+  onMove(p: Point, e: MouseEvent) {
+    const d = this.drag;
+    const t = this.target();
+    if (!d || !t) return;
+    const ed = this.c.editor;
+    let q = p;
+    if (e.shiftKey && d.hit !== 'new' && d.hit.part !== 'stop') {
+      const h = this.handlesWorld(t)!;
+      q = snap45(d.hit.part === 'end' ? h.s : h.e, p);
+    } else if (e.shiftKey && d.hit === 'new') q = snap45(d.start, p);
+    const local = apply(t.inv, q);
+    let paint = t.paint;
+    if (d.hit === 'new') {
+      if (Math.hypot(p.x - d.start.x, p.y - d.start.y) < 3 / this.c.viewport.canvas.getZoom()) return;
+      const type = ed.ui.toolOptions.gradientType;
+      const stops = isGradient(paint) ? paint.stops : [{ offset: 0, color: paint.type === 'solid' ? paint.color : ed.ui.fillColor }, { offset: 1, color: '#ffffff' }];
+      const base = type === 'linear' ? { type, stops, angle: 0 } : type === 'radial' ? { type, stops } : { type, stops, angle: 0 };
+      paint = setGradientHandles(base as never, t.box, apply(t.inv, d.start), local);
+    } else if (isGradient(paint)) {
+      const hw = gradientHandles(paint, t.box);
+      if (d.hit.part === 'start') paint = setGradientHandles(paint, t.box, local, hw.end);
+      else if (d.hit.part === 'end') paint = setGradientHandles(paint, t.box, hw.start, local);
+      else {
+        // project on the handle line so stops move along the ramp whatever the type
+        const off = projectOnHandles(paint, t.box, local);
+        const i = (d.hit as { index: number }).index;
+        paint = { ...paint, stops: paint.stops.map((st, j) => (j === i ? { ...st, offset: Math.round(off * 1000) / 1000 } : st)) };
+      }
+    }
+    const id = t.n.id;
+    const slot = t.slot;
+    ed.preview((doc) => updateNode(doc, id, (n: SceneNode) => setPaint(n, slot, paint)));
+    this.moved = true;
+    this.c.viewport.drawOverlay();
+  }
+  private moved = false;
+  /** the document before a drag's previews, so undo returns to it */
+  private base: QuvreloDocument | null = null;
+
+  onUp() {
+    if (this.drag && this.moved) {
+      // the drag previewed without history: record the result as one undo step
+      const t = this.target();
+      if (t) {
+        const paint = t.paint;
+        const id = t.n.id;
+        const slot = t.slot;
+        this.c.editor.history?.replace(this.base ?? this.c.editor.doc!);
+        this.c.editor.commit('Gradient', (d) => updateNode(d, id, (n: SceneNode) => setPaint(n, slot, paint)));
+      }
+    }
+    this.base = null;
+    this.drag = null;
+    this.moved = false;
+    this.c.viewport.drawOverlay();
+  }
+
+  onDblClick(p: Point) {
+    const t = this.target();
+    if (!t || !isGradient(t.paint)) return;
+    const local = apply(t.inv, p);
+    const pos = projectOnHandles(t.paint, t.box, local);
+    const { paint, index } = insertStop(t.paint, Math.round(pos * 1000) / 1000);
+    this.stop = index;
+    const id = t.n.id;
+    const slot = t.slot;
+    this.c.editor.commit('Add gradient stop', (d) => updateNode(d, id, (n: SceneNode) => setPaint(n, slot, paint)));
+    this.c.viewport.drawOverlay();
+  }
+
+  onKey(e: KeyboardEvent) {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && this.stop >= 0) {
+      const t = this.target();
+      if (!t || !isGradient(t.paint) || t.paint.stops.length <= 2) return true;
+      const i = this.stop;
+      const paint = { ...t.paint, stops: t.paint.stops.filter((_, j) => j !== i) };
+      this.stop = -1;
+      const id = t.n.id;
+      const slot = t.slot;
+      this.c.editor.commit('Remove gradient stop', (d) => updateNode(d, id, (n: SceneNode) => setPaint(n, slot, paint)));
       return true;
     }
     if (e.key === 'Escape') {
@@ -655,35 +1148,129 @@ class NodeTool implements Tool {
     return false;
   }
 
-  /** Write world-space anchors back to the node (preview while dragging). */
-  private apply(preview: boolean) {
+  drawOverlay(ctx: CanvasRenderingContext2D, z: number) {
+    const t = this.target();
+    if (!t) return;
+    const h = this.handlesWorld(t);
+    if (!h) return;
+    ctx.save();
+    ctx.lineWidth = 1.5 / z;
+    ctx.strokeStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(h.s.x, h.s.y);
+    ctx.lineTo(h.e.x, h.e.y);
+    ctx.stroke();
+    ctx.strokeStyle = '#2fb8a6';
+    ctx.setLineDash([4 / z, 3 / z]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (t.paint.type === 'radial' || t.paint.type === 'conical') {
+      ctx.beginPath();
+      ctx.arc(h.s.x, h.s.y, Math.hypot(h.e.x - h.s.x, h.e.y - h.s.y), 0, Math.PI * 2);
+      ctx.setLineDash([2 / z, 4 / z]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    for (const [pt, r] of [[h.s, 6], [h.e, 5]] as const) {
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, r / z, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 1.5 / z;
+      ctx.strokeStyle = '#2fb8a6';
+      ctx.stroke();
+    }
+    const sz = 9 / z;
+    h.stops.forEach((st, i) => {
+      ctx.fillStyle = st.color;
+      ctx.strokeStyle = i === this.stop ? '#2fb8a6' : '#ffffff';
+      ctx.lineWidth = (i === this.stop ? 2.5 : 1.5) / z;
+      ctx.fillRect(st.x - sz / 2, st.y - sz / 2, sz, sz);
+      ctx.strokeRect(st.x - sz / 2, st.y - sz / 2, sz, sz);
+    });
+    ctx.restore();
+  }
+}
+
+/** Position (0..1) of a local point projected on a gradient's handle line (where the stops are drawn). */
+function projectOnHandles(p: GradientPaint, box: { x: number; y: number; w: number; h: number }, pt: Point): number {
+  const h = gradientHandles(p, box);
+  const dx = h.end.x - h.start.x;
+  const dy = h.end.y - h.start.y;
+  return Math.min(1, Math.max(0, ((pt.x - h.start.x) * dx + (pt.y - h.start.y) * dy) / (dx * dx + dy * dy || 1)));
+}
+
+// ---------------------------------------------------------------------------
+// Artboard tool
+
+/**
+ * Artboard tool: drag to draw a board; click a board to select it. With
+ * objects selected, "Insert artboard" in the context bar wraps them in a board.
+ */
+class ArtboardTool implements Tool {
+  cursor = CROSS;
+  private start: Point | null = null;
+  private cur: Point | null = null;
+  constructor(private c: ToolContext) {}
+  onDown(p: Point, _e: MouseEvent, target: SceneNode | null) {
     const ed = this.c.editor;
+    const pid = ed.activeContainer?.id;
     const doc = ed.doc;
-    if (!doc || !this.subs || !this.nodeId) return;
-    const loc = findNode(doc, this.nodeId);
-    if (!loc) return;
-    const id = this.nodeId;
-    const local = transformPath(subpathsToPath(this.subs), invert(worldMatrix(loc)));
-    const update = (d0: typeof doc) => {
-      let d1 = d0;
-      if (loc.node.type !== 'path') d1 = convertToCurves(d1, id);
-      return updateNode<PathNode>(d1, id, { d: local, closed: this.subs!.some((s) => s.closed) });
-    };
-    if (preview) ed.preview(update);
-    else ed.commit('Edit nodes', update);
+    if (doc && pid) {
+      const ab = artboardAt(doc, pid, p);
+      if (ab && (!target || target.id === ab.id)) {
+        ed.select([ab.id]);
+        return;
+      }
+    }
+    this.start = p;
+    this.cur = p;
+  }
+  onMove(p: Point, e: MouseEvent) {
+    if (!this.start) return;
+    this.cur = p;
+    if (e.shiftKey) {
+      const s = Math.max(Math.abs(p.x - this.start.x), Math.abs(p.y - this.start.y));
+      this.cur = { x: this.start.x + Math.sign(p.x - this.start.x || 1) * s, y: this.start.y + Math.sign(p.y - this.start.y || 1) * s };
+    }
     this.c.viewport.drawOverlay();
   }
-
-  drawOverlay(ctx: CanvasRenderingContext2D, z: number) {
-    if (!this.subs) {
-      this.load();
-      if (!this.subs) return;
+  onUp() {
+    const s = this.start;
+    const e = this.cur;
+    this.start = this.cur = null;
+    const ed = this.c.editor;
+    const pid = ed.activeContainer?.id;
+    if (!s || !e || !pid || !ed.doc?.pages.some((p) => p.id === pid)) return;
+    const r = { x: Math.min(s.x, e.x), y: Math.min(s.y, e.y), w: Math.abs(e.x - s.x), h: Math.abs(e.y - s.y) };
+    if (r.w * this.c.viewport.canvas.getZoom() < 6 || r.h * this.c.viewport.canvas.getZoom() < 6) {
+      this.c.viewport.drawOverlay();
+      return;
     }
+    let id = '';
+    ed.commit('Artboard', (d) => {
+      const out = addArtboard(d, pid, { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h) });
+      id = out.id;
+      return out.doc;
+    });
+    ed.select([id]);
+    this.c.viewport.drawOverlay();
+  }
+  drawOverlay(ctx: CanvasRenderingContext2D, z: number) {
+    if (!this.start || !this.cur) return;
+    const x = Math.min(this.start.x, this.cur.x);
+    const y = Math.min(this.start.y, this.cur.y);
+    const w = Math.abs(this.cur.x - this.start.x);
+    const h = Math.abs(this.cur.y - this.start.y);
     ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fillRect(x, y, w, h);
     ctx.strokeStyle = '#2fb8a6';
-    ctx.lineWidth = 1 / z;
-    ctx.stroke(new Path2D(pathToString(subpathsToPath(this.subs))));
-    this.subs.forEach((s, si) => drawAnchors(ctx, s.anchors, z, this.selected?.sub === si ? this.selected.anchor : -1));
+    ctx.lineWidth = 1.5 / z;
+    ctx.strokeRect(x, y, w, h);
+    ctx.fillStyle = '#2fb8a6';
+    ctx.font = `${11 / z}px Inter, sans-serif`;
+    ctx.fillText(`${Math.round(w)} × ${Math.round(h)}`, x + w + 6 / z, y + h + 14 / z);
     ctx.restore();
   }
 }
@@ -1229,7 +1816,7 @@ export function createTool(id: ToolId, c: ToolContext): Tool {
     case 'move': return new MoveTool(c);
     case 'hand': return new HandTool();
     case 'zoom': return new ZoomTool(c);
-    case 'rect': case 'ellipse': case 'polygon': case 'star': case 'line': case 'textframe': case 'imageframe':
+    case 'rect': case 'rrect': case 'ellipse': case 'polygon': case 'star': case 'line': case 'arrow': case 'textframe': case 'imageframe':
       return new ShapeTool(c, id);
     case 'text': return new TextTool(c);
     case 'pen': return new PenTool(c);
@@ -1244,6 +1831,8 @@ export function createTool(id: ToolId, c: ToolContext): Tool {
     case 'eraser': return new BrushTool(c, true);
     case 'fill': return new FillTool(c);
     case 'eyedropper': return new EyedropperTool(c);
+    case 'gradient': return new GradientTool(c);
+    case 'artboard': return new ArtboardTool(c);
     default: return new MoveTool(c);
   }
 }

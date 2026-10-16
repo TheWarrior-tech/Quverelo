@@ -4,7 +4,9 @@
  * of outputs (format × scale, e.g. PNG @1x and @2x plus SVG). Pure model code;
  * rendering each output is done by the renderer's exporters.
  */
-import { findNode, worldMatrix, nodeLocalBounds, walk } from './document';
+import { findNode, worldMatrix, nodeLocalBounds, nodeMatrix, walk } from './document';
+import { bakeTransform, cropDocument } from './commands';
+import { multiply, type Matrix } from './geometry';
 import { transformRect, type Rect } from './geometry';
 import { newId } from './ids';
 import type { Id, QuvreloDocument, SceneNode, Slice, SliceFormat, SliceOutput } from './types';
@@ -111,4 +113,30 @@ export function pruneSlices(doc: QuvreloDocument): QuvreloDocument {
   const pages = new Set(doc.pages.map((p) => p.id));
   const keep = doc.slices.filter((s) => pages.has(s.pageId) && (!s.nodeId || findNode(doc, s.nodeId)));
   return keep.length === doc.slices.length ? doc : { ...doc, slices: keep };
+}
+
+/**
+ * A one-page document holding exactly what a slice exports, sized to it: a
+ * slice that follows an artboard or object exports just that (on a
+ * transparent background, the board brings its own); a fixed-area slice
+ * exports everything on the page in that area.
+ */
+export function sliceDocument(doc: QuvreloDocument, s: Slice, local?: (n: SceneNode) => Rect): QuvreloDocument | null {
+  const page = doc.pages.find((p) => p.id === s.pageId);
+  if (!page) return null;
+  const r = sliceRect(doc, s, local);
+  if (r.w <= 0 || r.h <= 0) return null;
+  let one: QuvreloDocument;
+  const loc = s.nodeId ? findNode(doc, s.nodeId) : null;
+  if (loc) {
+    let m: Matrix = [1, 0, 0, 1, 0, 0];
+    for (const g of loc.ancestors) m = multiply(m, nodeMatrix(g));
+    const node = loc.ancestors.length ? bakeTransform(loc.node, m) : loc.node;
+    one = { ...doc, settings: { ...doc.settings, background: null, bleed: 0 }, pages: [{ ...page, masterId: null, nodes: [node] }] };
+  } else {
+    one = { ...doc, settings: { ...doc.settings, bleed: 0 }, pages: [page] };
+  }
+  const out = cropDocument(one, r);
+  // keep fractional sizes exact for vector output
+  return { ...out, title: s.name, settings: { ...out.settings, width: Math.max(1, r.w), height: Math.max(1, r.h) } };
 }

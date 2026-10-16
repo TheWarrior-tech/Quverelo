@@ -288,6 +288,39 @@ function registerIpc() {
     return target;
   });
 
+  ipcMain.handle('file:save-folder', async (_e, opts: { files: { name: string; data: Uint8Array }[]; title?: string; folder?: string | null }) => {
+    if (!win) return null;
+    let dir = opts.folder ?? null;
+    if (dir && !isSavePathAllowed(policy, path.join(dir, 'x'), expandPath, caseInsensitiveFs)) dir = null;
+    if (!dir) {
+      if (E2E && process.env.QUVRELO_E2E_SAVE_DIR) dir = path.join(process.env.QUVRELO_E2E_SAVE_DIR, 'slices');
+      else {
+        for (;;) {
+          const r = await dialog.showOpenDialog(win, { title: opts.title ?? 'Export to folder', defaultPath: defaultDir(), properties: ['openDirectory', 'createDirectory'] });
+          if (r.canceled || !r.filePaths[0]) return null;
+          if (isSavePathAllowed(policy, path.join(r.filePaths[0], 'x'), expandPath, caseInsensitiveFs)) {
+            dir = r.filePaths[0];
+            break;
+          }
+          await dialog.showMessageBox(win, {
+            type: 'info',
+            message: 'Save location restricted',
+            detail: `Your administrator requires work to be saved in:\n${expandPath(policy.defaultSaveDirectory!)}`,
+          });
+        }
+      }
+    }
+    await fs.mkdir(dir, { recursive: true });
+    for (const f of opts.files) {
+      // names come from the renderer: keep them inside the folder
+      const name = path.basename(f.name).replace(/^\.+/, '') || 'slice';
+      const target = path.join(dir, name);
+      const tmp = target + '.quvrelo-tmp';
+      await fs.writeFile(tmp, Buffer.from(f.data));
+      await fs.rename(tmp, target);
+    }
+    return dir;
+  });
   ipcMain.handle('recent:get', async () => {
     if (!featureEnabled(policy, 'recent-files')) return [];
     const list = await readJson<RecentFile[]>('recent.json', []);

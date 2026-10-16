@@ -35,10 +35,10 @@ export const STUDIO_RAIL: Record<StudioKind, RailEntry[]> = {
     '|', 'hand', 'zoom',
   ],
   vector: [
-    'move', 'node',
+    'move', 'node', 'artboard',
     '|', g('vector-pen', 'Pen tools', 'P', ['pen', 'pencil']),
-    '|', g('vector-shapes', 'Shape tools', 'M', ['rect', 'ellipse', 'polygon', 'star']), 'line',
-    '|', 'text', 'eyedropper',
+    '|', g('vector-shapes', 'Shape tools', 'M', ['rect', 'rrect', 'ellipse', 'polygon', 'star']), g('vector-lines', 'Line tools', 'L', ['line', 'arrow']),
+    '|', 'text', 'gradient', 'eyedropper',
     '|', 'hand', 'zoom',
   ],
   layout: [
@@ -57,7 +57,7 @@ export const STUDIO_RAIL: Record<StudioKind, RailEntry[]> = {
 export const TOOL_KEYS: Record<'common' | StudioKind, Record<string, ToolId>> = {
   common: { v: 'move', h: 'hand', z: 'zoom', t: 'text', i: 'eyedropper' },
   photo: { m: 'marquee-rect', l: 'lasso', w: 'object-select', b: 'brush', e: 'eraser', g: 'fill', c: 'crop', u: 'rect' },
-  vector: { a: 'node', p: 'pen', n: 'pencil', m: 'rect', e: 'ellipse', l: 'line', s: 'star', y: 'polygon' },
+  vector: { a: 'node', p: 'pen', n: 'pencil', m: 'rect', e: 'ellipse', l: 'line', s: 'star', y: 'polygon', g: 'gradient' },
   layout: { a: 'node', f: 'imageframe', m: 'rect', e: 'ellipse', l: 'line', x: 'textframe' },
 };
 
@@ -134,6 +134,7 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   brush: 'Paint brush (B)', eraser: 'Eraser (E)', fill: 'Flood fill (G)', eyedropper: 'Colour picker (I)', crop: 'Crop (C)',
   pen: 'Pen (P)', pencil: 'Pencil (N)', rect: 'Rectangle (M)', ellipse: 'Ellipse (E)', polygon: 'Polygon (Y)', star: 'Star (S)', line: 'Line (L)',
   text: 'Artistic text (T)', textframe: 'Frame text (X)', imageframe: 'Picture frame (F)',
+  rrect: 'Rounded rectangle', arrow: 'Arrow', gradient: 'Gradient (G)', artboard: 'Artboard',
 };
 
 /** A tool's display name without its key ('Rectangle marquee'). */

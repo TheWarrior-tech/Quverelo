@@ -259,3 +259,52 @@ describe('align and spacing', () => {
     expect(findNode(m, b.id)!.node).toMatchObject({ w: 100, h: 20 });
   });
 });
+
+describe('artboard reparenting', () => {
+  it('drops objects into boards and lifts them out again', async () => {
+    const { reparentToArtboards } = await import('../../src/core/artboards');
+    let d = createDocument({ settings: { width: 2000, height: 2000 } });
+    const pid = d.pages[0].id;
+    const a = addArtboard(d, pid, { x: 0, y: 0, w: 400, h: 300 });
+    const b = addArtboard(a.doc, pid, { x: 600, y: 0, w: 400, h: 300 });
+    d = b.doc;
+    const r = make.rect({ x: 100, y: 100 });
+    d = addNodes(d, pid, [r]);
+    d = reparentToArtboards(d, [r.id], pid);
+    expect(findNode(d, r.id)!.ancestors[0].id).toBe(a.id);
+    // moved (in board A's space) over board B
+    d = { ...d, pages: d.pages.map((p) => ({ ...p, nodes: p.nodes.map((n) => (n.id === a.id ? { ...n, children: (n as GroupNode).children.map((c) => ({ ...c, x: 500, y: 0 })) } as GroupNode : n)) })) };
+    d = reparentToArtboards(d, [r.id], pid);
+    const loc = findNode(d, r.id)!;
+    expect(loc.ancestors[0].id).toBe(b.id);
+    expect(loc.node.x).toBe(-100); // world 700,150 in board B (centre 800,150)
+    expect(loc.node.y).toBe(0);
+    // off every board: back on the page at the same place
+    d = { ...d, pages: d.pages.map((p) => ({ ...p, nodes: p.nodes.map((n) => (n.id === b.id ? { ...n, children: (n as GroupNode).children.map((c) => ({ ...c, x: 0, y: 1000 })) } as GroupNode : n)) })) };
+    d = reparentToArtboards(d, [r.id], pid);
+    const top = findNode(d, r.id)!;
+    expect(top.ancestors).toHaveLength(0);
+    expect(top.node).toMatchObject({ x: 800, y: 1150 });
+  });
+});
+
+describe('slice documents', () => {
+  it('crops to the slice and isolates followed objects', async () => {
+    const { sliceDocument } = await import('../../src/core/slices');
+    let d = createDocument({ settings: { width: 1000, height: 1000, background: '#ffffff' } });
+    const pid = d.pages[0].id;
+    const a = addArtboard(d, pid, { x: 100, y: 100, w: 200, h: 100 }, 'Card');
+    d = a.doc;
+    const other = make.rect({ x: 600, y: 600 });
+    d = addNodes(d, pid, [other]);
+    d = slicesFromArtboards(d, pid);
+    const sd = sliceDocument(d, d.slices![0])!;
+    expect(sd.settings).toMatchObject({ width: 200, height: 100, background: null });
+    expect(sd.pages[0].nodes).toHaveLength(1);
+    expect(sd.pages[0].nodes[0]).toMatchObject({ id: a.id, x: 100, y: 50 });
+    d = addSlice(d, { name: 'Area', pageId: pid, rect: { x: 500, y: 500, w: 300, h: 300 } }).doc;
+    const area = sliceDocument(d, d.slices![1])!;
+    expect(area.settings.background).toBe('#ffffff');
+    expect(area.pages[0].nodes.find((n) => n.id === other.id)).toMatchObject({ x: 100, y: 100 });
+  });
+});

@@ -49,6 +49,17 @@ export function browserFallbackApi(): QuvreloApi {
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
       return o.defaultName;
     },
+    saveFilesToFolder: async (o) => {
+      // browser preview: each file downloads on its own
+      for (const f of o.files) {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([f.data as BlobPart]));
+        a.download = f.name;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      }
+      return 'Downloads';
+    },
     getRecent: async () => [],
     addRecent: async () => undefined,
     clearRecent: async () => undefined,

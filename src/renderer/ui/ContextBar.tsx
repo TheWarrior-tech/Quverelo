@@ -1,4 +1,9 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef, useSyncExternalStore } from 'react';
+import { getNodeEdit, subscribeNodeEdit } from '../state/nodeEdit';
+import { getPaint, setPaint } from '../../core/paintAccess';
+import { gradientHandles, setGradientHandles } from '../../core/gradient';
+import { ARTBOARD_PRESETS, setArtboardSize } from '../../core/artboards';
+import { renderLocalBounds } from '../engine/draw';
 import { findNode, solid } from '../../core/document';
 import { firstColorOf, uiPaint, uiPaintPatch } from '../state/uiPaint';
 import { setStoryStyle, updateNode, updateNodes } from '../../core/commands';
@@ -275,6 +280,102 @@ function useOverflowEnd() {
   return ref;
 }
 
+/** Node tool: node type, curve actions and what to do next (Affinity's node context toolbar). */
+function NodeControls() {
+  const ne = useSyncExternalStore(subscribeNodeEdit, getNodeEdit);
+  const sel = editor.selectedNodes();
+  const b = (id: string, label: string, icon: string, enabled: boolean, pressed?: boolean) => (
+    <button key={id} type="button" className={`icon-btn sm${pressed ? ' active' : ''}`} {...tip(label, id)} aria-pressed={pressed} disabled={!enabled} onClick={() => runCommand(id)}><Icon name={icon} /></button>
+  );
+  const any = ne.active;
+  return (
+    <>
+      <Pri n={Infinity}>
+        <div className="group" role="group" aria-label="Convert nodes">
+          <span className="ctx-label">Convert</span>
+          {b('node.sharp', 'Sharp', 'node-sharp', any, ne.kind === 'sharp')}
+          {b('node.smooth', 'Smooth', 'node-smooth', any, ne.kind === 'smooth')}
+          {b('node.symmetric', 'Symmetric', 'node-smooth', any, ne.kind === 'symmetric')}
+        </div>
+      </Pri>
+      <Pri n={8}>
+        <div className="group" role="group" aria-label="Curve actions">
+          <span className="ctx-label">Curve</span>
+          {b('node.break', 'Break curve at the selected node', 'node-break', any && ne.selected === 1)}
+          {b('node.join', 'Join curves', 'node-join', any && ne.openSubpaths > 0)}
+          {b('node.close', 'Close curve', 'circle', any && ne.openSubpaths > 0)}
+          {b('node.reverse', 'Reverse curve', 'reverse', any)}
+        </div>
+      </Pri>
+      {!any && sel.length > 0 && (
+        <div className="group">
+          <button className="btn" onClick={() => runCommand('layer.convert-curves')}>Convert to curves</button>
+        </div>
+      )}
+      <CtxHint title="Click a segment to add a node · drag it to bend · Shift-click or drag a box to select nodes · double-click: sharp/smooth · Alt-drag a handle: cusp · Delete removes nodes">
+        {any ? `${ne.selected} of ${ne.total} nodes · click a segment to add a node · Alt-drag a handle for a cusp` : 'Select a curve or shape to edit its nodes'}
+      </CtxHint>
+    </>
+  );
+}
+
+/** Gradient tool: which paint it edits and the gradient type. */
+function GradientControls() {
+  const ed = useEditor();
+  const o = ed.ui.toolOptions;
+  const n = ed.selectedNodes()[0];
+  const paint = n ? getPaint(n, o.gradientTarget) : null;
+  const setType = (type: 'linear' | 'radial' | 'conical') => {
+    ed.setToolOptions({ gradientType: type });
+    if (!n || !paint || paint.type === 'none' || paint.type === 'solid' || paint.type === type) return;
+    // convert the selected object's gradient, keeping its stops and handle line
+    const box = renderLocalBounds(n);
+    const h = gradientHandles(paint, box);
+    const base = type === 'linear' ? { type, stops: paint.stops, angle: 0 } : type === 'radial' ? { type, stops: paint.stops } : { type, stops: paint.stops, angle: 0 };
+    const next = setGradientHandles(base as never, box, h.start, h.end);
+    ed.commit('Gradient type', (d) => updateNode(d, n.id, (x: SceneNode) => setPaint(x, o.gradientTarget, next)));
+  };
+  const cur = paint && (paint.type === 'linear' || paint.type === 'radial' || paint.type === 'conical') ? paint.type : o.gradientType;
+  return (
+    <>
+      <div className="group">
+        <Segmented ariaLabel="Gradient target" value={o.gradientTarget} onChange={(v: 'fill' | 'stroke') => ed.setToolOptions({ gradientTarget: v })} options={[{ value: 'fill', label: 'Fill' }, { value: 'stroke', label: 'Stroke' }]} />
+      </div>
+      <div className="group">
+        <Segmented ariaLabel="Gradient type" value={cur} onChange={setType} options={[{ value: 'linear', label: 'Linear' }, { value: 'radial', label: 'Radial' }, { value: 'conical', label: 'Conical' }]} />
+      </div>
+      <CtxHint title="Drag across an object to lay a gradient · drag the end handles to move it · drag a stop along the line · double-click the line to add a stop · Delete removes the selected stop">Drag across an object · double-click the line to add a stop</CtxHint>
+    </>
+  );
+}
+
+/** Artboard tool: presets for a new board and Insert artboard from the selection. */
+function ArtboardControls() {
+  const ed = useEditor();
+  const board = ed.selectedNodes().find((x): x is Extract<SceneNode, { type: 'group' }> => x.type === 'group' && !!x.artboard);
+  return (
+    <>
+      <div className="group">
+        <button className="btn" onClick={() => runCommand('artboard.insert')} {...tip('Insert artboard', 'artboard.insert')} data-tip-hint="Around the selected objects, or a page-sized board">
+          <Icon name="artboard" /> Insert artboard
+        </button>
+      </div>
+      {board && (
+        <div className="group" role="group" aria-label="Artboard size">
+          <select aria-label="Artboard preset" value="" onChange={(e) => {
+            const p = ARTBOARD_PRESETS.find((x) => x.id === e.target.value);
+            if (p) ed.commit('Artboard size', (d) => setArtboardSize(d, board.id, p.w, p.h));
+          }}>
+            <option value="" disabled>Size preset…</option>
+            {ARTBOARD_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+          </select>
+        </div>
+      )}
+      <CtxHint>Drag to draw an artboard · objects drawn on a board belong to it</CtxHint>
+    </>
+  );
+}
+
 export function ContextBar() {
   const ed = useEditor();
   const barRef = useOverflowEnd();
@@ -355,7 +456,7 @@ export function ContextBar() {
           <NumberField className="ctx" label="Inner" ariaLabel="Inner radius percent" unit="%" digits={0} value={Math.round(o.starInner * 100)} min={5} max={100} onCommit={(v) => ed.setToolOptions({ starInner: v / 100 })} onChange={(v) => ed.setToolOptions({ starInner: v / 100 })} />
         </div>
       )}
-      {['rect', 'ellipse', 'polygon', 'star', 'line', 'pen', 'pencil'].includes(t) && (
+      {['rect', 'rrect', 'ellipse', 'polygon', 'star', 'line', 'arrow', 'pen', 'pencil'].includes(t) && (
         <>
           <div className="group">
             <span className="ctx-label">Fill</span>
@@ -372,13 +473,13 @@ export function ContextBar() {
       {(t === 'textframe' || t === 'move') && frames.length > 0 && <Pri n={2}><TextFrameControls frames={frames} /></Pri>}
       {(t === 'text' || t === 'textframe' || (t === 'move' && textSelected)) && textControls()}
       {t === 'textframe' && frames.length === 0 && <CtxHint>Drag to draw a text frame · link two frames to flow a story</CtxHint>}
-      {t === 'node' && (
-        <>
-          <div className="group">
-            <button className="btn" onClick={() => runCommand('layer.convert-curves')} disabled={!sel.length}>Convert to curves</button>
-          </div>
-          <CtxHint title="Drag nodes and handles · double-click a node to toggle smooth/corner · Delete removes a node · Alt breaks handles">Drag nodes · double-click: smooth/corner · Alt breaks handles</CtxHint>
-        </>
+      {t === 'node' && <NodeControls />}
+      {t === 'gradient' && <GradientControls />}
+      {t === 'artboard' && <ArtboardControls />}
+      {t === 'rrect' && (
+        <div className="group">
+          <NumberField className="ctx" label="Radius" ariaLabel="Corner radius (px)" unit="px" value={o.roundRadius} min={0} max={1000} onCommit={(v) => ed.setToolOptions({ roundRadius: v })} onChange={(v) => ed.setToolOptions({ roundRadius: v })} />
+        </div>
       )}
       {(t === 'imageframe' || (t === 'move' && frame)) && frame && frame.type === 'imageframe' && (
         <div className="group">
@@ -398,6 +499,15 @@ export function ContextBar() {
           {sel.length >= 3 && <button className="icon-btn sm" {...tip('Distribute horizontally')} onClick={() => runCommand('arrange.distribute-h')}><Icon name="distribute-h" /></button>}
           {sel.length >= 3 && <button className="icon-btn sm" {...tip('Distribute vertically')} onClick={() => runCommand('arrange.distribute-v')}><Icon name="distribute-v" /></button>}
         </div>
+      )}
+      {t === 'move' && sel.length >= 2 && (
+        <Pri n={3}>
+          <div className="group" role="group" aria-label="Spacing">
+            <NumberField className="ctx" label="Gap" ariaLabel="Spacing gap (px)" unit="px" digits={0} min={0} max={10000} value={o.spaceGap} onCommit={(v) => ed.setToolOptions({ spaceGap: v })} onChange={(v) => ed.setToolOptions({ spaceGap: v })} />
+            <button className="icon-btn sm" {...tip('Space horizontally', 'arrange.space-h')} onClick={() => runCommand('arrange.space-h')}><Icon name="space-h" /></button>
+            <button className="icon-btn sm" {...tip('Space vertically', 'arrange.space-v')} onClick={() => runCommand('arrange.space-v')}><Icon name="space-v" /></button>
+          </div>
+        </Pri>
       )}
       {t === 'eyedropper' && <CtxHint>Click picks a fill colour · Shift-click picks a stroke colour</CtxHint>}
       {t === 'zoom' && <CtxHint>Click zooms in · Alt-click zooms out · drag zooms to an area</CtxHint>}

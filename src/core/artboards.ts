@@ -78,3 +78,34 @@ export function setArtboardSize(doc: QuvreloDocument, id: Id, w: number, h: numb
 export function setArtboardBackground(doc: QuvreloDocument, id: Id, background: string | null): QuvreloDocument {
   return updateNode<GroupNode>(doc, id, (g) => (g.artboard ? { ...g, artboard: { ...g.artboard, background } } : g));
 }
+
+/**
+ * After objects move: a top-level object dropped onto an artboard goes into
+ * it, and an artboard's object dragged off it goes back onto the page (or
+ * into the board it now sits on). Positions on the page never change.
+ */
+export function reparentToArtboards(doc: QuvreloDocument, ids: Id[], pageId: Id): QuvreloDocument {
+  let out = doc;
+  for (const id of ids) {
+    const loc = findNode(out, id);
+    if (!loc || loc.container.id !== pageId) continue;
+    const n = loc.node;
+    if (n.type === 'group' && n.artboard) continue;
+    if (!loc.ancestors.length) {
+      const ab = artboardAt(out, pageId, { x: n.x, y: n.y });
+      if (ab) out = moveIntoArtboard(out, id, ab.id);
+      continue;
+    }
+    if (loc.ancestors.length !== 1) continue;
+    const parent = loc.ancestors[0];
+    if (!parent.artboard) continue;
+    const world = apply(worldMatrix(findNode(out, parent.id)!), { x: n.x, y: n.y });
+    const ab = artboardAt(out, pageId, world);
+    if (ab?.id === parent.id) continue;
+    // lift it out onto the page, then into the board it now sits on (if any)
+    out = updateNode<GroupNode>(out, parent.id, (g) => ({ ...g, children: g.children.filter((c) => c.id !== id) }));
+    out = addNodes(out, pageId, [{ ...n, x: world.x, y: world.y }]);
+    if (ab) out = moveIntoArtboard(out, id, ab.id);
+  }
+  return out;
+}

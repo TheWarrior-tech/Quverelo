@@ -1,6 +1,6 @@
 import { FabricObject, classRegistry } from 'fabric';
 import type { SceneNode } from '../../core/types';
-import { composeTransform } from '../../core/geometry';
+import { apply, composeTransform, invert, type Matrix } from '../../core/geometry';
 import { tuneControls } from './controls';
 import { drawNodeContent, renderLocalBounds, type DrawEnv } from './draw';
 
@@ -17,6 +17,15 @@ export class NodeObject extends FabricObject {
   nodeId!: string;
   isMaster = false;
   envRef!: () => DrawEnv;
+  /**
+   * Artboards: the board object draws only its background and name
+   * (`shell`), and each object on it is its own canvas object, offset by the
+   * board's position and clipped to the board (`parentId`, `offset`, `clip`).
+   */
+  shell = false;
+  parentId: string | null = null;
+  offset = { x: 0, y: 0 };
+  clip: { x: number; y: number; w: number; h: number } | null = null;
 
   constructor(node: SceneNode, envRef: () => DrawEnv, isMaster = false) {
     super({ originX: 'center', originY: 'center' });
@@ -30,7 +39,8 @@ export class NodeObject extends FabricObject {
     this.applyNode(node);
   }
 
-  applyNode(node: SceneNode): void {
+  applyNode(node: SceneNode, offset = this.offset): void {
+    this.offset = offset;
     this.node = node;
     this.nodeId = node.id;
     const b = renderLocalBounds(node);
@@ -40,8 +50,8 @@ export class NodeObject extends FabricObject {
     const cx = b.x + b.w / 2;
     const cy = b.y + b.h / 2;
     this.set({
-      left: m[0] * cx + m[2] * cy + m[4],
-      top: m[1] * cx + m[3] * cy + m[5],
+      left: m[0] * cx + m[2] * cy + m[4] + offset.x,
+      top: m[1] * cx + m[3] * cy + m[5] + offset.y,
       width: w,
       height: h,
       angle: node.rotation,
@@ -58,6 +68,7 @@ export class NodeObject extends FabricObject {
     this.selectable = !locked;
     this.evented = !locked;
     this.lockScalingFlip = false;
+    if (node.type === 'group' && node.artboard) this.lockRotation = true;
     this.setCoords();
   }
 
@@ -72,10 +83,25 @@ export class NodeObject extends FabricObject {
     const off = this.centreOffset();
     ctx.save();
     ctx.translate(-off.x, -off.y);
-    const node = this.node;
+    let node = this.node;
+    if (this.shell && node.type === 'group') node = { ...node, children: [] };
+    if (this.clip) {
+      // clip to the artboard (world rect) in this object's local space
+      const inv = invert(this.calcTransformMatrix() as unknown as Matrix);
+      const r = this.clip;
+      const pts = [[r.x, r.y], [r.x + r.w, r.y], [r.x + r.w, r.y + r.h], [r.x, r.y + r.h]].map(([x, y]) => apply(inv, { x, y }));
+      ctx.beginPath();
+      pts.forEach((p, i) => (i ? ctx.lineTo(p.x + off.x, p.y + off.y) : ctx.moveTo(p.x + off.x, p.y + off.y)));
+      ctx.closePath();
+      ctx.clip();
+    }
     const sx = this.scaleX / (node.scaleX || 1);
     const sy = this.scaleY / (node.scaleY || 1);
-    if (RESIZE_TYPES.has(node.type) && (Math.abs(sx - 1) > 1e-6 || Math.abs(sy - 1) > 1e-6) && 'w' in node) {
+    if (node.type === 'group' && node.artboard && (Math.abs(sx - 1) > 1e-6 || Math.abs(sy - 1) > 1e-6)) {
+      // live board resize: a bigger board, not stretched content
+      ctx.scale(1 / sx, 1 / sy);
+      drawNodeContent(ctx, { ...node, artboard: { ...node.artboard, w: node.artboard.w * Math.abs(sx), h: node.artboard.h * Math.abs(sy) } }, env);
+    } else if (RESIZE_TYPES.has(node.type) && (Math.abs(sx - 1) > 1e-6 || Math.abs(sy - 1) > 1e-6) && 'w' in node) {
       // live resize preview: draw a resized node instead of a stretched one
       ctx.scale(1 / sx, 1 / sy);
       const tmp = { ...node, w: node.w * Math.abs(sx), h: node.h * Math.abs(sy) } as SceneNode;

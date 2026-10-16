@@ -5,6 +5,7 @@ import { LayersPanel } from './LayersPanel';
 import { PagesPanel } from './PagesPanel';
 import { AssetsPanel } from './AssetsPanel';
 import { SwatchesPanel } from './SwatchesPanel';
+import { SymbolsPanel } from './SymbolsPanel';
 import { PanelTabs, loadTab, saveTab, type Tab } from './PanelTabs';
 
 const KEY = 'quvrelo.leftTab.v3';
@@ -31,6 +32,7 @@ export function LeftRail() {
     { id: 'layers', label: 'Layers', render: () => <LayersPanel />, flush: true },
     { id: 'pages', label: 'Pages', render: () => <PagesPanel /> },
     { id: 'assets', label: 'Assets', render: () => <LibraryPanel /> },
+    ...(studio === 'vector' ? [{ id: 'symbols', label: 'Symbols', render: () => <SymbolsPanel /> }] : []),
   ];
   const fallback = studio === 'layout' ? 'pages' : 'layers';
   const [active, setActive] = useState(() => loadTab(KEY, studio, fallback));

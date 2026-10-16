@@ -133,6 +133,8 @@ export interface QuvreloApi {
   readFile(path: string): Promise<OpenedFile>;
   /** Writes data. Shows a save dialog when path is null. Returns the path written or null if cancelled. */
   saveFile(opts: { path: string | null; data: Uint8Array; defaultName: string; filters: FileFilter[]; title?: string }): Promise<string | null>;
+  /** Write several files into one folder the user picks (export slices). Resolves with the folder, or null when cancelled. */
+  saveFilesToFolder(opts: { files: { name: string; data: Uint8Array }[]; title?: string; folder?: string | null }): Promise<string | null>;
 
   getRecent(): Promise<RecentFile[]>;
   addRecent(path: string): Promise<void>;

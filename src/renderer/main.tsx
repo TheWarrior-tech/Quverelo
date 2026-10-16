@@ -17,6 +17,7 @@ import '@fontsource/caveat/700.css';
 import './styles.css';
 import './ui/panels.css';
 import './ui/shell.css';
+import './ui/vector.css';
 import { App } from './ui/App';
 import { editor } from './state/editor';
 import { resetMeasureCache } from './engine/draw';

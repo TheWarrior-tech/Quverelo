@@ -104,6 +104,10 @@ export const TOOL_KEYWORDS: Partial<Record<ToolId, string[]>> = {
   polygon: ['hexagon', 'triangle', 'pentagon'],
   star: ['burst', 'badge'],
   line: ['rule', 'divider', 'stroke'],
+  rrect: ['rounded rectangle', 'rounded corners', 'button', 'pill'],
+  arrow: ['arrow', 'pointer', 'connector', 'arrowhead'],
+  gradient: ['blend', 'ramp', 'fade', 'linear', 'radial', 'conical', 'colour transition'],
+  artboard: ['canvas', 'board', 'frame', 'screen', 'multiple pages'],
 };
 
 /** Most recent first, deduplicated, capped. */

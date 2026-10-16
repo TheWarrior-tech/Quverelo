@@ -4,6 +4,7 @@ import { useScrollEdges } from '../controls/Panel';
 import { PropertiesPanel } from './PropertiesPanel';
 import { AdjustmentsPanel } from './AdjustmentsPanel';
 import { HistoryPanel } from './HistoryPanel';
+import { SlicesPanel } from './SlicesPanel';
 import { PanelTabs, loadTab, saveTab, type Tab } from './PanelTabs';
 
 const KEY = 'quvrelo.inspectorTab.v3';
@@ -20,6 +21,7 @@ export function Panels() {
   const tabs: Tab[] = [
     { id: 'properties', label: 'Design', render: () => <PropertiesPanel /> },
     ...(studio === 'photo' ? [{ id: 'adjust', label: 'Adjust', render: () => <AdjustmentsPanel /> }] : []),
+    ...(studio === 'vector' ? [{ id: 'export', label: 'Export', render: () => <SlicesPanel /> }] : []),
     { id: 'history', label: 'History', render: () => <HistoryPanel /> },
   ];
   const fallback = studio === 'photo' ? 'adjust' : 'properties';

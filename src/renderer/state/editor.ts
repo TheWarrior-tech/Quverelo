@@ -17,6 +17,7 @@ export type ToolId =
   | 'move' | 'node' | 'hand' | 'zoom'
   | 'marquee-rect' | 'marquee-ellipse' | 'lasso' | 'object-select' | 'brush' | 'eraser' | 'fill' | 'eyedropper' | 'crop'
   | 'pen' | 'pencil' | 'rect' | 'ellipse' | 'polygon' | 'star' | 'line'
+  | 'rrect' | 'arrow' | 'gradient' | 'artboard'
   | 'text' | 'textframe' | 'imageframe';
 
 export interface ToolOptions {
@@ -37,6 +38,15 @@ export interface ToolOptions {
   cropRatio: CropRatioId;
   cropPortrait: boolean;
   cropOverlay: CropOverlay;
+  /** gradient tool: which paint it edits and the type a new gradient gets */
+  gradientTarget: 'fill' | 'stroke';
+  gradientType: 'linear' | 'radial' | 'conical';
+  /** rounded rectangle tool radius */
+  roundRadius: number;
+  /** Arrange › Space: gap between objects (px) */
+  spaceGap: number;
+  /** what Align lines objects up with */
+  alignTo: 'auto' | 'selection' | 'first' | 'last' | 'page';
 }
 
 export interface UiState {
@@ -100,6 +110,11 @@ const DEFAULT_TOOL_OPTIONS: ToolOptions = {
   cropRatio: 'original',
   cropPortrait: false,
   cropOverlay: 'thirds',
+  gradientTarget: 'fill',
+  gradientType: 'linear',
+  roundRadius: 16,
+  spaceGap: 20,
+  alignTo: 'auto',
 };
 
 /** Every tool per studio in rail order; the rail layout and flyout groups live in toolGroups.ts. */

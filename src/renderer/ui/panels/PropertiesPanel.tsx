@@ -17,6 +17,7 @@ import { Icon } from '../Icons';
 import { tip } from '../tips';
 import { evalArithmetic } from '../controls/numeric';
 import { TextSection } from './TextSection';
+import { ArtboardSection, CompoundSection, StrokeExtras, SymbolSection, TextPathSection, vectorSectionFor } from './VectorSections';
 import type { Unit } from '../../../core/types';
 
 export { evalArithmetic };
@@ -114,6 +115,12 @@ const KIND: Record<SceneNode['type'], string> = {
   rect: 'Rectangle', ellipse: 'Ellipse', polygon: 'Polygon', star: 'Star', path: 'Path', text: 'Text', textframe: 'Text frame',
   imageframe: 'Picture frame', raster: 'Pixel layer', group: 'Group',
 };
+/** What a group is (compound, artboard, symbol) for the inspector header. */
+function kindOf(n: SceneNode): string {
+  if (n.type === 'group') return n.compound ? 'Compound' : n.artboard ? 'Artboard' : n.symbolId ? 'Symbol' : 'Group';
+  if (n.type === 'text' && n.onPath) return 'Text on path';
+  return KIND[n.type];
+}
 /**
  * The object's own section is named for what it edits, not for the object, so it
  * never repeats the header ("Rectangle" over "RECTANGLE", critique 3 P2-11).
@@ -128,6 +135,12 @@ function ArrangeBar({ count }: { count: number }) {
   );
   return (
     <div className="arrange-bar" role="toolbar" aria-label="Align">
+      <select className="align-to" aria-label="Align to" data-tip="Align to" value={ed.ui.toolOptions.alignTo} onChange={(e) => ed.setToolOptions({ alignTo: e.target.value as typeof ed.ui.toolOptions.alignTo })}>
+        <option value="auto">{count > 1 ? 'Selection' : 'Page'}</option>
+        <option value="page">Page</option>
+        {count > 1 && <option value="first">First selected</option>}
+        {count > 1 && <option value="last">Last selected</option>}
+      </select>
       {a('arrange.align-left', 'Align left', 'align-left')}
       {a('arrange.align-hcenter', 'Align centre', 'align-hcenter')}
       {a('arrange.align-right', 'Align right', 'align-right')}
@@ -137,17 +150,44 @@ function ArrangeBar({ count }: { count: number }) {
       <span className="arrange-sep" aria-hidden="true" />
       {a('arrange.distribute-h', 'Distribute horizontally', 'distribute-h', count < 3)}
       {a('arrange.distribute-v', 'Distribute vertically', 'distribute-v', count < 3)}
+      {count >= 2 && (
+        <MenuButton
+          label="Spacing and size"
+          icon="space-h"
+          className="arrange-menu"
+          items={[
+            { heading: `Space with a ${ed.ui.toolOptions.spaceGap} px gap` },
+            { id: 'space-h', label: 'Space horizontally', icon: 'space-h', run: () => runCommand('arrange.space-h') },
+            { id: 'space-v', label: 'Space vertically', icon: 'space-v', run: () => runCommand('arrange.space-v') },
+            '-',
+            { id: 'dc-h', label: 'Distribute centres horizontally', icon: 'distribute-h', run: () => runCommand('arrange.distribute-centres-h') },
+            { id: 'dc-v', label: 'Distribute centres vertically', icon: 'distribute-v', run: () => runCommand('arrange.distribute-centres-v') },
+            '-',
+            { heading: 'Match the first selected' },
+            { id: 'mw', label: 'Match width', icon: 'distribute-h', run: () => runCommand('arrange.match-width') },
+            { id: 'mh', label: 'Match height', icon: 'distribute-v', run: () => runCommand('arrange.match-height') },
+            { id: 'ms', label: 'Match size', icon: 'rect', run: () => runCommand('arrange.match-size') },
+          ]}
+        />
+      )}
       {ed.ui.studio === 'vector' && count >= 2 && (
         <MenuButton
           label="Boolean"
           icon="bool-add"
           className="arrange-menu"
           items={[
+            { heading: 'Combine into one curve' },
             { id: 'add', label: 'Add', icon: 'bool-add', run: () => runCommand('layer.bool-add') },
             { id: 'subtract', label: 'Subtract', icon: 'bool-subtract', run: () => runCommand('layer.bool-subtract') },
             { id: 'intersect', label: 'Intersect', icon: 'bool-intersect', run: () => runCommand('layer.bool-intersect') },
             { id: 'exclude', label: 'Exclude', icon: 'bool-exclude', run: () => runCommand('layer.bool-exclude') },
             { id: 'divide', label: 'Divide', icon: 'bool-divide', run: () => runCommand('layer.bool-divide') },
+            '-',
+            { heading: 'Live compound (stays editable)' },
+            { id: 'c-add', label: 'Compound add', icon: 'compound', run: () => runCommand('layer.compound-add') },
+            { id: 'c-subtract', label: 'Compound subtract', icon: 'compound', run: () => runCommand('layer.compound-subtract') },
+            { id: 'c-intersect', label: 'Compound intersect', icon: 'compound', run: () => runCommand('layer.compound-intersect') },
+            { id: 'c-exclude', label: 'Compound exclude', icon: 'compound', run: () => runCommand('layer.compound-exclude') },
           ]}
         />
       )}
@@ -201,7 +241,7 @@ export function PropertiesPanel() {
     <div className="properties">
       <div className="prop-title" data-tip={multi ? undefined : name}>
         <span className="prop-name">{multi ? `${nodes.length} objects` : name}</span>
-        {(multi || name !== KIND[n.type]) && <span className="prop-kind">{multi ? 'Mixed' : KIND[n.type]}</span>}
+        {(multi || name !== kindOf(n)) && <span className="prop-kind">{multi ? 'Mixed' : kindOf(n)}</span>}
       </div>
       <ArrangeBar count={nodes.length} />
 
@@ -227,6 +267,9 @@ export function PropertiesPanel() {
               <PaintRow kind="stroke" label="Stroke" paint={strokeOf.paint} fallback="#1b1b1f" onChange={(p) => setStroke({ ...strokeOf, paint: p, width: p.type !== 'none' && strokeOf.width === 0 ? 2 : strokeOf.width })} />
             </Field>
             {strokeOf.paint.type !== 'none' && <StrokeDetails stroke={strokeOf} onChange={setStroke} />}
+            {strokeOf.paint.type !== 'none' && !multi && ['rect', 'ellipse', 'polygon', 'star', 'path'].includes(n.type) && (
+              <StrokeExtras stroke={strokeOf} onChange={setStroke} openPath={n.type === 'path' && !n.closed} />
+            )}
           </>
         )}
         <SliderField label="Opacity" ariaLabel="Opacity" unit="%" min={0} max={100} value={mixedOpacity ? 100 : Math.round(n.opacity * 100)} onChange={(v) => patchSel('Opacity', (m) => ({ ...m, opacity: v / 100 }), 'opacity')} />
@@ -237,6 +280,11 @@ export function PropertiesPanel() {
           </select>
         </Field>
       </Section>
+
+      {!multi && vectorSectionFor(n) === 'compound' && n.type === 'group' && <CompoundSection n={n} />}
+      {!multi && vectorSectionFor(n) === 'artboard' && n.type === 'group' && <ArtboardSection n={n} />}
+      {!multi && n.type === 'group' && n.symbolId && <SymbolSection n={n} />}
+      {!multi && vectorSectionFor(n) === 'text-path' && n.type === 'text' && <TextPathSection n={n} />}
 
       {!multi && (n.type === 'text' || n.type === 'textframe') && <TextSection />}
 
