@@ -124,7 +124,7 @@ export function DocumentSetupDialog() {
             {INTENTS.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
           </select>
         </Field>
-        <Field label="Bit depth" hint={bitDepth === 16 ? 'Photos keep 16 bits per channel through adjustments and export.' : undefined}>
+        <Field label="Bit depth" hint={bitDepth === 16 ? 'Photos keep 16 bits per channel through adjustments, saving and PNG export. 16-bit PNGs and DNG raw files open as 16-bit.' : undefined}>
           <Segmented label="Bit depth" value={String(bitDepth)} onChange={(v) => setBitDepth(v === '16' ? 16 : 8)} options={[{ value: '8', label: '8-bit' }, { value: '16', label: '16-bit' }]} />
         </Field>
         <Field label="Background">

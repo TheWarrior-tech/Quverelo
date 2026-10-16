@@ -4,6 +4,7 @@
  * in node-local coordinates.
  */
 import { composeTransform } from '../../core/geometry';
+import { docColour } from '../../core/colour/profiles';
 import { nodeToPath, estimateTextSize } from '../../core/document';
 import { flowStory, lineHeightPx, type FlowResult, type MeasureFn } from '../../core/textflow';
 import { baselineOffset, imageFrameContentRect } from '../../core/svg';
@@ -235,7 +236,7 @@ export function drawNodeContent(ctx: CanvasRenderingContext2D, n: SceneNode, env
       break;
     case 'raster': {
       const live = env.livePaint && env.livePaint.nodeId === n.id ? env.livePaint.canvas : null;
-      const img = live ?? env.assets.rendered(n.assetId, n.adjustments, env.preview);
+      const img = live ?? env.assets.rendered(n.assetId, n.adjustments, env.preview, docColour(env.doc.settings).bitDepth === 16);
       if (img) {
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';

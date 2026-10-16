@@ -276,7 +276,7 @@ reg('layer.rasterize', () => {
   if (!doc || !n) return;
   if (n.type === 'raster' && n.adjustments.length) {
     // bake the adjustment stack into the pixels
-    const c = editor.assets.rendered(n.assetId, n.adjustments, false);
+    const c = editor.assets.rendered(n.assetId, n.adjustments, false, docColour(doc.settings).bitDepth === 16);
     if (!c) return;
     const id = editor.assets.add(cloneCanvas(c));
     editor.commit('Apply adjustments', (d) => updateNode({ ...d, assets: { ...d.assets, [id]: editor.assets.ref(id, n.name) } }, n.id, { assetId: id, adjustments: [] } as Partial<SceneNode>));
@@ -307,7 +307,7 @@ reg('layer.merge-down', () => {
     toast('Merging down needs a pixel layer underneath');
     return;
   }
-  const base = editor.assets.rendered(below.assetId, below.adjustments, false);
+  const base = editor.assets.rendered(below.assetId, below.adjustments, false, docColour(doc.settings).bitDepth === 16);
   if (!base) return;
   const work = cloneCanvas(base);
   const ctx = ctx2d(work);

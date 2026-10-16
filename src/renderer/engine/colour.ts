@@ -118,3 +118,14 @@ export function installPickerCmyk(getDoc: () => QuvreloDocument | null): void {
     };
   });
 }
+
+const profileCache = new Map<ProfileId, Promise<Uint8Array>>();
+/** A bundled profile's bytes (for embedding in PNG / JPEG exports), without loading the engine. */
+export function profileFileBytes(id: ProfileId): Promise<Uint8Array> {
+  let p = profileCache.get(id);
+  if (!p) {
+    p = bytes(URLS[id]);
+    profileCache.set(id, p);
+  }
+  return p;
+}

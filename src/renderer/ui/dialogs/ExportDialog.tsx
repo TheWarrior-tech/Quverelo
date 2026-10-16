@@ -85,6 +85,9 @@ export function ExportDialog({ format: initial }: { format: Format }) {
   const [dpi, setDpi] = useState(doc.settings.unit === 'px' ? [96, 150, 300].reduce((a, b) => (Math.abs(b - doc.settings.dpi) < Math.abs(a - doc.settings.dpi) ? b : a)) : 300);
   const [quality, setQuality] = useState(90);
   const [transparent, setTransparent] = useState(!doc.settings.background);
+  // PNG bit depth: 16-bit Photo documents export 16 bits per channel by default
+  const [pngDepth, setPngDepth] = useState<8 | 16>(docCol.bitDepth);
+  const outDepth: 8 | 16 = format === 'png' ? pngDepth : 8;
   const [bleed, setBleed] = useState(false);
   const [cropMarks, setCropMarks] = useState(false);
   const [fileName, setFileName] = useState(doc.title || 'Untitled');
@@ -196,7 +199,9 @@ export function ExportDialog({ format: initial }: { format: Format }) {
           const type = format === 'png' ? 'image/png' : 'image/jpeg';
           const sample = await toBlobSize(preview, type, format === 'png' ? undefined : quality / 100);
           // compression gets more efficient as resolution grows; damp the linear extrapolation
-          const per = sample * Math.pow(Math.max(ratio, 0.01), format === 'png' ? 0.9 : 0.8);
+          // 16-bit PNG samples are twice as wide and the low byte compresses poorly
+          const depthK = format === 'png' && pngDepth === 16 && !useSel ? 2.6 : 1;
+          const per = sample * depthK * Math.pow(Math.max(ratio, 0.01), format === 'png' ? 0.9 : 0.8);
           const n = useSel ? 1 : pages.length;
           bytes = per * n + (isPdf ? 2000 + 600 * n : 0);
         }
@@ -209,7 +214,7 @@ export function ExportDialog({ format: initial }: { format: Format }) {
       live = false;
       window.clearTimeout(t);
     };
-  }, [kind, preview, pxW, pxH, quality, pages.length, b, hasImages]);
+  }, [kind, preview, pxW, pxH, quality, pages.length, b, hasImages, pngDepth, useSel]);
 
   const rangeError = effArea === 'range' && range && !range.ok ? range.error : null;
   const canGo = !busy && !rangeError && pages.length > 0;
@@ -224,6 +229,7 @@ export function ExportDialog({ format: initial }: { format: Format }) {
         cmykProfile: isX ? press : undefined,
         selection: useSel ? [...selIds] : undefined,
         fileName: title,
+        bitDepth: format === 'png' && !useSel ? pngDepth : undefined,
       });
       if (path) {
         toast(`Exported ${path.split(/[\\/]/).pop()}`, 'success');
@@ -367,6 +373,11 @@ export function ExportDialog({ format: initial }: { format: Format }) {
               <Segmented label="Background" value={transparent ? 't' : 'p'} onChange={(v) => setTransparent(v === 't')} options={[{ value: 'p', label: 'Page colour' }, { value: 't', label: 'Transparent' }]} />
             </Field>
           )}
+          {format === 'png' && !useSel && (
+            <Field label="Bit depth" hint={pngDepth === 16 ? 'Photos keep 16 bits per channel: smoother gradients for further editing and print. Files are about twice the size.' : undefined}>
+              <Segmented label="Bit depth" value={String(pngDepth)} onChange={(v) => setPngDepth(v === '16' ? 16 : 8)} options={[{ value: '8', label: '8-bit' }, { value: '16', label: '16-bit' }]} />
+            </Field>
+          )}
           {!useSel && (
             <Field label="Bleed" hint={hasBleed ? undefined : 'This document has no bleed. Set one in Document setup.'}>
               <Check checked={bleed} onChange={setBleed} disabled={!hasBleed}>Include bleed</Check>
@@ -386,7 +397,7 @@ export function ExportDialog({ format: initial }: { format: Format }) {
           )}
           <Field label="Colour">
             <span className="value-text" data-testid="export-colour">
-              {isX ? `CMYK · ${PROFILES[press].short} · ${X_NAME[kind]}` : isPdf ? `${PROFILES[docCol.rgbProfile].short} · not for press` : `${PROFILES[docCol.rgbProfile].short} · 8-bit`}
+              {isX ? `CMYK · ${PROFILES[press].short} · ${X_NAME[kind]}` : isPdf ? `${PROFILES[docCol.rgbProfile].short} · not for press` : format === 'svg' ? PROFILES[docCol.rgbProfile].short : `${PROFILES[docCol.rgbProfile].short} · ${useSel ? 8 : outDepth}-bit · profile embedded`}
             </span>
           </Field>
           {format === 'svg' && <p className="note ex-note">Shapes and text stay editable vectors. Photos and pixel layers are embedded as PNG.</p>}
