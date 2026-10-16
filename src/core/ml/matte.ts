@@ -17,14 +17,13 @@
  * see ml/MODEL_CARD.md).
  */
 import type { MaskImage, RgbaImage } from './tensor';
-import { resizePlane } from './tensor';
 
 export interface MatteOptions {
   /** guided-filter (denoise) window radius in image px (default: 0.4 % of the long side, min 2) */
   radius?: number;
   /** regulariser; smaller = follows colour edges more closely (default 1e-3 on 0..1 colour) */
   eps?: number;
-  /** estimate the local F/B colours at 1/subsample resolution (default 1 = exact) */
+  /** estimate the local F/B colours and the guided-filter coefficients at 1/subsample resolution (default 1 = exact) */
   subsample?: number;
   /** width in px of the unknown band outside the 0.5 contour (default: max(1.5 % of the long side, 3 x modelScale), min 4) */
   band?: number;
@@ -135,6 +134,21 @@ export function colourGuidedFilter(I: [Float32Array, Float32Array, Float32Array]
   return { a: [boxMean(aR, w, h, r), boxMean(aG, w, h, r), boxMean(aB, w, h, r)], b: boxMean(b, w, h, r) };
 }
 
+/** Mean over sub x sub blocks (the last row / column of blocks may be partial): ceil(w/sub) x ceil(h/sub). */
+export function blockMean(src: Float32Array, w: number, h: number, sub: number): Float32Array {
+  const bw = Math.ceil(w / sub), bh = Math.ceil(h / sub);
+  const sum = new Float32Array(bw * bh), cnt = new Float32Array(bw * bh);
+  for (let y = 0; y < h; y++) {
+    const row = ((y / sub) | 0) * bw;
+    for (let x = 0; x < w; x++) {
+      const k = row + ((x / sub) | 0);
+      sum[k] += src[y * w + x]; cnt[k]++;
+    }
+  }
+  for (let k = 0; k < sum.length; k++) sum[k] /= cnt[k];
+  return sum;
+}
+
 function planesOf(img: RgbaImage): [Float32Array, Float32Array, Float32Array] {
   const n = img.width * img.height;
   const P: [Float32Array, Float32Array, Float32Array] = [new Float32Array(n), new Float32Array(n), new Float32Array(n)];
@@ -188,43 +202,85 @@ export function refineMatte(img: RgbaImage, prob: Float32Array, opts: MatteOptio
   }
   // 2. local F / B colours, gathered from just beyond the band
   const R = Math.max(3, Math.round(band * 1.5));
-  const reduce = sub > 1;
-  const w = reduce ? Math.max(1, Math.round(W / sub)) : W, h = reduce ? Math.max(1, Math.round(H / sub)) : H;
-  const down = (p: Float32Array) => (reduce ? resizePlane(p, W, H, w, h) : p);
-  const up = (p: Float32Array) => (reduce ? resizePlane(p, w, h, W, H) : p);
-  const Rs = Math.max(1, Math.round(R / (reduce ? sub : 1)));
-  const fgW = down(fgSure), bgW = down(bgSure);
-  const F: Float32Array[] = [], B: Float32Array[] = [];
-  let fWeight: Float32Array = new Float32Array(0), bWeight: Float32Array = new Float32Array(0);
-  for (let c = 0; c < 3; c++) {
-    const Ic = down(I[c]);
-    const f = maskedMean(Ic, fgW, w, h, Rs), b = maskedMean(Ic, bgW, w, h, Rs);
-    F.push(up(f.mean)); B.push(up(b.mean));
-    fWeight = f.weight; bWeight = b.weight;
-  }
-  const fw = up(fWeight), bw = up(bWeight);
+  const gr = Math.max(1, Math.round(r / 2));
   const alpha = new Float32Array(n);
-  for (let i = 0; i < n; i++) {
-    if (fgSure[i]) { alpha[i] = 1; continue; }
-    if (bgSure[i]) { alpha[i] = 0; continue; }
-    const dr = F[0][i] - B[0][i], dg = F[1][i] - B[1][i], db = F[2][i] - B[2][i];
+  const out = new Uint8Array(n);
+  const finish = (v: number) => {
+    v = (v - 0.04) / 0.92; // remove the faint haze left in flat background
+    return Math.round(Math.min(1, Math.max(0, v)) * 255);
+  };
+  // alpha of one unknown-band pixel from its local F / B colours (fw, bw: how much sure F / B the window saw)
+  const unknownAlpha = (i: number, f0: number, f1: number, f2: number, b0: number, b1: number, b2: number, fw: number, bw: number) => {
+    const dr = f0 - b0, dg = f1 - b1, db = f2 - b2;
     const d2 = dr * dr + dg * dg + db * db;
     const p = prob[i];
-    if (fw[i] < 1e-3 || bw[i] < 1e-3 || d2 < 0.01) { alpha[i] = p; continue; } // cannot separate: keep the network
-    const a = ((I[0][i] - B[0][i]) * dr + (I[1][i] - B[1][i]) * dg + (I[2][i] - B[2][i]) * db) / d2;
+    if (fw < 1e-3 || bw < 1e-3 || d2 < 0.01) return p; // cannot separate: keep the network
+    const a = ((I[0][i] - b0) * dr + (I[1][i] - b1) * dg + (I[2][i] - b2) * db) / d2;
     // confidence grows with F-B contrast; low contrast leans on the network
     const conf = Math.min(1, (Math.sqrt(d2) - 0.1) / 0.2);
     const ac = Math.min(1, Math.max(0, a));
-    alpha[i] = conf > 0 ? conf * ac + (1 - conf) * p : p;
+    return conf > 0 ? conf * ac + (1 - conf) * p : p;
+  };
+  if (sub === 1) {
+    const F: Float32Array[] = [], B: Float32Array[] = [];
+    let fw = new Float32Array(0), bw = new Float32Array(0);
+    for (let c = 0; c < 3; c++) {
+      const f = maskedMean(I[c], fgSure, W, H, R), b = maskedMean(I[c], bgSure, W, H, R);
+      F.push(f.mean); B.push(b.mean); fw = f.weight; bw = b.weight;
+    }
+    for (let i = 0; i < n; i++)
+      alpha[i] = fgSure[i] ? 1 : bgSure[i] ? 0 : unknownAlpha(i, F[0][i], F[1][i], F[2][i], B[0][i], B[1][i], B[2][i], fw[i], bw[i]);
+    // 3. light colour guided filter (edge-preserving denoise), only applied inside the band
+    const { a: ga, b: gb } = colourGuidedFilter(I, alpha, W, H, gr, eps * 0.1);
+    for (let i = 0; i < n; i++)
+      out[i] = finish(fgSure[i] || bgSure[i] ? alpha[i] : ga[0][i] * I[0][i] + ga[1][i] * I[1][i] + ga[2][i] * I[2][i] + gb[i]);
+    return { width: W, height: H, data: out };
   }
-  // 3. light colour guided filter (edge-preserving denoise), only applied inside the band
-  const { a: ga, b: gb } = colourGuidedFilter(I, alpha, W, H, Math.max(1, Math.round(r / 2)), eps * 0.1);
-  const out = new Uint8Array(n);
-  for (let i = 0; i < n; i++) {
-    let v = alpha[i];
-    if (!fgSure[i] && !bgSure[i]) v = ga[0][i] * I[0][i] + ga[1][i] * I[1][i] + ga[2][i] * I[2][i] + gb[i];
-    v = (v - 0.04) / 0.92; // remove the faint haze left in flat background
-    out[i] = Math.round(Math.min(1, Math.max(0, v)) * 255);
+  // Subsampled ("fast") path: F / B and the guided-filter coefficients are solved on sub x sub block averages and
+  // bilinearly sampled back only at the unknown-band pixels (the fast guided filter of He & Sun 2015; the guide
+  // itself stays full resolution, so edges do too). Sure pixels never touch the low-resolution planes.
+  const w = Math.ceil(W / sub), h = Math.ceil(H / sub);
+  const down = (p: Float32Array) => blockMean(p, W, H, sub);
+  const Rs = Math.max(1, Math.round(R / sub));
+  const fgW = down(fgSure), bgW = down(bgSure);
+  const Is = [down(I[0]), down(I[1]), down(I[2])] as [Float32Array, Float32Array, Float32Array];
+  const F: Float32Array[] = [], B: Float32Array[] = [];
+  let fwS = new Float32Array(0), bwS = new Float32Array(0);
+  for (let c = 0; c < 3; c++) {
+    const f = maskedMean(Is[c], fgW, w, h, Rs), b = maskedMean(Is[c], bgW, w, h, Rs);
+    F.push(f.mean); B.push(b.mean); fwS = f.weight; bwS = b.weight;
   }
+  // bilinear sample of low-res planes at full-res pixel (x, y): low-res pixel j covers [j*sub, (j+1)*sub)
+  const ix = new Int32Array(W * 2), fx = new Float32Array(W), iy = new Int32Array(H * 2), fy = new Float32Array(H);
+  const axis = (N: number, M: number, idx: Int32Array, fr: Float32Array) => {
+    for (let x = 0; x < N; x++) {
+      const u = Math.min(M - 1, Math.max(0, (x + 0.5) / sub - 0.5));
+      const j = Math.min(M - 1, Math.floor(u));
+      idx[2 * x] = j; idx[2 * x + 1] = Math.min(M - 1, j + 1); fr[x] = u - j;
+    }
+  };
+  axis(W, w, ix, fx); axis(H, h, iy, fy);
+  let k00 = 0, k01 = 0, k10 = 0, k11 = 0, w00 = 0, w01 = 0, w10 = 0, w11 = 0;
+  const at = (x: number, y: number) => {
+    const ax = fx[x], ay = fy[y], r0 = iy[2 * y] * w, r1 = iy[2 * y + 1] * w, c0 = ix[2 * x], c1 = ix[2 * x + 1];
+    k00 = r0 + c0; k01 = r0 + c1; k10 = r1 + c0; k11 = r1 + c1;
+    w00 = (1 - ax) * (1 - ay); w01 = ax * (1 - ay); w10 = (1 - ax) * ay; w11 = ax * ay;
+  };
+  const S = (p: Float32Array) => p[k00] * w00 + p[k01] * w01 + p[k10] * w10 + p[k11] * w11;
+  for (let y = 0, i = 0; y < H; y++)
+    for (let x = 0; x < W; x++, i++) {
+      if (fgSure[i]) { alpha[i] = 1; continue; }
+      if (bgSure[i]) { alpha[i] = 0; continue; }
+      at(x, y);
+      alpha[i] = unknownAlpha(i, S(F[0]), S(F[1]), S(F[2]), S(B[0]), S(B[1]), S(B[2]), S(fwS), S(bwS));
+    }
+  // 3. guided filter coefficients on the block-averaged guide and alpha
+  const g = colourGuidedFilter(Is, down(alpha), w, h, Math.max(1, Math.round(gr / sub)), eps * 0.1);
+  for (let y = 0, i = 0; y < H; y++)
+    for (let x = 0; x < W; x++, i++) {
+      if (fgSure[i] || bgSure[i]) { out[i] = finish(alpha[i]); continue; }
+      at(x, y);
+      out[i] = finish(S(g.a[0]) * I[0][i] + S(g.a[1]) * I[1][i] + S(g.a[2]) * I[2][i] + S(g.b));
+    }
   return { width: W, height: H, data: out };
 }

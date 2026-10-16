@@ -76,6 +76,9 @@ export const FOCUS_SCALES = [0.5, 0.75, 1, 1.25] as const;
 export const FOCUS_MAX_FRAC = 0.75;
 /** keep the edge-refined mask only if it retains at least this share of the model's region */
 export const REFINE_MIN_KEEP = 0.25;
+/** above this long side the soft matte solves its colour model at half resolution (fast guided filter, see matte.ts) */
+export const MATTE_FAST_FROM = 640;
+export const matteSubsample = (w: number, h: number) => (Math.max(w, h) > MATTE_FAST_FROM ? 2 : 1);
 
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
@@ -227,7 +230,7 @@ async function segment(img: RgbaImage, clicks: SelectionClick[], opts: SelectOpt
         const W = img.width;
         for (let y = 0; y < img.height; y++) for (let x = 0; x < W; x++) prob[y * W + x] = 0.5 * (prob[y * W + x] + f[y * W + (W - 1 - x)]);
       }
-      const mask = opts.matte === false ? probToMask(prob, img.width, img.height) : refineMatte(img, prob, { modelScale: Math.max(img.width, img.height) / size });
+      const mask = opts.matte === false ? probToMask(prob, img.width, img.height) : refineMatte(img, prob, { modelScale: Math.max(img.width, img.height) / size, subsample: matteSubsample(img.width, img.height) });
       const binary = cleanMask(binarize(mask, thr), img.width, img.height, clicks);
       return { mask, binary, source: 'ml', ms: now() - t0 };
     } catch (e) {

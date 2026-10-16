@@ -49,20 +49,27 @@ PACKED = os.environ.get("QUV_PACKED_V1", os.path.join(os.path.dirname(__file__),
 
 
 class Blobs:
+    """Byte blobs addressed by an offset table. Memory-mapped, so the pack lives in the (reclaimable) page cache rather
+    than the trainer's heap: with several jobs sharing the machine a 1.4 GB heap copy gets the trainer OOM-killed."""
+
     def __init__(self, path, off):
-        self.blob = open(path, "rb").read()
-        self.off = np.load(off)
+        self.blob = np.memmap(path, np.uint8, "r") if os.path.getsize(path) else np.zeros(0, np.uint8)
+        self.off = np.load(off) if isinstance(off, str) else off
 
     def raw(self, r):
-        return self.blob[self.off[r]:self.off[r + 1]]
+        return self.blob[self.off[r]:self.off[r + 1]].tobytes()
 
 
 class _PartBlobs:
-    def __init__(self, blob, off):
-        self.blob, self.off = blob, off
+    """Several memory-mapped part files viewed as one blob table (global row -> part, local offset)."""
+
+    def __init__(self, paths, offs):
+        self.parts = [Blobs(p, o) for p, o in zip(paths, offs)]
+        self.start = np.cumsum([0] + [len(o) - 1 for o in offs])
 
     def raw(self, r):
-        return self.blob[self.off[r]:self.off[r + 1]]
+        k = int(np.searchsorted(self.start, r, side="right") - 1)
+        return self.parts[k].raw(r - self.start[k])
 
 
 class Pack:
@@ -76,11 +83,11 @@ class Pack:
             self.index = json.load(open(os.path.join(PACKED, f"index_{size}.json")))
             return
         parts = os.path.join(PACKED, f"parts_{size}")
-        ib, mb, ioff, moff, self.index, row = [], [], [0], [0], [], 0
+        ip, mp, ioffs, moffs, self.index, row = [], [], [], [], [], 0
         for f in sorted(x for x in os.listdir(parts) if x.endswith(".json")):
             c = f[:-5]
-            ib.append(open(os.path.join(parts, c + ".img"), "rb").read())
-            mb.append(open(os.path.join(parts, c + ".msk"), "rb").read())
+            ip.append(os.path.join(parts, c + ".img")); mp.append(os.path.join(parts, c + ".msk"))
+            ioff, moff = [0], [0]
             for e in json.load(open(os.path.join(parts, f))):
                 ioff.append(ioff[-1] + e.pop("ilen"))
                 ml = e.pop("mlen")
@@ -88,8 +95,9 @@ class Pack:
                     moff.append(moff[-1] + n)
                 e["m0"], e["m1"] = row, row + len(ml); row += len(ml)
                 self.index.append(e)
-        self.im = _PartBlobs(b"".join(ib), np.array(ioff, np.int64))
-        self.mk = _PartBlobs(b"".join(mb), np.array(moff, np.int64))
+            ioffs.append(np.array(ioff, np.int64)); moffs.append(np.array(moff, np.int64))
+        self.im = _PartBlobs(ip, ioffs)
+        self.mk = _PartBlobs(mp, moffs)
 
     def image(self, r):
         return np.asarray(Image.open(io.BytesIO(self.im.raw(r))).convert("RGB"))

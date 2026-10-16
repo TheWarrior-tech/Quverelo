@@ -1,3 +1,4 @@
+import { matteSubsample } from '../../src/core/ml/selectSubject';
 import { describe, expect, it } from 'vitest';
 import { boxMean, refineMatte } from '../../src/core/ml/matte';
 import { resizePlane } from '../../src/core/ml/tensor';
@@ -88,6 +89,26 @@ describe('ML edge refinement (colour guided-filter matting)', () => {
     const exact = refineMatte(img, prob, { subsample: 1, band: 26 });
     const fast = refineMatte(img, prob, { subsample: 2, band: 26 });
     expect(iou(Array.from(fast.data, (v) => v >= 128 ? 1 : 0), Array.from(exact.data, (v) => v >= 128 ? 1 : 0))).toBeGreaterThan(0.97);
+  });
+
+  it('fast mode keeps alpha close to the exact matte everywhere (not just the 0.5 cut)', () => {
+    const { img, gt, W, H } = scene();
+    const prob = blurryProb(gt, W, H);
+    const exact = refineMatte(img, prob, { subsample: 1, band: 26 });
+    const fast = refineMatte(img, prob, { subsample: 2, band: 26 });
+    let d = 0, big = 0;
+    for (let i = 0; i < exact.data.length; i++) {
+      const e = Math.abs(exact.data[i] - fast.data[i]);
+      d += e; if (e > 64) big++;
+    }
+    expect(d / exact.data.length / 255).toBeLessThan(0.01);
+    expect(big / exact.data.length).toBeLessThan(0.01);
+  });
+
+  it('Select Subject uses the fast matte above 640 px (the 1024 px analysis), exact below', () => {
+    expect(matteSubsample(1024, 687)).toBe(2);
+    expect(matteSubsample(640, 480)).toBe(1);
+    expect(matteSubsample(300, 900)).toBe(2);
   });
 
   it('refines a 1024 x 768 image quickly', () => {
