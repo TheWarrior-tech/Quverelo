@@ -124,12 +124,18 @@ test.describe('export', () => {
     // factor mode: the hint under the Scale field reads out the pixel size
     await expect(page.getByTestId('export-scale-hint')).toHaveText('200 × 100 px');
     await expect(page.getByTestId('export-dims')).toHaveText('200 × 100 px');
-    // dialog hugs its content: the form's last row ends near the body's bottom or the preview sets the height
+    // dialog hugs its content: the form's last row ends near the body's bottom, or the preview or the format list sets the height
     const gap = await page.evaluate(() => {
       const main = document.querySelector('.ex-form') as HTMLElement;
       const aside = document.querySelector('.ex-preview') as HTMLElement;
       const grid = main.querySelector('.fgrid') as HTMLElement;
-      const contentBottom = Math.max(grid.getBoundingClientRect().bottom + 20, (aside.lastElementChild as HTMLElement).getBoundingClientRect().bottom + 16);
+      // the format list (seven formats since PDF/X-4 and PDF/X-1a) can also set the height
+      const side = document.querySelector('.export-dialog .dlg-side') as HTMLElement;
+      const contentBottom = Math.max(
+        grid.getBoundingClientRect().bottom + 20,
+        (aside.lastElementChild as HTMLElement).getBoundingClientRect().bottom + 16,
+        (side.lastElementChild as HTMLElement).getBoundingClientRect().bottom + 16,
+      );
       return main.getBoundingClientRect().bottom - contentBottom;
     });
     expect(gap).toBeLessThan(8);

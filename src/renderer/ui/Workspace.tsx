@@ -418,7 +418,7 @@ function ColourStatus() {
     <>
       <button
         type="button"
-        className={`btn ghost snap-toggle proof-toggle${proof ? ' on' : ''}`}
+        className={`btn ghost status-toggle proof-toggle${proof ? ' on' : ''}`}
         aria-pressed={proof}
         data-testid="proof-toggle"
         {...tip(cmyk ? `Press proof · ${PROFILES[col.cmykProfile].name} (CMYK document)` : `Soft proof · ${PROFILES[col.cmykProfile].name}`, 'view.soft-proof')}
@@ -429,7 +429,7 @@ function ColourStatus() {
       </button>
       <button
         type="button"
-        className={`btn ghost snap-toggle gamut-toggle icon-only${ed.ui.gamutWarning ? ' on' : ''}`}
+        className={`btn ghost status-toggle gamut-toggle icon-only${ed.ui.gamutWarning ? ' on' : ''}`}
         aria-pressed={ed.ui.gamutWarning}
         data-testid="gamut-toggle"
         {...tip('Gamut warning: grey out colours the press can’t print', 'view.gamut-warning')}
