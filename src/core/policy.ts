@@ -11,6 +11,8 @@ export const FEATURE_IDS = [
   'photo', 'vector', 'layout', // studios
   'import-svg', 'import-images', 'export-png', 'export-jpg', 'export-svg', 'export-pdf',
   'autosave', 'recent-files', 'external-links', 'update-check', 'local-fonts', 'assignments',
+  // interop & automation (parity wave 1)
+  'import-psd', 'import-ai', 'import-idml', 'export-psd', 'scripting',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
@@ -28,6 +30,8 @@ export interface Policy {
   allowedSaveDirectories: string[];
   /** Folder where students hand in assignments (shown in File ▸ Hand In). */
   handInDirectory: string | null;
+  /** Hand-in bundles include a PDF preview for marking (default true; false = work file + manifest only). */
+  handInIncludePreview: boolean;
   /** Turns off every update check (automatic and Help ▸ Check for Updates). Updates are then deployed by IT. */
   disableUpdateCheck: boolean;
   /**
@@ -67,6 +71,7 @@ export const DEFAULT_POLICY: Policy = {
   lockSaveDirectory: false,
   allowedSaveDirectories: [],
   handInDirectory: null,
+  handInIncludePreview: true,
   disableUpdateCheck: false,
   updateFeedUrl: null,
   autoDownload: null,
@@ -133,6 +138,7 @@ export function parsePolicy(raw: unknown, source: string | null = null): PolicyR
   bool('lockSaveDirectory');
   strArr('allowedSaveDirectories');
   strOrNull('handInDirectory');
+  bool('handInIncludePreview');
   bool('disableUpdateCheck');
   numIn('autosaveIntervalSeconds', 0, 3600);
   numIn('uiScale', 0.75, 2);

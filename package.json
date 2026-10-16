@@ -40,12 +40,15 @@
     "@fontsource/merriweather": "^5.3.0",
     "@fontsource/opendyslexic": "^5.3.0",
     "@fontsource/roboto-slab": "^5.3.0",
+    "@jitl/quickjs-singlefile-mjs-release-sync": "^0.32.0",
     "@pdf-lib/fontkit": "^1.1.1",
     "@playwright/test": "^1.64.1",
     "@types/node": "^22.20.5",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4.7.0",
+    "ag-psd": "^31.0.3",
+    "axe-core": "^4.14.0",
     "electron": "^38.8.6",
     "electron-builder": "^26.15.3",
     "electron-updater": "^6.8.9",
@@ -57,8 +60,10 @@
     "paper": "^0.12.18",
     "pdf-lib": "^1.17.1",
     "playwright": "^1.64.0",
+    "quickjs-emscripten-core": "^0.32.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "sucrase": "^3.35.1",
     "typescript": "^5.9.3",
     "vite": "^6.4.4",
     "vitest": "^3.2.7"
@@ -95,6 +100,14 @@
         "name": "Quvrelo Document",
         "description": "Quvrelo Document",
         "mimeType": "application/vnd.quvrelo+zip",
+        "role": "Editor",
+        "icon": "icon"
+      },
+      {
+        "ext": "quvrelo-assignment",
+        "name": "Quvrelo Assignment",
+        "description": "Quvrelo assignment pack (brief + starting document)",
+        "mimeType": "application/vnd.quvrelo-assignment+zip",
         "role": "Editor",
         "icon": "icon"
       },
@@ -203,6 +216,7 @@
       },
       "mimeTypes": [
         "application/x-quvrelo",
+        "application/vnd.quvrelo-assignment+zip",
         "application/x-easel"
       ],
       "artifactName": "Quvrelo-${version}-${arch}.${ext}"

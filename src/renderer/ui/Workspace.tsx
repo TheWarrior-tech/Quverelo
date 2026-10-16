@@ -198,6 +198,10 @@ function ExportSplit() {
       ...formats.map((f) => ({ id: `export-${f}`, label: `${FORMAT_NAMES[f]}…`, keys: shortcutFor(`file.export-${f}`), run: () => void runCommand(`file.export-${f}`) })),
     );
   }
+  if (ed.feature('export-psd')) {
+    if (!formats.length) items.push({ heading: 'Format' });
+    items.push({ id: 'export-psd', label: 'Photoshop PSD…', detail: 'Layers kept', run: () => void runCommand('file.export-psd') });
+  }
   if (assignments) {
     if (items.length) items.push('-');
     items.push({ id: 'hand-in', label: 'Hand in…', detail: ed.doc?.assignment?.title ? `To ${ed.doc.assignment.className || 'class'}` : undefined, run: () => void runCommand('file.hand-in') });

@@ -12,6 +12,7 @@ import { defaultExportFormat, pagesStillValid, type ExportFormat } from '../../c
 import { editor } from './editor';
 import { openDialog, toast } from './bus';
 import { markStep } from './onboarding';
+import { handInBundle, interopKind, openInterop, openableInteropExtensions, placeInterop } from './interop';
 
 const QUVRELO_FILTER: FileFilter[] = [{ name: 'Quvrelo Document', extensions: ['quvrelo'] }];
 const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'];
@@ -116,6 +117,9 @@ export async function openFileData(data: Uint8Array, name: string, path: string 
   if (/\.(quvrelo|easel)$/i.test(name)) {
     await loadQuvreloBytes(data, path);
     if (path) void window.quvrelo.addRecent(path);
+  } else if (interopKind(name)) {
+    await openInterop(data, name, path); // PSD, AI/PDF, IDML, assignment packs, hand-ins (shows its own toast)
+    return;
   } else {
     await openImageAsDocument(data, name, path);
   }
@@ -146,10 +150,11 @@ export async function openDialogAndLoad(): Promise<void> {
   const files = await window.quvrelo.openFileDialog({
     title: 'Open',
     filters: [
-      { name: 'All supported', extensions: ['quvrelo', 'easel', ...IMAGE_EXT, 'svg'] },
+      { name: 'All supported', extensions: ['quvrelo', 'easel', ...IMAGE_EXT, 'svg', ...openableInteropExtensions()] },
       ...QUVRELO_FILTER,
       { name: 'Images', extensions: IMAGE_EXT },
       { name: 'SVG', extensions: ['svg'] },
+      ...interopFilters(),
     ],
   });
   if (!files.length) return;
@@ -158,6 +163,19 @@ export async function openDialogAndLoad(): Promise<void> {
   } catch (e) {
     toast(`Could not open ${files[0].name}: ${(e as Error).message}`, 'error');
   }
+}
+
+/** Open-dialog filters for the formats in interop.ts the policy allows. */
+function interopFilters(): FileFilter[] {
+  const ext = new Set(openableInteropExtensions());
+  const f: FileFilter[] = [
+    { name: 'Photoshop', extensions: ['psd', 'psb'] },
+    { name: 'Illustrator / PDF', extensions: ['ai', 'pdf'] },
+    { name: 'InDesign IDML', extensions: ['idml'] },
+    { name: 'Quvrelo Assignment', extensions: ['quvrelo-assignment'] },
+    { name: 'Hand-in bundle', extensions: ['zip'] },
+  ];
+  return f.map((x) => ({ ...x, extensions: x.extensions.filter((e) => ext.has(e) || (e === 'zip' && ext.has('quvrelo-assignment'))) })).filter((x) => x.extensions.length);
 }
 
 async function thumbnail(): Promise<Uint8Array | undefined> {
@@ -209,7 +227,8 @@ export async function save(saveAs = false): Promise<boolean> {
 // Import & place
 
 async function pickImages(): Promise<{ data: Uint8Array; name: string }[]> {
-  const files = await window.quvrelo.openFileDialog({ title: 'Place image', filters: [{ name: 'Images', extensions: [...IMAGE_EXT, 'svg'] }], multi: true });
+  const extra = openableInteropExtensions().filter((e) => ['psd', 'psb', 'ai', 'pdf'].includes(e));
+  const files = await window.quvrelo.openFileDialog({ title: 'Place image', filters: [{ name: 'Images', extensions: [...IMAGE_EXT, 'svg', ...extra] }], multi: true });
   return files.map((f) => ({ data: f.data, name: f.name }));
 }
 
@@ -225,6 +244,14 @@ export async function placeImages(files?: { data: Uint8Array; name: string }[]):
   const H = doc.settings.height;
   const added: string[] = [];
   for (const f of list) {
+    if (interopKind(f.name)) {
+      try {
+        await placeInterop(f.data, f.name);
+      } catch (e) {
+        toast(`Could not place ${f.name}: ${(e as Error).message}`, 'error');
+      }
+      continue;
+    }
     if (mimeFor(f.name) === 'image/svg+xml') {
       const r = importSvg(new TextDecoder().decode(f.data));
       const g = make.group(r.nodes.map((n) => ({ ...n })), { name: baseName(f.name) });
@@ -257,8 +284,8 @@ export async function placeImages(files?: { data: Uint8Array; name: string }[]):
     editor.commit('Place image', (d) => addNodes({ ...d, assets: { ...d.assets, [id]: ref } }, container.id, [node]));
     added.push(node.id);
   }
-  editor.select(added);
-  if (list.some((f) => mimeFor(f.name) !== 'image/svg+xml')) markStep('place');
+  if (added.length) editor.select(added);
+  if (list.some((f) => mimeFor(f.name) !== 'image/svg+xml' && !interopKind(f.name))) markStep('place');
 }
 
 export async function importSvgFile(): Promise<void> {
@@ -466,17 +493,8 @@ export async function restoreRecovery(id: string): Promise<void> {
 // Assignments
 
 export async function handIn(studentName: string): Promise<string | null> {
-  const doc = editor.doc;
-  if (!doc) return null;
-  const info = doc.assignment;
-  const className = info?.className || 'Class';
-  const stamped: QuvreloDocument = {
-    ...doc,
-    assignment: { ...(info ?? { title: doc.title, className, teacher: '', dueDate: '', instructions: '' }), studentName, submittedAt: new Date().toISOString() },
-  };
-  editor.commit('Hand in', () => stamped);
-  const data = await packCurrent();
-  const path = await window.quvrelo.handIn({ data, fileName: info?.title || doc.title, className, studentName });
+  if (!editor.doc) return null;
+  const path = await handInBundle(studentName, packCurrent);
   markStep('export');
   toast(`Handed in to ${path}`, 'success');
   return path;

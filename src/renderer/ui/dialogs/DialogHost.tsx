@@ -8,6 +8,7 @@ import { DocumentSetupDialog, ResizeDialog } from './DocumentDialogs';
 import { AboutDialog, GuideDialog, PreferencesDialog, ShortcutsDialog } from './AppDialogs';
 import { AssignmentDialog, HandInDialog } from './AssignmentDialogs';
 import { UpdatesDialog } from './UpdatesDialog';
+import { ImportReportDialog, ScriptEditorDialog } from './ScriptDialogs';
 import { watchScrollRegions } from '../controls/Panel';
 import './dialogs.css';
 
@@ -224,6 +225,8 @@ export function DialogHost() {
     case 'assignment': return <AssignmentDialog key={k} />;
     case 'hand-in': return <HandInDialog key={k} />;
     case 'updates': return <UpdatesDialog key={k} />;
+    case 'import-report': return <ImportReportDialog key={k} name={String(p.name)} warnings={(p.warnings as string[]) ?? []} />;
+    case 'script-editor': return <ScriptEditorDialog key={k} id={p.id as string | undefined} example={p.example as string | undefined} />;
     case 'confirm': return <ConfirmDialog key={k} title={String(p.title)} message={String(p.message)} actions={p.actions as ConfirmAction[]} />;
     default: return null;
   }

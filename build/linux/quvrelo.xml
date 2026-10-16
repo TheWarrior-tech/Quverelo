@@ -18,6 +18,13 @@
       <match type="string" offset="38" value="application/vnd.quvrelo+zip"/>
     </magic>
   </mime-type>
+  <mime-type type="application/vnd.quvrelo-assignment+zip">
+    <comment>Quvrelo assignment pack</comment>
+    <sub-class-of type="application/zip"/>
+    <generic-icon name="x-office-drawing"/>
+    <icon name="quvrelo"/>
+    <glob pattern="*.quvrelo-assignment"/>
+  </mime-type>
   <mime-type type="application/vnd.easel-studio+zip">
     <comment>Quvrelo document (pre-release Easel format)</comment>
     <alias type="application/x-easel"/>

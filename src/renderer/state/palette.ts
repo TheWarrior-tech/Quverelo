@@ -113,6 +113,7 @@ export function commandIcon(id: string): string | undefined {
     // every command has an icon, so no row reads as a gap (critique 3 P2-5)
     'doc.clear-guides': 'close', 'view.rulers': 'layout', 'view.snapping': 'magnet', 'view.theme-dark': 'adjust', 'view.theme-light': 'adjust',
     'view.theme-contrast': 'adjust', 'view.ui-bigger': 'plus', 'view.ui-smaller': 'minus', 'view.ui-reset': 'undo', 'view.devtools': 'settings',
+    'file.save-assignment-pack': 'handin', 'view.scripts': 'script',
   };
   if (direct[id]) return direct[id];
   if (id === 'file.export' || id.startsWith('file.export-')) return 'export';

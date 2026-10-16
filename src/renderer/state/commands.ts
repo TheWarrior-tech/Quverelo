@@ -16,8 +16,9 @@ import { pathBounds, rectPath, translatePath } from '../../core/path';
 import { newId } from '../../core/ids';
 import type { QuvreloDocument, Id, PathNode, RasterNode, SceneNode } from '../../core/types';
 import { editor, type ToolId } from './editor';
-import { closeDialog, openDialog, toast } from './bus';
+import { closeDialog, openDialog, showInspectorTab, toast } from './bus';
 import * as io from './io';
+import * as interop from './interop';
 import type { Viewport } from '../engine/Viewport';
 import { isEditable } from '../engine/Viewport';
 import { cycleTool, groupOf, toolForKeyIn, toolName, TOOL_KEYS } from './toolGroups';
@@ -107,6 +108,13 @@ reg('file.export-again', () => needDoc() && io.exportAgain());
 for (const f of ['png', 'jpg', 'svg', 'pdf'] as const) reg(`file.export-${f}`, () => needDoc() && openDialog('export', { format: f }));
 reg('file.document-setup', () => needDoc() && openDialog('document-setup'));
 reg('file.assignment', () => needDoc() && openDialog('assignment'));
+reg('file.save-assignment-pack', () => needDoc() && interop.saveAssignmentPack());
+reg('file.export-psd', () => needDoc() && interop.exportPsdFile());
+reg('view.scripts', () => {
+  if (!editor.feature('scripting')) return toast('Scripts are turned off by your administrator');
+  if (!needDoc()) return;
+  showInspectorTab('scripts');
+});
 reg('file.hand-in', () => needDoc() && openDialog('hand-in'));
 reg('app.preferences', () => openDialog('preferences'));
 
