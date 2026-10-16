@@ -57,12 +57,39 @@ class Blobs:
         return self.blob[self.off[r]:self.off[r + 1]]
 
 
+class _PartBlobs:
+    def __init__(self, blob, off):
+        self.blob, self.off = blob, off
+
+    def raw(self, r):
+        return self.blob[self.off[r]:self.off[r + 1]]
+
+
 class Pack:
+    """The consolidated pack, or (while build_dataset_v1.py is still running) every finished 2,000-image part."""
+
     def __init__(self, size=320):
         self.size = size
-        self.im = Blobs(os.path.join(PACKED, f"images_{size}.bin"), os.path.join(PACKED, f"images_{size}_off.npy"))
-        self.mk = Blobs(os.path.join(PACKED, f"masks_{size}.bin"), os.path.join(PACKED, f"masks_{size}_off.npy"))
-        self.index = json.load(open(os.path.join(PACKED, f"index_{size}.json")))
+        if os.path.exists(os.path.join(PACKED, f"index_{size}.json")):
+            self.im = Blobs(os.path.join(PACKED, f"images_{size}.bin"), os.path.join(PACKED, f"images_{size}_off.npy"))
+            self.mk = Blobs(os.path.join(PACKED, f"masks_{size}.bin"), os.path.join(PACKED, f"masks_{size}_off.npy"))
+            self.index = json.load(open(os.path.join(PACKED, f"index_{size}.json")))
+            return
+        parts = os.path.join(PACKED, f"parts_{size}")
+        ib, mb, ioff, moff, self.index, row = [], [], [0], [0], [], 0
+        for f in sorted(x for x in os.listdir(parts) if x.endswith(".json")):
+            c = f[:-5]
+            ib.append(open(os.path.join(parts, c + ".img"), "rb").read())
+            mb.append(open(os.path.join(parts, c + ".msk"), "rb").read())
+            for e in json.load(open(os.path.join(parts, f))):
+                ioff.append(ioff[-1] + e.pop("ilen"))
+                ml = e.pop("mlen")
+                for n in ml:
+                    moff.append(moff[-1] + n)
+                e["m0"], e["m1"] = row, row + len(ml); row += len(ml)
+                self.index.append(e)
+        self.im = _PartBlobs(b"".join(ib), np.array(ioff, np.int64))
+        self.mk = _PartBlobs(b"".join(mb), np.array(moff, np.int64))
 
     def image(self, r):
         return np.asarray(Image.open(io.BytesIO(self.im.raw(r))).convert("RGB"))
