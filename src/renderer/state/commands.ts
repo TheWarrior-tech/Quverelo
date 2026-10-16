@@ -43,6 +43,11 @@ function reg(id: string, fn: Handler) {
   handlers.set(id, fn);
 }
 
+/** Register a command from another module (Layout studio commands live in layoutCommands.ts). */
+export function registerCommand(id: string, fn: Handler): void {
+  reg(id, fn);
+}
+
 export function hasCommand(id: string): boolean {
   return handlers.has(id);
 }

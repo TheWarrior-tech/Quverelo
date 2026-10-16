@@ -384,3 +384,21 @@ export function autoFlow(doc: QuvreloDocument, frameId: Id, flow: (d: QuvreloDoc
   }
   return { doc: out, pagesAdded: added };
 }
+
+// ---------------------------------------------------------------------------
+// Baseline grid
+
+/** Grid lines (page y) in [0, height]. */
+export function baselineGridLines(grid: { start: number; increment: number }, height: number, max = 5000): number[] {
+  const out: number[] = [];
+  if (!(grid.increment > 0)) return out;
+  for (let y = grid.start; y <= height && out.length < max; y += grid.increment) if (y >= 0) out.push(y);
+  return out;
+}
+
+/** The grid line nearest to `y` (snapping objects to the baseline grid). */
+export function nearestGridLine(grid: { start: number; increment: number }, y: number): number {
+  if (!(grid.increment > 0)) return y;
+  const k = Math.max(0, Math.round((y - grid.start) / grid.increment));
+  return grid.start + k * grid.increment;
+}

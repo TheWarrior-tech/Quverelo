@@ -1,7 +1,8 @@
 import { useLayoutEffect, useRef } from 'react';
 import { findNode, solid } from '../../core/document';
 import { firstColorOf, uiPaint, uiPaintPatch } from '../state/uiPaint';
-import { setStoryStyle, updateNode, updateNodes } from '../../core/commands';
+import { updateNode, updateNodes } from '../../core/commands';
+import { frameTextTarget } from '../state/textTarget';
 import { PX_PER, UNIT_DIGITS, UNIT_STEP } from '../../core/units';
 import { primaryFamily } from './fonts';
 import type { DocumentSettings, QuvreloDocument, SceneNode, TextAlign, TextFrameNode, TextStyle } from '../../core/types';
@@ -36,10 +37,8 @@ export function activeTextTarget(): { style: TextStyle; apply: (patch: Partial<T
     };
   }
   if (n?.type === 'textframe' && doc.stories[n.storyId]) {
-    return {
-      style: doc.stories[n.storyId].style,
-      apply: (patch) => editor.commit('Text style', (d) => setStoryStyle(d, n.storyId, patch), 'style:' + n.storyId),
-    };
+    // Layout: per-character / per-paragraph formatting of the selection (state/textTarget.ts)
+    return frameTextTarget(doc, n.storyId);
   }
   return null;
 }

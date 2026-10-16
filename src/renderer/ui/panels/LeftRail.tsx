@@ -5,7 +5,8 @@ import { LayersPanel } from './LayersPanel';
 import { PagesPanel } from './PagesPanel';
 import { AssetsPanel } from './AssetsPanel';
 import { SwatchesPanel } from './SwatchesPanel';
-import { PanelTabs, loadTab, saveTab, type Tab } from './PanelTabs';
+import { StylesPanel } from './StylesPanel';
+import { PanelTabs, loadTab, saveTab, useShowTab, type Tab } from './PanelTabs';
 
 const KEY = 'quvrelo.leftTab.v3';
 
@@ -30,11 +31,17 @@ export function LeftRail() {
   const tabs: Tab[] = [
     { id: 'layers', label: 'Layers', render: () => <LayersPanel />, flush: true },
     { id: 'pages', label: 'Pages', render: () => <PagesPanel /> },
+    // Layout: paragraph / character / cell styles (InDesign's Styles panels)
+    ...(studio === 'layout' ? [{ id: 'styles', label: 'Styles', render: () => <StylesPanel /> }] : []),
     { id: 'assets', label: 'Assets', render: () => <LibraryPanel /> },
   ];
   const fallback = studio === 'layout' ? 'pages' : 'layers';
   const [active, setActive] = useState(() => loadTab(KEY, studio, fallback));
   useEffect(() => setActive(loadTab(KEY, studio, fallback)), [studio]);
+  useShowTab('structure', (t) => {
+    setActive(t);
+    saveTab(KEY, studio, t);
+  });
   const tab = tabs.find((t) => t.id === active) ?? tabs[0];
   const scrollRef = useScrollEdges<HTMLDivElement>();
   const select = (id: string) => {

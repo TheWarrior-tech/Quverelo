@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { PDFArray, PDFDocument, PDFName, PDFRawStream, PDFDict } from 'pdf-lib';
@@ -181,6 +181,14 @@ describe('bundled PDF fonts', () => {
   it('embeds exactly the faces main.tsx loads, and every file exists', () => {
     const main = readFileSync('src/renderer/main.tsx', 'utf8');
     const loaded = [...main.matchAll(/@fontsource\/([a-z-]+)\/(\d+)\.css/g)].map((m) => `${m[1]}/${m[2]}`).sort();
+    // faces shipped in the repo (full OpenType feature sets) are loaded by their own @font-face file
+    const local = readdirSync('src/renderer/assets/fonts');
+    for (const pkg of local) {
+      const css = readFileSync(`src/renderer/assets/fonts/${pkg}/${pkg}.css`, 'utf8');
+      expect(main).toContain(`./assets/fonts/${pkg}/${pkg}.css`);
+      for (const m of css.matchAll(/font-weight: (\d+);/g)) loaded.push(`${pkg}/${m[1]}`);
+    }
+    loaded.sort();
     const declared = Object.values(BUNDLED_FACES).flatMap((f) => f.weights.map((w) => `${f.pkg}/${w}`)).sort();
     expect(declared).toEqual(loaded);
     const urls = readFileSync('src/renderer/engine/pdfFontFiles.ts', 'utf8');
@@ -188,7 +196,8 @@ describe('bundled PDF fonts', () => {
       for (const w of f.weights) {
         const file = `files/${f.pkg}-latin-${w}-normal.woff`;
         expect(urls).toContain(`'${f.pkg}/${file}'`);
-        expect(readFileSync(`node_modules/@fontsource/${f.pkg}/${file}`).length).toBeGreaterThan(1000);
+        const path = local.includes(f.pkg) ? `src/renderer/assets/fonts/${f.pkg}/${f.pkg}-latin-${w}-normal.woff` : `node_modules/@fontsource/${f.pkg}/${file}`;
+        expect(readFileSync(path).length).toBeGreaterThan(1000);
       }
     }
   });

@@ -17,6 +17,7 @@ import { Icon } from '../Icons';
 import { tip } from '../tips';
 import { evalArithmetic } from '../controls/numeric';
 import { TextSection } from './TextSection';
+import { BaselineGridSection, FrameFlowSection, TableSection, WrapSection } from './LayoutSections';
 import type { Unit } from '../../../core/types';
 
 export { evalArithmetic };
@@ -105,6 +106,7 @@ function DocumentProperties() {
         <Field label="Fill"><PaintRow kind="fill" label="Default fill" paint={fill} fallback={ed.ui.fillColor} onChange={setDefault('fill')} /></Field>
         <Field label="Stroke"><PaintRow kind="stroke" label="Default stroke" paint={stroke} fallback={ed.ui.strokeColor} onChange={setDefault('stroke')} /></Field>
       </Section>
+      {ed.ui.studio === 'layout' && <BaselineGridSection />}
       <p className="hint pad">Select an object to edit it here. Double-click text to type, or a picture frame to place an image.</p>
     </div>
   );
@@ -239,6 +241,8 @@ export function PropertiesPanel() {
       </Section>
 
       {!multi && (n.type === 'text' || n.type === 'textframe') && <TextSection />}
+      {!multi && n.type === 'textframe' && ed.ui.studio === 'layout' && <FrameFlowSection node={n} />}
+      {!multi && n.type === 'table' && <TableSection node={n} />}
 
       {!multi && (
         <Section id="transform" title={<>Transform <span className="count">{u}</span></>}>
@@ -318,6 +322,8 @@ export function PropertiesPanel() {
           )}
         </Section>
       )}
+
+      {!multi && ed.ui.studio === 'layout' && <WrapSection node={n} />}
 
       {!multi && n.mask && (
         <Section id="mask" title="Mask">

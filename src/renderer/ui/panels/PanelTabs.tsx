@@ -1,6 +1,6 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
-export type Tab = { id: string; label: string; render: () => JSX.Element; flush?: boolean };
+export type Tab = { id: string; label: string; render: () => JSX.Element; flush?: boolean; /** small count shown on the tab (e.g. preflight errors) */ badge?: number };
 
 /**
  * Panel tab strip (DESIGN.md §8 v3): text tabs, active = primary text on a
@@ -34,6 +34,7 @@ export function PanelTabs({ tabs, active, onSelect, label, groupId }: { tabs: Ta
           data-panel={t.id}
         >
           {t.label}
+          {t.badge ? <span className="tab-badge num" aria-label={`${t.badge} errors`}>{t.badge}</span> : null}
         </button>
       ))}
     </div>
@@ -56,4 +57,18 @@ export function saveTab(key: string, studio: string, tab: string): void {
   } catch {
     /* storage unavailable */
   }
+}
+
+/** Switch a rail's tab from elsewhere (commands dispatch "quvrelo:show-tab"). */
+export function useShowTab(group: string, show: (tab: string) => void): void {
+  const ref = useRef(show);
+  ref.current = show;
+  useEffect(() => {
+    const h = (e: Event) => {
+      const d = (e as CustomEvent<{ group: string; tab: string }>).detail;
+      if (d?.group === group) ref.current(d.tab);
+    };
+    window.addEventListener('quvrelo:show-tab', h);
+    return () => window.removeEventListener('quvrelo:show-tab', h);
+  }, [group]);
 }

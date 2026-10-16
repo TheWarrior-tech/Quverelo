@@ -1,7 +1,7 @@
 /** Font lists and picker sections. Pure: no editor or DOM access, unit-tested. */
 
 /** Typefaces bundled with the app (always available offline). */
-export const BUNDLED_FONTS = ['Inter', 'Atkinson Hyperlegible', 'OpenDyslexic', 'Merriweather', 'Roboto Slab', 'Caveat'];
+export const BUNDLED_FONTS = ['Inter', 'Atkinson Hyperlegible', 'OpenDyslexic', 'Merriweather', 'Roboto Slab', 'EB Garamond', 'Caveat'];
 /** Common system families, shown when present on most school machines. */
 export const SYSTEM_FONTS = ['Arial', 'Helvetica', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Georgia', 'Times New Roman', 'Garamond', 'Courier New', 'Comic Sans MS', 'Segoe UI', 'Calibri'];
 export interface FontSection {

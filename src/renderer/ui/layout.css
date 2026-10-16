@@ -1,0 +1,273 @@
+/* Layout studio panels: styles, preflight, pages extras, type options, tables.
+   Built from the shared tokens (DESIGN.md): hairlines, 4/8 spacing, one accent,
+   danger for errors. No new colours except the preflight warning amber, which
+   uses the danger token's hue family in HC via currentColor. */
+
+/* ---------- Styles panel ---------- */
+.style-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.style-row + .style-row {
+  margin-top: 2px;
+}
+.style-line {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.style-apply {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 6px;
+  border: none;
+  border-radius: var(--r-1);
+  background: transparent;
+  color: var(--c-text-2);
+  cursor: pointer;
+  text-align: left;
+}
+.style-apply:hover {
+  background: var(--c-hover);
+  color: var(--c-text);
+}
+.style-apply:focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: -2px;
+}
+.style-row.current .style-apply {
+  color: var(--c-text);
+  box-shadow: inset 2px 0 0 var(--c-accent);
+}
+.style-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.style-based {
+  color: var(--c-text-3);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 40%;
+}
+.style-uses {
+  color: var(--c-text-3);
+  font-size: 11px;
+  min-width: 12px;
+  text-align: right;
+}
+.style-editor {
+  margin: 4px 0 8px 22px;
+  padding: 8px 0 4px 10px;
+  border-left: 1px solid var(--c-line);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.style-editor .nf.inherited input {
+  color: var(--c-text-3);
+}
+.style-editor-actions {
+  gap: 4px;
+}
+
+/* ---------- Inspector › Text: styles, paragraph, OpenType ---------- */
+.type-styles {
+  margin-bottom: 6px;
+}
+.type-para {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+.type-ot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+.type-checks {
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+/* ---------- Flow / tables / wrap ---------- */
+.flow-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+  color: var(--c-text-3);
+  font-size: 11px;
+}
+.flow-status.bad {
+  color: var(--c-danger);
+}
+.flow-actions,
+.table-actions,
+.master-overrides {
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.sub-label {
+  margin: 8px 0 4px;
+  color: var(--c-text-3);
+  font-size: 11px;
+}
+.table-range .nf-label {
+  min-width: 0;
+}
+
+/* ---------- Pages panel extras ---------- */
+.insert-pages {
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.page-thumb.dragging {
+  opacity: 0.45;
+}
+.page-thumb.drop-target canvas {
+  box-shadow: -3px 0 0 0 var(--c-accent), 0 0 0 1px var(--c-line-strong);
+}
+.page-thumb .section-mark {
+  font-style: normal;
+  color: var(--c-accent);
+}
+.section-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+.icon-btn.on {
+  background: var(--c-press);
+  color: var(--c-text);
+}
+
+/* ---------- Preflight ---------- */
+.preflight-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 2px;
+  margin-bottom: 4px;
+  font-weight: 600;
+  color: var(--c-text);
+}
+.preflight-summary.bad svg {
+  color: var(--c-danger);
+}
+.preflight-summary.ok svg,
+.preflight-summary.warn svg {
+  color: var(--c-accent);
+}
+.preflight-sub {
+  margin-left: auto;
+  font-weight: 400;
+  color: var(--c-text-3);
+  font-size: 11px;
+}
+.preflight-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.preflight-item {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px;
+  border: none;
+  border-radius: var(--r-1);
+  background: transparent;
+  color: var(--c-text-2);
+  text-align: left;
+  cursor: pointer;
+}
+.preflight-item:hover {
+  background: var(--c-hover);
+  color: var(--c-text);
+}
+.preflight-item:focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: -2px;
+}
+.pf-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: var(--r-full);
+  background: var(--c-text-3);
+}
+.sev-error .pf-dot {
+  background: var(--c-danger);
+}
+.sev-warning .pf-dot {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--c-danger);
+}
+.pf-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pf-msg {
+  color: inherit;
+}
+.pf-detail {
+  color: var(--c-text-3);
+  font-size: 11px;
+  line-height: 15px;
+  overflow-wrap: anywhere;
+}
+.pf-page {
+  flex: none;
+  color: var(--c-text-3);
+  font-size: 11px;
+  margin-top: 1px;
+}
+.preflight-foot {
+  padding-top: 8px;
+  font-size: 11px;
+}
+
+/* tab badge (preflight errors) */
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  margin-left: 6px;
+  padding: 0 4px;
+  border-radius: var(--r-full);
+  background: var(--c-danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+[data-theme='high-contrast'] .tab-badge {
+  color: #000;
+}
+.starter-styles {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 0 12px;
+}

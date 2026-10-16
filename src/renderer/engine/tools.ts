@@ -2,7 +2,8 @@
  * Interactive tools. Each tool receives scene (document) coordinates from the
  * viewport and turns gestures into model commits.
  */
-import { apply, invert, boundsOfPoints, type Point } from '../../core/geometry';
+import { apply, invert, boundsOfPoints, composeTransform, multiply as multiplyM, invert as invertM, type Matrix, type Point } from '../../core/geometry';
+import { cellAt } from '../../core/tables';
 import { hairline } from './hairline';
 import { findNode, make, makeStroke, solid, NO_PAINT, worldMatrix, nodeToPath } from '../../core/document';
 import { addNodes, indexAbove, addTextFrame, convertToCurves, updateNode, removeNodes } from '../../core/commands';
@@ -70,6 +71,20 @@ function addAndSelect(ed: Editor, node: SceneNode, label: string): void {
   ed.select([node.id]);
 }
 
+/** Table cell (merge anchor) under a scene point. */
+function tableCellAt(ed: Editor, id: string, p: Point): { r: number; c: number } | null {
+  const doc = ed.doc;
+  const loc = doc ? findNode(doc, id) : null;
+  if (!loc || loc.node.type !== 'table') return null;
+  let m: Matrix = [1, 0, 0, 1, 0, 0];
+  for (const g of loc.ancestors) m = multiplyM(m, composeTransform(g));
+  m = multiplyM(m, composeTransform(loc.node));
+  const inv = invertM(m);
+  const x = inv[0] * p.x + inv[2] * p.y + inv[4] + loc.node.w / 2;
+  const y = inv[1] * p.x + inv[3] * p.y + inv[5] + loc.node.h / 2;
+  return cellAt(loc.node, x, y);
+}
+
 // ---------------------------------------------------------------------------
 
 class MoveTool implements Tool {
@@ -78,8 +93,11 @@ class MoveTool implements Tool {
   onDblClick(_p: Point, _e: MouseEvent, target: SceneNode | null) {
     if (!target) return;
     const { viewport, editor } = this.c;
-    if (target.type === 'text' || target.type === 'textframe') viewport.textEdit.begin(target.id);
-    else if (target.type === 'imageframe') {
+    if (target.type === 'text' || target.type === 'textframe') viewport.textEdit.begin(target.id, 'end', _p);
+    else if (target.type === 'table') {
+      const cell = tableCellAt(editor, target.id, _p);
+      if (cell) viewport.textEdit.begin(target.id, 'end', null, cell);
+    } else if (target.type === 'imageframe') {
       editor.select([target.id]);
       runCommand('file.place');
     } else if (['rect', 'ellipse', 'polygon', 'star', 'path'].includes(target.type)) {
@@ -167,7 +185,7 @@ class ShapeTool implements Tool {
 
   onDown(p: Point, e: MouseEvent, target: SceneNode | null) {
     if (this.kind === 'textframe' && target?.type === 'textframe') {
-      this.c.viewport.textEdit.begin(target.id);
+      this.c.viewport.textEdit.begin(target.id, 'end', p);
       return;
     }
     if (this.kind === 'imageframe' && target?.type === 'imageframe') {
@@ -286,7 +304,12 @@ class TextTool implements Tool {
   onDown(p: Point, _e: MouseEvent, target: SceneNode | null) {
     const { editor: ed, viewport } = this.c;
     if (target && (target.type === 'text' || target.type === 'textframe')) {
-      viewport.textEdit.begin(target.id);
+      viewport.textEdit.begin(target.id, 'end', p);
+      return;
+    }
+    if (target && target.type === 'table') {
+      const cell = tableCellAt(ed, target.id, p);
+      if (cell) viewport.textEdit.begin(target.id, 'end', null, cell);
       return;
     }
     if (viewport.textEdit.active) {

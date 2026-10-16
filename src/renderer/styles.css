@@ -2019,3 +2019,17 @@ kbd {
   border-bottom-width: 1px;
   color: #fff;
 }
+
+/* Layout text frames: the canvas draws the styled text, caret and selection;
+   the textarea is an invisible input sink over the frame */
+.text-edit-overlay.rich {
+  outline: none;
+  color: transparent;
+  caret-color: transparent;
+  cursor: text;
+  overflow: hidden;
+}
+.text-edit-overlay.rich::selection {
+  background: transparent;
+  color: transparent;
+}

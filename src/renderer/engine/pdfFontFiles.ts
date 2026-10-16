@@ -4,6 +4,8 @@
  * "<package>/<file>" as produced by core/pdfFonts.ts; keep in step with the
  * faces main.tsx loads.
  */
+import eb_garamond_400 from '../assets/fonts/eb-garamond/eb-garamond-latin-400-normal.woff?url';
+import eb_garamond_700 from '../assets/fonts/eb-garamond/eb-garamond-latin-700-normal.woff?url';
 import inter_400 from '@fontsource/inter/files/inter-latin-400-normal.woff?url';
 import inter_500 from '@fontsource/inter/files/inter-latin-500-normal.woff?url';
 import inter_600 from '@fontsource/inter/files/inter-latin-600-normal.woff?url';
@@ -21,6 +23,8 @@ import caveat_400 from '@fontsource/caveat/files/caveat-latin-400-normal.woff?ur
 import caveat_700 from '@fontsource/caveat/files/caveat-latin-700-normal.woff?url';
 
 const FILES: Record<string, string> = {
+  'eb-garamond/files/eb-garamond-latin-400-normal.woff': eb_garamond_400,
+  'eb-garamond/files/eb-garamond-latin-700-normal.woff': eb_garamond_700,
   'inter/files/inter-latin-400-normal.woff': inter_400,
   'inter/files/inter-latin-500-normal.woff': inter_500,
   'inter/files/inter-latin-600-normal.woff': inter_600,

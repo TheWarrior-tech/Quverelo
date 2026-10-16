@@ -13,6 +13,7 @@ import type { QuvreloDocument, Id, SceneNode } from '../../core/types';
 import type { Editor } from '../state/editor';
 import { NodeObject, RESIZE_TYPES } from './NodeObject';
 import { renderBounds, type DrawEnv } from './draw';
+import { baselineGridLines, masterItemsFor, nearestGridLine } from '../../core/layout';
 import { formatLength } from '../../core/units';
 import { createTool, type Tool, type ToolContext } from './tools';
 import { TextEditOverlay } from './textEdit';
@@ -214,8 +215,9 @@ export class Viewport {
     const z = this.canvas.getZoom();
     const hidden = this.editor.ui.editingTextId;
     const preview = this.editor.ui.interacting;
-    if (e && e.doc === doc && e.zoom === z && e.hiddenNodeId === hidden && e.preview === preview && e.livePaint === this.livePaint) return e;
-    this.envCache = { doc, assets: this.editor.assets, editor: true, preview, hiddenNodeId: hidden, livePaint: this.livePaint, zoom: z };
+    if (e && e.doc === doc && e.zoom === z && e.hiddenNodeId === hidden && e.preview === preview && e.livePaint === this.livePaint && e.tableCell === (this.editor.ui.tableCell ?? null) && e.richEdit === (this.textEdit?.rich ?? false)) return e;
+    const pi = this.editor.ui.activeContainerId ? this.editor.activePageIndex : 0;
+    this.envCache = { doc, assets: this.editor.assets, editor: true, preview, hiddenNodeId: hidden, livePaint: this.livePaint, zoom: z, pageIndex: pi >= 0 ? pi : undefined, richEdit: this.textEdit?.rich ?? false, tableCell: this.editor.ui.tableCell ?? null };
     return this.envCache;
   };
 
@@ -253,7 +255,7 @@ export class Viewport {
       const page = doc.pages.find((p) => p.id === container.id);
       const master = page?.masterId ? doc.masters.find((m) => m.id === page.masterId) : null;
       const desired: { node: SceneNode; master: boolean }[] = [
-        ...(master ? master.nodes.map((n) => ({ node: n, master: true })) : []),
+        ...(master && page ? masterItemsFor(doc, page).map((n) => ({ node: n, master: true })) : []),
         ...container.nodes.map((n) => ({ node: n, master: false })),
       ];
       const keep = new Set<Id>();
@@ -560,6 +562,9 @@ export class Viewport {
     const candX: number[] = [0, W / 2, W, margins.left, W - margins.right];
     const candY: number[] = [0, H / 2, H, margins.top, H - margins.bottom];
     for (const g of doc.guides) (g.orientation === 'v' ? candX : candY).push(g.position);
+    // baseline grid (Layout): the nearest grid line to the object's top and bottom
+    const bg = doc.settings.baselineGrid;
+    if (bg?.enabled && this.editor.ui.studio === 'layout') for (const y of [ys[0], ys[2]]) candY.push(nearestGridLine(bg, y));
     const moving = new Set(target instanceof ActiveSelection ? target.getObjects() : [target]);
     for (const o of this.canvas.getObjects()) {
       if (moving.has(o) || !o.visible) continue;
@@ -786,6 +791,9 @@ export class Viewport {
     }
     // text frame links for the selected frame's story
     this.drawFrameLinks(ctx, px);
+    // rich text editing: caret and selection drawn from the flow layout
+    this.textEdit?.drawChrome(ctx, px);
+    if (this.editor.ui.studio === 'layout') this.drawBaselineGrid(ctx, px, sy);
     // pixel selection (marching ants)
     const sel = this.editor.ui.pixelSelection;
     if (sel && this.showsPixelSelection()) {
@@ -959,6 +967,26 @@ export class Viewport {
    * box and column guides (coral, DESIGN.md section 3). Photo and Vector never
    * show them, which is part of what makes Layout read as its own studio.
    */
+  /** Baseline grid lines across the page (Layout, when the grid is on and shown). */
+  private drawBaselineGrid(ctx: CanvasRenderingContext2D, px: number, sy: (y: number) => number): void {
+    const doc = this.editor.doc;
+    const g = doc?.settings.baselineGrid;
+    if (!doc || !g?.enabled || !g.visible) return;
+    const z = this.canvas.getZoom();
+    if (g.increment * z < 3) return; // too dense to read at this zoom
+    const { width: W, height: H } = doc.settings;
+    ctx.save();
+    ctx.strokeStyle = g.colour ?? 'rgba(80, 160, 255, 0.35)';
+    ctx.lineWidth = px;
+    ctx.beginPath();
+    for (const y of baselineGridLines(g, H)) {
+      ctx.moveTo(0, sy(y));
+      ctx.lineTo(W, sy(y));
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
   private drawPageGuides(ctx: CanvasRenderingContext2D, px: number, sx: (x: number) => number = (x) => x, sy: (y: number) => number = (y) => y): void {
     const doc = this.editor.doc!;
     const { width: W, height: H, margins, bleed, columns, columnGutter } = doc.settings;

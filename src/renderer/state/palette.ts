@@ -110,6 +110,10 @@ export function commandIcon(id: string): string | undefined {
     'master.add': 'pages', 'text.link': 'link', 'text.unlink': 'link', 'doc.resize': 'rect', 'view.zoom-in': 'zoom', 'view.zoom-out': 'zoom',
     'view.zoom-fit': 'zoom', 'view.zoom-100': 'zoom', 'help.shortcuts': 'keyboard', 'help.command-palette': 'keyboard', 'help.check-updates': 'update',
     'help.guide': 'help', 'help.about': 'help',
+    // Layout: pro typography, tables, masters, preflight
+    'text.autoflow': 'link', 'text.insert-page-number': 'field', 'text.insert-page-count': 'field', 'text.insert-section-name': 'field',
+    'text.styles': 'pilcrow', 'table.insert': 'table', 'table.fit-rows': 'table', 'master.override-all': 'pages', 'master.remove-overrides': 'pages',
+    'layout.preflight': 'preflight', 'view.baseline-grid': 'baseline-grid',
     // every command has an icon, so no row reads as a gap (critique 3 P2-5)
     'doc.clear-guides': 'close', 'view.rulers': 'layout', 'view.snapping': 'magnet', 'view.theme-dark': 'adjust', 'view.theme-light': 'adjust',
     'view.theme-contrast': 'adjust', 'view.ui-bigger': 'plus', 'view.ui-smaller': 'minus', 'view.ui-reset': 'undo', 'view.devtools': 'settings',

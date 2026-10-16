@@ -14,6 +14,8 @@ export const BUNDLED_FACES: Record<string, { pkg: string; weights: number[] }> =
   merriweather: { pkg: 'merriweather', weights: [400, 700] },
   'roboto slab': { pkg: 'roboto-slab', weights: [400, 700] },
   caveat: { pkg: 'caveat', weights: [400, 700] },
+  // full-feature OpenType serif for pro typography (bundled in src/renderer/assets/fonts, OFL)
+  'eb garamond': { pkg: 'eb-garamond', weights: [400, 700] },
 };
 
 /** CSS Fonts 4 §5.2 weight matching against the available weights. */

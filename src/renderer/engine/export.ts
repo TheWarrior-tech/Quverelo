@@ -244,7 +244,7 @@ export async function exportPdf(doc: QuvreloDocument, assets: AssetStore, o: Vec
   return exportVectorPdf(doc, { pages: o.pages, includeBleed: o.includeBleed, cropMarks: o.cropMarks, fallbackDpi: o.fallbackDpi }, {
     measure: measureText,
     textSize: artisticTextSize,
-    flow: (id) => storyFlow(doc, id),
+    flow: (id, pi) => storyFlow(doc, id, pi),
     font: async (style) => {
       const face = bundledFaceFor(style);
       const fam = style.fontFamily.split(',')[0].trim().replace(/^["']|["']$/g, '');

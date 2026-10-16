@@ -26,6 +26,10 @@ import { nodeToPath } from './document';
 import { lineHeightPx, type FlowResult, type MeasureFn } from './textflow';
 import { baselineOffset, imageFrameContentRect } from './svg';
 import { firstFamily } from './pdfFonts';
+import { otFeatures } from './otFeatures';
+import { drawnStyle, type LaidOutLine } from './textflow';
+import { masterItemsFor } from './layout';
+import { isCovered, layoutCell } from './tables';
 import { docPxPerInch, pdfPtPerPx } from './units';
 import type { BlendMode, Id, Paint, PathCommand, QuvreloDocument, SceneNode, Stroke, TextStyle } from './types';
 
@@ -51,8 +55,8 @@ export interface VectorPdfHooks {
   measure: MeasureFn;
   /** artistic text block size (same metrics as the canvas) */
   textSize: (text: string, style: TextStyle) => { w: number; h: number };
-  /** laid-out story (same flow as the canvas) */
-  flow: (storyId: Id) => FlowResult | null;
+  /** laid-out story (same flow as the canvas); pageIndex = page a master item is drawn on (fields) */
+  flow: (storyId: Id, pageIndex?: number) => FlowResult | null;
   /** font file for a text style, or why it cannot be embedded */
   font: (style: TextStyle) => Promise<PdfFontFace | string>;
   /** pixels of a pixel layer with its adjustments, at its own resolution */
@@ -275,6 +279,8 @@ class Writer {
   private gsCache = new Map<string, PDFRef>();
   private imageCache = new Map<string, PDFImage | null>();
   private fontCache = new Map<string, Promise<PDFFont | null>>();
+  /** page being written (page-number fields in master items) */
+  pageIndex = 0;
   constructor(public pdf: PDFDocument, public doc: QuvreloDocument, public hooks: VectorPdfHooks, public opts: VectorPdfOptions) {}
 
   extGState(alpha: number, blend: BlendMode): PDFRef | null {
@@ -300,11 +306,13 @@ class Writer {
     return img;
   }
 
-  font(face: PdfFontFace): Promise<PDFFont | null> {
-    let f = this.fontCache.get(face.key);
+  /** Embed a face once per OpenType feature set (ligatures, figures… shaped by fontkit like the canvas). */
+  font(face: PdfFontFace, features: Record<string, boolean> = {}): Promise<PDFFont | null> {
+    const fk = Object.keys(features).length ? `${face.key}|${JSON.stringify(features)}` : face.key;
+    let f = this.fontCache.get(fk);
     if (!f) {
-      f = this.pdf.embedFont(face.bytes, { subset: true }).catch(() => null);
-      this.fontCache.set(face.key, f);
+      f = this.pdf.embedFont(face.bytes, Object.keys(features).length ? { subset: true, features } : { subset: true }).catch(() => null);
+      this.fontCache.set(fk, f);
     }
     return f;
   }
@@ -414,6 +422,26 @@ interface TextRun {
   underlineW: number;
 }
 
+/** Laid-out lines (styled runs) as text runs grouped by style, in frame-local coordinates (origin = top-left at ox, oy). */
+function runsByStyle(lines: LaidOutLine[], fallback: TextStyle, ox: number, oy: number): { style: TextStyle; runs: TextRun[] }[] {
+  const groups = new Map<TextStyle, TextRun[]>();
+  for (const l of lines) {
+    const base = l.baseline ?? l.y + baselineOffset(fallback);
+    const rs = l.runs ?? [{ text: l.text, x: l.x, width: l.width, style: fallback, start: l.start, end: l.end, wordSpacing: l.wordSpacing, rise: 0 }];
+    for (const r of rs) {
+      if (!r.text) continue;
+      const ds = drawnStyle(r.style);
+      let list = groups.get(ds);
+      if (!list) {
+        list = [];
+        groups.set(ds, list);
+      }
+      list.push({ text: r.text, x: ox + r.x, y: oy + base - r.rise, wordSpacing: r.wordSpacing, underlineW: r.width });
+    }
+  }
+  return [...groups.entries()].map(([style, runs]) => ({ style, runs }));
+}
+
 /** Write runs of text in one style. Returns why not when the text has to be placed as an image. */
 async function writeText(
   pw: PageWriter, w: Writer, runs: TextRun[], style: TextStyle, stroke: Stroke | null, g: Gfx,
@@ -427,7 +455,7 @@ async function writeText(
   if (sp) return sp;
   const face = await w.hooks.font(style);
   if (typeof face === 'string') return face;
-  const font = await w.font(face);
+  const font = await w.font(face, otFeatures(style));
   if (!font) return `font “${firstFamily(style.fontFamily)}” could not be embedded`;
   const miss = missingGlyphs(font, runs.map((r) => r.text).join(''));
   if (miss.length) return `characters ${miss.slice(0, 4).join(' ')} are not in the font`;
@@ -467,12 +495,16 @@ async function writeText(
   if (strokeC && strokeC.a > 0) pass(1, strokeC);
   if (fill && fill.a > 0) {
     pass(0, fill);
-    if (style.underline) {
+    if (style.underline || style.strike) {
       const t = Math.max(1, style.fontSize / 16);
       pw.push('q');
       pw.gs({ alpha: g.alpha * fill.a, blend: g.blend });
       pw.push(colorOp(fill, false));
-      for (const r of runs) if (r.underlineW > 0) pw.push(`${fmt(r.x)} ${fmt(r.y + style.fontSize * 0.12)} ${fmt(r.underlineW)} ${fmt(t)} re f`);
+      for (const r of runs) {
+        if (r.underlineW <= 0) continue;
+        if (style.underline) pw.push(`${fmt(r.x)} ${fmt(r.y + style.fontSize * 0.12)} ${fmt(r.underlineW)} ${fmt(t)} re f`);
+        if (style.strike) pw.push(`${fmt(r.x)} ${fmt(r.y - style.fontSize * 0.28)} ${fmt(r.underlineW)} ${fmt(t)} re f`);
+      }
       pw.push('Q');
     }
   }
@@ -555,20 +587,19 @@ async function writeContent(pw: PageWriter, w: Writer, n: SceneNode, g: Gfx): Pr
     case 'textframe': {
       const box = { x: -n.w / 2, y: -n.h / 2, w: n.w, h: n.h };
       const story = w.doc.stories[n.storyId];
-      const flow = story ? w.hooks.flow(n.storyId) : null;
+      const flow = story ? w.hooks.flow(n.storyId, w.pageIndex) : null;
       const layout = flow?.frames[n.id];
-      const runs: TextRun[] = (layout?.lines ?? []).map((l) => ({
-        text: l.text,
-        x: box.x + l.x,
-        y: box.y + baselineOffset(story!.style) + l.y,
-        wordSpacing: l.wordSpacing,
-        underlineW: l.wordSpacing ? n.w : l.width,
-      }));
+      // styled runs (paragraph / character styles), one text object per style
+      const groups = story && layout ? runsByStyle(layout.lines, story.style, box.x, box.y) : [];
       const problem = paintProblem(n.fill) ?? strokeProblem(n.stroke);
       if (problem) return writeRasterised(pw, w, n, g, problem);
       // dry run the text into a scratch writer so a fallback never leaves half a frame behind
       const scratch = new PageWriter(w, pw.res);
-      const textProblem = story && runs.length ? await writeText(scratch, w, runs, story.style, null, g) : null;
+      let textProblem: string | null = null;
+      for (const grp of groups) {
+        textProblem = await writeText(scratch, w, grp.runs, grp.style, null, g);
+        if (textProblem) break;
+      }
       if (textProblem) return writeRasterised(pw, w, n, g, textProblem);
       // same order as the canvas: frame fill, frame stroke, then the clipped text
       const rect = rectPathOps(box);
@@ -581,6 +612,45 @@ async function writeContent(pw: PageWriter, w: Writer, n: SceneNode, g: Gfx): Pr
         pw.push('Q');
       }
       w.report.textObjects++;
+      return;
+    }
+    case 'table': {
+      // cell fills, text (per style) and borders as vectors; any unsupported paint places the table as an image
+      const sheet = w.doc.textStyles ?? { paragraph: [], character: [], cell: [] };
+      const ox = -n.w / 2;
+      const oy = -n.h / 2;
+      const cells: ReturnType<typeof layoutCell>[] = [];
+      for (let r = 0; r < n.rowHeights.length; r++) for (let c = 0; c < n.colWidths.length; c++) {
+        if (!isCovered(n, r, c)) cells.push(layoutCell(n, sheet, r, c, w.hooks.measure));
+      }
+      for (const cl of cells) {
+        const p = paintProblem(cl.props.fill) ?? (cl.props.strokeWidth > 0 ? paintProblem(cl.props.stroke) : null);
+        if (p) return writeRasterised(pw, w, n, g, p);
+      }
+      const scratch = new PageWriter(w, pw.res);
+      for (const cl of cells) {
+        const box = { x: ox + cl.rect.x, y: oy + cl.rect.y, w: cl.rect.w, h: cl.rect.h };
+        fillPath(scratch, w, rectPathOps(box), cl.props.fill, box, g);
+      }
+      for (const cl of cells) {
+        const box = { x: ox + cl.rect.x, y: oy + cl.rect.y, w: cl.rect.w, h: cl.rect.h };
+        const groups = runsByStyle(cl.flow.frames.cell?.lines ?? [], cl.style, box.x, box.y);
+        if (!groups.length) continue;
+        scratch.push('q');
+        scratch.push(`${rectPathOps(box)} W n`);
+        for (const grp of groups) {
+          const tp = await writeText(scratch, w, grp.runs, grp.style, null, g);
+          if (tp) return writeRasterised(pw, w, n, g, tp);
+        }
+        scratch.push('Q');
+      }
+      for (const cl of cells) {
+        if (cl.props.strokeWidth <= 0 || cl.props.stroke.type === 'none') continue;
+        const box = { x: ox + cl.rect.x, y: oy + cl.rect.y, w: cl.rect.w, h: cl.rect.h };
+        strokePath(scratch, rectPathOps(box), { paint: cl.props.stroke, width: cl.props.strokeWidth, dash: [], cap: 'butt', join: 'miter' }, g);
+      }
+      for (const op of scratch.ops) pw.push(op);
+      w.report.vectorObjects++;
       return;
     }
     case 'imageframe': {
@@ -658,8 +728,9 @@ export async function exportVectorPdf(
         pw.push('Q');
       }
     }
-    const master = page.masterId ? doc.masters.find((m) => m.id === page.masterId) : null;
-    if (master) for (const n of master.nodes) await writeNode(pw, w, n, base);
+    w.pageIndex = i;
+    // master items not overridden on this page, then the page's own items
+    for (const n of masterItemsFor(doc, page)) await writeNode(pw, w, n, base);
     for (const n of page.nodes) await writeNode(pw, w, n, base);
     pw.push('Q');
     // page boxes so print shops find trim and bleed
