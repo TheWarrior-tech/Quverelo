@@ -5,6 +5,14 @@
  * letters before a break and 3 after) and words shorter than `minWord`
  * letters are never broken.
  */
+/*! Hyphenation patterns (unmodified, see docs/THIRD_PARTY.md):
+ * en-GB hyph-en-gb.tex, Copyright (C) 1992, 1996, 2005, 2016 Dominik Wujastyk,
+ *   Graham Toal. MIT licence.
+ * en-US hyph-en-us.tex, Copyright (C) 1990, 2004, 2005 Gerard D.C. Kuiken.
+ *   Copying and distribution of this file, with or without modification, are
+ *   permitted in any medium without royalty provided the copyright notice and
+ *   this notice are preserved.
+ * hyphen (JS port and Liang engine), Copyright (c) Yevhen Tiurin, ISC licence. */
 import createHyphenator from 'hyphen/hyphen.js';
 import type { TextLanguage } from './types';
 import enGb from 'hyphen/patterns/en-gb.js';
