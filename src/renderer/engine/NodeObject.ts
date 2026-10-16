@@ -1,8 +1,10 @@
 import { FabricObject, classRegistry } from 'fabric';
 import type { SceneNode } from '../../core/types';
-import { composeTransform } from '../../core/geometry';
+import { composeTransform, invert } from '../../core/geometry';
+import { isNativeBlend } from '../../core/blend';
 import { tuneControls } from './controls';
-import { drawNodeContent, renderLocalBounds, type DrawEnv } from './draw';
+import { drawNodeContent, drawNodeTransformed, renderLocalBounds, type DrawEnv } from './draw';
+import { clipInfo, drawClipGroup, drawLayered, needsLayer } from './compose';
 
 /** Node types whose scale is baked into their size (frames resize instead of stretching). */
 export const RESIZE_TYPES = new Set(['rect', 'ellipse', 'polygon', 'star', 'textframe', 'imageframe']);
@@ -52,11 +54,13 @@ export class NodeObject extends FabricObject {
       flipY: node.flipY,
       opacity: node.opacity,
       visible: node.visible,
-      globalCompositeOperation: node.blend === 'normal' ? 'source-over' : node.blend,
+      // per-pixel blend modes are composited in _render (engine/compose.ts)
+      globalCompositeOperation: node.blend === 'normal' || !isNativeBlend(node.blend) ? 'source-over' : node.blend,
     });
     const locked = node.locked || this.isMaster;
     this.selectable = !locked;
-    this.evented = !locked;
+    // an adjustment layer covers the page; pick it in the Layers panel, never by a canvas click
+    this.evented = !locked && node.type !== 'adjustment';
     this.lockScalingFlip = false;
     this.setCoords();
   }
@@ -69,10 +73,28 @@ export class NodeObject extends FabricObject {
 
   _render(ctx: CanvasRenderingContext2D): void {
     const env = this.envRef();
+    const node = this.node;
+    const clip = clipInfo(env.doc).get(node.id);
+    if (clip?.follower) return; // drawn inside its clip base
     const off = this.centreOffset();
     ctx.save();
     ctx.translate(-off.x, -off.y);
-    const node = this.node;
+    if (clip?.followers || needsLayer(node)) {
+      // fabric has applied opacity to globalAlpha; composite it ourselves instead
+      const alpha = ctx.globalAlpha;
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+      if (clip?.followers) {
+        // the run is drawn in the parent's space: undo this node's own transform
+        const m = invert(composeTransform(node));
+        ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+        drawClipGroup(ctx, node, clip.followers, env, drawNodeTransformed, alpha);
+      } else {
+        drawLayered(ctx, node, env, alpha, node.blend, (x) => drawNodeContent(x, node, env), node.type === 'group' ? undefined : renderLocalBounds(node));
+      }
+      ctx.restore();
+      return;
+    }
     const sx = this.scaleX / (node.scaleX || 1);
     const sy = this.scaleY / (node.scaleY || 1);
     if (RESIZE_TYPES.has(node.type) && (Math.abs(sx - 1) > 1e-6 || Math.abs(sy - 1) > 1e-6) && 'w' in node) {

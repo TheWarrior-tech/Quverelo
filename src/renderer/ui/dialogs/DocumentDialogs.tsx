@@ -7,6 +7,8 @@ import { closeDialog } from '../../state/bus';
 import { getViewport } from '../../state/commands';
 import { Dialog } from './DialogHost';
 import { Check, Field, NumberInput, Segmented } from './controls';
+import { RESAMPLE_METHODS, type ResampleMethod } from '../../../core/resample';
+import { resampleDocument } from '../../engine/photoDoc';
 
 export function DocumentSetupDialog() {
   const doc = editor.doc!;
@@ -111,10 +113,14 @@ export function ResizeDialog() {
   const [h, setH] = useState(Math.round(doc.settings.height));
   const [mode, setMode] = useState<'canvas' | 'scale'>('scale');
   const [lock, setLock] = useState(true);
+  // Photo: pixel layers are resampled to their new size with this method
+  const photo = editor.ui.studio === 'photo';
+  const [method, setMethod] = useState<ResampleMethod>('bicubic');
   const ratio = doc.settings.width / doc.settings.height;
   const apply = () => {
     editor.commit(mode === 'scale' ? 'Resize document' : 'Resize canvas', (d) => {
       if (mode === 'canvas') return resizeDocument(d, w, h);
+      if (photo) return resampleDocument(d, editor.assets, w, h, method);
       const sx = w / d.settings.width;
       const sy = h / d.settings.height;
       const scaleNodes = (nodes: typeof d.pages[0]['nodes']) =>
@@ -144,6 +150,13 @@ export function ResizeDialog() {
         <Field label="Proportions">
           <Check checked={lock} onChange={setLock}>Keep aspect ratio</Check>
         </Field>
+        {photo && mode === 'scale' && (
+          <Field label="Resample" htmlFor="resize-resample" hint={RESAMPLE_METHODS.find((m) => m.value === method)?.hint}>
+            <select id="resize-resample" value={method} onChange={(e) => setMethod(e.target.value as ResampleMethod)}>
+              {RESAMPLE_METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+            </select>
+          </Field>
+        )}
       </div>
     </Dialog>
   );

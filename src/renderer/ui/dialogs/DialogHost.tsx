@@ -1,4 +1,5 @@
 import { tip } from '../tips';
+import { CanvasSizeDialog, ColorRangeDialog, FeatherDialog, FilterDialog, RefineEdgeDialog } from './PhotoDialogs';
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Icon } from '../Icons';
 import { closeDialog, onDialog, type DialogName } from '../../state/bus';
@@ -224,6 +225,11 @@ export function DialogHost() {
     case 'assignment': return <AssignmentDialog key={k} />;
     case 'hand-in': return <HandInDialog key={k} />;
     case 'updates': return <UpdatesDialog key={k} />;
+    case 'photo-filter': return <FilterDialog key={k} type={p.type as never} />;
+    case 'feather': return <FeatherDialog key={k} />;
+    case 'refine-edge': return <RefineEdgeDialog key={k} />;
+    case 'color-range': return <ColorRangeDialog key={k} />;
+    case 'canvas-size': return <CanvasSizeDialog key={k} />;
     case 'confirm': return <ConfirmDialog key={k} title={String(p.title)} message={String(p.message)} actions={p.actions as ConfirmAction[]} />;
     default: return null;
   }

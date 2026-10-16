@@ -1,4 +1,5 @@
-import { BLEND_MODES, type BlendMode, type Paint, type SceneNode, type Stroke } from '../../../core/types';
+import { ALL_BLEND_MODES, BLEND_MODES, type BlendMode, type Paint, type SceneNode, type Stroke } from '../../../core/types';
+import { BLEND_LABELS } from '../../../core/blend';
 import { updateNode, updateNodes, releaseMask } from '../../../core/commands';
 import { UNIT_DIGITS, UNIT_STEP, formatSize, fromPx, pixelsAt, toPx } from '../../../core/units';
 import { DISPLAY_NAME_MAX, layerDisplayName } from '../../../core/document';
@@ -54,7 +55,7 @@ function StrokeDetails({ stroke, onChange }: { stroke: Stroke; onChange: (s: Str
   );
 }
 
-const blendLabel = (m: string) => m.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+const blendLabel = (m: BlendMode) => BLEND_LABELS[m];
 
 /** Row with a 56px label and a control that fills. */
 function Field({ label, htmlFor, children }: { label: string; htmlFor?: string; children: React.ReactNode }) {
@@ -112,7 +113,7 @@ function DocumentProperties() {
 
 const KIND: Record<SceneNode['type'], string> = {
   rect: 'Rectangle', ellipse: 'Ellipse', polygon: 'Polygon', star: 'Star', path: 'Path', text: 'Text', textframe: 'Text frame',
-  imageframe: 'Picture frame', raster: 'Pixel layer', group: 'Group',
+  imageframe: 'Picture frame', raster: 'Pixel layer', adjustment: 'Adjustment layer', group: 'Group',
 };
 /**
  * The object's own section is named for what it edits, not for the object, so it
@@ -233,7 +234,8 @@ export function PropertiesPanel() {
         <Field label="Blend" htmlFor="prop-blend">
           <select id="prop-blend" value={mixedBlend ? '' : n.blend} onChange={(e) => patchSel('Blend mode', (m) => ({ ...m, blend: e.target.value as BlendMode }))}>
             {mixedBlend && <option value="" disabled>Mixed</option>}
-            {BLEND_MODES.map((m) => <option key={m} value={m}>{blendLabel(m)}</option>)}
+            {/* Photo lists the Affinity / Photoshop extras too (pixel-composited, core/blend.ts) */}
+            {(ed.ui.studio === 'photo' ? ALL_BLEND_MODES : BLEND_MODES).map((m) => <option key={m} value={m}>{blendLabel(m)}</option>)}
           </select>
         </Field>
       </Section>

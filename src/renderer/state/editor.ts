@@ -15,6 +15,7 @@ import type { CropOverlay, CropRatioId, CropRect } from '../../core/crop';
 export type ToolId =
   | 'move' | 'node' | 'hand' | 'zoom'
   | 'marquee-rect' | 'marquee-ellipse' | 'lasso' | 'object-select' | 'brush' | 'eraser' | 'fill' | 'eyedropper' | 'crop'
+  | 'polygon-lasso' | 'magic-wand' | 'clone' | 'heal' | 'spot-heal' | 'dodge' | 'burn' | 'smudge' | 'liquify'
   | 'pen' | 'pencil' | 'rect' | 'ellipse' | 'polygon' | 'star' | 'line'
   | 'text' | 'textframe' | 'imageframe';
 
@@ -36,6 +37,30 @@ export interface ToolOptions {
   cropRatio: CropRatioId;
   cropPortrait: boolean;
   cropOverlay: CropOverlay;
+  /** crop tool: the next drag draws a line to level (Straighten) */
+  cropStraighten: boolean;
+  /** brushes (paint, eraser, retouch): build-up per dab, 0..1 */
+  brushFlow: number;
+  /** pen pressure (PointerEvent.pressure) changes the size / the flow */
+  pressureSize: boolean;
+  pressureFlow: boolean;
+  /** magic wand */
+  wandTolerance: number;
+  wandContiguous: boolean;
+  /** sample every visible layer (true) or the active layer only */
+  wandAllLayers: boolean;
+  /** retouch brushes */
+  retouchSize: number;
+  cloneAligned: boolean;
+  toneRange: 'shadows' | 'midtones' | 'highlights';
+  /** dodge / burn exposure 0..1 */
+  toneExposure: number;
+  /** smudge strength 0..1 */
+  smudgeStrength: number;
+  /** liquify */
+  liquifyMode: import('../../core/liquify').LiquifyMode;
+  liquifySize: number;
+  liquifyStrength: number;
 }
 
 export interface UiState {
@@ -52,6 +77,12 @@ export interface UiState {
    */
   activeLayerId: Id | null;
   pixelSelection: PathCommand[] | null;
+  /** soft edge of the pixel selection in document px (Select › Feather / Refine edge) */
+  pixelSelectionFeather: number;
+  /** Photo: brush, eraser and fill paint into this layer's pixel mask instead of its pixels */
+  maskEditId: Id | null;
+  /** clone / healing source (document coordinates) */
+  cloneSource: { x: number; y: number } | null;
   /** live crop box while the Crop tool is active (null = whole canvas) */
   crop: CropRect | null;
   /** an on-device selection model run is in progress */
@@ -99,6 +130,21 @@ const DEFAULT_TOOL_OPTIONS: ToolOptions = {
   cropRatio: 'original',
   cropPortrait: false,
   cropOverlay: 'thirds',
+  cropStraighten: false,
+  brushFlow: 1,
+  pressureSize: true,
+  pressureFlow: false,
+  wandTolerance: 32,
+  wandContiguous: true,
+  wandAllLayers: false,
+  retouchSize: 40,
+  cloneAligned: true,
+  toneRange: 'midtones',
+  toneExposure: 0.5,
+  smudgeStrength: 0.6,
+  liquifyMode: 'push',
+  liquifySize: 120,
+  liquifyStrength: 0.6,
 };
 
 /** Every tool per studio in rail order; the rail layout and flyout groups live in toolGroups.ts. */
@@ -120,6 +166,9 @@ export class Editor {
     selection: [],
     activeLayerId: null,
     pixelSelection: null,
+    pixelSelectionFeather: 0,
+    maskEditId: null,
+    cloneSource: null,
     crop: null,
     mlBusy: false,
     fillColor: '#8f959e',
@@ -365,6 +414,7 @@ export class Editor {
       const visit = (nodes: SceneNode[]) => nodes.forEach((n) => {
         if (n.type === 'raster') keep.add(n.assetId);
         if (n.type === 'imageframe' && n.assetId) keep.add(n.assetId);
+        if (n.pixelMask) keep.add(n.pixelMask.assetId);
         if (n.type === 'group') visit(n.children);
       });
       visit(this.clipboard.nodes);

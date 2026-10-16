@@ -37,6 +37,20 @@ const paths: Record<string, ReactElement> = {
   polygon: P('M10 3l6.6 4.8-2.5 7.7H5.9L3.4 7.8z'),
   star: P('M10 3l2.1 4.4 4.9.7-3.5 3.4.8 4.8L10 14l-4.3 2.3.8-4.8L3 8.1l4.9-.7z'),
   line: P('M4 16L16 4'),
+  // photo parity tools
+  'polygon-lasso': <>{P('M4 13.5L6.5 4.5l9 3-3.5 8z')}<circle cx="6.5" cy="4.5" r="1" fill="currentColor" stroke="none" /><circle cx="4" cy="13.5" r="1" fill="currentColor" stroke="none" /></>,
+  'magic-wand': <>{P('M3.5 16.5l9-9')}{P('M14 3v3M12.5 4.5h3M16.5 9.5v2M15.5 10.5h2M8.5 3.5v2M7.5 4.5h2')}</>,
+  clone: <>{P('M7.5 9.5h5l1 3.5h-7z')}{P('M10 9.5V6.8')}<circle cx="10" cy="4.8" r="2" />{P('M4.5 16.5h11M5.5 13v3.5M14.5 13v3.5')}</>,
+  heal: <>{R(3.2, 7.5, 13.6, 5, 2.5, { transform: 'rotate(-45 10 10)' })}{P('M9 10h2M10 9v2')}</>,
+  'spot-heal': <>{R(3.2, 7.5, 13.6, 5, 2.5, { transform: 'rotate(-45 10 10)' })}<circle cx="10" cy="10" r="1" fill="currentColor" stroke="none" /></>,
+  dodge: <><circle cx="8" cy="7.5" r="4.5" />{P('M11.2 10.7l5.3 5.8')}</>,
+  burn: P('M7 16.5c-2-.8-3.5-2.6-3.5-5 0-2.8 2.3-4 3.5-8 2.2 1.6 3 3.6 3 5 1-.6 1.6-1.6 1.8-2.6 1.8 1.5 3.7 3.6 3.7 5.6 0 2.4-1.6 4.2-3.5 5'),
+  smudge: P('M8.5 16.5V9a1.5 1.5 0 013 0v-.5a1.5 1.5 0 013 0v4c0 2.2-1.8 4-4 4h-2zM8.5 11L6 8.6A1.5 1.5 0 003.8 10.7l3.2 4M11.5 3.5c1-.7 2.5-.7 3.5 0'),
+  liquify: P('M3.5 6c2.2-2 4.3 2 6.5 0s4.3-2 6.5 0M3.5 10c2.2-2 4.3 2 6.5 0s4.3-2 6.5 0M3.5 14c2.2-2 4.3 2 6.5 0s4.3-2 6.5 0'),
+  histogram: <>{P('M3.5 16.5h13')}{P('M4.5 16.5v-3M7 16.5v-6M9.5 16.5V5M12 16.5V8M14.5 16.5v-4')}</>,
+  clip: <>{P('M6.5 3.5v6.2a1.8 1.8 0 003.6 0V5.5')}{P('M4.5 13h11M7.5 16.5h5')}</>,
+  filter: <>{P('M3.5 4.5h13l-5 6v5l-3 1.5v-6.5z')}</>,
+  feather: P('M16.5 3.5c-6.5 0-11 4.5-11 11M5.5 14.5l-2 2M5.5 14.5h5.5M7.5 10.5h5.5M10 6.5h5'),
 
   // pixel selection commands (dashed frame = selection, as the marquee tools)
   'select-all': <>{R(3.5, 3.5, 13, 13, 1, DASH)}{P('M7 10.2l2 2 4-4.2')}</>,

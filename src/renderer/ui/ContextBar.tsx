@@ -20,6 +20,8 @@ import { FontPicker } from './controls/FontPicker';
 import { FIT_OPTIONS } from './panels/PropertiesPanel';
 import { CROP_RATIOS, isFullCrop, roundCrop, type CropOverlay, type CropRatioId } from '../../core/crop';
 import { currentCrop, setCropDimension, setCropOverlay, setCropRatio, toggleCropOrientation } from '../state/crop';
+import { brushDynamics, isRetouchTool, liquifyControls, maskEditChip, refineButtons, retouchControls, wandControls } from './PhotoContextControls';
+import { straighten } from '../state/straighten';
 
 export { BUNDLED_FONTS, SYSTEM_FONTS, fontOptions, loadLocalFonts, primaryFamily } from './fonts';
 
@@ -233,6 +235,12 @@ function CropControls() {
         <NumberField className="ctx" label="W" ariaLabel="Crop width (px)" unit="px" digits={0} value={q.w} min={1} max={doc.settings.width} onCommit={(v) => setCropDimension('w', v)} />
         <NumberField className="ctx" label="H" ariaLabel="Crop height (px)" unit="px" digits={0} value={q.h} min={1} max={doc.settings.height} onCommit={(v) => setCropDimension('h', v)} />
       </div>
+      <Pri n={3}>
+        <div className="group" role="group" aria-label="Straighten">
+          <button className={`btn ghost${o.cropStraighten ? ' selected' : ''}`} aria-pressed={o.cropStraighten} data-action="crop-straighten" {...tip('Straighten')} data-tip-hint="Drag along a line that should be level" onClick={() => ed.setToolOptions({ cropStraighten: !o.cropStraighten })}><Icon name="rotate" /> Straighten</button>
+          <NumberField className="ctx" label="°" ariaLabel="Straighten angle (degrees)" digits={1} value={0} min={-45} max={45} onCommit={(v) => straighten(v)} />
+        </div>
+      </Pri>
       <div className="group">
         <Segmented
           ariaLabel="Crop overlay"
@@ -299,10 +307,12 @@ export function ContextBar() {
               <ColorChipButton kind="fill" label="Brush" value={solid(ed.ui.fillColor)} allowNone={false} allowGradient={false} onChange={(p) => ed.setUi({ fillColor: firstColorOf(p, ed.ui.fillColor), fillEnabled: true })} />
             </div>
           )}
+          {brushDynamics()}
+          {maskEditChip()}
           <CtxHint>[ and ] change size · paints on the selected pixel layer</CtxHint>
         </>
       )}
-      {(t === 'marquee-rect' || t === 'marquee-ellipse' || t === 'lasso' || t === 'object-select') && (
+      {(t === 'marquee-rect' || t === 'marquee-ellipse' || t === 'lasso' || t === 'object-select' || t === 'polygon-lasso' || t === 'magic-wand') && (
         <>
           <div className="group">
             <SelectSubjectButton />
@@ -325,9 +335,14 @@ export function ContextBar() {
               <button className="btn ghost" {...tip('Invert selection', 'select.invert')} onClick={() => runCommand('select.invert')} disabled={!ed.ui.pixelSelection}><Icon name="select-invert" /> Invert</button>
             </div>
           </Pri>
+          {t === 'magic-wand' && wandControls()}
+          {refineButtons()}
           {t === 'object-select' && <CtxHint>Click an object · click again to add · Alt-click to remove</CtxHint>}
+          {t === 'polygon-lasso' && <CtxHint>Click corners · double-click, Enter or the first point closes</CtxHint>}
         </>
       )}
+      {isRetouchTool(t) && retouchControls(t)}
+      {t === 'liquify' && liquifyControls()}
       {t === 'crop' && CropControls()}
       {t === 'fill' && (
         <>

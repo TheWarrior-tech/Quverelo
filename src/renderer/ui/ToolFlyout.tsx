@@ -20,6 +20,10 @@ export const TOOL_HINTS: Partial<Record<ToolId, string>> = {
   rect: 'Drag to draw · Shift for a square', ellipse: 'Drag to draw · Shift for a circle', polygon: 'Drag to draw · Shift to keep it upright',
   star: 'Drag to draw · Shift to keep it upright', line: 'Drag to draw · Shift snaps to 45°', text: 'Click to type a heading or label',
   textframe: 'Drag a box for flowing text', imageframe: 'Drag a frame, then place an image in it',
+  'polygon-lasso': 'Click corners · Double-click or Enter closes', 'magic-wand': 'Click to select similar colour · Shift adds',
+  clone: 'Alt-click a source · Drag to paint it', heal: 'Alt-click a source · Drag to blend it in',
+  'spot-heal': 'Drag over a blemish to remove it', dodge: 'Drag to lighten', burn: 'Drag to darken',
+  smudge: 'Drag to push paint around', liquify: 'Drag to push, twirl, pinch or bloat',
 };
 
 export function toolLabel(t: ToolId): string {

@@ -14,10 +14,11 @@ import { EmptyState } from '../controls/EmptyState';
 import { shortcutFor, tip } from '../tips';
 import { dropIndex, isNoopDrop } from './layerDrop';
 import { thumbTint } from '../color/colorMath';
+import '../photo.css';
 
 const TYPE_ICON: Record<SceneNode['type'], string> = {
   rect: 'rect', ellipse: 'ellipse', polygon: 'polygon', star: 'star', path: 'pen', text: 'text', textframe: 'textframe',
-  imageframe: 'imageframe', raster: 'pixel', group: 'group',
+  imageframe: 'imageframe', raster: 'pixel', adjustment: 'adjust', group: 'group',
 };
 
 /** The thumbnail tile colour of the current theme (`--c-raised`), cached per theme. */
@@ -45,6 +46,62 @@ function Thumb({ n }: { n: SceneNode }) {
       <Icon name={TYPE_ICON[n.type]} />
     </span>
   );
+}
+
+/**
+ * Pixel-mask thumbnail (white = shown). Click: paint the mask instead of the
+ * pixels (click again to go back); Shift-click: turn the mask off / on.
+ */
+function MaskThumb({ n }: { n: SceneNode }) {
+  const ed = useEditor();
+  const pm = n.pixelMask!;
+  const c = editor.assets.get(pm.assetId);
+  const editing = ed.ui.maskEditId === n.id;
+  return (
+    <button
+      type="button"
+      tabIndex={-1}
+      className={`mask-thumb${editing ? ' editing' : ''}${pm.enabled ? '' : ' off'}`}
+      style={c ? { backgroundImage: `url(${maskUrl(c)})` } : undefined}
+      aria-label={editing ? 'Editing mask (click to edit pixels)' : 'Edit mask'}
+      aria-pressed={editing}
+      data-tip={editing ? 'Painting the mask · click to paint pixels' : 'Click to paint the mask · Shift-click turns it off'}
+      data-mask-thumb={n.id}
+      onClick={(e) => {
+        e.stopPropagation();
+        editor.select([n.id]);
+        if (e.shiftKey) void runCommand('layer.mask-enable');
+        else editor.setUi({ maskEditId: editing ? null : n.id });
+      }}
+    />
+  );
+}
+
+const maskCache = new WeakMap<HTMLCanvasElement, string>();
+/** Mask alpha as a black / white thumbnail. */
+function maskUrl(c: HTMLCanvasElement): string {
+  let u = maskCache.get(c);
+  if (!u) {
+    const s = 40 / Math.max(c.width, c.height);
+    const t = document.createElement('canvas');
+    t.width = Math.max(1, Math.round(c.width * s));
+    t.height = Math.max(1, Math.round(c.height * s));
+    const x = t.getContext('2d')!;
+    x.fillStyle = '#000';
+    x.fillRect(0, 0, t.width, t.height);
+    const w = document.createElement('canvas');
+    w.width = t.width;
+    w.height = t.height;
+    const wx = w.getContext('2d')!;
+    wx.drawImage(c, 0, 0, t.width, t.height);
+    wx.globalCompositeOperation = 'source-in';
+    wx.fillStyle = '#fff';
+    wx.fillRect(0, 0, t.width, t.height);
+    x.drawImage(w, 0, 0);
+    u = t.toDataURL();
+    maskCache.set(c, u);
+  }
+  return u;
 }
 
 const thumbCache = new WeakMap<HTMLCanvasElement, string>();
@@ -97,7 +154,7 @@ function LayerRow({ n, depth, containerId, index, dragId, setDragId, focusable }
   return (
     <>
       <li
-        className={`layer-row${selected || active ? ' selected' : ''}${active ? ' active-layer' : ''}${n.visible ? '' : ' hidden-layer'}${n.locked ? ' locked' : ''}${drop ? ` drop-${drop}` : ''}${dragId === n.id ? ' dragging' : ''}`}
+        className={`layer-row${selected || active ? ' selected' : ''}${active ? ' active-layer' : ''}${n.visible ? '' : ' hidden-layer'}${n.locked ? ' locked' : ''}${n.clipped ? ' clipped' : ''}${drop ? ` drop-${drop}` : ''}${dragId === n.id ? ' dragging' : ''}`}
         style={{ ['--depth' as string]: depth }}
         onClick={click}
         onMouseEnter={() => getViewport()?.setHover(n.id)}
@@ -132,7 +189,7 @@ function LayerRow({ n, depth, containerId, index, dragId, setDragId, focusable }
         role="treeitem"
         aria-level={depth + 1}
         aria-expanded={isGroup ? open : undefined}
-        aria-label={`${label}${n.visible ? '' : ', hidden'}${n.locked ? ', locked' : ''}`}
+        aria-label={`${label}${n.visible ? '' : ', hidden'}${n.locked ? ', locked' : ''}${n.clipped ? ', clipped' : ''}${n.pixelMask ? ', masked' : ''}`}
         tabIndex={focusable ? 0 : -1}
         onKeyDown={(e) => {
           if (e.target !== e.currentTarget) return;
@@ -169,7 +226,9 @@ function LayerRow({ n, depth, containerId, index, dragId, setDragId, focusable }
         ) : (
           <span className="twisty-space" aria-hidden="true" />
         )}
+ {n.clipped && <span className="clip-mark" data-tip="Clipped to the layer below" aria-hidden="true"><Icon name="clip" size={16} /></span>}
         <Thumb n={n} />
+        {n.pixelMask && <MaskThumb n={n} />}
         <span className="name" data-tip={!renaming && label.length > 20 ? label : undefined}>
           {renaming ? (
             <input

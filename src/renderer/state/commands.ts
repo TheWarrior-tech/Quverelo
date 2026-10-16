@@ -43,6 +43,11 @@ function reg(id: string, fn: Handler) {
   handlers.set(id, fn);
 }
 
+/** Register (or replace) a command handler; used by feature modules such as state/photoCommands.ts. */
+export function registerCommand(id: string, fn: Handler): void {
+  handlers.set(id, fn);
+}
+
 export function hasCommand(id: string): boolean {
   return handlers.has(id);
 }
@@ -701,13 +706,16 @@ export function handleKeydown(e: KeyboardEvent): boolean {
       case 'PageDown': void runCommand('page.next'); return true;
       case 'Escape':
         if (editor.ui.selection.length) editor.select([]);
-        else if (editor.ui.pixelSelection) editor.setUi({ pixelSelection: null });
+        else if (editor.ui.pixelSelection) editor.setUi({ pixelSelection: null, pixelSelectionFeather: 0 });
         return true;
       case '[':
       case ']': {
         const o = editor.ui.toolOptions;
         const f = e.key === ']' ? 1.2 : 1 / 1.2;
-        editor.setToolOptions({ brushSize: Math.max(1, Math.round(o.brushSize * f)), eraserSize: Math.max(1, Math.round(o.eraserSize * f)) });
+        editor.setToolOptions({
+          brushSize: Math.max(1, Math.round(o.brushSize * f)), eraserSize: Math.max(1, Math.round(o.eraserSize * f)),
+          retouchSize: Math.max(1, Math.round(o.retouchSize * f)), liquifySize: Math.max(4, Math.round(o.liquifySize * f)),
+        });
         vp?.drawOverlay();
         return true;
       }

@@ -10,6 +10,7 @@ import { baselineOffset, imageFrameContentRect } from '../../core/svg';
 import { pathToString } from '../../core/path';
 import type { QuvreloDocument, Id, Paint, PathCommand, SceneNode, Story, Stroke, TextStyle } from '../../core/types';
 import type { AssetStore } from './assets';
+import { drawAdjustmentLayer, drawLayered, drawNodeList, needsLayer } from './compose';
 
 export interface DrawEnv {
   doc: QuvreloDocument;
@@ -19,7 +20,8 @@ export interface DrawEnv {
   /** use preview-quality adjustment rendering */
   preview: boolean;
   hiddenNodeId?: Id | null;
-  livePaint?: { nodeId: Id; canvas: HTMLCanvasElement } | null;
+  /** in-progress paint stroke; `mask` = the canvas is the layer's pixel mask being painted */
+  livePaint?: { nodeId: Id; canvas: HTMLCanvasElement; mask?: boolean } | null;
   zoom: number;
 }
 
@@ -185,9 +187,14 @@ export function drawNodeTransformed(ctx: CanvasRenderingContext2D, n: SceneNode,
   ctx.save();
   const m = composeTransform(n);
   ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
-  ctx.globalAlpha *= n.opacity;
-  if (n.blend !== 'normal') ctx.globalCompositeOperation = n.blend;
-  drawNodeContent(ctx, n, env);
+  if (needsLayer(n)) {
+    // isolated group, pixel mask or a per-pixel blend mode (engine/compose.ts)
+    drawLayered(ctx, n, env, ctx.globalAlpha * n.opacity, n.blend, (x) => drawNodeContent(x, n, env), n.type === 'group' ? undefined : renderLocalBounds(n));
+  } else {
+    ctx.globalAlpha *= n.opacity;
+    if (n.blend !== 'normal') ctx.globalCompositeOperation = n.blend as GlobalCompositeOperation;
+    drawNodeContent(ctx, n, env);
+  }
   ctx.restore();
 }
 
@@ -234,7 +241,7 @@ export function drawNodeContent(ctx: CanvasRenderingContext2D, n: SceneNode, env
       drawImageFrame(ctx, n, env);
       break;
     case 'raster': {
-      const live = env.livePaint && env.livePaint.nodeId === n.id ? env.livePaint.canvas : null;
+      const live = env.livePaint && env.livePaint.nodeId === n.id && !env.livePaint.mask ? env.livePaint.canvas : null;
       const img = live ?? env.assets.rendered(n.assetId, n.adjustments, env.preview);
       if (img) {
         ctx.imageSmoothingEnabled = true;
@@ -246,8 +253,11 @@ export function drawNodeContent(ctx: CanvasRenderingContext2D, n: SceneNode, env
       }
       break;
     }
+    case 'adjustment':
+      drawAdjustmentLayer(ctx, n, env);
+      break;
     case 'group':
-      for (const c of n.children) drawNodeTransformed(ctx, c, env);
+      drawNodeList(ctx, n.children, env, drawNodeTransformed);
       break;
   }
   ctx.restore();
@@ -458,8 +468,8 @@ export function drawPage(ctx: CanvasRenderingContext2D, doc: QuvreloDocument, pa
     ctx.fillRect(-bleed, -bleed, width + 2 * bleed, height + 2 * bleed);
   }
   const master = page.masterId ? doc.masters.find((m) => m.id === page.masterId) : null;
-  if (master) for (const n of master.nodes) drawNodeTransformed(ctx, n, env);
-  for (const n of page.nodes) drawNodeTransformed(ctx, n, env);
+  if (master) drawNodeList(ctx, master.nodes, env, drawNodeTransformed);
+  drawNodeList(ctx, page.nodes, env, drawNodeTransformed);
 }
 
 /** Local bounds using real font metrics (renderer-side counterpart of nodeLocalBounds). */

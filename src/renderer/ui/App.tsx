@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { editor } from '../state/editor';
 import { getViewport, handleKeydown, runCommand } from '../state/commands';
+import '../state/photoCommands';
+import '../state/photoTestHooks';
 import { hookTitle, openPath, startAutosave } from '../state/io';
 import { onToast, type Toast } from '../state/bus';
 import { startUpdates } from '../state/updates';

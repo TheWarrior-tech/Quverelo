@@ -4,6 +4,7 @@
  */
 import type { Adjustment, AdjustmentType } from './types';
 import { curvesLuts, curvesOf, pointsToLut, type CurvesData } from './curves';
+import { colorBalance, gradientMap, motionBlur, reduceNoise, DEFAULT_GRADIENT_MAP } from './photoFilters';
 
 export interface Pixels {
   width: number;
@@ -338,8 +339,16 @@ export function vignette(src: Pixels, amount: number, size = 50): Pixels {
 export interface AdjustmentSpec {
   type: AdjustmentType;
   label: string;
-  params: { key: string; label: string; min: number; max: number; step: number; default: number }[];
+  params: { key: string; label: string; min: number; max: number; step: number; default: number; section?: string; toggle?: boolean }[];
+  /** spatial filter (blur, sharpen, noise): listed under Filters */
+  filter?: boolean;
 }
+
+const cb = (range: string, key: string) => [
+  { key: `${key}CR`, label: 'Cyan / red', min: -100, max: 100, step: 1, default: 0, section: range },
+  { key: `${key}MG`, label: 'Magenta / green', min: -100, max: 100, step: 1, default: 0, section: range },
+  { key: `${key}YB`, label: 'Yellow / blue', min: -100, max: 100, step: 1, default: 0, section: range },
+];
 
 export const ADJUSTMENTS: AdjustmentSpec[] = [
   { type: 'brightness-contrast', label: 'Brightness / Contrast', params: [
@@ -382,19 +391,36 @@ export const ADJUSTMENTS: AdjustmentSpec[] = [
   { type: 'threshold', label: 'Threshold', params: [
     { key: 'level', label: 'Level', min: 0, max: 255, step: 1, default: 128 },
   ] },
-  { type: 'blur', label: 'Gaussian Blur', params: [
+  { type: 'color-balance', label: 'Colour Balance', params: [
+    ...cb('Shadows', 'shadows'), ...cb('Midtones', 'midtones'), ...cb('Highlights', 'highlights'),
+    { key: 'preserveLuminosity', label: 'Preserve luminosity', min: 0, max: 1, step: 1, default: 1, toggle: true },
+  ] },
+  // ramp edited with the gradient editor; colours live in Adjustment.stops
+  { type: 'gradient-map', label: 'Gradient Map', params: [
+    { key: 'reverse', label: 'Reverse', min: 0, max: 1, step: 1, default: 0, toggle: true },
+  ] },
+  { type: 'blur', label: 'Gaussian Blur', filter: true, params: [
     { key: 'radius', label: 'Radius (px)', min: 0, max: 100, step: 0.5, default: 4 },
   ] },
-  { type: 'sharpen', label: 'Unsharp Mask', params: [
+  { type: 'sharpen', label: 'Unsharp Mask', filter: true, params: [
     { key: 'amount', label: 'Amount (%)', min: 0, max: 300, step: 1, default: 80 },
     { key: 'radius', label: 'Radius (px)', min: 0.5, max: 10, step: 0.5, default: 1.5 },
   ] },
-  { type: 'noise', label: 'Add Noise', params: [
+  { type: 'motion-blur', label: 'Motion Blur', filter: true, params: [
+    { key: 'angle', label: 'Angle (°)', min: -180, max: 180, step: 1, default: 0 },
+    { key: 'distance', label: 'Distance (px)', min: 1, max: 200, step: 1, default: 20 },
+  ] },
+  { type: 'noise', label: 'Add Noise', filter: true, params: [
     { key: 'amount', label: 'Amount', min: 0, max: 100, step: 1, default: 10 },
-    { key: 'mono', label: 'Monochromatic', min: 0, max: 1, step: 1, default: 1 },
+    { key: 'mono', label: 'Monochromatic', min: 0, max: 1, step: 1, default: 1, toggle: true },
     { key: 'seed', label: 'Seed', min: 1, max: 999, step: 1, default: 7 },
   ] },
-  { type: 'vignette', label: 'Vignette', params: [
+  { type: 'reduce-noise', label: 'Reduce Noise', filter: true, params: [
+    { key: 'strength', label: 'Strength', min: 0, max: 100, step: 1, default: 50 },
+    { key: 'radius', label: 'Radius (px)', min: 1, max: 4, step: 1, default: 2 },
+    { key: 'detail', label: 'Preserve detail', min: 0, max: 100, step: 1, default: 20 },
+  ] },
+  { type: 'vignette', label: 'Vignette', filter: true, params: [
     { key: 'amount', label: 'Amount', min: 0, max: 100, step: 1, default: 50 },
     { key: 'size', label: 'Size', min: 0, max: 100, step: 1, default: 50 },
   ] },
@@ -408,7 +434,7 @@ export function defaultParams(type: AdjustmentType): Record<string, number> {
   return Object.fromEntries(adjustmentSpec(type).params.map((p) => [p.key, p.default]));
 }
 
-export function applyAdjustment(src: Pixels, a: Pick<Adjustment, 'type' | 'params' | 'curves'>, scale = 1): Pixels {
+export function applyAdjustment(src: Pixels, a: Pick<Adjustment, 'type' | 'params' | 'curves' | 'stops'>, scale = 1): Pixels {
   const p = { ...defaultParams(a.type), ...a.params };
   switch (a.type) {
     case 'brightness-contrast': return brightnessContrast(src, p.brightness, p.contrast);
@@ -426,6 +452,10 @@ export function applyAdjustment(src: Pixels, a: Pick<Adjustment, 'type' | 'param
     case 'sharpen': return unsharpMask(src, p.amount, Math.max(0.5, p.radius * scale));
     case 'noise': return addNoise(src, p.amount, p.mono >= 0.5, p.seed);
     case 'vignette': return vignette(src, p.amount, p.size);
+    case 'color-balance': return colorBalance(src, p as unknown as Parameters<typeof colorBalance>[1]);
+    case 'gradient-map': return gradientMap(src, a.stops ?? DEFAULT_GRADIENT_MAP, p.reverse >= 0.5);
+    case 'motion-blur': return motionBlur(src, p.angle, p.distance * scale);
+    case 'reduce-noise': return reduceNoise(src, p.strength, Math.max(1, Math.round(p.radius * scale)), p.detail);
     default: return src;
   }
 }

@@ -29,11 +29,37 @@ export type BlendMode =
   | 'hue'
   | 'saturation'
   | 'color'
-  | 'luminosity';
+  | 'luminosity'
+  // Photo parity (Affinity / Photoshop extras): composited per pixel by core/blend.ts,
+  // since canvas 2D has no native operator for them.
+  | 'linear-burn'
+  | 'linear-dodge'
+  | 'vivid-light'
+  | 'linear-light'
+  | 'pin-light'
+  | 'hard-mix'
+  | 'subtract'
+  | 'divide';
 
+/** The 16 W3C compositing modes (native in canvas 2D, SVG and PDF). */
 export const BLEND_MODES: BlendMode[] = [
   'normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn',
   'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity',
+];
+
+/** Extra pixel-composited modes (Photo). */
+export const EXTENDED_BLEND_MODES: BlendMode[] = [
+  'linear-burn', 'linear-dodge', 'vivid-light', 'linear-light', 'pin-light', 'hard-mix', 'subtract', 'divide',
+];
+
+/** Every blend mode, in the order the Blend menu lists them (grouped like Affinity / Photoshop). */
+export const ALL_BLEND_MODES: BlendMode[] = [
+  'normal',
+  'darken', 'multiply', 'color-burn', 'linear-burn',
+  'lighten', 'screen', 'color-dodge', 'linear-dodge',
+  'overlay', 'soft-light', 'hard-light', 'vivid-light', 'linear-light', 'pin-light', 'hard-mix',
+  'difference', 'exclusion', 'subtract', 'divide',
+  'hue', 'saturation', 'color', 'luminosity',
 ];
 
 export interface GradientStop {
@@ -81,6 +107,17 @@ export interface Mask {
   enabled: boolean;
 }
 
+/**
+ * Pixel (greyscale) layer mask. The asset is an RGBA canvas whose alpha is the
+ * coverage (opaque = shown), stretched over the node's local box. Painting on
+ * it with the brush hides/reveals; it stays editable until applied.
+ */
+export interface PixelMask {
+  assetId: Id;
+  enabled: boolean;
+  inverted: boolean;
+}
+
 export interface NodeBase extends Transform {
   id: Id;
   name: string;
@@ -89,6 +126,10 @@ export interface NodeBase extends Transform {
   opacity: number; // 0..1
   blend: BlendMode;
   mask?: Mask;
+  /** greyscale pixel mask (Photo), applied after the vector mask */
+  pixelMask?: PixelMask;
+  /** clipping mask: drawn only where the nearest unclipped layer below has pixels */
+  clipped?: boolean;
 }
 
 export interface ShapeStyle {
@@ -202,7 +243,11 @@ export type AdjustmentType =
   | 'blur'
   | 'sharpen'
   | 'noise'
-  | 'vignette';
+  | 'vignette'
+  | 'color-balance'
+  | 'gradient-map'
+  | 'motion-blur'
+  | 'reduce-noise';
 
 export interface Adjustment {
   id: Id;
@@ -211,6 +256,8 @@ export interface Adjustment {
   params: Record<string, number>;
   /** Curves only: control points per channel (see core/curves.ts). */
   curves?: CurvesData;
+  /** Gradient map only: the colour ramp, shadows (0) to highlights (1). */
+  stops?: GradientStop[];
 }
 
 /** Pixel layer. Pixels live in the asset store and are immutable per assetId. */
@@ -220,6 +267,18 @@ export interface RasterNode extends NodeBase {
   h: number;
   assetId: Id;
   adjustments: Adjustment[];
+}
+
+/**
+ * Adjustment layer (Photo): a live adjustment applied to everything composited
+ * below it in its parent (the page, or an isolated group), limited to its box
+ * and masks. Editable at any time; nothing is baked until it is merged.
+ */
+export interface AdjustmentNode extends NodeBase {
+  type: 'adjustment';
+  w: number;
+  h: number;
+  adjustment: Adjustment;
 }
 
 export interface GroupNode extends NodeBase {
@@ -237,6 +296,7 @@ export type SceneNode =
   | TextFrameNode
   | ImageFrameNode
   | RasterNode
+  | AdjustmentNode
   | GroupNode;
 
 export type NodeType = SceneNode['type'];

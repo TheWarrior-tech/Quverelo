@@ -1,5 +1,6 @@
 /** Exporters: PNG, JPEG, SVG, vector PDF and image PDF (all offline). */
 import { PDFDocument, PDFName, PDFString } from 'pdf-lib';
+import { flattenForVector } from './flattenExport';
 import { pageToSvg } from '../../core/svg';
 import { findNode, nodeMatrix, worldMatrix } from '../../core/document';
 import { multiply, type Matrix } from '../../core/geometry';
@@ -54,6 +55,7 @@ export async function exportRaster(
 }
 
 export function exportSvg(doc: QuvreloDocument, assets: AssetStore, pageIndex: number, includeBleed = false): string {
+  doc = flattenForVector(doc, assets).doc; // adjustment layers, pixel masks, clipping (engine/flattenExport.ts)
   const page = doc.pages[pageIndex];
   return pageToSvg(doc, page, {
     measure: measureText,
@@ -241,6 +243,7 @@ function loadFont(key: string): Promise<Uint8Array | null> {
 
 /** Shapes and text as PDF vectors with embedded fonts; photos at their own resolution. */
 export async function exportPdf(doc: QuvreloDocument, assets: AssetStore, o: VectorPdfExportOptions): Promise<{ bytes: Uint8Array; report: VectorPdfReport }> {
+  doc = flattenForVector(doc, assets).doc; // adjustment layers, pixel masks, clipping (engine/flattenExport.ts)
   return exportVectorPdf(doc, { pages: o.pages, includeBleed: o.includeBleed, cropMarks: o.cropMarks, fallbackDpi: o.fallbackDpi }, {
     measure: measureText,
     textSize: artisticTextSize,

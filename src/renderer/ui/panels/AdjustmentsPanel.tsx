@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { updateNode } from '../../../core/commands';
-import { newId } from '../../../core/ids';
 import { ADJUSTMENTS, adjustmentSpec, defaultParams, histogram } from '../../../core/pixels';
-import type { Adjustment, AdjustmentType, RasterNode, SceneNode } from '../../../core/types';
+import type { Adjustment, AdjustmentNode, AdjustmentType, GradientStop, RasterNode, SceneNode } from '../../../core/types';
+import { DEFAULT_GRADIENT_MAP } from '../../../core/photoFilters';
+import { solid } from '../../../core/document';
+import { ColorChipButton } from '../color/Chips';
+import { firstColorOf } from '../../state/uiPaint';
+import { SliderField } from '../controls/NumberField';
+import { ADJUSTMENT_LAYER_TYPES, addAdjustmentLayer, newAdjustment } from '../../state/photoCommands';
+import '../photo.css';
 import { editor, topPixelLayer } from '../../state/editor';
 import { layerDisplayName } from '../../../core/document';
 import { EmptyState } from '../controls/EmptyState';
@@ -151,8 +157,138 @@ function AdjustmentHeader({ label, enabled, curves, onToggle, onReset, onDelete 
   );
 }
 
+/** Gradient map ramp: preview strip, one colour chip and position per stop, add / remove. */
+function GradientStopsEditor({ adj, onChange }: { adj: Adjustment; onChange: (stops: GradientStop[], merge?: string) => void }) {
+  const stops = [...(adj.stops ?? DEFAULT_GRADIENT_MAP)].sort((a, b) => a.offset - b.offset);
+  const css = `linear-gradient(to right, ${stops.map((s) => `${s.color} ${Math.round(s.offset * 100)}%`).join(', ')})`;
+  const set = (i: number, patch: Partial<GradientStop>, merge?: string) => onChange(stops.map((s, k) => (k === i ? { ...s, ...patch } : s)), merge);
+  return (
+    <div className="gradient-map-editor">
+      <div className="gradient-ramp" style={{ backgroundImage: css }} role="img" aria-label="Gradient map ramp" />
+      {stops.map((s, i) => (
+        <div className="gradient-stops" key={i}>
+          <ColorChipButton kind="fill" label={`Stop ${i + 1} colour`} value={solid(s.color)} allowNone={false} allowGradient={false} onChange={(p) => set(i, { color: firstColorOf(p, s.color) }, `gm:${adj.id}:${i}`)} />
+          <SliderField label="At" ariaLabel={`Stop ${i + 1} position`} unit="%" min={0} max={100} value={Math.round(s.offset * 100)} onChange={(v) => set(i, { offset: v / 100 }, `gmo:${adj.id}:${i}`)} compact />
+          <button type="button" className="icon-btn sm" {...tip('Remove stop')} disabled={stops.length <= 2} onClick={() => onChange(stops.filter((_, k) => k !== i))}><Icon name="minus" size={16} /></button>
+        </div>
+      ))}
+      <button type="button" className="btn ghost sm" onClick={() => onChange([...stops, { offset: 0.5, color: '#808080' }])}><Icon name="plus" size={16} /> Add stop</button>
+    </div>
+  );
+}
+
+/** Sliders (grouped by section), toggles, the curve editor or the gradient ramp for one adjustment. */
+function AdjustmentControls({ adj, histNode, onPatch, beginDrag, endDrag }: {
+  adj: Adjustment;
+  histNode: RasterNode;
+  onPatch: (patch: Partial<Adjustment>, merge?: string) => void;
+  beginDrag: () => void;
+  endDrag: () => void;
+}) {
+  const spec = adjustmentSpec(adj.type);
+  let lastSection: string | undefined;
+  return (
+    <>
+      {adj.type === 'curves' && (
+        <CurvesEditor node={histNode} adj={adj} onChange={(curves, merge) => onPatch({ curves }, merge)} onBegin={beginDrag} onEnd={endDrag} />
+      )}
+      {adj.type === 'gradient-map' && <GradientStopsEditor adj={adj} onChange={(stops, merge) => onPatch({ stops }, merge)} />}
+      {spec.params.length > 0 && (
+        <div className="params">
+          {spec.params.map((p) => {
+            const head = p.section && p.section !== lastSection ? <div className="adjust-section" key={`s-${p.section}`}>{p.section}</div> : null;
+            lastSection = p.section;
+            const value = adj.params[p.key] ?? p.default;
+            if (p.toggle) {
+              return (
+                <div key={p.key}>
+                  {head}
+                  <label className="check"><input type="checkbox" aria-label={`${spec.label} ${p.label}`} checked={value >= 0.5} onChange={(e) => onPatch({ params: { ...adj.params, [p.key]: e.target.checked ? 1 : 0 } })} /> {p.label}</label>
+                </div>
+              );
+            }
+            return (
+              <div key={p.key}>
+                {head}
+                <div className="slider-row">
+                  <label>{p.label}</label>
+                  <input
+                    type="range"
+                    min={p.min}
+                    max={p.max}
+                    step={p.step}
+                    value={value}
+                    aria-label={`${spec.label} ${p.section ? p.section + ' ' : ''}${p.label}`}
+                    onPointerDown={beginDrag}
+                    onPointerUp={endDrag}
+                    onKeyUp={endDrag}
+                    onChange={(e) => onPatch({ params: { ...adj.params, [p.key]: parseFloat(e.target.value) } }, `adj:${adj.id}:${p.key}`)}
+                  />
+                  <input type="number" min={p.min} max={p.max} step={p.step} value={value} aria-label={`${spec.label} ${p.section ? p.section + ' ' : ''}${p.label} value`} onChange={(e) => onPatch({ params: { ...adj.params, [p.key]: parseFloat(e.target.value) || 0 } }, `adj:${adj.id}:${p.key}`)} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+}
+
+/** "New adjustment layer…" picker: adds a live layer above the active one (Adjust menu equivalents). */
+function NewAdjustmentLayer() {
+  return (
+    <div className="row add-adjustment">
+      <span className="select-icon" aria-hidden="true"><Icon name="adjust" size={16} /></span>
+      <select aria-label="New adjustment layer" value="" onChange={(e) => e.target.value && addAdjustmentLayer(e.target.value as AdjustmentType)}>
+        <option value="">New adjustment layer…</option>
+        {ADJUSTMENT_LAYER_TYPES.map((t) => <option key={t} value={t}>{adjustmentSpec(t).label}</option>)}
+      </select>
+    </div>
+  );
+}
+
+/** Editor for a selected adjustment layer: same controls as a live adjustment, plus its layer actions. */
+function AdjustmentLayerPanel({ n }: { n: AdjustmentNode }) {
+  const ed = useEditor();
+  const adj = n.adjustment;
+  const spec = adjustmentSpec(adj.type);
+  const below = (ed.activeContainer?.nodes ?? []).slice(0, Math.max(0, (ed.activeContainer?.nodes ?? []).findIndex((x) => x.id === n.id))).reverse().find((x): x is RasterNode => x.type === 'raster');
+  const histNode = below ?? ({ assetId: '' } as RasterNode);
+  const patch = (p: Partial<Adjustment>, merge?: string) => editor.commit(`Edit ${spec.label.toLowerCase()}`, (d) => updateNode(d, n.id, { adjustment: { ...adj, ...p } } as Partial<SceneNode>), merge);
+  const beginDrag = () => ed.setUi({ interacting: true });
+  const endDrag = () => {
+    ed.setUi({ interacting: false });
+    ed.emitNow();
+  };
+  return (
+    <div className="adjust-layer" data-adjustment-layer={n.id}>
+      {below && <Histogram node={below} />}
+      <NewAdjustmentLayer />
+      <div className="adjust-item">
+        <AdjustmentHeader
+          label={spec.label}
+          enabled={adj.enabled}
+          curves={adj.type === 'curves'}
+          onToggle={() => patch({ enabled: !adj.enabled })}
+          onReset={() => patch({ params: defaultParams(adj.type), curves: undefined, stops: adj.type === 'gradient-map' ? DEFAULT_GRADIENT_MAP : undefined })}
+          onDelete={() => runCommand('edit.delete')}
+        />
+        <AdjustmentControls adj={adj} histNode={histNode} onPatch={patch} beginDrag={beginDrag} endDrag={endDrag} />
+      </div>
+      <p className="empty-note">Adjusts every layer below it{n.clipped ? ' in its clip group' : ''}{n.pixelMask ? ', inside its mask' : ''}. Opacity and blend mode are in Design.</p>
+      <div className="row">
+        <button className="btn sm ghost" onClick={() => runCommand(n.pixelMask ? 'layer.mask-edit' : 'layer.mask-add')}><Icon name="mask" size={16} /> {n.pixelMask ? (ed.ui.maskEditId === n.id ? 'Stop editing mask' : 'Paint mask') : 'Add mask'}</button>
+        <button className="btn sm ghost" onClick={() => runCommand('layer.clip')}><Icon name="clip" size={16} /> {n.clipped ? 'Release clip' : 'Clip to below'}</button>
+      </div>
+    </div>
+  );
+}
+
 export function AdjustmentsPanel() {
   const ed = useEditor();
+  const target = ed.selectedNodes()[0] ?? (ed.ui.selection.length ? null : ed.activeLayer());
+  if (target?.type === 'adjustment') return <AdjustmentLayerPanel n={target} />;
   // the active layer when nothing is selected (CRITIQUE-4 R2), so Adjust never asks when one exists
   const n = activeRaster(ed) ?? undefined;
   if (!n) {
@@ -183,7 +319,7 @@ export function AdjustmentsPanel() {
       </EmptyState>
     );
   }
-  const add = (type: AdjustmentType) => setAdjustments(n, [...n.adjustments, { id: newId('adj'), type, enabled: true, params: defaultParams(type) }]);
+  const add = (type: AdjustmentType) => setAdjustments(n, [...n.adjustments, newAdjustment(type)]);
   const update = (id: string, patch: Partial<Adjustment>, merge?: string) =>
     setAdjustments(n, n.adjustments.map((a) => (a.id === id ? { ...a, ...patch } : a)), merge);
   const beginDrag = () => ed.setUi({ interacting: true });
@@ -194,15 +330,16 @@ export function AdjustmentsPanel() {
   return (
     <div>
       <Histogram node={n} />
+      <NewAdjustmentLayer />
       <div className="row add-adjustment">
         <span className="select-icon" aria-hidden="true"><Icon name="plus" size={16} /></span>
         <select aria-label="Add adjustment" value="" onChange={(e) => e.target.value && add(e.target.value as AdjustmentType)}>
           <option value="">Add adjustment or filter…</option>
           <optgroup label="Adjustments">
-            {ADJUSTMENTS.filter((a) => !['blur', 'sharpen', 'noise', 'vignette'].includes(a.type)).map((a) => <option key={a.type} value={a.type}>{a.label}</option>)}
+            {ADJUSTMENTS.filter((a) => !a.filter).map((a) => <option key={a.type} value={a.type}>{a.label}</option>)}
           </optgroup>
           <optgroup label="Filters">
-            {ADJUSTMENTS.filter((a) => ['blur', 'sharpen', 'noise', 'vignette'].includes(a.type)).map((a) => <option key={a.type} value={a.type}>{a.label}</option>)}
+            {ADJUSTMENTS.filter((a) => a.filter).map((a) => <option key={a.type} value={a.type}>{a.label}</option>)}
           </optgroup>
         </select>
       </div>
@@ -219,31 +356,7 @@ export function AdjustmentsPanel() {
               onReset={() => update(a.id, { params: defaultParams(a.type), curves: undefined })}
               onDelete={() => setAdjustments(n, n.adjustments.filter((x) => x.id !== a.id))}
             />
-            {a.type === 'curves' && (
-              <CurvesEditor node={n} adj={a} onChange={(curves, merge) => update(a.id, { curves }, merge)} onBegin={beginDrag} onEnd={endDrag} />
-            )}
-            {spec.params.length > 0 && (
-              <div className="params">
-                {spec.params.map((p) => (
-                  <div className="slider-row" key={p.key}>
-                    <label>{p.label}</label>
-                    <input
-                      type="range"
-                      min={p.min}
-                      max={p.max}
-                      step={p.step}
-                      value={a.params[p.key] ?? p.default}
-                      aria-label={`${spec.label} ${p.label}`}
-                      onPointerDown={beginDrag}
-                      onPointerUp={endDrag}
-                      onKeyUp={endDrag}
-                      onChange={(e) => update(a.id, { params: { ...a.params, [p.key]: parseFloat(e.target.value) } }, `adj:${a.id}:${p.key}`)}
-                    />
-                    <input type="number" min={p.min} max={p.max} step={p.step} value={a.params[p.key] ?? p.default} aria-label={`${spec.label} ${p.label} value`} onChange={(e) => update(a.id, { params: { ...a.params, [p.key]: parseFloat(e.target.value) || 0 } }, `adj:${a.id}:${p.key}`)} />
-                  </div>
-                ))}
-              </div>
-            )}
+            <AdjustmentControls adj={a} histNode={n} onPatch={(patch, merge) => update(a.id, patch, merge)} beginDrag={beginDrag} endDrag={endDrag} />
           </div>
         );
       })}

@@ -92,6 +92,8 @@ const TOOL_NAMES: Record<ToolId, [string, string?]> = {
   brush: ['Paint Brush', 'B'], eraser: ['Eraser', 'E'], fill: ['Flood Fill', 'G'], eyedropper: ['Colour Picker', 'I'], crop: ['Crop', 'C'],
   pen: ['Pen', 'P'], pencil: ['Pencil', 'N'], rect: ['Rectangle', 'M'], ellipse: ['Ellipse', 'E'], polygon: ['Polygon', 'Y'], star: ['Star', 'S'], line: ['Line', 'L'],
   text: ['Artistic Text', 'T'], textframe: ['Frame Text', 'X'], imageframe: ['Picture Frame', 'F'],
+  'polygon-lasso': ['Polygonal Selection'], 'magic-wand': ['Magic Wand'], clone: ['Clone', 'S'], heal: ['Healing Brush'],
+  'spot-heal': ['Spot Healing', 'J'], dodge: ['Dodge', 'O'], burn: ['Burn'], smudge: ['Smudge', 'R'], liquify: ['Liquify'],
 };
 
 /** Icon for a menu command; every command has one (tests/unit/paletteIcons.test.ts). */
@@ -110,6 +112,12 @@ export function commandIcon(id: string): string | undefined {
     'master.add': 'pages', 'text.link': 'link', 'text.unlink': 'link', 'doc.resize': 'rect', 'view.zoom-in': 'zoom', 'view.zoom-out': 'zoom',
     'view.zoom-fit': 'zoom', 'view.zoom-100': 'zoom', 'help.shortcuts': 'keyboard', 'help.command-palette': 'keyboard', 'help.check-updates': 'update',
     'help.guide': 'help', 'help.about': 'help',
+    // Photo parity
+    'layer.mask-add': 'mask', 'layer.mask-hide-all': 'mask', 'layer.mask-edit': 'brush', 'layer.mask-enable': 'eye', 'layer.mask-invert': 'select-invert',
+    'layer.mask-apply': 'check', 'layer.mask-delete': 'trash', 'layer.mask-to-selection': 'marquee-rect', 'layer.clip': 'clip',
+    'select.color-range': 'eyedropper', 'select.magic-wand': 'magic-wand', 'select.feather': 'feather', 'select.refine': 'feather', 'select.save-to-mask': 'mask',
+    'filter.gaussian-blur': 'filter', 'filter.motion-blur': 'filter', 'filter.unsharp-mask': 'filter', 'filter.add-noise': 'filter', 'filter.reduce-noise': 'filter',
+    'filter.liquify': 'liquify', 'doc.canvas-size': 'crop',
     // every command has an icon, so no row reads as a gap (critique 3 P2-5)
     'doc.clear-guides': 'close', 'view.rulers': 'layout', 'view.snapping': 'magnet', 'view.theme-dark': 'adjust', 'view.theme-light': 'adjust',
     'view.theme-contrast': 'adjust', 'view.ui-bigger': 'plus', 'view.ui-smaller': 'minus', 'view.ui-reset': 'undo', 'view.devtools': 'settings',
@@ -117,6 +125,7 @@ export function commandIcon(id: string): string | undefined {
   if (direct[id]) return direct[id];
   if (id === 'file.export' || id.startsWith('file.export-')) return 'export';
   if (id.startsWith('studio.')) return id.slice(7);
+  if (id.startsWith('layer.adjust-')) return 'adjust';
   const tail = id.split('.')[1];
   if (/^(align-|distribute-|flip-|bool-)/.test(tail)) return tail;
   return undefined;

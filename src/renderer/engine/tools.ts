@@ -10,14 +10,13 @@ import {
   centrePath, ellipsePath, pathToString, pathToSubpaths, polygonPoints, pointsToPath, rectPath, starPoints,
   subpathsToPath, transformPath, translatePath, type Anchor, type Subpath,
 } from '../../core/path';
-import { booleanPaths } from '../../core/boolean';
 import { floodMask } from '../../core/pixels';
 import type { PathCommand, PathNode, SceneNode, RasterNode } from '../../core/types';
 import type { Editor, ToolId } from '../state/editor';
 import type { Viewport } from './Viewport';
-import { cloneCanvas, createCanvas, ctx2d, canvasToPixels } from './assets';
+import { cloneCanvas, createCanvas, ctx2d } from './assets';
 import {
-  activeRaster, commitRasterCanvas, createPixelLayer, editRaster, makeDab, parseColor, selectionInPixels, toHex, worldToPixelMatrix,
+  activeRaster, commitRasterCanvas, createPixelLayer, makeDab, parseColor, toHex,
 } from './pixelOps';
 import { drawPage } from './draw';
 import { runCommand } from '../state/commands';
@@ -25,9 +24,16 @@ import {
   CROP_HANDLES, cursorFor, handlePoints, hitCrop, moveWithin, rectFromDrag, resizeCrop, roundCrop, type CropHit, type CropRect,
 } from '../../core/crop';
 import { currentCrop, currentRatio, docBounds, setCropBox } from '../state/crop';
+import { levelAngle, straighten } from '../state/straighten';
 import { uiPaint } from '../state/uiPaint';
 import { HANDLE_SIZE } from './controls';
 import { objectSelectClick, objectSelectMarkers } from './objectSelect';
+import { nodeGridMatrix } from './photoDoc';
+import type { AdjustmentNode } from '../../core/types';
+import { blendThroughSelection, selectionCanvas } from './selectionPixels';
+import {
+  commitMaskCanvas, drawBrushCursor, penPressure, setSelection, LiquifyTool, MagicWandTool, PolygonLassoTool, RetouchTool,
+} from './photoTools';
 
 export interface ToolContext {
   viewport: Viewport;
@@ -737,13 +743,7 @@ class MarqueeTool implements Tool {
       this.c.viewport.drawOverlay();
       return;
     }
-    const cur = ed.ui.pixelSelection;
-    let next: PathCommand[] | null = d;
-    if (cur && this.mode !== 'new') {
-      const op = this.mode === 'add' ? 'add' : this.mode === 'subtract' ? 'subtract' : 'intersect';
-      next = booleanPaths([cur, d], op)[0] ?? null;
-    }
-    ed.setUi({ pixelSelection: next });
+    setSelection(ed, d, this.mode);
     this.c.viewport.drawOverlay();
   }
   drawOverlay(ctx: CanvasRenderingContext2D, z: number) {
@@ -767,6 +767,7 @@ class MarqueeTool implements Tool {
  */
 class CropTool implements Tool {
   cursor = CROSS;
+  private level: { a: Point; b: Point } | null = null;
   private drag: { hit: CropHit | 'new'; start: Point; box: CropRect; ratio: number | null } | null = null;
   constructor(private c: ToolContext) {}
 
@@ -781,6 +782,11 @@ class CropTool implements Tool {
   }
 
   onDown(p: Point, e: MouseEvent) {
+    if (this.c.editor.ui.toolOptions.cropStraighten) {
+      // Straighten: drag along something that should be level
+      this.level = { a: p, b: p };
+      return;
+    }
     const box = currentCrop();
     if (!box) return;
     const hit = hitCrop(box, p, this.tol());
@@ -790,6 +796,11 @@ class CropTool implements Tool {
   }
 
   onMove(p: Point, e: MouseEvent) {
+    if (this.level) {
+      this.level = { ...this.level, b: p };
+      this.c.viewport.drawOverlay();
+      return;
+    }
     const d = this.drag;
     if (!d) {
       const box = currentCrop();
@@ -815,7 +826,13 @@ class CropTool implements Tool {
   }
 
   onUp() {
+    const lv = this.level;
+    this.level = null;
     this.drag = null;
+    if (lv && Math.hypot(lv.b.x - lv.a.x, lv.b.y - lv.a.y) * this.c.viewport.canvas.getZoom() > 8) {
+      this.c.editor.setToolOptions({ cropStraighten: false });
+      straighten(levelAngle(lv.a, lv.b));
+    }
     this.c.viewport.drawOverlay();
   }
 
@@ -842,6 +859,20 @@ class CropTool implements Tool {
 
   /** Shade outside the box and the composition guides, in document space. */
   drawOverlay(ctx: CanvasRenderingContext2D, z: number) {
+    if (this.level) {
+      const { a, b } = this.level;
+      ctx.save();
+      ctx.lineWidth = 3 / z;
+      ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.lineWidth = 1.5 / z;
+      ctx.strokeStyle = this.c.viewport.overlayColors.handle;
+      ctx.stroke();
+      ctx.restore();
+    }
     const r = currentCrop();
     if (!r) return;
     ctx.save();
@@ -1032,9 +1063,12 @@ class BrushTool implements Tool {
   private toPx: ((p: Point) => Point) | null = null;
   private last: Point | null = null;
   private dab: HTMLCanvasElement | null = null;
-  private clip: Path2D | null = null;
+  private cover: HTMLCanvasElement | null = null;
   private pxScale = 1;
   private mouse: Point | null = null;
+  /** painting into the layer's pixel mask: true = reveal (white), false = hide */
+  private maskMode: null | { reveal: boolean } = null;
+  private pressure = 1;
   constructor(private c: ToolContext, private erase: boolean) {}
 
   private size() {
@@ -1042,9 +1076,19 @@ class BrushTool implements Tool {
     return this.erase ? o.eraserSize : o.brushSize;
   }
 
-  onDown(p: Point) {
+  onDown(p: Point, e: MouseEvent) {
     const ed = this.c.editor;
-    let r = activeRaster(ed);
+    let r: RasterNode | AdjustmentNode | null = activeRaster(ed);
+    const picked = ed.selectedNodes()[0] ?? (ed.ui.selection.length ? null : ed.activeLayer());
+    if (!r && picked?.type === 'adjustment') {
+      // an adjustment layer paints into its mask
+      if (!picked.pixelMask) {
+        ed.setUi({ status: 'Add a mask to paint on an adjustment layer' });
+        return;
+      }
+      r = picked;
+      if (ed.ui.maskEditId !== picked.id) ed.setUi({ maskEditId: picked.id });
+    }
     if (!r) {
       if (this.erase) {
         ed.setUi({ status: 'Select a pixel layer to erase' });
@@ -1053,29 +1097,35 @@ class BrushTool implements Tool {
       r = createPixelLayer(ed);
       if (!r) return;
     }
+    if (r.locked) {
+      ed.setUi({ status: `${r.name} is locked` });
+      return;
+    }
     const doc = ed.doc!;
-    const base = ed.assets.get(r.assetId);
-    const m = worldToPixelMatrix(doc, r.id);
-    if (!base || !m) return;
+    const onMask = (ed.ui.maskEditId === r.id || r.type === 'adjustment') && !!r.pixelMask;
+    const base = onMask ? ed.assets.get(r.pixelMask!.assetId) : r.type === 'raster' ? ed.assets.get(r.assetId) : null;
+    const grid = base ? nodeGridMatrix(doc, r.id, base.width, base.height) : null;
+    if (!base || !grid) return;
     this.nodeId = r.id;
     this.base = base;
     this.work = cloneCanvas(base);
     this.stroke = createCanvas(base.width, base.height);
-    const sx = base.width / r.w;
-    const sy = base.height / r.h;
-    this.toPx = (q: Point) => {
-      const a = apply(m, q);
-      return { x: a.x * sx, y: a.y * sy };
-    };
+    this.toPx = (q: Point) => apply(grid, q);
     // pixel size of one document unit along the layer (for brush diameter)
     const a = this.toPx({ x: 0, y: 0 });
     const b = this.toPx({ x: 1, y: 0 });
     this.pxScale = Math.hypot(b.x - a.x, b.y - a.y) || 1;
     const o = ed.ui.toolOptions;
-    this.dab = makeDab(this.size() * this.pxScale, o.brushHardness, this.erase ? '#000000' : ed.ui.fillColor);
-    const selPath = selectionInPixels(doc, r.id, ed.ui.pixelSelection);
-    this.clip = selPath;
-    this.c.viewport.livePaint = { nodeId: r.id, canvas: this.work };
+    if (onMask) {
+      // black hides, white reveals (greys pick the nearer); the eraser always hides
+      const col = parseColor(ed.ui.fillColor);
+      this.maskMode = { reveal: !this.erase && 0.2126 * col.r + 0.7152 * col.g + 0.0722 * col.b >= 128 };
+    } else this.maskMode = null;
+    const paintColor = this.erase || this.maskMode ? '#000000' : ed.ui.fillColor;
+    this.dab = makeDab(this.size() * this.pxScale, o.brushHardness, paintColor);
+    this.cover = selectionCanvas(ed.ui.pixelSelection, ed.ui.pixelSelectionFeather, grid, base.width, base.height);
+    this.c.viewport.livePaint = { nodeId: r.id, canvas: this.work, mask: !!this.maskMode };
+    this.pressure = penPressure(e);
     this.last = this.toPx(p);
     this.stamp(this.last);
     this.composite();
@@ -1084,7 +1134,13 @@ class BrushTool implements Tool {
   private stamp(pt: Point) {
     const ctx = ctx2d(this.stroke!);
     const d = this.dab!;
-    ctx.drawImage(d, pt.x - d.width / 2, pt.y - d.height / 2);
+    const o = this.c.editor.ui.toolOptions;
+    const k = o.pressureSize ? Math.max(0.05, this.pressure) : 1;
+    ctx.save();
+    // flow: each dab builds up towards the stroke opacity (Photoshop / Affinity semantics)
+    ctx.globalAlpha = Math.max(0.01, o.brushFlow * (o.pressureFlow ? this.pressure : 1));
+    ctx.drawImage(d, pt.x - (d.width * k) / 2, pt.y - (d.height * k) / 2, d.width * k, d.height * k);
+    ctx.restore();
   }
 
   private composite() {
@@ -1094,21 +1150,39 @@ class BrushTool implements Tool {
     ctx.globalCompositeOperation = 'copy';
     ctx.drawImage(this.base!, 0, 0);
     ctx.restore();
+    let src: HTMLCanvasElement = this.stroke!;
+    if (this.cover) {
+      src = cloneCanvas(this.stroke!);
+      const sc = ctx2d(src);
+      sc.globalCompositeOperation = 'destination-in';
+      sc.drawImage(this.cover, 0, 0);
+    }
     ctx.save();
-    if (this.clip) ctx.clip(this.clip, 'evenodd');
     ctx.globalAlpha = this.c.editor.ui.toolOptions.brushOpacity;
-    ctx.globalCompositeOperation = this.erase ? 'destination-out' : 'source-over';
-    ctx.drawImage(this.stroke!, 0, 0);
+    if (this.maskMode?.reveal) {
+      // reveal: paint white (opaque) coverage into the mask
+      const white = cloneCanvas(src);
+      const wc = ctx2d(white);
+      wc.globalCompositeOperation = 'source-in';
+      wc.fillStyle = '#ffffff';
+      wc.fillRect(0, 0, white.width, white.height);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.drawImage(white, 0, 0);
+    } else {
+      ctx.globalCompositeOperation = this.erase || this.maskMode ? 'destination-out' : 'source-over';
+      ctx.drawImage(src, 0, 0);
+    }
     ctx.restore();
     this.c.viewport.render();
   }
 
-  onMove(p: Point) {
+  onMove(p: Point, e: MouseEvent) {
     this.mouse = p;
     if (!this.toPx || !this.last) {
       this.c.viewport.drawOverlay();
       return;
     }
+    this.pressure = penPressure(e);
     const q = this.toPx(p);
     const dist = Math.hypot(q.x - this.last.x, q.y - this.last.y);
     const spacing = Math.max(1, this.size() * this.pxScale * 0.12);
@@ -1129,12 +1203,14 @@ class BrushTool implements Tool {
       const id = this.nodeId;
       const work = this.work;
       this.c.viewport.livePaint = null;
-      commitRasterCanvas(ed, id, work, this.erase ? 'Erase' : 'Brush stroke');
+      if (this.maskMode) commitMaskCanvas(ed, id, work, this.maskMode.reveal ? 'Paint mask' : 'Mask out');
+      else commitRasterCanvas(ed, id, work, this.erase ? 'Erase' : 'Brush stroke');
     }
     this.nodeId = null;
-    this.base = this.work = this.stroke = null;
+    this.base = this.work = this.stroke = this.cover = null;
     this.toPx = null;
     this.last = null;
+    this.maskMode = null;
   }
 
   deactivate() {
@@ -1143,17 +1219,7 @@ class BrushTool implements Tool {
 
   drawOverlay(ctx: CanvasRenderingContext2D, z: number) {
     if (!this.mouse) return;
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-    ctx.lineWidth = 1 / z;
-    ctx.beginPath();
-    ctx.arc(this.mouse.x, this.mouse.y, this.size() / 2, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-    ctx.beginPath();
-    ctx.arc(this.mouse.x, this.mouse.y, this.size() / 2 + 1 / z, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
+    drawBrushCursor(ctx, this.mouse, this.size(), z);
   }
 }
 
@@ -1165,35 +1231,31 @@ class FillTool implements Tool {
     const color = ed.ui.fillColor;
     const r = activeRaster(ed);
     if (r) {
+      if (r.locked) return ed.setUi({ status: `${r.name} is locked` });
       const doc = ed.doc!;
-      const tol = ed.ui.toolOptions.fillTolerance;
-      editRaster(ed, r.id, 'Fill', (ctx, canvas, toPixel) => {
-        const q = apply(toPixel, p);
-        const x = Math.floor(q.x);
-        const y = Math.floor(q.y);
-        if (x < 0 || y < 0 || x >= canvas.width || y >= canvas.height) return;
-        const px = canvasToPixels(canvas);
-        const mask = floodMask(px, x, y, tol);
-        const col = parseColor(color);
-        const sel = selectionInPixels(doc, r.id, ed.ui.pixelSelection);
-        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        let selMask: Uint8ClampedArray | null = null;
-        if (sel) {
-          const mc = createCanvas(canvas.width, canvas.height);
-          const mctx = ctx2d(mc);
-          mctx.fill(sel, 'evenodd');
-          selMask = mctx.getImageData(0, 0, canvas.width, canvas.height).data;
-        }
-        for (let i = 0; i < mask.length; i++) {
-          if (!mask[i]) continue;
-          if (selMask && selMask[i * 4 + 3] < 128) continue;
-          img.data[i * 4] = col.r;
-          img.data[i * 4 + 1] = col.g;
-          img.data[i * 4 + 2] = col.b;
-          img.data[i * 4 + 3] = Math.round(col.a * 255);
-        }
-        ctx.putImageData(img, 0, 0);
-      });
+      const base = ed.assets.get(r.assetId);
+      const grid = base ? nodeGridMatrix(doc, r.id, base.width, base.height) : null;
+      if (!base || !grid) return;
+      const q = apply(grid, p);
+      const x = Math.floor(q.x);
+      const y = Math.floor(q.y);
+      if (x < 0 || y < 0 || x >= base.width || y >= base.height) return;
+      const edited = cloneCanvas(base);
+      const ctx = ctx2d(edited);
+      const img = ctx.getImageData(0, 0, edited.width, edited.height);
+      const mask = floodMask({ width: edited.width, height: edited.height, data: img.data }, x, y, ed.ui.toolOptions.fillTolerance);
+      const col = parseColor(color);
+      for (let i = 0; i < mask.length; i++) {
+        if (!mask[i]) continue;
+        img.data[i * 4] = col.r;
+        img.data[i * 4 + 1] = col.g;
+        img.data[i * 4 + 2] = col.b;
+        img.data[i * 4 + 3] = Math.round(col.a * 255);
+      }
+      ctx.putImageData(img, 0, 0);
+      // inside the (feathered) selection only
+      const cover = selectionCanvas(ed.ui.pixelSelection, ed.ui.pixelSelectionFeather, grid, base.width, base.height);
+      commitRasterCanvas(ed, r.id, blendThroughSelection(base, edited, cover), 'Fill');
       return;
     }
     if (target && 'fill' in target) {
@@ -1244,6 +1306,10 @@ export function createTool(id: ToolId, c: ToolContext): Tool {
     case 'eraser': return new BrushTool(c, true);
     case 'fill': return new FillTool(c);
     case 'eyedropper': return new EyedropperTool(c);
+    case 'polygon-lasso': return new PolygonLassoTool(c);
+    case 'magic-wand': return new MagicWandTool(c);
+    case 'clone': case 'heal': case 'spot-heal': case 'dodge': case 'burn': case 'smudge': return new RetouchTool(c, id);
+    case 'liquify': return new LiquifyTool(c);
     default: return new MoveTool(c);
   }
 }

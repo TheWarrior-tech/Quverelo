@@ -157,6 +157,9 @@ export const make = {
   raster(p: NodeInit<Extract<SceneNode, { type: 'raster' }>> & { assetId: Id; w: number; h: number }): Extract<SceneNode, { type: 'raster' }> {
     return { ...base('Pixel Layer'), adjustments: [], ...p, type: 'raster' };
   },
+  adjustment(p: NodeInit<Extract<SceneNode, { type: 'adjustment' }>> & { adjustment: Extract<SceneNode, { type: 'adjustment' }>['adjustment']; w: number; h: number }): Extract<SceneNode, { type: 'adjustment' }> {
+    return { ...base('Adjustment'), ...p, type: 'adjustment' };
+  },
   group(children: SceneNode[], p: Partial<NodeBase> = {}): GroupNode {
     return { ...base('Group'), children, ...p, type: 'group' };
   },
@@ -339,6 +342,7 @@ export function referencedAssets(doc: QuvreloDocument): Set<Id> {
     walk(c.nodes, (n) => {
       if (n.type === 'raster') ids.add(n.assetId);
       if (n.type === 'imageframe' && n.assetId) ids.add(n.assetId);
+      if (n.pixelMask) ids.add(n.pixelMask.assetId);
     });
   }
   return ids;

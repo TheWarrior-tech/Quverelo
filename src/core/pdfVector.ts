@@ -180,6 +180,10 @@ const BLEND_PDF: Record<BlendMode, string> = {
   normal: 'Normal', multiply: 'Multiply', screen: 'Screen', overlay: 'Overlay', darken: 'Darken', lighten: 'Lighten',
   'color-dodge': 'ColorDodge', 'color-burn': 'ColorBurn', 'hard-light': 'HardLight', 'soft-light': 'SoftLight',
   difference: 'Difference', exclusion: 'Exclusion', hue: 'Hue', saturation: 'Saturation', color: 'Color', luminosity: 'Luminosity',
+  // PDF has no operator for the Photo extras; the renderer exporters flatten such layers to
+  // pixels first (engine/flattenExport.ts), so these only apply to a bare model call.
+  'linear-burn': 'ColorBurn', 'linear-dodge': 'ColorDodge', 'vivid-light': 'HardLight', 'linear-light': 'HardLight',
+  'pin-light': 'HardLight', 'hard-mix': 'HardLight', subtract: 'Difference', divide: 'ColorDodge',
 };
 
 type Box = { x: number; y: number; w: number; h: number };

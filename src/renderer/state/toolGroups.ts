@@ -29,8 +29,12 @@ const g = (id: string, label: string, key: string, tools: ToolId[]): ToolGroup =
 
 export const STUDIO_RAIL: Record<StudioKind, RailEntry[]> = {
   photo: [
-    'move', g('photo-marquee', 'Marquee tools', 'M', ['marquee-rect', 'marquee-ellipse']), 'lasso', 'object-select', 'crop',
+    'move', g('photo-marquee', 'Marquee tools', 'M', ['marquee-rect', 'marquee-ellipse']),
+    g('photo-lasso', 'Lasso tools', 'L', ['lasso', 'polygon-lasso']),
+    g('photo-smart-select', 'Smart selection tools', 'W', ['object-select', 'magic-wand']), 'crop',
     '|', 'brush', 'eraser', 'fill', 'eyedropper',
+    '|', g('photo-heal', 'Healing tools', 'J', ['spot-heal', 'heal']), 'clone',
+    g('photo-tone', 'Dodge and burn tools', 'O', ['dodge', 'burn']), 'smudge',
     '|', 'text', g('photo-shapes', 'Shape tools', 'U', ['rect', 'ellipse', 'polygon', 'star']),
     '|', 'hand', 'zoom',
   ],
@@ -56,7 +60,7 @@ export const STUDIO_RAIL: Record<StudioKind, RailEntry[]> = {
  */
 export const TOOL_KEYS: Record<'common' | StudioKind, Record<string, ToolId>> = {
   common: { v: 'move', h: 'hand', z: 'zoom', t: 'text', i: 'eyedropper' },
-  photo: { m: 'marquee-rect', l: 'lasso', w: 'object-select', b: 'brush', e: 'eraser', g: 'fill', c: 'crop', u: 'rect' },
+  photo: { m: 'marquee-rect', l: 'lasso', w: 'object-select', b: 'brush', e: 'eraser', g: 'fill', c: 'crop', u: 'rect', j: 'spot-heal', s: 'clone', o: 'dodge', r: 'smudge' },
   vector: { a: 'node', p: 'pen', n: 'pencil', m: 'rect', e: 'ellipse', l: 'line', s: 'star', y: 'polygon' },
   layout: { a: 'node', f: 'imageframe', m: 'rect', e: 'ellipse', l: 'line', x: 'textframe' },
 };
@@ -134,6 +138,8 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   brush: 'Paint brush (B)', eraser: 'Eraser (E)', fill: 'Flood fill (G)', eyedropper: 'Colour picker (I)', crop: 'Crop (C)',
   pen: 'Pen (P)', pencil: 'Pencil (N)', rect: 'Rectangle (M)', ellipse: 'Ellipse (E)', polygon: 'Polygon (Y)', star: 'Star (S)', line: 'Line (L)',
   text: 'Artistic text (T)', textframe: 'Frame text (X)', imageframe: 'Picture frame (F)',
+  'polygon-lasso': 'Polygonal selection', 'magic-wand': 'Magic wand', clone: 'Clone (S)', heal: 'Healing brush',
+  'spot-heal': 'Spot healing (J)', dodge: 'Dodge (O)', burn: 'Burn', smudge: 'Smudge (R)', liquify: 'Liquify',
 };
 
 /** A tool's display name without its key ('Rectangle marquee'). */
