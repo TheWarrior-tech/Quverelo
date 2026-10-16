@@ -4,6 +4,7 @@
  * history entries; tests exercise them directly.
  */
 import { newId } from './ids';
+import { paragraphRanges, replaceStoryText, sheetOf } from './typography';
 import {
   apply, decompose, invert, multiply, unionRects, type Matrix, type Rect,
 } from './geometry';
@@ -158,6 +159,8 @@ function detachClonedFrames(doc: QuvreloDocument, node: SceneNode): QuvreloDocum
     if (n.type === 'textframe') {
       const src = out.stories[n.storyId];
       const story = createStory(src ? src.text : '', src ? src.style : {});
+      if (src?.spans) story.spans = src.spans.map((x) => ({ ...x }));
+      if (src?.paras) story.paras = src.paras.map((x) => (x ? { ...x } : null));
       story.chain = [n.id];
       (n as { storyId: Id }).storyId = story.id;
       out = { ...out, stories: { ...out.stories, [story.id]: story } };
@@ -445,7 +448,8 @@ export function addTextFrame(
 export function setStoryText(doc: QuvreloDocument, storyId: Id, text: string): QuvreloDocument {
   const s = doc.stories[storyId];
   if (!s || s.text === text) return doc;
-  return { ...doc, stories: { ...doc.stories, [storyId]: { ...s, text } } };
+  // character / paragraph formatting moves with the text it belongs to
+  return { ...doc, stories: { ...doc.stories, [storyId]: replaceStoryText(s, text, sheetOf(doc)) } };
 }
 
 export function setStoryStyle(doc: QuvreloDocument, storyId: Id, style: Partial<TextStyle>): QuvreloDocument {
@@ -463,20 +467,33 @@ export function linkFrames(doc: QuvreloDocument, fromFrameId: Id, toFrameId: Id)
   if (!story || story.chain.includes(toFrameId)) return doc;
   const oldStory = doc.stories[to.storyId];
   const stories = { ...doc.stories };
-  let text = story.text;
+  let merged: Story = story;
   if (oldStory) {
     const remaining = oldStory.chain.filter((f) => f !== toFrameId);
     if (remaining.length) stories[oldStory.id] = { ...oldStory, chain: remaining };
     else {
-      if (oldStory.text.trim()) text = text + (text.endsWith('\n') || !text ? '' : '\n') + oldStory.text;
+      if (oldStory.text.trim()) merged = appendStory(story, oldStory);
       delete stories[oldStory.id];
     }
   }
   const chain = [...story.chain];
   chain.splice(chain.indexOf(fromFrameId) + 1, 0, toFrameId);
-  stories[story.id] = { ...story, text, chain };
+  stories[story.id] = { ...merged, chain };
   const out = { ...doc, stories };
   return updateNode(out, toFrameId, { storyId: story.id } as Partial<SceneNode>);
+}
+
+/** `b`'s text (with its formatting) appended to `a` as new paragraph(s). */
+export function appendStory(a: Story, b: Story): Story {
+  const sep = a.text.endsWith('\n') || !a.text ? '' : '\n';
+  const off = a.text.length + sep.length;
+  const text = a.text + sep + b.text;
+  if (!a.spans?.length && !a.paras?.length && !b.spans?.length && !b.paras?.length) return { ...a, text };
+  const spans = [...(a.spans ?? []), ...(b.spans ?? []).map((x) => ({ ...x, start: x.start + off, end: x.end + off }))];
+  // paragraphs of `a` before `b` starts (b's first paragraph starts after the break)
+  const aCount = a.text ? paragraphRanges(a.text + sep).length - 1 : 0;
+  const paras = [...Array.from({ length: aCount }, (_, i) => a.paras?.[i] ?? null), ...(b.paras ?? [])];
+  return { ...a, text, spans, paras };
 }
 
 /** Detach a frame from its story chain; it gets a new empty story. */

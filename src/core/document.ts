@@ -230,6 +230,7 @@ export function nodeToPath(n: SceneNode): PathCommand[] | null {
     case 'imageframe':
     case 'textframe':
     case 'raster':
+    case 'table':
       return rectPath(n.w, n.h);
     default:
       return null;
