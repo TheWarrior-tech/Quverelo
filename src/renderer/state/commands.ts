@@ -11,6 +11,7 @@ import {
 } from '../../core/commands';
 import { booleanPaths, type BooleanOp } from '../../core/boolean';
 import { composeTransform, invert } from '../../core/geometry';
+import { invertSelection, pageGridView } from '../engine/selectionPixels';
 import { cloneNode, findNode, getContainer, make } from '../../core/document';
 import { pathBounds, rectPath, translatePath } from '../../core/path';
 import { newId } from '../../core/ids';
@@ -419,8 +420,8 @@ reg('select.invert', () => {
   if (!doc) return;
   const s = editor.ui.pixelSelection;
   if (!s) return editor.setUi({ pixelSelection: pageSelection(doc) });
-  const r = booleanPaths([pageSelection(doc), s], 'subtract')[0] ?? null;
-  editor.setUi({ pixelSelection: r });
+  // soft selections invert per pixel (partial pixels stay partial)
+  editor.setUi({ pixelSelection: invertSelection(s, pageSelection(doc), pageGridView(doc)) });
 });
 reg('select.crop', () => {
   const s = editor.ui.pixelSelection;

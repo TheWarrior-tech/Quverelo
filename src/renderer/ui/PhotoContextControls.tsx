@@ -61,7 +61,7 @@ export function maskEditChip() {
   if (!id || !n || n.id !== id || !n.pixelMask) return null;
   return (
     <div className="group">
-      <span className="mask-edit-chip" data-mask-editing={id}><Icon name="mask" size={16} /> Painting mask · black hides, white reveals</span>
+      <span className="mask-edit-chip" data-mask-editing={id}><Icon name="mask" size={16} /> Painting mask · black hides, white reveals, grey part-shows</span>
       <button className="btn ghost sm" onClick={() => editor.setUi({ maskEditId: null })}>Paint pixels</button>
     </div>
   );

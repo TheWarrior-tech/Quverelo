@@ -133,6 +133,27 @@ export class AssetStore {
     return out;
   }
 
+  /**
+   * Live adjustments on a canvas that is still changing (a stroke in
+   * progress): not cached; large canvases are adjusted at preview size so
+   * the stroke stays responsive. Returns the canvas itself when no
+   * adjustment is on.
+   */
+  adjustLive(canvas: HTMLCanvasElement, adjustments: Adjustment[]): HTMLCanvasElement {
+    const active = adjustments.filter((a) => a.enabled);
+    if (!active.length) return canvas;
+    let src = canvas;
+    let scale = 1;
+    if (Math.max(canvas.width, canvas.height) > PREVIEW_MAX) {
+      scale = PREVIEW_MAX / Math.max(canvas.width, canvas.height);
+      src = createCanvas(canvas.width * scale, canvas.height * scale);
+      const c = ctx2d(src);
+      c.imageSmoothingQuality = 'medium';
+      c.drawImage(canvas, 0, 0, src.width, src.height);
+    }
+    return pixelsToCanvas(applyAdjustments(canvasToPixels(src), active, scale));
+  }
+
   /** Drop assets not in the keep set (call with assets reachable from history). */
   gc(keep: Set<Id>): void {
     for (const id of [...this.entries.keys()]) if (!keep.has(id)) this.entries.delete(id);

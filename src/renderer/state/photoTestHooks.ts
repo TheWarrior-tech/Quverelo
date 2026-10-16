@@ -5,7 +5,8 @@
  * reference blend formulas, so tests compare the app against the maths.
  */
 import { addNodes } from '../../core/commands';
-import { make } from '../../core/document';
+import { findNode, make } from '../../core/document';
+import { pageGridView, selectionToMask, softSelection } from '../engine/selectionPixels';
 import { compositePixel, type RGB } from '../../core/blend';
 import type { BlendMode, SceneNode } from '../../core/types';
 import { editor } from './editor';
@@ -97,14 +98,15 @@ function referenceBlend(mode: BlendMode, b: RGBA, s: RGBA, opacity = 1): RGBA {
 
 /** Pixel of a layer's own pixel asset (layer grid coordinates). */
 function layerPixel(id: string, x: number, y: number): RGBA | null {
-  const n = editor.doc && (editor.activeContainer?.nodes.find((q) => q.id === id) as SceneNode | undefined);
+  // any depth (pixel layers inside groups too)
+  const n = editor.doc ? (findNode(editor.doc, id)?.node as SceneNode | undefined) : undefined;
   if (!n || n.type !== 'raster') return null;
   const c = editor.assets.get(n.assetId);
   return c ? ([...c.getContext('2d')!.getImageData(Math.floor(x), Math.floor(y), 1, 1).data] as RGBA) : null;
 }
 
 function maskPixel(id: string, x: number, y: number): number | null {
-  const n = editor.activeContainer?.nodes.find((q) => q.id === id);
+  const n = editor.doc ? findNode(editor.doc, id)?.node : undefined;
   const pm = n?.pixelMask;
   const c = pm ? editor.assets.get(pm.assetId) : null;
   return c ? c.getContext('2d')!.getImageData(Math.floor(x), Math.floor(y), 1, 1).data[3] : null;
@@ -146,6 +148,17 @@ export function installPhotoTestHooks(): void {
       const h = computeHistogram(src);
       return h ? histStats(h.l) : null;
     },
+    /** Selection coverage (0..255) at a document point; soft selections give partial values. */
+    selectionAt: (x: number, y: number) => {
+      const doc = editor.doc;
+      const sel = editor.ui.pixelSelection;
+      if (!doc || !sel) return 0;
+      const v = pageGridView(doc);
+      const m = selectionToMask(sel, v);
+      const k = v.toPixel[0];
+      return m[Math.floor(y * k) * v.width + Math.floor(x * k)];
+    },
+    isSoftSelection: () => !!softSelection(editor.ui.pixelSelection),
     svgImageCount: () => (exportSvg(editor.doc!, editor.assets, 0).match(/<image/g) ?? []).length,
     flattenCount: () => flattenForVector(editor.doc!, editor.assets).flattened,
   };

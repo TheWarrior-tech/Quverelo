@@ -29,9 +29,10 @@ function resampleAsset(assets: AssetStore, id: Id, w: number, h: number, method:
 }
 
 /**
- * Resize the document to W x H, scaling content. Top-level pixel layers (and
- * pixel masks) are resampled to their new pixel size with `method`, so the
- * file really gains or loses pixels; other content scales as vectors.
+ * Resize the document to W x H, scaling content. Pixel layers at any depth
+ * (inside groups too) and pixel masks are resampled to their new pixel size
+ * with `method`, so the file really gains or loses pixels; other content
+ * scales as vectors.
  */
 export function resampleDocument(doc: QuvreloDocument, assets: AssetStore, W: number, H: number, method: ResampleMethod): QuvreloDocument {
   const sx = W / doc.settings.width;
@@ -46,32 +47,43 @@ export function resampleDocument(doc: QuvreloDocument, assets: AssetStore, W: nu
     meta[id] = assets.ref(id, 'Mask');
     return { ...pm, assetId: id };
   };
-  const scaleNode = (n: SceneNode): SceneNode => {
-    const moved = { ...n, x: n.x * sx, y: n.y * sy };
+  /**
+   * Scale a node by (fx, fy) given in its parent's frame. Pixel layers (and
+   * masks) are resampled; groups pass the factors on to their children in
+   * the group's own frame (swapped for a quarter turn), so pixel layers in
+   * groups are resampled too. A group turned by a non-right angle under a
+   * non-uniform resize can't hand axis-aligned factors down, so it scales as
+   * a whole (its pixels stretch, as before).
+   */
+  const scaleNode = (n: SceneNode, fx: number, fy: number): SceneNode => {
+    const moved = { ...n, x: n.x * fx, y: n.y * fy };
+    const uniform = Math.abs(fx - fy) < 1e-9;
+    const square = Math.abs(n.rotation % 90) < 1e-6;
+    const quarter = square && Math.round(n.rotation / 90) % 2 !== 0;
+    const lx = quarter ? fy : fx;
+    const ly = quarter ? fx : fy;
     if (n.type === 'raster') {
       const c = assets.get(n.assetId);
-      if (c && Math.abs(n.rotation % 90) < 1e-6) {
-        const rot = Math.round(n.rotation / 90) % 2 !== 0;
-        const fx = rot ? sy : sx;
-        const fy = rot ? sx : sy;
-        const pw = Math.max(1, Math.round(c.width * fx));
-        const ph = Math.max(1, Math.round(c.height * fy));
+      if (c && (square || uniform)) {
+        const pw = Math.max(1, Math.round(c.width * lx));
+        const ph = Math.max(1, Math.round(c.height * ly));
         const id = resampleAsset(assets, n.assetId, pw, ph, method);
         if (id) {
           meta[id] = assets.ref(id, n.name);
-          return { ...moved, assetId: id, w: n.w * fx, h: n.h * fy, pixelMask: remask(n.pixelMask, fx, fy) } as RasterNode;
+          return { ...moved, assetId: id, w: n.w * lx, h: n.h * ly, pixelMask: remask(n.pixelMask, lx, ly) } as RasterNode;
         }
       }
     }
-    if (n.type === 'adjustment') return { ...n, x: n.x * sx, y: n.y * sy, w: n.w * sx, h: n.h * sy, pixelMask: remask(n.pixelMask, sx, sy) };
-    return { ...moved, scaleX: n.scaleX * sx, scaleY: n.scaleY * sy };
+    if (n.type === 'group' && (square || uniform)) return { ...n, x: n.x * fx, y: n.y * fy, children: n.children.map((c) => scaleNode(c, lx, ly)) };
+    if (n.type === 'adjustment') return { ...n, x: n.x * fx, y: n.y * fy, w: n.w * lx, h: n.h * ly, pixelMask: remask(n.pixelMask, lx, ly) };
+    return { ...moved, scaleX: n.scaleX * fx, scaleY: n.scaleY * fy };
   };
   return {
     ...doc,
     assets: meta,
     settings: { ...doc.settings, width: W, height: H },
-    pages: doc.pages.map((p) => ({ ...p, nodes: p.nodes.map(scaleNode) })),
-    masters: doc.masters.map((p) => ({ ...p, nodes: p.nodes.map(scaleNode) })),
+    pages: doc.pages.map((p) => ({ ...p, nodes: p.nodes.map((n) => scaleNode(n, sx, sy)) })),
+    masters: doc.masters.map((p) => ({ ...p, nodes: p.nodes.map((n) => scaleNode(n, sx, sy)) })),
     guides: doc.guides.map((g) => ({ ...g, position: g.position * (g.orientation === 'v' ? sx : sy) })),
   };
 }

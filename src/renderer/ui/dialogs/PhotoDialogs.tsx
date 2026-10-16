@@ -4,10 +4,9 @@
  * right over a clear backdrop (photo.css) so the canvas stays visible.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { scale } from '../../../core/geometry';
 import { solid } from '../../../core/document';
 import { adjustmentSpec, applyAdjustment, applyAdjustments, defaultParams } from '../../../core/pixels';
-import { colorRangeMask, combineMasks, effectiveFeather, refineMask, type ColorRangeMode, type RefineEdge } from '../../../core/selectionMask';
+import { colorRangeMask, combineMasks, refineMask, type ColorRangeMode, type RefineEdge } from '../../../core/selectionMask';
 import { ANCHORS, type Anchor } from '../../../core/resample';
 import { updateNode } from '../../../core/commands';
 import type { AdjustmentType, PathCommand, SceneNode } from '../../../core/types';
@@ -18,8 +17,8 @@ import { canvasSize } from '../../state/photoCommands';
 import { canvasToPixels, createCanvas, ctx2d, pixelsToCanvas } from '../../engine/assets';
 import { activeRaster, commitRasterCanvas, parseColor } from '../../engine/pixelOps';
 import {
-  blendThroughSelection, layerSample, maskToWorldPath, pageSample, selectionCanvasFor, selectionToMask,
-  type SampleView, type SelectionMode,
+  blendThroughSelection, layerSample, pageGridView, pageSample, selectionCanvasFor, selectionToMask, softSelectionFrom,
+  type SelectionMode,
 } from '../../engine/selectionPixels';
 import { newId } from '../../../core/ids';
 import { SliderField } from '../controls/NumberField';
@@ -104,7 +103,7 @@ export function FilterDialog({ type }: { type: AdjustmentType }) {
     const filtered = pixelsToCanvas(applyAdjustment(canvasToPixels(small.canvas), { type, params }, small.k));
     let shown = blendThroughSelection(small.canvas, filtered, small.cover);
     if (node.adjustments.some((a) => a.enabled)) shown = pixelsToCanvas(applyAdjustments(canvasToPixels(shown), node.adjustments, small.k));
-    vp.livePaint = { nodeId: node.id, canvas: shown };
+    vp.livePaint = { nodeId: node.id, canvas: shown, adjusted: true };
     vp.render();
     editor.setUi({ status: `${spec.label} preview · ${Math.round(performance.now() - t0)} ms` });
   }, [params, preview]);
@@ -166,15 +165,7 @@ export function FeatherDialog() {
   );
 }
 
-/** Page grid used to rasterise selections for refining (document pixels, capped). */
-function pageGrid(): SampleView | null {
-  const doc = editor.doc;
-  if (!doc) return null;
-  const k = Math.min(1, 2048 / Math.max(doc.settings.width, doc.settings.height));
-  const width = Math.max(1, Math.round(doc.settings.width * k));
-  const height = Math.max(1, Math.round(doc.settings.height * k));
-  return { width, height, data: new Uint8ClampedArray(0), toPixel: scale(k, k), toWorld: scale(1 / k, 1 / k) };
-}
+const pageGrid = () => (editor.doc ? pageGridView(editor.doc) : null);
 
 export function RefineEdgeDialog() {
   const original = useRef<{ sel: PathCommand[] | null; feather: number }>({ sel: editor.ui.pixelSelection, feather: editor.ui.pixelSelectionFeather });
@@ -187,9 +178,9 @@ export function RefineEdgeDialog() {
   useDebounced(() => {
     if (!grid || !baseMask) return;
     const k = grid.toPixel[0];
-    const shaped = refineMask(baseMask, grid.width, grid.height, { smooth: o.smooth * k, shift: o.shift * k, feather: 0, contrast: 0 });
-    const d = maskToWorldPath(shaped, grid);
-    editor.setUi({ pixelSelection: d, pixelSelectionFeather: effectiveFeather(o) });
+    // the whole refine (incl. feather and contrast) lives in a per-pixel mask: partial pixels stay partial
+    const shaped = refineMask(baseMask, grid.width, grid.height, { smooth: o.smooth * k, shift: o.shift * k, feather: o.feather * k, contrast: o.contrast });
+    editor.setUi({ pixelSelection: softSelectionFrom(shaped, grid), pixelSelectionFeather: 0 });
   }, [o.smooth, o.shift, o.feather, o.contrast], 60);
 
   useEffect(() => () => {
@@ -247,7 +238,7 @@ export function ColorRangeDialog() {
     let n = 0;
     for (let i = 0; i < comb.length; i++) if (comb[i] >= 128) n++;
     setShare(n / comb.length);
-    editor.setUi({ pixelSelection: maskToWorldPath(comb, view), pixelSelectionFeather: 0 });
+    editor.setUi({ pixelSelection: softSelectionFrom(comb, view), pixelSelectionFeather: 0 });
   }, [mode, color, fuzz, view, combine], 80);
 
   useEffect(() => () => {

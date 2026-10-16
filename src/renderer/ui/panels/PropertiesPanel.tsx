@@ -56,6 +56,15 @@ function StrokeDetails({ stroke, onChange }: { stroke: Stroke; onChange: (s: Str
 }
 
 const blendLabel = (m: BlendMode) => BLEND_LABELS[m];
+const PASS_THROUGH = 'pass-through';
+/** Apply a Blend choice; for groups, Normal isolates and Pass through does not. */
+export function withBlend(m: SceneNode, v: string): SceneNode {
+  if (m.type === 'group') {
+    if (v === PASS_THROUGH) return { ...m, blend: 'normal', isolated: false };
+    return { ...m, blend: v as BlendMode, isolated: v === 'normal' ? true : m.isolated };
+  }
+  return v === PASS_THROUGH ? { ...m, blend: 'normal' } : { ...m, blend: v as BlendMode };
+}
 
 /** Row with a 56px label and a control that fills. */
 function Field({ label, htmlFor, children }: { label: string; htmlFor?: string; children: React.ReactNode }) {
@@ -194,7 +203,10 @@ export function PropertiesPanel() {
   const lenDigits = UNIT_DIGITS[u];
   const lenStep = UNIT_STEP[u];
   const mixedOpacity = nodes.some((m) => m.opacity !== n.opacity);
-  const mixedBlend = nodes.some((m) => m.blend !== n.blend);
+  // Photo groups offer Pass through (default) vs Normal (isolated) like Affinity / Photoshop
+  const groupBlend = ed.ui.studio === 'photo' && nodes.every((m) => m.type === 'group');
+  const blendValue = (m: SceneNode) => (groupBlend && m.type === 'group' && m.blend === 'normal' && !m.isolated ? PASS_THROUGH : m.blend);
+  const mixedBlend = nodes.some((m) => blendValue(m) !== blendValue(n));
   const story = n.type === 'textframe' ? ed.doc.stories[n.storyId] : null;
   const strokeOf = hasStroke ? (n as { stroke: Stroke }).stroke : null;
   const setStroke = (st: Stroke) => patchSel('Stroke', (m) => ('stroke' in m ? ({ ...m, stroke: st } as SceneNode) : m), 'stroke');
@@ -232,8 +244,9 @@ export function PropertiesPanel() {
         )}
         <SliderField label="Opacity" ariaLabel="Opacity" unit="%" min={0} max={100} value={mixedOpacity ? 100 : Math.round(n.opacity * 100)} onChange={(v) => patchSel('Opacity', (m) => ({ ...m, opacity: v / 100 }), 'opacity')} />
         <Field label="Blend" htmlFor="prop-blend">
-          <select id="prop-blend" value={mixedBlend ? '' : n.blend} onChange={(e) => patchSel('Blend mode', (m) => ({ ...m, blend: e.target.value as BlendMode }))}>
+          <select id="prop-blend" value={mixedBlend ? '' : blendValue(n)} onChange={(e) => patchSel('Blend mode', (m) => withBlend(m, e.target.value))}>
             {mixedBlend && <option value="" disabled>Mixed</option>}
+            {groupBlend && <option value={PASS_THROUGH}>Pass through</option>}
             {/* Photo lists the Affinity / Photoshop extras too (pixel-composited, core/blend.ts) */}
             {(ed.ui.studio === 'photo' ? ALL_BLEND_MODES : BLEND_MODES).map((m) => <option key={m} value={m}>{blendLabel(m)}</option>)}
           </select>

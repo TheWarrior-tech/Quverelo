@@ -302,10 +302,13 @@ export function ContextBar() {
           <Slider label="Hardness" value={o.brushHardness * 100} min={0} max={100} onChange={(v) => ed.setToolOptions({ brushHardness: v / 100 })} fmt={(v) => `${Math.round(v)}%`} />
           <Slider label="Opacity" value={o.brushOpacity * 100} min={1} max={100} onChange={(v) => ed.setToolOptions({ brushOpacity: v / 100 })} fmt={(v) => `${Math.round(v)}%`} />
           {t === 'brush' && (
-            <div className="group">
-              <span className="ctx-label">Colour</span>
-              <ColorChipButton kind="fill" label="Brush" value={solid(ed.ui.fillColor)} allowNone={false} allowGradient={false} onChange={(p) => ed.setUi({ fillColor: firstColorOf(p, ed.ui.fillColor), fillEnabled: true })} />
-            </div>
+            // the paint colour is the last thing to go into More (after flow, pressure and the sliders)
+            <Pri n={8}>
+              <div className="group">
+                <span className="ctx-label">Colour</span>
+                <ColorChipButton kind="fill" label="Brush" value={solid(ed.ui.fillColor)} allowNone={false} allowGradient={false} onChange={(p) => ed.setUi({ fillColor: firstColorOf(p, ed.ui.fillColor), fillEnabled: true })} />
+              </div>
+            </Pri>
           )}
           {brushDynamics()}
           {maskEditChip()}

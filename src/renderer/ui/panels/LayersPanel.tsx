@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { moveNodeTo, updateNode } from '../../../core/commands';
 import { DISPLAY_NAME_MAX, layerDisplayName } from '../../../core/document';
-import type { Adjustment, AdjustmentType, Id, RasterNode, SceneNode } from '../../../core/types';
-import { ADJUSTMENTS, defaultParams } from '../../../core/pixels';
-import { newId } from '../../../core/ids';
+import type { Id, SceneNode } from '../../../core/types';
+import { ADJUSTMENTS } from '../../../core/pixels';
 import { Menu, useMenu, type MenuEntry } from '../controls/Menu';
 import { editor } from '../../state/editor';
 import { getViewport, runCommand } from '../../state/commands';
@@ -313,37 +312,24 @@ export function LayersPanel() {
   );
 }
 
-const FILTER_TYPES = new Set<AdjustmentType>(['blur', 'sharpen', 'noise', 'vignette']);
-
 /** Menu entries behind the Layers footer "+" (UX audit P1-8). */
 export function addLayerItems(opts: { studio: string; selection: SceneNode[]; canPlace: boolean }): MenuEntry[] {
-  const raster = opts.selection.find((n): n is RasterNode => n.type === 'raster');
   const items: MenuEntry[] = [
     { id: 'pixel', label: 'Pixel layer', icon: 'pixel', keys: shortcutFor('layer.new-pixel'), run: () => runCommand('layer.new-pixel') },
     { id: 'group', label: 'Group selection', icon: 'group', keys: shortcutFor('arrange.group'), disabled: opts.selection.length < 2, detail: opts.selection.length < 2 ? 'Select two or more layers' : undefined, run: () => runCommand('arrange.group') },
   ];
   if (opts.canPlace) items.push({ id: 'place', label: 'Place image…', icon: 'image', keys: shortcutFor('file.place'), run: () => runCommand('file.place') });
   if (opts.studio === 'photo') {
-    items.push('-', { heading: 'Adjustment' });
-    ADJUSTMENTS.filter((x) => !FILTER_TYPES.has(x.type)).forEach((a, i) => {
-      items.push({
-        id: `adj-${a.type}`,
-        label: a.label,
-        icon: 'adjust',
-        disabled: !raster,
-        detail: !raster && i === 0 ? 'Select a pixel layer first' : undefined,
-        run: () => {
-          if (!raster) return;
-          const adj: Adjustment = { id: newId('adj'), type: a.type, enabled: true, params: defaultParams(a.type) };
-          editor.commit('Adjustment', (d) => updateNode(d, raster.id, { adjustments: [...raster.adjustments, adj] } as Partial<SceneNode>));
-        },
-      });
-    });
+    // adjustment layers: live, editable, apply to everything below (masked to the selection when there is one)
+    items.push('-', { heading: 'Adjustment layer' });
+    for (const a of ADJUSTMENTS.filter((x) => !x.filter)) {
+      items.push({ id: `adj-${a.type}`, label: a.label, icon: 'adjust', run: () => runCommand(`layer.adjust-${a.type}`) });
+    }
   }
   return items;
 }
 
-/** Footer "+": opens the add menu (Pixel layer · Group · Place image… · Adjustment). */
+/** Footer "+": opens the add menu (Pixel layer · Group · Place image… · Adjustment layer). */
 function AddLayerMenu() {
   const ed = useEditor();
   const [anchor, toggle, close] = useMenu();

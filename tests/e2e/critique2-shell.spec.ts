@@ -195,7 +195,7 @@ test.describe('critique 2: shell', () => {
     expect(await state<string>(page, 'editor.ui.studio')).toBe('photo');
   });
 
-  test('Layers "+" opens a menu: Pixel layer · Group · Place image… · Adjustment', async () => {
+  test('Layers "+" opens a menu: Pixel layer · Group · Place image… · Adjustment layer', async () => {
     L = await launch({ QUVRELO_E2E_OPEN: photo });
     const { page } = L;
     await openPhoto(page);
@@ -208,8 +208,14 @@ test.describe('critique 2: shell', () => {
     await expect(menu.locator('[data-menu-item="pixel"]')).toBeFocused();
     await expect(menu.locator('[data-menu-item="group"]')).toHaveAttribute('aria-disabled', 'true');
     await expect(menu.locator('[data-menu-item="place"]')).toBeVisible();
-    await expect(menu.locator('.menu-heading')).toHaveText('Adjustment');
-    // nothing selected: adjustments are disabled with a reason
+    await expect(menu.locator('.menu-heading')).toHaveText('Adjustment layer');
+    // adjustment layers need no pixel layer selected: every type is offered and enabled
+    for (const t of ['levels', 'curves', 'hue-saturation', 'color-balance', 'gradient-map']) {
+      await expect(menu.locator(`[data-menu-item="adj-${t}"]`)).toBeVisible();
+      await expect(menu.locator(`[data-menu-item="adj-${t}"]`)).not.toHaveAttribute('aria-disabled', 'true');
+    }
+    // filters are not adjustment layers
+    await expect(menu.locator('[data-menu-item="adj-blur"]')).toHaveCount(0);
     await page.keyboard.press('Escape');
     await expect(menu).toHaveCount(0);
     await expect(add).toBeFocused();
@@ -218,10 +224,12 @@ test.describe('critique 2: shell', () => {
     await page.evaluate((i) => (window as any).__quvrelo.editor.select([i]), id);
     await add.click();
     await menu.locator('[data-menu-item="adj-levels"]').click();
-    await expect.poll(() => state<string>(page, 'editor.doc.pages[0].nodes[0].adjustments.map((a) => a.type).join()')).toBe('levels');
+    // a Levels adjustment layer above the selected layer; the pixel layer itself is untouched
+    await expect.poll(() => state<string>(page, 'editor.doc.pages[0].nodes.map((n) => n.type === "adjustment" ? "adj:" + n.adjustment.type : n.type).join()')).toBe('raster,adj:levels');
+    expect(await state<number>(page, 'editor.doc.pages[0].nodes[0].adjustments.length')).toBe(0);
 
     await add.click();
     await menu.locator('[data-menu-item="pixel"]').click();
-    await expect.poll(() => state<number>(page, 'editor.doc.pages[0].nodes.length')).toBe(2);
+    await expect.poll(() => state<number>(page, 'editor.doc.pages[0].nodes.length')).toBe(3);
   });
 });

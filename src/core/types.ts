@@ -284,6 +284,13 @@ export interface AdjustmentNode extends NodeBase {
 export interface GroupNode extends NodeBase {
   type: 'group';
   children: SceneNode[];
+  /**
+   * Photo: blend "Normal" (true) composites the children on their own first,
+   * so adjustment layers and blend modes inside only see the group's content.
+   * Unset / false is "Pass through" (Affinity / Photoshop default): at 100 %
+   * Normal the children blend straight into what is below.
+   */
+  isolated?: boolean;
 }
 
 export type SceneNode =

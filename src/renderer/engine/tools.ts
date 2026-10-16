@@ -31,6 +31,7 @@ import { objectSelectClick, objectSelectMarkers } from './objectSelect';
 import { nodeGridMatrix } from './photoDoc';
 import type { AdjustmentNode } from '../../core/types';
 import { blendThroughSelection, selectionCanvas } from './selectionPixels';
+import { maskLevel } from '../../core/selectionMask';
 import {
   commitMaskCanvas, drawBrushCursor, penPressure, setSelection, LiquifyTool, MagicWandTool, PolygonLassoTool, RetouchTool,
 } from './photoTools';
@@ -1066,8 +1067,9 @@ class BrushTool implements Tool {
   private cover: HTMLCanvasElement | null = null;
   private pxScale = 1;
   private mouse: Point | null = null;
-  /** painting into the layer's pixel mask: true = reveal (white), false = hide */
-  private maskMode: null | { reveal: boolean } = null;
+  /** painting into the layer's pixel mask: the grey level the stroke moves the mask towards (0 hides .. 255 reveals) */
+  private maskMode: null | { level: number } = null;
+  private maskTarget: HTMLCanvasElement | null = null;
   private pressure = 1;
   constructor(private c: ToolContext, private erase: boolean) {}
 
@@ -1117,10 +1119,14 @@ class BrushTool implements Tool {
     this.pxScale = Math.hypot(b.x - a.x, b.y - a.y) || 1;
     const o = ed.ui.toolOptions;
     if (onMask) {
-      // black hides, white reveals (greys pick the nearer); the eraser always hides
+      // black hides, white reveals, any grey sets that level (Photoshop / Affinity); the eraser always hides
       const col = parseColor(ed.ui.fillColor);
-      this.maskMode = { reveal: !this.erase && 0.2126 * col.r + 0.7152 * col.g + 0.0722 * col.b >= 128 };
-    } else this.maskMode = null;
+      this.maskMode = { level: this.erase ? 0 : maskLevel(col) };
+      this.maskTarget = createCanvas(base.width, base.height);
+      const tc = ctx2d(this.maskTarget);
+      tc.fillStyle = `rgba(255,255,255,${(this.maskMode.level / 255).toFixed(4)})`;
+      tc.fillRect(0, 0, base.width, base.height);
+    } else this.maskMode = this.maskTarget = null;
     const paintColor = this.erase || this.maskMode ? '#000000' : ed.ui.fillColor;
     this.dab = makeDab(this.size() * this.pxScale, o.brushHardness, paintColor);
     this.cover = selectionCanvas(ed.ui.pixelSelection, ed.ui.pixelSelectionFeather, grid, base.width, base.height);
@@ -1159,15 +1165,19 @@ class BrushTool implements Tool {
     }
     ctx.save();
     ctx.globalAlpha = this.c.editor.ui.toolOptions.brushOpacity;
-    if (this.maskMode?.reveal) {
-      // reveal: paint white (opaque) coverage into the mask
-      const white = cloneCanvas(src);
-      const wc = ctx2d(white);
-      wc.globalCompositeOperation = 'source-in';
-      wc.fillStyle = '#ffffff';
-      wc.fillRect(0, 0, white.width, white.height);
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.drawImage(white, 0, 0);
+    if (this.maskMode && this.maskTarget) {
+      // mask = mask * (1 - s) + level * s, where s is the stroke coverage x opacity
+      const cov = cloneCanvas(src);
+      if (ctx.globalAlpha < 1) {
+        const k = ctx2d(cov);
+        k.globalCompositeOperation = 'copy';
+        k.globalAlpha = ctx.globalAlpha;
+        k.drawImage(src, 0, 0);
+      }
+      ctx.globalAlpha = 1;
+      const mixed = blendThroughSelection(this.base!, this.maskTarget, cov);
+      ctx.globalCompositeOperation = 'copy';
+      ctx.drawImage(mixed, 0, 0);
     } else {
       ctx.globalCompositeOperation = this.erase || this.maskMode ? 'destination-out' : 'source-over';
       ctx.drawImage(src, 0, 0);
@@ -1203,11 +1213,11 @@ class BrushTool implements Tool {
       const id = this.nodeId;
       const work = this.work;
       this.c.viewport.livePaint = null;
-      if (this.maskMode) commitMaskCanvas(ed, id, work, this.maskMode.reveal ? 'Paint mask' : 'Mask out');
+      if (this.maskMode) commitMaskCanvas(ed, id, work, this.maskMode.level >= 255 ? 'Paint mask' : this.maskMode.level <= 0 ? 'Mask out' : 'Paint mask (grey)');
       else commitRasterCanvas(ed, id, work, this.erase ? 'Erase' : 'Brush stroke');
     }
     this.nodeId = null;
-    this.base = this.work = this.stroke = this.cover = null;
+    this.base = this.work = this.stroke = this.cover = this.maskTarget = null;
     this.toPx = null;
     this.last = null;
     this.maskMode = null;

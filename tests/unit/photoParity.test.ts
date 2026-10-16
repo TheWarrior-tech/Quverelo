@@ -8,7 +8,9 @@ import { blendChannel, blendColor, compositeBuffers, compositePixel, isNativeBle
 import { ALL_BLEND_MODES, BLEND_MODES, EXTENDED_BLEND_MODES } from '../../src/core/types';
 import { ADJUSTMENTS, applyAdjustment, createPixels, defaultParams, type Pixels } from '../../src/core/pixels';
 import { colorBalance, gradientLut, gradientMap, lumaStdDev, motionBlur, reduceNoise, toneWeights } from '../../src/core/photoFilters';
-import { binarize, blurMask, colorRangeMask, combineMasks, coverage, effectiveFeather, maskBounds, refineMask } from '../../src/core/selectionMask';
+import { binarize, blurMask, colorRangeMask, combineMasks, coverage, effectiveFeather, invertMask, maskBounds, maskLevel, paintMask, partialCount, refineMask } from '../../src/core/selectionMask';
+import { needsLayer } from '../../src/renderer/engine/compose';
+import type { GroupNode } from '../../src/core/types';
 import { anchorOffset, resample, straightenCrop } from '../../src/core/resample';
 import { applyDab, createField, falloff, maxDisplacement, warp } from '../../src/core/liquify';
 import { cloneDab, createSmudge, dodgeBurnDab, healDab, rangeWeight, smudgeDab, spotHealDab, tipWeight } from '../../src/core/retouch';
@@ -323,5 +325,68 @@ describe('histogram statistics', () => {
     expect(s.clippedHighlights).toBeCloseTo(0.25);
     expect(rangeShare(h.r, 100, 255)).toBeCloseTo(0.5);
     expect(histStats(new Uint32Array(256)).pixels).toBe(0);
+  });
+});
+
+describe('soft selections and grey mask painting (round 2)', () => {
+  it('feathered refine keeps partial pixels; colour range is per pixel', () => {
+    const w = 40, h = 40;
+    const sq = new Uint8ClampedArray(w * h);
+    for (let y = 10; y < 30; y++) for (let x = 10; x < 30; x++) sq[y * w + x] = 255;
+    const soft = refineMask(sq, w, h, { smooth: 0, feather: 6, contrast: 0, shift: 0 });
+    expect(partialCount(soft)).toBeGreaterThan(100);
+    expect(soft[20 * w + 20]).toBe(255);
+    expect(soft[20 * w + 10]).toBeGreaterThan(60);
+    expect(soft[20 * w + 10]).toBeLessThan(200);
+    // contrast hardens it back towards binary
+    const hard = refineMask(sq, w, h, { smooth: 0, feather: 6, contrast: 100, shift: 0 });
+    expect(partialCount(hard)).toBeLessThan(partialCount(soft));
+    const g = px(64, 1, (x) => [x * 4, x * 4, x * 4, 255]);
+    const hi = colorRangeMask(g, 'highlights', [0, 0, 0], 40);
+    expect(partialCount(hi)).toBeGreaterThan(5);
+    expect(hi[63]).toBe(255);
+    expect(hi[0]).toBe(0);
+  });
+
+  it('inverting and combining soft masks stays per pixel', () => {
+    const a = new Uint8ClampedArray([0, 64, 128, 255]);
+    expect([...invertMask(a)]).toEqual([255, 191, 127, 0]);
+    expect([...invertMask(invertMask(a))]).toEqual([...a]);
+    const b = new Uint8ClampedArray([255, 255, 0, 100]);
+    expect([...combineMasks(a, b, 'add')]).toEqual([255, 255, 128, 255]);
+    expect([...combineMasks(a, b, 'subtract')]).toEqual([0, 0, 128, 155]);
+    expect([...combineMasks(a, b, 'intersect')]).toEqual([0, 64, 0, 100]);
+    expect(partialCount(a)).toBe(2);
+  });
+
+  it('mask painting moves the mask towards the paint colour\'s grey level', () => {
+    expect(maskLevel({ r: 0, g: 0, b: 0 })).toBe(0);
+    expect(maskLevel({ r: 255, g: 255, b: 255 })).toBe(255);
+    expect(maskLevel({ r: 128, g: 128, b: 128 })).toBe(128);
+    // pure red is dark grey in luminance
+    expect(maskLevel({ r: 255, g: 0, b: 0 })).toBe(54);
+    const m = new Uint8ClampedArray([255, 0, 255, 0]);
+    const stroke = new Uint8ClampedArray([255, 255, 128, 0]);
+    const out = paintMask(m, stroke, 128);
+    expect(out[0]).toBe(128); // full stroke: exactly the grey level, from white
+    expect(out[1]).toBe(128); // ... and from black
+    expect(out[2]).toBeGreaterThan(185); // half stroke: half way
+    expect(out[2]).toBeLessThan(195);
+    expect(out[3]).toBe(0); // untouched
+  });
+});
+
+describe('group blend: Pass through vs Normal (round 2)', () => {
+  const group = (o: Partial<GroupNode>): GroupNode => ({
+    id: 'g', name: 'Group', type: 'group', children: [], visible: true, locked: false, opacity: 1, blend: 'normal',
+    x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, ...o,
+  } as GroupNode);
+  it('Pass through (default) draws children straight onto the page; Normal isolates', () => {
+    expect(needsLayer(group({}))).toBe(false);
+    expect(needsLayer(group({ isolated: false }))).toBe(false);
+    expect(needsLayer(group({ isolated: true }))).toBe(true);
+    // opacity or a blend mode always isolates (Photoshop / Affinity)
+    expect(needsLayer(group({ opacity: 0.5 }))).toBe(true);
+    expect(needsLayer(group({ blend: 'multiply' }))).toBe(true);
   });
 });

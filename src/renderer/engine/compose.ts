@@ -1,8 +1,9 @@
 /**
  * Layer compositing beyond what a plain canvas draw gives (Photo parity):
  *
- * - isolated layers: groups with opacity < 100 % or a blend mode composite
- *   their children first (pass-through otherwise, like Photoshop's default),
+ * - isolated layers: groups set to Normal, or with opacity < 100 % or a blend
+ *   mode, composite their children first (Pass through otherwise, like the
+ *   Affinity / Photoshop default),
  * - pixel (greyscale) layer masks,
  * - clipping masks (a run of `clipped` layers drawn inside the alpha of the
  *   nearest unclipped layer below),
@@ -86,7 +87,7 @@ export function needsLayer(n: SceneNode): boolean {
   if (n.type === 'adjustment') return false; // composites itself (reads what is below)
   if (n.pixelMask?.enabled) return true;
   if (!isNativeBlend(n.blend)) return true;
-  if (n.type === 'group') return n.opacity < 1 || n.blend !== 'normal';
+  if (n.type === 'group') return !!n.isolated || n.opacity < 1 || n.blend !== 'normal';
   return false;
 }
 

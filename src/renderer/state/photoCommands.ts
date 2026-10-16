@@ -12,16 +12,14 @@ import { cloneNode, findNode, make } from '../../core/document';
 import { newId } from '../../core/ids';
 import { ADJUSTMENTS, adjustmentSpec, defaultParams } from '../../core/pixels';
 import { DEFAULT_GRADIENT_MAP } from '../../core/photoFilters';
-import { maskToPath } from '../../core/ml/maskToPath';
-import { binarize } from '../../core/selectionMask';
-import { transformPath } from '../../core/path';
 import type { Adjustment, AdjustmentType, RasterNode, SceneNode } from '../../core/types';
 import { editor } from './editor';
 import { openDialog, toast } from './bus';
 import { registerCommand as reg, runCommand } from './commands';
 import { activeRaster, commitRasterCanvas, createPixelLayer } from '../engine/pixelOps';
 import { cloneCanvas, createCanvas, ctx2d } from '../engine/assets';
-import { blendThroughSelection, selectionCanvasFor } from '../engine/selectionPixels';
+import { invert } from '../../core/geometry';
+import { blendThroughSelection, selectionCanvasFor, softSelectionFrom } from '../engine/selectionPixels';
 import { bakeMask, canvasSize, makeMaskCanvas, maskCoverage, setPixelMask } from '../engine/photoDoc';
 import { applyLiquify, cancelLiquify } from '../engine/photoTools';
 
@@ -144,8 +142,8 @@ reg('layer.mask-to-selection', () => {
   if (!doc || !n?.pixelMask) return toast('This layer has no pixel mask');
   const m = maskCoverage(doc, n, editor.assets);
   if (!m) return;
-  const d = maskToPath(binarize(m.cover), m.w, m.h, { epsilon: 0.5, minArea: 1 });
-  editor.setUi({ pixelSelection: d ? transformPath(d, m.toWorld) : null, pixelSelectionFeather: 0 });
+  // grey mask levels become partly selected pixels
+  editor.setUi({ pixelSelection: softSelectionFrom(m.cover, { width: m.w, height: m.h, toWorld: m.toWorld, toPixel: invert(m.toWorld) }), pixelSelectionFeather: 0 });
 });
 
 // ---------------------------------------------------------------------------

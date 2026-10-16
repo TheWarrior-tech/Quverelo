@@ -145,6 +145,38 @@ export function combineMasks(a: Mask | null, b: Mask, op: MaskOp): Mask {
   return out;
 }
 
+/**
+ * Mask level (0..255) a paint colour sets when painting on a pixel mask: its
+ * luminance (Rec. 709), so black hides, white reveals, 50 % grey half shows.
+ */
+export function maskLevel(c: { r: number; g: number; b: number }): number {
+  return Math.round(Math.max(0, Math.min(255, 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b)));
+}
+
+/** Paint a stroke into a mask: m * (1 - s) + level * s per pixel (s = stroke coverage 0..255). */
+export function paintMask(m: Mask, stroke: Mask, level: number): Mask {
+  const out = new Uint8ClampedArray(m.length);
+  for (let i = 0; i < m.length; i++) {
+    const s = stroke[i] / 255;
+    out[i] = Math.round(m[i] * (1 - s) + level * s);
+  }
+  return out;
+}
+
+/** 255 - m: the inverse selection, partial pixels stay partial. */
+export function invertMask(m: Mask): Mask {
+  const out = new Uint8ClampedArray(m.length);
+  for (let i = 0; i < m.length; i++) out[i] = 255 - m[i];
+  return out;
+}
+
+/** Number of partly selected pixels (0 < coverage < 255). */
+export function partialCount(m: Mask): number {
+  let n = 0;
+  for (let i = 0; i < m.length; i++) if (m[i] > 0 && m[i] < 255) n++;
+  return n;
+}
+
 /** Fraction of fully or partly selected pixels (0..1, weighted by coverage). */
 export function coverage(m: Mask): number {
   let s = 0;

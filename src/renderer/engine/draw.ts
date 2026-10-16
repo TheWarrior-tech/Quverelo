@@ -21,7 +21,12 @@ export interface DrawEnv {
   preview: boolean;
   hiddenNodeId?: Id | null;
   /** in-progress paint stroke; `mask` = the canvas is the layer's pixel mask being painted */
-  livePaint?: { nodeId: Id; canvas: HTMLCanvasElement; mask?: boolean } | null;
+  /**
+   * A stroke / preview in progress on one layer. `canvas` is the layer's raw
+   * pixels (or its mask when `mask`); the layer's live adjustments are applied
+   * to it on the fly unless `adjusted` says the canvas already has them.
+   */
+  livePaint?: { nodeId: Id; canvas: HTMLCanvasElement; mask?: boolean; adjusted?: boolean } | null;
   zoom: number;
 }
 
@@ -241,7 +246,9 @@ export function drawNodeContent(ctx: CanvasRenderingContext2D, n: SceneNode, env
       drawImageFrame(ctx, n, env);
       break;
     case 'raster': {
-      const live = env.livePaint && env.livePaint.nodeId === n.id && !env.livePaint.mask ? env.livePaint.canvas : null;
+      const lp = env.livePaint && env.livePaint.nodeId === n.id && !env.livePaint.mask ? env.livePaint : null;
+      // live adjustments stay visible while a stroke is in progress
+      const live = lp ? (lp.adjusted ? lp.canvas : env.assets.adjustLive(lp.canvas, n.adjustments)) : null;
       const img = live ?? env.assets.rendered(n.assetId, n.adjustments, env.preview);
       if (img) {
         ctx.imageSmoothingEnabled = true;
