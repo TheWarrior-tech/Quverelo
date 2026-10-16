@@ -50,6 +50,48 @@ export class TextEditOverlay {
   /** character formatting chosen with a collapsed caret: applied to the next typed text */
   pendingProps: Partial<TextStyle> | null = null;
   private onSelChange = () => this.selectionChanged();
+  /** last input modality: panel controls hand focus back to the text only after a pointer interaction */
+  private pointerLast = false;
+  private onModality = (e: Event) => (this.pointerLast = e.type === 'pointerdown');
+  /**
+   * Formatting from the inspector / context bar (data-keep-text-edit) keeps the
+   * editing session; after a pointer click on a button or a pointer-chosen
+   * select/checkbox, focus returns to the text so typing continues where the
+   * caret was (as in InDesign / Affinity). Keyboard users keep focus in the panel.
+   */
+  private onPanelCommit = (e: Event) => {
+    const ta = this.ta;
+    const t = e.target as HTMLElement | null;
+    if (!ta || !t || !t.closest('[data-keep-text-edit]') || t.closest('.text-edit-overlay')) return;
+    if (e.type === 'click') {
+      const btn = t.closest('button');
+      if (!btn || (e as MouseEvent).detail === 0 || btn.hasAttribute('aria-haspopup')) return;
+    } else {
+      const el = t as HTMLInputElement;
+      const pickable = el.tagName === 'SELECT' || (el.tagName === 'INPUT' && ['checkbox', 'radio'].includes(el.type));
+      if (!pickable || !this.pointerLast) return;
+    }
+    window.setTimeout(() => {
+      if (this.ta !== ta) return;
+      const a = document.activeElement as HTMLElement | null;
+      // a control that opened a popover / text field keeps focus
+      if (a && a !== document.body && a.closest('.popover, input[type="text"], input:not([type])') && !a.closest('.more-type-options')) return;
+      const { selectionStart: s0, selectionEnd: s1, selectionDirection: dir } = ta;
+      ta.focus({ preventScroll: true });
+      ta.setSelectionRange(s0, s1, dir);
+    }, 0);
+  };
+  /** focus leaving the panel controls for anything outside the session ends it */
+  private onFocusOut = (e: FocusEvent) => {
+    const from = e.target as HTMLElement | null;
+    if (!this.ta || !from?.closest?.('[data-keep-text-edit]')) return;
+    window.setTimeout(() => {
+      const a = document.activeElement as HTMLElement | null;
+      if (!this.ta || a === this.ta || a?.closest('[data-keep-text-edit]')) return;
+      if (!a || a === document.body) return; // clicks on panel chrome without focus targets keep the session
+      this.end();
+    }, 120);
+  };
 
   constructor(private vp: Viewport) {}
 
@@ -121,6 +163,11 @@ export class TextEditOverlay {
         }, 120);
       });
       document.addEventListener('selectionchange', this.onSelChange);
+      document.addEventListener('pointerdown', this.onModality, true);
+      document.addEventListener('keydown', this.onModality, true);
+      document.addEventListener('click', this.onPanelCommit);
+      document.addEventListener('change', this.onPanelCommit);
+      document.addEventListener('focusout', this.onFocusOut);
       this.vp.host.appendChild(ta);
       this.ta = ta;
     }
@@ -657,6 +704,11 @@ export class TextEditOverlay {
       this.ta = null;
       ta.remove();
       document.removeEventListener('selectionchange', this.onSelChange);
+      document.removeEventListener('pointerdown', this.onModality, true);
+      document.removeEventListener('keydown', this.onModality, true);
+      document.removeEventListener('click', this.onPanelCommit);
+      document.removeEventListener('change', this.onPanelCommit);
+      document.removeEventListener('focusout', this.onFocusOut);
     }
     if (id && mode === 'text') {
       const n = ed.doc ? findNode(ed.doc, id)?.node : null;

@@ -306,6 +306,21 @@ class Writer {
     return img;
   }
 
+  private faceFeatureCache = new Map<string, Set<string>>();
+  /** GSUB/GPOS features the face really has (for real small caps). */
+  faceFeatures(face: PdfFontFace): Set<string> {
+    let f = this.faceFeatureCache.get(face.key);
+    if (!f) {
+      try {
+        f = new Set((fontkit.create(face.bytes as unknown as Buffer) as unknown as FkFont).availableFeatures ?? []);
+      } catch {
+        f = new Set();
+      }
+      this.faceFeatureCache.set(face.key, f);
+    }
+    return f;
+  }
+
   /** Embed a face once per OpenType feature set (ligatures, figures… shaped by fontkit like the canvas). */
   font(face: PdfFontFace, features: Record<string, boolean> = {}): Promise<PDFFont | null> {
     const fk = Object.keys(features).length ? `${face.key}|${JSON.stringify(features)}` : face.key;
@@ -403,6 +418,83 @@ function rectPathOps(b: Box): string {
 }
 
 /** Characters of `text` the font cannot draw. */
+/** Chromium's synthetic small caps size (SimpleFontData::SmallCapsFontData). */
+export const SMALL_CAPS_SCALE = 0.7;
+
+/** fontkit features for the PDF: the canvas set, kerning as the style says, and smcp/c2sc when real. */
+export function pdfShapingFeatures(style: Partial<TextStyle>, realCaps: boolean): Record<string, boolean> {
+  const f = otFeatures(style);
+  if (style.kerning === false) f.kern = false;
+  if (realCaps) {
+    f.smcp = true;
+    if (style.caps === 'all-small-caps') f.c2sc = true;
+  }
+  return f;
+}
+
+/** Split text for synthetic small caps: runs that are drawn as reduced capitals vs normal size. */
+export function capsSegments(text: string, caps: 'small-caps' | 'all-small-caps'): { t: string; small: boolean }[] {
+  const out: { t: string; small: boolean }[] = [];
+  for (const ch of text) {
+    const up = ch.toUpperCase();
+    const cased = up !== ch.toLowerCase();
+    const small = cased && (caps === 'all-small-caps' || ch !== up);
+    const t = small ? up : ch;
+    const last = out[out.length - 1];
+    if (last && last.small === small) last.t += t;
+    else out.push({ t, small });
+  }
+  return out;
+}
+
+interface FkGlyph { advanceWidth: number }
+interface FkPos { xAdvance: number; xOffset: number; yOffset: number }
+interface FkFont { unitsPerEm: number; layout(t: string, f?: Record<string, boolean>): { glyphs: FkGlyph[]; positions: FkPos[] }; availableFeatures: string[] }
+
+/**
+ * Shape text with the embedded font's GSUB and GPOS (fontkit) and write it as
+ * a TJ array: glyph ids from the same layout pdf-lib subsets, with the GPOS
+ * advances (kerning, contextual positioning) as TJ adjustments, so the PDF's
+ * spacing matches the shaped canvas text instead of raw advance widths.
+ */
+export function shapedText(font: PDFFont, text: string, size: number): { op: string; width: number; glyphs: number; adjusted: boolean } {
+  const emb = (font as unknown as { embedder?: { font?: FkFont; fontFeatures?: Record<string, boolean> } }).embedder;
+  const hex = font.encodeText(text).toString();
+  const fk = emb?.font;
+  if (!fk || typeof fk.layout !== 'function') return { op: `${hex} Tj`, width: font.widthOfTextAtSize(text, size), glyphs: [...text].length, adjusted: false };
+  const run = fk.layout(text, emb!.fontFeatures);
+  const codes = hex.slice(1, -1).match(/.{4}/g) ?? [];
+  const scale = 1000 / fk.unitsPerEm;
+  let width = 0;
+  for (const p of run.positions) width += p.xAdvance;
+  width = (width * scale * size) / 1000;
+  if (codes.length !== run.glyphs.length) return { op: `${hex} Tj`, width, glyphs: codes.length, adjusted: false };
+  const parts: string[] = [];
+  let cur = '';
+  let adjusted = false;
+  for (let i = 0; i < codes.length; i++) {
+    const pos = run.positions[i];
+    const xo = Math.round(pos.xOffset * scale * 1000) / 1000;
+    // a glyph displaced by GPOS (marks, contextual offsets): move before and back after it
+    if (xo) {
+      if (cur) parts.push(`<${cur}>`);
+      cur = '';
+      parts.push(fmt(-xo));
+      adjusted = true;
+    }
+    cur += codes[i];
+    const adj = Math.round((run.glyphs[i].advanceWidth - pos.xAdvance) * scale * 1000) / 1000 + xo;
+    if (adj && i < codes.length - 1) {
+      parts.push(`<${cur}>`, fmt(adj));
+      cur = '';
+      adjusted = true;
+    }
+  }
+  if (cur) parts.push(`<${cur}>`);
+  if (!adjusted) return { op: `${hex} Tj`, width, glyphs: codes.length, adjusted };
+  return { op: `[${parts.join(' ')}] TJ`, width, glyphs: codes.length, adjusted };
+}
+
 function missingGlyphs(font: PDFFont, text: string): string[] {
   const set = new Set(font.getCharacterSet());
   const miss: string[] = [];
@@ -449,15 +541,17 @@ async function writeText(
   const fillProblem = paintProblem(style.fill);
   if (fillProblem) return fillProblem;
   if (style.fill.type !== 'solid' && style.fill.type !== 'none') return 'gradient text';
-  // small caps are a font feature pdf-lib cannot shape: the canvas draws that text
-  if (style.caps && style.caps !== 'normal') return 'small caps';
   const sp = stroke ? strokeProblem(stroke) : null;
   if (sp) return sp;
   const face = await w.hooks.font(style);
   if (typeof face === 'string') return face;
-  const font = await w.font(face, otFeatures(style));
+  // shaping features: the canvas's OpenType set + kerning + real small caps when the face has them
+  const caps = style.caps && style.caps !== 'normal' ? style.caps : null;
+  const has = w.faceFeatures(face);
+  const realCaps = !!caps && has.has('smcp') && (caps === 'small-caps' || has.has('c2sc'));
+  const font = await w.font(face, pdfShapingFeatures(style, realCaps));
   if (!font) return `font “${firstFamily(style.fontFamily)}” could not be embedded`;
-  const miss = missingGlyphs(font, runs.map((r) => r.text).join(''));
+  const miss = missingGlyphs(font, runs.map((r) => (caps && !realCaps ? r.text.toUpperCase() : r.text)).join(''));
   if (miss.length) return `characters ${miss.slice(0, 4).join(' ')} are not in the font`;
   const fontName = pw.font(font.ref);
   const tracking = (style.letterSpacing / 1000) * style.fontSize;
@@ -485,8 +579,22 @@ async function writeText(
     for (const r of runs) {
       for (const p of pieces(r)) {
         if (!p.t) continue;
-        pw.push(`1 0 ${fmt(slant)} -1 ${fmt(p.x)} ${fmt(r.y)} Tm`);
-        pw.push(`${font.encodeText(p.t).toString()} Tj`);
+        if (caps && !realCaps) {
+          // synthesised small caps, as Chromium draws them: lowercase (or every letter) as capitals at 70%
+          let x = p.x;
+          for (const seg of capsSegments(p.t, caps)) {
+            const size = seg.small ? style.fontSize * SMALL_CAPS_SCALE : style.fontSize;
+            const sh = shapedText(font, seg.t, size);
+            pw.push(`${fontName} ${fmt(size)} Tf`);
+            pw.push(`1 0 ${fmt(slant)} -1 ${fmt(x)} ${fmt(r.y)} Tm`);
+            pw.push(sh.op);
+            x += sh.width + tracking * sh.glyphs;
+          }
+          pw.push(`${fontName} ${fmt(style.fontSize)} Tf`);
+        } else {
+          pw.push(`1 0 ${fmt(slant)} -1 ${fmt(p.x)} ${fmt(r.y)} Tm`);
+          pw.push(shapedText(font, p.t, style.fontSize).op);
+        }
       }
     }
     pw.push('ET');

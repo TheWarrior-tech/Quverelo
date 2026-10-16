@@ -402,8 +402,18 @@ test.describe('layout: tables, wrap, grid, preflight', () => {
     const doc = await PDFDocument.load(pdf);
     expect(doc.getPageCount()).toBe(1);
     // two weights of Inter embedded (regular + bold run), no fallback images for text
-    const fonts = pdf.toString('latin1').match(/\/FontName \/[A-Z]{6}\+[A-Za-z-]+/g) ?? [];
-    expect(new Set(fonts).size).toBeGreaterThanOrEqual(2);
-    expect(pdf.toString('latin1')).not.toMatch(/\/Subtype \/Image/);
+    const raw = Buffer.from(await doc.save({ useObjectStreams: false })).toString('latin1');
+    // pdf-lib names each subset <PostScript name>-<random tag>
+    const fonts = [...raw.matchAll(/\/FontName \/([A-Za-z0-9-]+)-\d+/g)].map((m) => m[1]);
+    expect(new Set(fonts)).toEqual(new Set(['Inter-Regular', 'Inter-Bold']));
+    expect(raw).toContain('/FontFile2');
+    expect(raw).not.toMatch(/\/Subtype \/Image/);
+    // shaped text: kerning written as TJ adjustments
+    const { inflateSync } = await import('node:zlib');
+    const { PDFName, PDFRawStream } = await import('pdf-lib');
+    const c = doc.getPages()[0].node.lookup(PDFName.of('Contents')) as InstanceType<typeof PDFRawStream>;
+    const ops = inflateSync(Buffer.from(c.contents)).toString('latin1');
+    expect(ops).toMatch(/BT\n\/F\d+ [\d.]+ Tf/);
+    expect(ops).toMatch(/\] TJ|> Tj/);
   });
 });
