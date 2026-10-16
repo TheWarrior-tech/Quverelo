@@ -26,6 +26,7 @@ import { nodeToPath } from './document';
 import { gradientGeometry } from './gradient';
 import { expandNode, isNonZeroFill } from './vectorExpand';
 import { layoutTextOnPath, textPathCommands } from './textPath';
+import { withWordCache } from './pdfTextCache';
 import { lineHeightPx, type FlowResult, type MeasureFn } from './textflow';
 import { baselineOffset, imageFrameContentRect } from './svg';
 import { firstFamily } from './pdfFonts';
@@ -483,7 +484,7 @@ class Writer {
     const fk = Object.keys(features).length ? `${face.key}|${JSON.stringify(features)}` : face.key;
     let f = this.fontCache.get(fk);
     if (!f) {
-      f = this.pdf.embedFont(face.bytes, Object.keys(features).length ? { subset: true, features } : { subset: true }).catch(() => null);
+      f = this.pdf.embedFont(face.bytes, Object.keys(features).length ? { subset: true, features } : { subset: true }).then(withWordCache).catch(() => null);
       this.fontCache.set(fk, f);
     }
     return f;

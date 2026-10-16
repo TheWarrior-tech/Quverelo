@@ -5,6 +5,7 @@
   "lockSaveDirectory": false,
   "allowedSaveDirectories": [],
   "handInDirectory": "\\\\fileserver\\handin$",
+  "handInIncludePreview": true,
   "disableUpdateCheck": true,
   "updateFeedUrl": null,
   "autoDownload": null,

@@ -3,7 +3,7 @@ import { packQuvrelo, unpackQuvrelo } from '../../core/serialization';
 import { createDocument, findNode, make, structuredCloneSafe } from '../../core/document';
 import { addNodes, updateNode } from '../../core/commands';
 import { templateById } from '../../core/templates';
-import type { QuvreloDocument, ImageFrameNode, SceneNode, StudioKind } from '../../core/types';
+import type { Adjustment, QuvreloDocument, ImageFrameNode, SceneNode, StudioKind } from '../../core/types';
 import type { FileFilter } from '../../shared/api';
 import { canvasToBytes, createCanvas, ctx2d, DNG_MIME } from '../engine/assets';
 import { exportImagePdf, exportPdf, exportRaster, exportSelectionRaster, exportSvg, exportSvgWithImages, renderPageCanvas } from '../engine/export';
@@ -14,6 +14,7 @@ import { DEFAULT_COLOUR, docColour, type CmykProfileId } from '../../core/colour
 import { editor } from './editor';
 import { openDialog, toast } from './bus';
 import { markStep } from './onboarding';
+import { handInBundle, interopKind, openInterop, openableInteropExtensions, placeInterop } from './interop';
 
 const QUVRELO_FILTER: FileFilter[] = [{ name: 'Quvrelo Document', extensions: ['quvrelo'] }];
 /** DNG raw files are developed on import (core/raw/dng.ts); proprietary raw formats are not read (see docs/RAW.md). */
@@ -139,6 +140,9 @@ export async function openFileData(data: Uint8Array, name: string, path: string 
   if (/\.(quvrelo|easel)$/i.test(name)) {
     await loadQuvreloBytes(data, path);
     if (path) void window.quvrelo.addRecent(path);
+  } else if (interopKind(name)) {
+    await openInterop(data, name, path); // PSD, AI/PDF, IDML, assignment packs, hand-ins (shows its own toast)
+    return;
   } else {
     await openImageAsDocument(data, name, path);
   }
@@ -169,10 +173,11 @@ export async function openDialogAndLoad(): Promise<void> {
   const files = await window.quvrelo.openFileDialog({
     title: 'Open',
     filters: [
-      { name: 'All supported', extensions: ['quvrelo', 'easel', ...IMAGE_EXT, 'svg'] },
+      { name: 'All supported', extensions: ['quvrelo', 'easel', ...IMAGE_EXT, 'svg', ...openableInteropExtensions()] },
       ...QUVRELO_FILTER,
       { name: 'Images', extensions: IMAGE_EXT },
       { name: 'SVG', extensions: ['svg'] },
+      ...interopFilters(),
     ],
   });
   if (!files.length) return;
@@ -181,6 +186,19 @@ export async function openDialogAndLoad(): Promise<void> {
   } catch (e) {
     toast(`Could not open ${files[0].name}: ${(e as Error).message}`, 'error');
   }
+}
+
+/** Open-dialog filters for the formats in interop.ts the policy allows. */
+function interopFilters(): FileFilter[] {
+  const ext = new Set(openableInteropExtensions());
+  const f: FileFilter[] = [
+    { name: 'Photoshop', extensions: ['psd', 'psb'] },
+    { name: 'Illustrator / PDF', extensions: ['ai', 'pdf'] },
+    { name: 'InDesign IDML', extensions: ['idml'] },
+    { name: 'Quvrelo Assignment', extensions: ['quvrelo-assignment'] },
+    { name: 'Hand-in bundle', extensions: ['zip'] },
+  ];
+  return f.map((x) => ({ ...x, extensions: x.extensions.filter((e) => ext.has(e) || (e === 'zip' && ext.has('quvrelo-assignment'))) })).filter((x) => x.extensions.length);
 }
 
 async function thumbnail(): Promise<Uint8Array | undefined> {
@@ -232,7 +250,8 @@ export async function save(saveAs = false): Promise<boolean> {
 // Import & place
 
 async function pickImages(): Promise<{ data: Uint8Array; name: string }[]> {
-  const files = await window.quvrelo.openFileDialog({ title: 'Place image', filters: [{ name: 'Images', extensions: [...IMAGE_EXT, 'svg'] }], multi: true });
+  const extra = openableInteropExtensions().filter((e) => ['psd', 'psb', 'ai', 'pdf'].includes(e));
+  const files = await window.quvrelo.openFileDialog({ title: 'Place image', filters: [{ name: 'Images', extensions: [...IMAGE_EXT, 'svg', ...extra] }], multi: true });
   return files.map((f) => ({ data: f.data, name: f.name }));
 }
 
@@ -248,6 +267,14 @@ export async function placeImages(files?: { data: Uint8Array; name: string }[]):
   const H = doc.settings.height;
   const added: string[] = [];
   for (const f of list) {
+    if (interopKind(f.name)) {
+      try {
+        await placeInterop(f.data, f.name);
+      } catch (e) {
+        toast(`Could not place ${f.name}: ${(e as Error).message}`, 'error');
+      }
+      continue;
+    }
     if (mimeFor(f.name) === 'image/svg+xml') {
       const r = importSvg(new TextDecoder().decode(f.data));
       const withImages = await withSvgImages(editor.doc!, r.images);
@@ -282,8 +309,8 @@ export async function placeImages(files?: { data: Uint8Array; name: string }[]):
     editor.commit('Place image', (d) => addNodes({ ...d, assets: { ...d.assets, [id]: ref } }, container.id, [node]));
     added.push(node.id);
   }
-  editor.select(added);
-  if (list.some((f) => mimeFor(f.name) !== 'image/svg+xml')) markStep('place');
+  if (added.length) editor.select(added);
+  if (list.some((f) => mimeFor(f.name) !== 'image/svg+xml' && !interopKind(f.name))) markStep('place');
 }
 
 export async function importSvgFile(): Promise<void> {
@@ -352,11 +379,20 @@ export function takePdfNote(): string | null {
  * `targets` overwrites known files without asking ("Export again"); a missing
  * or disallowed target falls back to the save dialog in the main process.
  */
+function rasterNodes(doc: QuvreloDocument, pages: number[]): { assetId: string; adjustments: Adjustment[] }[] {
+  const out: { assetId: string; adjustments: Adjustment[] }[] = [];
+  const walk = (ns: SceneNode[]) => { for (const n of ns) { if (n.type === 'raster' && n.adjustments.some((a) => a.enabled)) out.push(n); else if (n.type === 'group') walk(n.children); } };
+  for (const i of pages) if (doc.pages[i]) walk(doc.pages[i].nodes);
+  return out;
+}
+
 export async function runExportFiles(req: ExportRequest, targets: (string | null)[] = []): Promise<string[] | null> {
   const doc = editor.doc;
   if (!doc) return null;
   const title = req.fileName?.trim() || doc.title || 'Untitled';
   const written: string[] = [];
+  // full-size adjustment renders of big photos run in a worker (the UI keeps painting meanwhile)
+  await editor.assets.prepareFull(rasterNodes(doc, req.pages));
   if (req.format === 'pdf') {
     let data: Uint8Array;
     lastPdfNote = null;
@@ -521,17 +557,8 @@ export async function restoreRecovery(id: string): Promise<void> {
 // Assignments
 
 export async function handIn(studentName: string): Promise<string | null> {
-  const doc = editor.doc;
-  if (!doc) return null;
-  const info = doc.assignment;
-  const className = info?.className || 'Class';
-  const stamped: QuvreloDocument = {
-    ...doc,
-    assignment: { ...(info ?? { title: doc.title, className, teacher: '', dueDate: '', instructions: '' }), studentName, submittedAt: new Date().toISOString() },
-  };
-  editor.commit('Hand in', () => stamped);
-  const data = await packCurrent();
-  const path = await window.quvrelo.handIn({ data, fileName: info?.title || doc.title, className, studentName });
+  if (!editor.doc) return null;
+  const path = await handInBundle(studentName, packCurrent);
   markStep('export');
   toast(`Handed in to ${path}`, 'success');
   return path;

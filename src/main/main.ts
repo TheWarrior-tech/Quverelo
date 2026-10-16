@@ -2,13 +2,16 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, shell, session, type MenuIte
 import { promises as fs, existsSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { pathToFileURL } from 'node:url';
 import { DEFAULT_POLICY, featureEnabled, isSavePathAllowed, parsePolicy, type Policy, type PolicyResult } from '../core/policy';
 import { APP_MENU } from '../shared/menu';
+import { safeName, stamp } from '../core/classroomNames';
 import {
   DEFAULT_SETTINGS, type AppInfo, type ExternalTemplate, type FileFilter, type OpenedFile, type RecentFile,
   type RecoveryEntry, type UpdateState, type UserSettings,
 } from '../shared/api';
 import { UpdateService } from './updates/updater';
+import { isRequestAllowed } from '../core/requestFilter';
 
 const E2E = process.env.QUVRELO_E2E === '1';
 
@@ -114,7 +117,7 @@ const updates = new UpdateService({
 const pendingOpen: string[] = [];
 
 function fileArgs(argv: string[]): string[] {
-  return argv.slice(1).filter((a) => /\.(quvrelo|easel|png|jpe?g|webp|svg)$/i.test(a) && existsSync(a));
+  return argv.slice(1).filter((a) => /\.(quvrelo|easel|quvrelo-assignment|png|jpe?g|webp|svg|psd|psb|ai|pdf|idml)$/i.test(a) && existsSync(a));
 }
 
 async function createWindow() {
@@ -398,12 +401,18 @@ function registerIpc() {
       if (r.canceled || !r.filePaths[0]) throw new Error('Hand-in cancelled');
       root = r.filePaths[0];
     }
-    const clean = (s: string) => s.replace(/[\\/:*?"<>|]+/g, '-').trim() || 'Unnamed';
-    const dir = path.join(root, clean(o.className));
+    const dir = path.join(root, safeName(o.className, 'Class'));
     await fs.mkdir(dir, { recursive: true });
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const target = path.join(dir, `${clean(o.studentName)} - ${clean(o.fileName)} - ${stamp}.quvrelo`);
-    await fs.writeFile(target, Buffer.from(o.data));
+    // Bundles (.zip) arrive already named "<Student> - <Assignment> - <time>.zip"; never overwrite an earlier hand-in.
+    let name = /\.zip$/i.test(o.fileName)
+      ? safeName(path.basename(o.fileName).replace(/\.zip$/i, ''), 'Hand-in') + '.zip'
+      : `${safeName(o.studentName, 'Student')} - ${safeName(o.fileName, 'Assignment')} - ${stamp(new Date())}.quvrelo`;
+    const ext = path.extname(name);
+    for (let i = 2; existsSync(path.join(dir, name)); i++) name = `${path.basename(name, ext).replace(/ \(\d+\)$/, '')} (${i})${ext}`;
+    const target = path.join(dir, name);
+    const tmp = target + '.quvrelo-tmp';
+    await fs.writeFile(tmp, Buffer.from(o.data));
+    await fs.rename(tmp, target);
     return target;
   });
 
@@ -474,12 +483,18 @@ if (!E2E && !app.requestSingleInstanceLock()) {
       ['clipboard-read', 'clipboard-sanitized-write', 'local-fonts'].includes(permission as string),
     );
     // Offline by design: block every remote request from the renderer.
+    // The Vite dev server (and its HMR websocket) is reachable only in unpackaged dev runs.
+    const filterEnv = { packaged: app.isPackaged, devServerUrl: process.env.VITE_DEV_SERVER_URL };
     session.defaultSession.webRequest.onBeforeRequest((details, cb) => {
-      const u = details.url;
-      const local = u.startsWith('file:') || u.startsWith('data:') || u.startsWith('blob:') || u.startsWith('devtools:') ||
-        (process.env.VITE_DEV_SERVER_URL && u.startsWith(process.env.VITE_DEV_SERVER_URL)) || u.startsWith('ws://localhost');
-      cb({ cancel: !local });
+      const allowed = isRequestAllowed(details.url, filterEnv);
+      if (!allowed && E2E) ((globalThis as { __quvreloBlocked?: string[] }).__quvreloBlocked ??= []).push(details.url);
+      cb({ cancel: !allowed });
     });
+    // Linux spell checking uses Hunspell dictionaries that Chromium would otherwise download
+    // from Google. Point it at a local folder instead (IT may place <lang>.bdic files there).
+    if (process.platform !== 'darwin' && process.platform !== 'win32') {
+      session.defaultSession.setSpellCheckerDictionaryDownloadURL(pathToFileURL(path.join(process.resourcesPath, 'dictionaries') + path.sep).href);
+    }
     registerIpc();
     buildMenu();
     await createWindow();

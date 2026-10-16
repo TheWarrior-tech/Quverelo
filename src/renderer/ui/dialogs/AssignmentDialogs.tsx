@@ -23,7 +23,7 @@ export function AssignmentDialog() {
       footerStart={a && <button className="btn danger" onClick={() => { editor.commit('Remove assignment', (d) => { const { assignment: _x, ...rest } = d; return rest as typeof d; }); closeDialog(); }}>Remove details</button>}
       footer={<><button className="btn" onClick={closeDialog}>Cancel</button><button className="btn primary" onClick={save}>Save</button></>}
     >
-      <p>Add the brief, then share this file or save it to a school template folder. Students see it here and hand in with File › Hand In.</p>
+      <p>Add the brief, then use File › Save Assignment Pack to share it with the class or a school template folder. Students open the pack, see the brief here and hand in with File › Hand In.</p>
       <div className="fgrid">
         <Field label="Assignment" htmlFor="as-title"><input id="as-title" type="text" value={info.title} onChange={set('title')} /></Field>
         <Field label="Class" htmlFor="as-class"><input id="as-class" type="text" value={info.className} onChange={set('className')} placeholder="e.g. 9B Art" /></Field>
@@ -67,7 +67,7 @@ export function HandInDialog() {
       <div className="fgrid">
         <Field label="Your name" htmlFor="hi-name"><input id="hi-name" type="text" value={name} onChange={(e) => setName(e.target.value)} /></Field>
       </div>
-      <p className="note" style={{ margin: '12px 0 0' }}>{editor.policy.handInDirectory ? 'Your work is copied to the hand-in folder set by your school.' : 'You will be asked to choose the hand-in folder.'} A timestamped copy is saved; you can keep working on your own file.</p>
+      <p className="note" style={{ margin: '12px 0 0' }}>{editor.policy.handInDirectory ? 'Your work is copied to the hand-in folder set by your school.' : 'You will be asked to choose the hand-in folder.'} A named, timestamped bundle (your work plus a PDF preview) is saved; you can keep working on your own file.</p>
     </Dialog>
   );
 }

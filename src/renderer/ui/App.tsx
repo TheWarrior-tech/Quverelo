@@ -5,7 +5,7 @@ import '../state/photoCommands';
 import '../state/photoTestHooks';
 import '../state/layoutCommands';
 import { storyFlow } from '../engine/draw';
-import { hookTitle, openPath, startAutosave } from '../state/io';
+import { hookTitle, openPath, runExport, startAutosave } from '../state/io';
 import { onToast, type Toast } from '../state/bus';
 import { startUpdates } from '../state/updates';
 import { startOnboardingWatcher } from '../state/onboarding';
@@ -172,7 +172,11 @@ export function App() {
     window.addEventListener('dragend', endDrag);
     const offOnboarding = startOnboardingWatcher();
     // test hook: lets end-to-end tests drive commands and inspect state
-    (window as unknown as { __quvrelo: unknown }).__quvrelo = { editor, runCommand, getViewport, storyFlow };
+    (window as unknown as { __quvrelo: unknown }).__quvrelo = {
+      editor, runCommand, getViewport, storyFlow,
+      // tests/bench: full-size export of every page without the dialog
+      exportForBench: (format: 'png' | 'jpg' | 'pdf') => runExport({ format, pages: editor.doc!.pages.map((_, i) => i), scale: 1, dpi: 300, quality: 0.9, transparent: false, includeBleed: false, cropMarks: false, pdfKind: 'vector' }),
+    };
     return () => {
       offMenu();
       offOpen();

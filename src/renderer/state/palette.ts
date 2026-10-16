@@ -136,6 +136,7 @@ export function commandIcon(id: string): string | undefined {
     'node.sharp': 'node-sharp', 'node.smooth': 'node-smooth', 'node.symmetric': 'node-smooth',
     'symbol.create': 'symbol', 'symbol.detach': 'symbol', 'artboard.insert': 'artboard', 'slice.add': 'slice', 'file.export-slices': 'slice',
     'text.on-path': 'text-path', 'text.off-path': 'text',
+    'file.save-assignment-pack': 'handin', 'view.scripts': 'script',
   };
   if (direct[id]) return direct[id];
   if (id === 'file.export' || id.startsWith('file.export-')) return 'export';

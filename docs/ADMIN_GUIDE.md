@@ -3,7 +3,7 @@
 Quvrelo is designed to be deployed to shared school and office computers with no per-user setup:
 
 - **No accounts, no licence keys, no sign-in.**
-- **No telemetry.** The renderer process is blocked from all network requests. The only network traffic is the update check (see [Updates](#7-updates)): it downloads a small `latest*.yml` file from the update feed and sends nothing about the user or their work. Turn it off completely with `"disableUpdateCheck": true`.
+- **No telemetry.** The renderer process is blocked from all network requests. The only network traffic is the update check (see [Updates](#7-updates)): it downloads a small `latest*.yml` file from the update feed and sends nothing about the user or their work. Turn it off completely with `"disableUpdateCheck": true`. The controls behind this, with source locations and tests, are listed in [OFFLINE.md](OFFLINE.md) for security and data-protection reviews.
 - **Updates are yours to control.** Out of the box Quvrelo updates itself from GitHub Releases. For managed fleets either point it at your own server (`updateFeedUrl`) or turn updates off and deploy new installers through your usual tooling.
 
 ## 1. Installers
@@ -79,7 +79,8 @@ Make the file read-only for standard users. Invalid keys are ignored and listed 
 | `defaultSaveDirectory` | string \| null | `null` (Documents) | Starting folder for Save, Export and Open dialogs. Supports `%USERPROFILE%`, `%USERNAME%`, `%DOCUMENTS%`, any `%ENV_VAR%`, `~` and `$USER`. |
 | `lockSaveDirectory` | boolean | `false` | When `true`, users can only save/export inside `defaultSaveDirectory`, `allowedSaveDirectories` or `handInDirectory`. Requires `defaultSaveDirectory`. |
 | `allowedSaveDirectories` | string[] | `[]` | Extra permitted folders when locked (e.g. a OneDrive folder or USB path). |
-| `handInDirectory` | string \| null | `null` | Folder used by *File ▸ Hand In*. Work is copied to `<handInDirectory>\<Class>\<Student> - <Assignment> - <timestamp>.quvrelo`. If unset, students choose a folder. |
+| `handInDirectory` | string \| null | `null` | Folder used by *File ▸ Hand In*. Each hand-in is written to `<handInDirectory>\<Class>\<Student> - <Assignment> - <YYYY-MM-DD HH.MM>.zip` (see [Classroom assignments and hand-in](#classroom-assignments-and-hand-in)). If unset, students choose a folder. |
+| `handInIncludePreview` | boolean | `true` | Hand-in bundles include a PDF preview of every page so work can be marked on any computer. `false`: the bundle holds only the work file and its manifest (smaller files on slow shares). |
 | `templateDirectories` | string[] | `[]` | Folders containing `.quvrelo` files shown as "School templates" on the welcome screen (network shares are fine; unavailable folders are skipped). |
 | `disabledFeatures` | string[] | `[]` | Features to remove from the UI. See the list below. |
 | `disableUpdateCheck` | boolean | `false` | Turns off every update check (automatic and *Help ▸ Check for Updates*, which is removed), so the app makes no network requests at all. |
@@ -96,7 +97,20 @@ Make the file read-only for standard users. Invalid keys are ignored and listed 
 | `maxUndoSteps` | number | `250` | Undo history length (10–2000) — lower it on low-memory machines. |
 
 #### Feature IDs for `disabledFeatures`
-`photo`, `vector`, `layout` (whole studios — at least one always stays enabled), `import-svg`, `import-images`, `export-png`, `export-jpg`, `export-svg`, `export-pdf`, `autosave`, `recent-files`, `external-links`, `update-check`, `local-fonts`, `assignments`.
+`photo`, `vector`, `layout` (whole studios — at least one always stays enabled), `import-svg`, `import-images`, `export-png`, `export-jpg`, `export-svg`, `export-pdf`, `autosave`, `recent-files`, `external-links`, `update-check`, `local-fonts`, `assignments`, `import-psd`, `import-ai`, `import-idml`, `export-psd`, `scripting`.
+
+Files from other apps and automation (see [INTEROP.md](INTEROP.md) and [SCRIPTING.md](SCRIPTING.md)):
+
+| ID | What disabling it removes |
+|---|---|
+| `import-psd` | Opening and placing Photoshop `.psd` / `.psb` files. |
+| `import-ai` | Opening Illustrator `.ai` files and PDFs as editable documents (both use the PDF importer). |
+| `import-idml` | Opening InDesign `.idml` files. |
+| `export-psd` | *File ▸ Export Photoshop PSD…* and the PSD entry in the Export menu. |
+| `scripting` | The Scripts panel, *View ▸ Scripts* and every script command. Scripts run in a sandbox with no file, network or clipboard access, but you may still want them off in exam rooms or for younger pupils. |
+| `assignments` | *Assignment Details*, *Save Assignment Pack*, *Hand In*, and opening assignment packs and hand-in bundles. |
+
+A disabled file type disappears from the Open dialog's filters and the menus. If such a file is opened anyway (from the command line, a file association or the recent list), Quvrelo says the administrator has turned it off instead of opening it.
 
 ### Example: secondary school
 ```json
@@ -122,6 +136,39 @@ Make the file read-only for standard users. Invalid keys are ignored and listed 
   "disableUpdateCheck": true
 }
 ```
+
+### Classroom assignments and hand-in
+
+The whole workflow is file-based and offline: no learning platform, accounts or server software is needed, only a shared folder.
+
+**Teacher: set an assignment**
+
+1. Open or create the starting document (a worksheet, a poster template, a photo to edit).
+2. *File ▸ Assignment Details…*: enter the title, class, teacher, due date and instructions. They are stored inside the document.
+3. *File ▸ Save Assignment Pack…* writes `<Class> - <Title>.quvrelo-assignment`: a zip holding `assignment.json` (the brief), `template.quvrelo` (the starting document) and a short `README.txt`. Student-specific fields (name, hand-in time) are always stripped from the pack.
+4. Share the pack however suits you: a read-only network folder, a folder listed in `templateDirectories` (it then appears on the welcome screen), your learning platform, or email.
+
+**Student: work and hand in**
+
+1. Opening the pack (double-click it; the installers register the `.quvrelo-assignment` file type) starts a **new, untitled** document from the template with the brief attached. The pack itself is never changed, so the whole class can open the same file.
+2. *File ▸ Hand In…* (also in the **▾** next to Export) asks for their name and writes one bundle, `<Student> - <Assignment> - <YYYY-MM-DD HH.MM>.zip`, into `<handInDirectory>\<Class>\`. It contains:
+   - `<Student> - <Assignment>.quvrelo`, the editable work;
+   - `<Student> - <Assignment>.pdf`, a preview of every page for marking on any computer (omitted when `"handInIncludePreview": false`, and skipped rather than blocking the hand-in if it cannot be made);
+   - `manifest.json`: student, class, assignment, teacher, due date, hand-in time, app version, page count and the SHA-256 of the work file.
+3. An earlier hand-in is never overwritten: a second one gets a new timestamp, or ` (2)`, ` (3)`… if made in the same minute. The bundle is written to a temporary file and renamed, so a dropped network connection never leaves a half-written file under the final name.
+
+**Teacher: mark**
+
+- Open the `.zip` in Quvrelo (*File ▸ Open*; the dialog has a *Hand-in bundle* filter). Quvrelo opens the work as a document and shows who handed it in and when. If the work file does not match the checksum in the manifest, it says so.
+- Or open the PDF preview from the zip in any PDF viewer.
+
+**IT: set up the folders**
+
+- Create one hand-in share and set `handInDirectory` to it, for example `"\\\\fileserver\\handin$"`. Quvrelo creates the `<Class>` subfolders as needed, using the class name from the assignment.
+- Give students **create files** (and create folders, for new class folders) but not read or modify rights on others' files, so the share works as a drop box; give teachers read access. On macOS and Linux the equivalent is a write-only (`-wx`) directory for students.
+- If you use `lockSaveDirectory`, the hand-in folder is always allowed in addition to the save folders.
+- With `handInDirectory` unset, students pick a folder each time (useful for USB sticks or a OneDrive folder synced to the teacher).
+- Turn the whole workflow off with `"disabledFeatures": ["assignments"]`.
 
 ### Deploying the policy
 - **Group Policy Preferences:** *Computer Configuration ▸ Preferences ▸ Windows Settings ▸ Files* — copy `policy.json` to `%ProgramData%\Quvrelo\policy.json`.
@@ -207,8 +254,14 @@ Recovery files are deleted when a document is saved or closed without saving. No
 - Screen-reader labels on toolbar buttons, panels and canvas controls.
 
 ## 6. Network & security summary
+Full audit evidence, with source locations and tests: [OFFLINE.md](OFFLINE.md).
+
 - Electron with `contextIsolation`, `sandbox` and no Node integration in the renderer.
-- A session-level request filter cancels all non-local requests from the UI. The update check runs in the main process in its own network session; it is the only outbound traffic and `disableUpdateCheck` removes it.
+- A Content Security Policy and a session-level request filter both cancel all non-local requests from the UI. In installed (packaged) builds that includes `localhost` and WebSockets; the development-server exception exists only in unpackaged developer runs.
+- Fonts, the subject-selection model and its WebAssembly runtime are bundled; nothing is downloaded at runtime. On Linux, spell-check dictionaries are read from `resources/dictionaries/` and never downloaded.
+- Links open in the system browser only for `http(s)` URLs and only while `external-links` is enabled.
+- Scripts run in a WebAssembly (QuickJS) sandbox with no file, network or clipboard access ([SCRIPTING.md](SCRIPTING.md)); `"disabledFeatures": ["scripting"]` removes them.
+- The update check runs in the main process; it is the only outbound traffic and `disableUpdateCheck` removes it.
 - Files are written atomically (temporary file + rename) to avoid corruption on network drives.
 - The app does not install services, drivers, scheduled tasks or browser extensions.
 
@@ -282,3 +335,9 @@ CI (`.github/workflows/build.yml`) builds on `v*` tags and uploads, for every pl
 
 **macOS signing** (needed for macOS auto-update): add repository secrets `MAC_CSC_LINK` (base64 Developer ID Application `.p12`), `MAC_CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID`. CI then signs with the hardened runtime and notarises; without them the mac build stays unsigned and those users get "Download Update" instead. **Windows signing** is optional for updates (the SHA-512 is always checked) but avoids SmartScreen warnings; once the NSIS installer is signed, electron-updater also verifies the publisher of each update.
 
+## Further reading
+
+- [OFFLINE.md](OFFLINE.md): offline operation, audit evidence for security and data-protection reviews.
+- [INTEROP.md](INTEROP.md): what Quvrelo keeps and what it changes when opening Photoshop, Illustrator/PDF and InDesign files, and the route for Affinity files.
+- [SCRIPTING.md](SCRIPTING.md): the scripting API, its sandbox and limits.
+- [BENCHMARKS.md](BENCHMARKS.md): performance on large photos and long documents, useful for sizing classroom hardware.

@@ -10,6 +10,7 @@ import { AboutDialog, GuideDialog, PreferencesDialog, ShortcutsDialog } from './
 import { AssignmentDialog, HandInDialog } from './AssignmentDialogs';
 import { SwatchDialog } from './SwatchDialog';
 import { UpdatesDialog } from './UpdatesDialog';
+import { ImportReportDialog, ScriptEditorDialog } from './ScriptDialogs';
 import { watchScrollRegions } from '../controls/Panel';
 import './dialogs.css';
 
@@ -116,7 +117,26 @@ export function Dialog({ title, children, footer, footerStart, size, wide, split
     };
     window.addEventListener('keydown', onKey, true);
     const offEdges = root ? watchScrollRegions(root, SCROLL_REGIONS) : null;
+    // WCAG 2.1.1: a scrolling region with nothing focusable inside (a guide, a shortcut list) must
+    // itself take focus so the keyboard can scroll it. Checked after layout, and again on resize.
+    const makeScrollable = () => {
+      if (!root) return;
+      for (const el of root.querySelectorAll<HTMLElement>(SCROLL_REGIONS)) {
+        const scrolls = el.scrollHeight > el.clientHeight + 1;
+        const hasFocusable = [...el.querySelectorAll<HTMLElement>(FOCUSABLE)].some((x) => x !== el && !x.hasAttribute('disabled') && x.tabIndex !== -1);
+        if (scrolls && !hasFocusable && !el.hasAttribute('tabindex')) {
+          el.tabIndex = 0;
+          el.dataset.scrollFocus = '';
+          if (!el.getAttribute('aria-label') && !el.getAttribute('role')) {
+            el.setAttribute('role', 'region');
+            el.setAttribute('aria-label', root.querySelector('h2')?.textContent ?? 'Content');
+          }
+        }
+      }
+    };
+    const raf = requestAnimationFrame(makeScrollable);
     return () => {
+      cancelAnimationFrame(raf);
       offEdges?.();
       window.removeEventListener('keydown', onKey, true);
       if (prev && document.contains(prev)) prev.focus?.();
@@ -232,6 +252,8 @@ export function DialogHost() {
     case 'color-range': return <ColorRangeDialog key={k} />;
     case 'canvas-size': return <CanvasSizeDialog key={k} />;
     case 'swatch': return <SwatchDialog key={k} kind={p.kind as 'cmyk' | 'spot' | undefined} />;
+    case 'import-report': return <ImportReportDialog key={k} name={String(p.name)} warnings={(p.warnings as string[]) ?? []} />;
+    case 'script-editor': return <ScriptEditorDialog key={k} id={p.id as string | undefined} example={p.example as string | undefined} />;
     case 'confirm': return <ConfirmDialog key={k} title={String(p.title)} message={String(p.message)} actions={p.actions as ConfirmAction[]} />;
     default: return null;
   }

@@ -160,7 +160,10 @@ export class Viewport {
     this.bindEvents();
     this.resizeObs = new ResizeObserver(() => this.resize());
     this.resizeObs.observe(host);
-    this.unsub = editor.subscribe(() => this.sync());
+    const offSync = editor.subscribe(() => this.sync());
+    // a full-size adjustment render finished in the worker: repaint with it
+    const offRendered = editor.assets.onRendered(() => this.canvas.requestRenderAll());
+    this.unsub = () => { offSync(); offRendered(); };
     this.resize();
     this.sync();
     this.zoomToFit();

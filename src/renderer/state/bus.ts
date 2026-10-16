@@ -1,7 +1,7 @@
 /** Tiny UI event bus: lets commands open dialogs and show toasts without importing React. */
 export type DialogName =
   | 'new' | 'export' | 'document-setup' | 'resize' | 'preferences' | 'shortcuts' | 'guide' | 'about'
-  | 'assignment' | 'hand-in' | 'confirm' | 'updates' | 'swatch'
+  | 'assignment' | 'hand-in' | 'confirm' | 'updates' | 'swatch' | 'import-report' | 'script-editor'
   // Photo parity (ui/dialogs/PhotoDialogs.tsx)
   | 'photo-filter' | 'feather' | 'refine-edge' | 'color-range' | 'canvas-size';
 
@@ -43,4 +43,15 @@ export function toast(message: string, kind: Toast['kind'] = 'info', extra: Pick
 export function onToast(l: ToastListener): () => void {
   toastListeners.add(l);
   return () => toastListeners.delete(l);
+}
+
+// Inspector tab requests (View › Scripts opens the Scripts tab)
+type TabListener = (id: string) => void;
+const tabListeners = new Set<TabListener>();
+export function showInspectorTab(id: string): void {
+  for (const l of tabListeners) l(id);
+}
+export function onInspectorTab(l: TabListener): () => void {
+  tabListeners.add(l);
+  return () => tabListeners.delete(l);
 }

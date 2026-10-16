@@ -8,6 +8,8 @@ import { HistogramPanel } from './HistogramPanel';
 import { SlicesPanel } from './SlicesPanel';
 import { PreflightPanel, usePreflight } from './PreflightPanel';
 import { PanelTabs, loadTab, saveTab, useShowTab, type Tab } from './PanelTabs';
+import { ScriptsPanel } from './ScriptsPanel';
+import { onInspectorTab } from '../../state/bus';
 
 const KEY = 'quvrelo.inspectorTab.v3';
 
@@ -29,6 +31,7 @@ export function Panels() {
     ...(studio === 'layout' ? [{ id: 'preflight', label: 'Preflight', badge: preflightErrors || undefined, render: () => <PreflightPanel /> }] : []),
     ...(studio === 'vector' ? [{ id: 'export', label: 'Export', render: () => <SlicesPanel /> }] : []),
     { id: 'history', label: 'History', render: () => <HistoryPanel /> },
+    ...(ed.feature('scripting') ? [{ id: 'scripts', label: 'Scripts', render: () => <ScriptsPanel /> }] : []),
   ];
   const fallback = studio === 'photo' ? 'adjust' : 'properties';
   const [active, setActive] = useState(() => loadTab(KEY, studio, fallback));
@@ -43,6 +46,10 @@ export function Panels() {
     setActive(id);
     saveTab(KEY, studio, id);
   };
+  useEffect(() => onInspectorTab((id) => {
+    setActive(id);
+    saveTab(KEY, studio, id);
+  }), [studio]);
   return (
     <aside className="panels inspector" aria-label="Inspector" data-group="inspector">
       <div className="panel-head">

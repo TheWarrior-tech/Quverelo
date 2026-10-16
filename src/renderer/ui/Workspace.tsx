@@ -120,11 +120,23 @@ function DocIdentity() {
  * "command surfaces as inline controls"): a quiet field-like button reading
  * "Search commands" with its Ctrl K keycaps. Collapses to an icon below 1280px.
  */
+const SEARCH_COLLAPSED = '(max-width: 1279px)'; // keep in step with shell.css
+
 function CommandSearch() {
   const accel = accelFor('help.command-palette') ?? 'CmdOrCtrl+K';
   const t = tip('Search commands', 'help.command-palette');
+  // Full width: the visible label is the accessible name (an aria-label would differ from the
+  // visible "Search commands Ctrl K" and fail label-in-name). Collapsed to an icon, the label is
+  // display:none, so the button needs its own aria-label.
+  const [collapsed, setCollapsed] = useState(() => window.matchMedia(SEARCH_COLLAPSED).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(SEARCH_COLLAPSED);
+    const on = () => setCollapsed(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
   return (
-    <button type="button" className="topbar-search" aria-label="Search commands" aria-haspopup="dialog" aria-keyshortcuts={t['aria-keyshortcuts']} data-tip={t['data-tip']} data-keys={t['data-keys']} onClick={() => openPalette()}>
+    <button type="button" className="topbar-search" aria-label={collapsed ? 'Search commands' : undefined} aria-haspopup="dialog" aria-keyshortcuts={t['aria-keyshortcuts']} data-tip={t['data-tip']} data-keys={t['data-keys']} onClick={() => openPalette()}>
       <Icon name="search" />
       <span className="topbar-search-label">Search commands</span>
       <span className="topbar-search-keys" aria-hidden="true"><Keys combo={accel} /></span>
@@ -198,6 +210,10 @@ function ExportSplit() {
       { heading: 'Format' },
       ...formats.map((f) => ({ id: `export-${f}`, label: `${FORMAT_NAMES[f]}…`, keys: shortcutFor(`file.export-${f}`), run: () => void runCommand(`file.export-${f}`) })),
     );
+  }
+  if (ed.feature('export-psd')) {
+    if (!formats.length) items.push({ heading: 'Format' });
+    items.push({ id: 'export-psd', label: 'Photoshop PSD…', detail: 'Layers kept', run: () => void runCommand('file.export-psd') });
   }
   if (assignments) {
     if (items.length) items.push('-');

@@ -60,7 +60,7 @@ test.describe('Welcome and first run', () => {
     await L.app.close();
 
     L = await launch({ QUVRELO_USER_DATA: userData });
-    await expect(L.page.locator('[data-step="create"]')).toHaveAttribute('aria-label', 'Create a document, done');
+    await expect(L.page.locator('[data-step="create"]')).toHaveAccessibleName('Create a document, done');
     await expect(L.page.locator('.cl-count')).toHaveText('1/5');
     await L.page.getByTestId('checklist-dismiss').click();
     await expect(L.page.getByTestId('checklist')).toHaveCount(0);
@@ -297,7 +297,7 @@ test.describe('Export ▾', () => {
     await page.click('[data-template="social"]');
     await page.getByTestId('export-menu').click();
     const items = await page.locator('[role="menu"] [data-menu-item]').evaluateAll((els) => els.map((e) => e.getAttribute('data-menu-item')));
-    expect(items).toEqual(['export', 'export-again', 'export-png', 'export-jpg', 'export-svg', 'export-pdf', 'hand-in']);
+    expect(items).toEqual(['export', 'export-again', 'export-png', 'export-jpg', 'export-svg', 'export-pdf', 'export-psd', 'hand-in']);
     await page.locator('[data-menu-item="export"]').click();
     await expect(page.locator('[data-format="png"]')).toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('Escape');

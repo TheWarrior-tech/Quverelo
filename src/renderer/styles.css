@@ -231,6 +231,11 @@ textarea:focus-visible {
   overflow: hidden;
   clip: rect(0 0 0 0);
 }
+/* screen-reader-only text that stays inline, so it joins the accessible name without a stray space */
+.sr-inline {
+  font-size: 0;
+  line-height: 0;
+}
 
 svg.icon {
   width: 20px;
@@ -1505,6 +1510,9 @@ kbd {
   white-space: nowrap;
   font-size: 12px;
   color: var(--c-text-3);
+}
+.cmdk-row.active .cmdk-meta {
+  color: var(--c-text-2); /* --c-text-3 is below 4.5:1 on the press tone (axe audit) */
 }
 .cmdk-row.disabled .cmdk-label,
 .cmdk-row.disabled .cmdk-icon {
