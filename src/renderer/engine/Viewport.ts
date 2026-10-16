@@ -3,6 +3,7 @@
  * the shared document model, plus an overlay canvas for guides, selections and
  * tool feedback. All edits go back through the Editor as undoable commits.
  */
+import { reparentToArtboards } from '../../core/artboards';
 import { ActiveSelection, Canvas, Point, type FabricObject, type TPointerEventInfo } from 'fabric';
 import { hairline, sceneLine } from './hairline';
 import { decompose, multiply, scale as scaleM, type Matrix, type Rect } from '../../core/geometry';
@@ -269,10 +270,15 @@ export class Viewport {
       c.pasteboard = getComputedStyle(document.documentElement).getPropertyValue('--pasteboard').trim() || '#0d0e0f';
       const page = doc.pages.find((p) => p.id === container.id);
       const master = page?.masterId ? doc.masters.find((m) => m.id === page.masterId) : null;
-      const desired: { node: SceneNode; master: boolean }[] = [
-        ...(master && page ? masterItemsFor(doc, page).map((n) => ({ node: n, master: true })) : []),
-        ...container.nodes.map((n) => ({ node: n, master: false })),
-      ];
+      type Desired = { node: SceneNode; master: boolean; shell?: boolean; parent?: Extract<SceneNode, { type: 'group' }> };
+      const desired: Desired[] = [...(master && page ? masterItemsFor(doc, page).map((n) => ({ node: n, master: true })) : [])];
+      for (const n of container.nodes) {
+        // artboards: the board, then each object on it as its own canvas object
+        if (n.type === 'group' && n.artboard && page) {
+          desired.push({ node: n, master: false, shell: true });
+          for (const ch of n.children) desired.push({ node: ch, master: false, parent: n });
+        } else desired.push({ node: n, master: false });
+      }
       const keep = new Set<Id>();
       const ordered: NodeObject[] = [];
       const activeObj = c.getActiveObject();
@@ -288,7 +294,7 @@ export class Viewport {
           this.syncingSelection = false;
         }
       }
-      for (const { node, master: isM } of desired) {
+      for (const { node, master: isM, shell, parent } of desired) {
         keep.add(node.id);
         let obj = this.objects.get(node.id);
         if (obj && obj.isMaster !== isM) {
@@ -296,13 +302,24 @@ export class Viewport {
           this.objects.delete(node.id);
           obj = undefined;
         }
+        const offset = parent ? { x: parent.x, y: parent.y } : { x: 0, y: 0 };
+        const clip = parent?.artboard ? { x: parent.x - parent.artboard.w / 2, y: parent.y - parent.artboard.h / 2, w: parent.artboard.w, h: parent.artboard.h } : null;
+        const moved = !!obj && (obj.offset.x !== offset.x || obj.offset.y !== offset.y || obj.parentId !== (parent?.id ?? null));
         if (!obj) {
           obj = new NodeObject(node, this.env, isM);
+          obj.shell = !!shell;
+          obj.parentId = parent?.id ?? null;
+          obj.clip = clip;
+          obj.applyNode(node, offset);
           this.applyToolLocks(obj);
           this.objects.set(node.id, obj);
           c.add(obj);
-        } else if (obj.node !== node || containerChanged) {
-          obj.applyNode(node);
+        } else if (obj.node !== node || containerChanged || moved || obj.shell !== !!shell) {
+          obj.shell = !!shell;
+          obj.parentId = parent?.id ?? null;
+          obj.clip = clip;
+          obj.applyNode(node, offset);
+          this.applyToolLocks(obj);
         }
         ordered.push(obj);
       }
@@ -389,7 +406,10 @@ export class Viewport {
     c.on('selection:updated', onSel);
     c.on('selection:cleared', onSel);
     c.on('object:modified', (e) => this.commitTransforms(e.target as FabricObject));
-    c.on('object:moving', (e) => this.snapMoving(e.target as FabricObject, e.e as MouseEvent));
+    c.on('object:moving', (e) => {
+      this.snapMoving(e.target as FabricObject, e.e as MouseEvent);
+      this.dragArtboardContent(e.target as FabricObject);
+    });
     c.on('mouse:up', () => {
       if (this.snapLines.length) {
         this.snapLines = [];
@@ -513,8 +533,11 @@ export class Viewport {
     // node origin sits at -off in the object's local frame
     const ox = m[0] * -off.x + m[2] * -off.y + m[4];
     const oy = m[1] * -off.x + m[3] * -off.y + m[5];
-    let next: SceneNode = { ...node, ...t, x: ox, y: oy } as SceneNode;
-    if (RESIZE_TYPES.has(node.type) && 'w' in next) {
+    let next: SceneNode = { ...node, ...t, x: ox - obj.offset.x, y: oy - obj.offset.y } as SceneNode;
+    if (next.type === 'group' && next.artboard) {
+      // boards resize; their content is never stretched
+      next = { ...next, artboard: { ...next.artboard, w: Math.max(1, next.artboard.w * Math.abs(next.scaleX)), h: Math.max(1, next.artboard.h * Math.abs(next.scaleY)) }, scaleX: 1, scaleY: 1, flipX: false, flipY: false, rotation: 0 };
+    } else if (RESIZE_TYPES.has(node.type) && 'w' in next) {
       const sx = Math.abs(next.scaleX);
       const sy = Math.abs(next.scaleY);
       next = { ...next, w: Math.max(1, (next as { w: number }).w * sx), h: Math.max(1, (next as { h: number }).h * sy), scaleX: 1, scaleY: 1 } as SceneNode;
@@ -533,6 +556,25 @@ export class Viewport {
   }
 
   private committing = false;
+
+  /** While an artboard is dragged, the objects on it follow (they are separate canvas objects). */
+  private dragArtboardContent(target: FabricObject): void {
+    const boards = (target instanceof ActiveSelection ? target.getObjects() : [target]).filter((o): o is NodeObject => o instanceof NodeObject && o.shell);
+    for (const b of boards) {
+      const node = b.node as Extract<SceneNode, { type: 'group' }>;
+      const m = b.calcTransformMatrix();
+      const dx = m[4] - node.x;
+      const dy = m[5] - node.y;
+      const clip = node.artboard ? { x: m[4] - node.artboard.w / 2, y: m[5] - node.artboard.h / 2, w: node.artboard.w, h: node.artboard.h } : null;
+      for (const o of this.objects.values()) {
+        if (o.parentId !== node.id) continue;
+        o.set({ left: (o.left ?? 0) - (o.offset.x - node.x) + dx - 0, top: (o.top ?? 0) - (o.offset.y - node.y) + dy });
+        o.offset = { x: node.x + dx, y: node.y + dy };
+        o.clip = clip;
+        o.setCoords();
+      }
+    }
+  }
 
   private commitTransforms(target: FabricObject): void {
     if (this.committing) return;
@@ -555,9 +597,13 @@ export class Viewport {
       this.canvas.discardActiveObject();
       this.syncingSelection = false;
     }
-    this.editor.commit(multi ? 'Transform objects' : 'Transform', (doc) =>
-      updateNodes(doc, [...updates.keys()], (n) => updates.get(n.id) ?? n),
-    );
+    const pageId = this.editor.activeContainer?.id;
+    const vector = this.editor.ui.studio === 'vector';
+    this.editor.commit(multi ? 'Transform objects' : 'Transform', (doc) => {
+      const moved = updateNodes(doc, [...updates.keys()], (n) => updates.get(n.id) ?? n);
+      // objects dropped onto / dragged off an artboard change board (Vector)
+      return vector && pageId && doc.pages.some((p) => p.id === pageId) ? reparentToArtboards(moved, [...updates.keys()], pageId) : moved;
+    });
     this.syncSelectionFromEditor();
     this.canvas.requestRenderAll();
   }
@@ -625,7 +671,7 @@ export class Viewport {
     const c = this.canvas;
     const isMove = id === 'move';
     c.selection = isMove;
-    c.skipTargetFind = !(isMove || id === 'node' || id === 'textframe' || id === 'text' || id === 'imageframe');
+    c.skipTargetFind = !(isMove || id === 'node' || id === 'textframe' || id === 'text' || id === 'imageframe' || id === 'gradient' || id === 'artboard');
     c.defaultCursor = this.tool.cursor ?? 'default';
     c.hoverCursor = isMove ? 'move' : this.tool.cursor ?? 'default';
     for (const o of this.objects.values()) this.applyToolLocks(o);

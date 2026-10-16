@@ -17,7 +17,7 @@ describe('tool rail groups', () => {
       // photo parity: selection and retouch tools
       'polygon-lasso', 'magic-wand', 'spot-heal', 'heal', 'clone', 'dodge', 'burn', 'smudge',
     ]));
-    expect(new Set(studioTools('vector'))).toEqual(new Set(['move', 'node', 'pen', 'pencil', 'rect', 'ellipse', 'polygon', 'star', 'line', 'text', 'eyedropper', 'hand', 'zoom']));
+    expect(new Set(studioTools('vector'))).toEqual(new Set(['move', 'node', 'artboard', 'pen', 'pencil', 'rect', 'rrect', 'ellipse', 'polygon', 'star', 'line', 'arrow', 'text', 'gradient', 'eyedropper', 'hand', 'zoom']));
     expect(new Set(studioTools('layout'))).toEqual(new Set(['move', 'node', 'textframe', 'imageframe', 'text', 'rect', 'ellipse', 'line', 'eyedropper', 'hand', 'zoom']));
   });
 
@@ -44,7 +44,8 @@ describe('tool rail groups', () => {
     expect(groupOf('vector', 'star')?.id).toBe('vector-shapes');
     expect(groupOf('layout', 'ellipse')?.id).toBe('layout-shapes');
     expect(groupOf('vector', 'move')).toBeNull();
-    expect(STUDIO_RAIL.vector.filter(isGroup).map((g) => g.id)).toEqual(['vector-pen', 'vector-shapes']);
+    expect(STUDIO_RAIL.vector.filter(isGroup).map((g) => g.id)).toEqual(['vector-pen', 'vector-shapes', 'vector-lines']);
+    expect(groupOf('vector', 'arrow')?.id).toBe('vector-lines');
     // photo parity rail groups: Lasso (L), Smart selection (W), Healing (J), Dodge and burn (O)
     expect(STUDIO_RAIL.photo.filter(isGroup).map((g) => g.id)).toEqual(['photo-marquee', 'photo-lasso', 'photo-smart-select', 'photo-heal', 'photo-tone', 'photo-shapes']);
     expect(groupOf('photo', 'polygon-lasso')?.id).toBe('photo-lasso');
@@ -79,7 +80,7 @@ describe('tool rail groups', () => {
     expect(cycleTool(g, 'move', {})).toBe('rect');
     expect(cycleTool(g, 'move', { 'vector-shapes': 'polygon' })).toBe('polygon');
     // inside: step and wrap, both directions
-    expect(cycleTool(g, 'rect', {})).toBe('ellipse');
+    expect(cycleTool(g, 'rect', {})).toBe('rrect');
     expect(cycleTool(g, 'star', {})).toBe('rect');
     expect(cycleTool(g, 'rect', {}, -1)).toBe('star');
     const m = groupOf('photo', 'marquee-rect')!;

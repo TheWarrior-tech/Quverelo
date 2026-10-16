@@ -9,6 +9,7 @@ const api: QuvreloApi = {
   openFileDialog: (o) => ipcRenderer.invoke('file:open-dialog', o),
   readFile: (p) => ipcRenderer.invoke('file:read', p),
   saveFile: (o) => ipcRenderer.invoke('file:save', o),
+  saveFilesToFolder: (o) => ipcRenderer.invoke('file:save-folder', o),
   getRecent: () => ipcRenderer.invoke('recent:get'),
   addRecent: (p) => ipcRenderer.invoke('recent:add', p),
   clearRecent: () => ipcRenderer.invoke('recent:clear'),

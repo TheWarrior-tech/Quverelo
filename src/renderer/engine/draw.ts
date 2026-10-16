@@ -14,6 +14,9 @@ import { familyFor } from './otFonts';
 import { composeTransform as _ct, multiply as _mul } from '../../core/geometry';
 import { baselineOffset, imageFrameContentRect } from '../../core/svg';
 import { pathToString } from '../../core/path';
+import { gradientGeometry } from '../../core/gradient';
+import { expandNode, isNonZeroFill, needsExpansion } from '../../core/vectorExpand';
+import { layoutTextOnPath, textPathCommands, glyphBounds } from '../../core/textPath';
 import type { QuvreloDocument, Id, Paint, PathCommand, SceneNode, Story, Stroke, TextStyle } from '../../core/types';
 import type { AssetStore } from './assets';
 import { drawAdjustmentLayer, drawLayered, drawNodeList, needsLayer } from './compose';
@@ -225,23 +228,14 @@ function makeFillStyle(ctx: CanvasRenderingContext2D, p: Paint, box: { x: number
       return null;
     case 'solid':
       return p.color;
-    case 'linear': {
-      const a = (p.angle * Math.PI) / 180;
-      const cx = box.x + box.w / 2;
-      const cy = box.y + box.h / 2;
-      const dx = (Math.cos(a) * box.w) / 2;
-      const dy = (Math.sin(a) * box.h) / 2;
-      const g = ctx.createLinearGradient(cx - dx, cy - dy, cx + dx, cy + dy);
-      for (const s of p.stops) g.addColorStop(Math.min(1, Math.max(0, s.offset)), s.color);
-      return g;
-    }
-    case 'radial': {
-      const cx = box.x + box.w / 2;
-      const cy = box.y + box.h / 2;
-      const r = Math.max(box.w, box.h) / 2;
-      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-      for (const s of p.stops) g.addColorStop(Math.min(1, Math.max(0, s.offset)), s.color);
-      return g;
+    default: {
+      const g = gradientGeometry(p, box);
+      let grad: CanvasGradient;
+      if (g.type === 'linear') grad = ctx.createLinearGradient(g.x1, g.y1, g.x2, g.y2);
+      else if (g.type === 'radial') grad = ctx.createRadialGradient(g.fx, g.fy, 0, g.cx, g.cy, g.r);
+      else grad = ctx.createConicGradient((g.angle * Math.PI) / 180, g.cx, g.cy);
+      for (const s of p.stops) grad.addColorStop(Math.min(1, Math.max(0, s.offset)), s.color);
+      return grad;
     }
   }
 }
@@ -254,7 +248,9 @@ function applyStroke(ctx: CanvasRenderingContext2D, s: Stroke, box: { x: number;
   ctx.lineWidth = s.width;
   ctx.lineCap = s.cap;
   ctx.lineJoin = s.join;
+  ctx.miterLimit = s.miter ?? 10;
   ctx.setLineDash(s.dash);
+  ctx.lineDashOffset = s.dashOffset ?? 0;
   return true;
 }
 
@@ -299,6 +295,11 @@ export function drawNodeTransformed(ctx: CanvasRenderingContext2D, n: SceneNode,
 
 /** Draw a node's content in its local space (transform already applied by the caller). */
 export function drawNodeContent(ctx: CanvasRenderingContext2D, n: SceneNode, env: DrawEnv): void {
+  if (needsExpansion(n)) {
+    drawNodeContent(ctx, expandNode(n), env);
+    if (env.editor && n.type === 'group' && n.artboard) drawArtboardLabel(ctx, n, env);
+    return;
+  }
   if (env.hiddenNodeId === n.id && (n.type === 'text' || n.type === 'textframe') && !env.richEdit) {
     if (n.type === 'textframe') drawFrameBox(ctx, n, env);
     return;
@@ -325,13 +326,13 @@ export function drawNodeContent(ctx: CanvasRenderingContext2D, n: SceneNode, env
       const fill = makeFillStyle(ctx, n.fill, b);
       if (fill && (n.type !== 'path' || n.closed || n.fill.type !== 'none')) {
         ctx.fillStyle = fill;
-        ctx.fill(p, 'evenodd');
+        ctx.fill(p, isNonZeroFill(n) ? 'nonzero' : 'evenodd');
       }
       if (applyStroke(ctx, n.stroke, b)) ctx.stroke(p);
       break;
     }
     case 'text':
-      drawArtisticText(ctx, n);
+      drawArtisticText(ctx, n, env);
       break;
     case 'textframe':
       drawTextFrame(ctx, n, env);
@@ -417,7 +418,58 @@ function drawLineText(ctx: CanvasRenderingContext2D, text: string, x: number, y:
   else ctx.fillText(text, x, y);
 }
 
-function drawArtisticText(ctx: CanvasRenderingContext2D, n: Extract<SceneNode, { type: 'text' }>) {
+function drawArtboardLabel(ctx: CanvasRenderingContext2D, n: Extract<SceneNode, { type: 'group' }>, env: DrawEnv) {
+  const a = n.artboard!;
+  const z = Math.max(0.01, env.zoom);
+  ctx.save();
+  ctx.font = `500 ${11 / z}px Inter, sans-serif`;
+  ctx.textBaseline = 'bottom';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(128,134,146,0.95)';
+  ctx.fillText(n.name, -a.w / 2, -a.h / 2 - 4 / z);
+  ctx.restore();
+}
+
+/** Glyph layout of a text-on-path node (shared by drawing and bounds). */
+export function textOnPathLayout(n: Extract<SceneNode, { type: 'text' }>) {
+  const s = n.style;
+  const tracking = (s.letterSpacing / 1000) * s.fontSize;
+  return layoutTextOnPath(n.text, n.onPath!.d, n.onPath!.start, (ch) => measureText(ch, s) + tracking, n.onPath!.flip);
+}
+
+function drawTextOnPath(ctx: CanvasRenderingContext2D, n: Extract<SceneNode, { type: 'text' }>, env: DrawEnv) {
+  const s = n.style;
+  const tp = n.onPath!;
+  const box = pathBox(tp.d);
+  if (tp.showPath && applyStroke(ctx, n.stroke, box)) ctx.stroke(toPath2D(textPathCommands(tp.d)));
+  else if (env.editor) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(80,140,255,0.45)';
+    ctx.lineWidth = 1 / Math.max(0.01, env.zoom);
+    ctx.setLineDash([4 / env.zoom, 3 / env.zoom]);
+    ctx.stroke(toPath2D(tp.d));
+    ctx.restore();
+  }
+  const { glyphs } = textOnPathLayout(n);
+  setTextCtx(ctx, s);
+  (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = '0px';
+  const fill = makeFillStyle(ctx, s.fill, box);
+  const stroke = !tp.showPath && applyStroke(ctx, n.stroke, box);
+  for (const g of glyphs) {
+    ctx.save();
+    ctx.translate(g.x, g.y);
+    ctx.rotate(g.angle);
+    if (stroke) ctx.strokeText(g.ch, 0, 0);
+    if (fill) {
+      ctx.fillStyle = fill;
+      ctx.fillText(g.ch, 0, 0);
+    }
+    ctx.restore();
+  }
+}
+
+function drawArtisticText(ctx: CanvasRenderingContext2D, n: Extract<SceneNode, { type: 'text' }>, env?: DrawEnv) {
+  if (n.onPath && env) return drawTextOnPath(ctx, n, env);
   const s = n.style;
   const size = artisticTextSize(n.text, s);
   const lh = lineHeightPx(s);
@@ -652,6 +704,19 @@ export function drawPage(ctx: CanvasRenderingContext2D, doc: QuvreloDocument, pa
 /** Local bounds using real font metrics (renderer-side counterpart of nodeLocalBounds). */
 export function renderLocalBounds(n: SceneNode): { x: number; y: number; w: number; h: number } {
   if (n.type === 'path') return pathBox(n.d);
+  if (n.type === 'group' && n.artboard) return { x: -n.artboard.w / 2, y: -n.artboard.h / 2, w: n.artboard.w, h: n.artboard.h };
+  if (n.type === 'group' && n.compound) {
+    const d = nodeToPath(n);
+    if (d && d.length) return pathBox(d);
+  }
+  if (n.type === 'text' && n.onPath) {
+    if (typeof document === 'undefined') return pathBox(n.onPath.d);
+    const gb = glyphBounds(textOnPathLayout(n).glyphs, n.style.fontSize * 0.8, n.style.fontSize * 0.25);
+    const pb = pathBox(n.onPath.d);
+    if (!gb) return pb;
+    const x = Math.min(gb.x, pb.x), y = Math.min(gb.y, pb.y);
+    return { x, y, w: Math.max(gb.x + gb.w, pb.x + pb.w) - x, h: Math.max(gb.y + gb.h, pb.y + pb.h) - y };
+  }
   if (n.type === 'group') {
     const rs = n.children.map(renderBounds);
     if (!rs.length) return { x: 0, y: 0, w: 0, h: 0 };

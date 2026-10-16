@@ -3,6 +3,7 @@
  * powered by paper.js running headless.
  */
 import { getPaper } from './paperScope';
+import { setBooleanEngine } from './compound';
 import { parsePath, pathToString } from './path';
 import type { PathCommand } from './types';
 
@@ -61,3 +62,6 @@ export function booleanPaths(paths: PathCommand[][], op: BooleanOp): PathCommand
   const d = toCommands(acc);
   return d.length ? [d] : [];
 }
+
+// live compounds in the document model evaluate through this engine
+setBooleanEngine(booleanPaths);

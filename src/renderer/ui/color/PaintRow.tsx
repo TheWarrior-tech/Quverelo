@@ -5,7 +5,7 @@ import { ColorChipButton, type ChipTarget } from './Chips';
 import { parseCss, toHex } from './colorMath';
 
 const firstColor = (p: Paint, fallback = '#8f959e') => (p.type === 'solid' ? p.color : p.type === 'none' ? fallback : p.stops[0]?.color ?? fallback);
-const PAINT_NAME: Record<Paint['type'], string> = { none: 'None', solid: 'Solid', linear: 'Linear gradient', radial: 'Radial gradient' };
+const PAINT_NAME: Record<Paint['type'], string> = { none: 'None', solid: 'Solid', linear: 'Linear gradient', radial: 'Radial gradient', conical: 'Conical gradient' };
 
 /** Hex text field for a solid paint: commits on Enter or blur, Esc reverts. */
 function HexField({ value, label, onCommit }: { value: string; label: string; onCommit: (hex: string) => void }) {

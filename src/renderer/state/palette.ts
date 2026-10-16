@@ -94,6 +94,7 @@ const TOOL_NAMES: Record<ToolId, [string, string?]> = {
   text: ['Artistic Text', 'T'], textframe: ['Frame Text', 'X'], imageframe: ['Picture Frame', 'F'],
   'polygon-lasso': ['Polygonal Selection'], 'magic-wand': ['Magic Wand'], clone: ['Clone', 'S'], heal: ['Healing Brush'],
   'spot-heal': ['Spot Healing', 'J'], dodge: ['Dodge', 'O'], burn: ['Burn'], smudge: ['Smudge', 'R'], liquify: ['Liquify'],
+  rrect: ['Rounded Rectangle'], arrow: ['Arrow'], gradient: ['Gradient', 'G'], artboard: ['Artboard'],
 };
 
 /** Icon for a menu command; every command has one (tests/unit/paletteIcons.test.ts). */
@@ -127,6 +128,14 @@ export function commandIcon(id: string): string | undefined {
     // every command has an icon, so no row reads as a gap (critique 3 P2-5)
     'doc.clear-guides': 'close', 'view.rulers': 'layout', 'view.snapping': 'magnet', 'view.theme-dark': 'adjust', 'view.theme-light': 'adjust',
     'view.theme-contrast': 'adjust', 'doc.new-swatch': 'swatch', 'view.soft-proof': 'proof', 'view.gamut-warning': 'gamut', 'view.ui-bigger': 'plus', 'view.ui-smaller': 'minus', 'view.ui-reset': 'undo', 'view.devtools': 'settings',
+    // Vector studio
+    'arrange.space-h': 'space-h', 'arrange.space-v': 'space-v', 'arrange.distribute-centres-h': 'distribute-h', 'arrange.distribute-centres-v': 'distribute-v', 'arrange.match-width': 'distribute-h', 'arrange.match-height': 'distribute-v', 'arrange.match-size': 'rect',
+    'layer.compound-add': 'compound', 'layer.compound-subtract': 'compound', 'layer.compound-intersect': 'compound', 'layer.compound-exclude': 'compound', 'layer.compound-divide': 'compound',
+    'layer.release-compound': 'compound', 'layer.expand-compound': 'node',
+    'node.join': 'node-join', 'node.break': 'node-break', 'node.close': 'node-join', 'node.reverse': 'reverse',
+    'node.sharp': 'node-sharp', 'node.smooth': 'node-smooth', 'node.symmetric': 'node-smooth',
+    'symbol.create': 'symbol', 'symbol.detach': 'symbol', 'artboard.insert': 'artboard', 'slice.add': 'slice', 'file.export-slices': 'slice',
+    'text.on-path': 'text-path', 'text.off-path': 'text',
   };
   if (direct[id]) return direct[id];
   if (id === 'file.export' || id.startsWith('file.export-')) return 'export';

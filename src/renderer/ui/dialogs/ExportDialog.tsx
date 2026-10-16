@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { editor } from '../../state/editor';
 import { closeDialog, toast } from '../../state/bus';
 import { runExport, takePdfNote, type ExportRequest } from '../../state/io';
-import { exportSvg, pagesHaveImages, renderPageCanvas, renderSelectionCanvas, selectionBounds } from '../../engine/export';
+import { exportSvgWithImages, pagesHaveImages, renderPageCanvas, renderSelectionCanvas, selectionBounds } from '../../engine/export';
+import type { SvgImageEncoding, SvgImageMode } from '../../../core/svgImages';
 import { createCanvas, ctx2d } from '../../engine/assets';
 import { docPxPerInch, formatSize, physicalPx } from '../../../core/units';
 import { parsePageRange } from '../../../core/pageRange';
@@ -84,6 +85,8 @@ export function ExportDialog({ format: initial }: { format: Format }) {
   // a px document's own Output DPI is its native image resolution (CRITIQUE-4 P2-17)
   const [dpi, setDpi] = useState(doc.settings.unit === 'px' ? [96, 150, 300].reduce((a, b) => (Math.abs(b - doc.settings.dpi) < Math.abs(a - doc.settings.dpi) ? b : a)) : 300);
   const [quality, setQuality] = useState(90);
+  const [svgMode, setSvgMode] = useState<SvgImageMode>('embed');
+  const [svgEnc, setSvgEnc] = useState<SvgImageEncoding>('png');
   const [transparent, setTransparent] = useState(!doc.settings.background);
   // PNG bit depth: 16-bit Photo documents export 16 bits per channel by default
   const [pngDepth, setPngDepth] = useState<8 | 16>(docCol.bitDepth);
@@ -126,8 +129,9 @@ export function ExportDialog({ format: initial }: { format: Format }) {
     ? `${title}${useSel ? ' - selection' : !isPdf && multi ? ` - ${doc.pages[pages[0] ?? cur].name}` : ''}.${ext}`
     : `${title} - ${pages.length} files.${ext}`;
   const hasImages = useMemo(() => pagesHaveImages(doc, pages), [doc, pages.join(',')]);
+  const svgImages = format === 'svg' && hasImages;
   // print PDFs keep photos lossless (CMYK Flate), so there is no quality to choose
-  const showQuality = format === 'jpg' || kind === 'pdf-image' || (kind === 'pdf' && hasImages);
+  const showQuality = format === 'jpg' || kind === 'pdf-image' || (kind === 'pdf' && hasImages) || (svgImages && svgEnc === 'jpeg-opaque');
   // a PDF page is physical: show it in the document unit (mm for a px document, sized
   // by its Output DPI), pt in the tooltip (CRITIQUE-3 N1, CRITIQUE-4 P2-17)
   const pageUnit = doc.settings.unit === 'px' ? 'mm' : doc.settings.unit;
@@ -185,7 +189,10 @@ export function ExportDialog({ format: initial }: { format: Format }) {
       try {
         let bytes = 0;
         if (format === 'svg') {
-          for (const i of pages) bytes += new TextEncoder().encode(exportSvg(doc, editor.assets, i, b > 0)).length;
+          for (const i of pages) {
+            const out = exportSvgWithImages(doc, editor.assets, i, b > 0, { mode: svgMode, encoding: svgEnc, quality: quality / 100 }, title);
+            bytes += new TextEncoder().encode(out.svg).length + out.files.reduce((a, f) => a + f.data.length, 0);
+          }
         } else if (kind === 'pdf' || isX) {
           // vectors are small; photos dominate. A rough per-page figure plus embedded images.
           let img = 0;
@@ -214,7 +221,7 @@ export function ExportDialog({ format: initial }: { format: Format }) {
       live = false;
       window.clearTimeout(t);
     };
-  }, [kind, preview, pxW, pxH, quality, pages.length, b, hasImages, pngDepth, useSel]);
+  }, [kind, preview, pxW, pxH, quality, pages.length, b, hasImages, pngDepth, useSel, svgMode, svgEnc]);
 
   const rangeError = effArea === 'range' && range && !range.ok ? range.error : null;
   const canGo = !busy && !rangeError && pages.length > 0;
@@ -230,6 +237,7 @@ export function ExportDialog({ format: initial }: { format: Format }) {
         selection: useSel ? [...selIds] : undefined,
         fileName: title,
         bitDepth: format === 'png' && !useSel ? pngDepth : undefined,
+        svgImages: format === 'svg' ? { mode: svgMode, encoding: svgEnc } : undefined,
       });
       if (path) {
         toast(`Exported ${path.split(/[\\/]/).pop()}`, 'success');
@@ -363,6 +371,16 @@ export function ExportDialog({ format: initial }: { format: Format }) {
               </select>
             </Field>
           )}
+          {svgImages && (
+            <>
+              <Field label="Images" hint={svgMode === 'link' ? 'Written as files beside the SVG; keep them together' : 'One self-contained file'}>
+                <Segmented label="SVG images" value={svgMode} onChange={(v: SvgImageMode) => setSvgMode(v)} options={[{ value: 'embed', label: 'Embed' }, { value: 'link', label: 'Link' }]} />
+              </Field>
+              <Field label="Encoding" hint={svgEnc === 'jpeg-opaque' ? 'JPEG for opaque images; anything with transparency stays PNG' : 'Lossless'}>
+                <Segmented label="Image encoding" value={svgEnc} onChange={(v: SvgImageEncoding) => setSvgEnc(v)} options={[{ value: 'png', label: 'PNG' }, { value: 'jpeg-opaque', label: 'JPEG if opaque' }]} />
+              </Field>
+            </>
+          )}
           {showQuality && (
             <Field label={kind === 'pdf' ? 'Photo quality' : 'Quality'}>
               <SliderField label={kind === 'pdf' ? 'Photo quality' : 'Quality'} hideLabel className="ex-quality" min={40} max={100} unit="%" value={quality} onChange={(v) => setQuality(Math.round(v))} />
@@ -400,7 +418,12 @@ export function ExportDialog({ format: initial }: { format: Format }) {
               {isX ? `CMYK · ${PROFILES[press].short} · ${X_NAME[kind]}` : isPdf ? `${PROFILES[docCol.rgbProfile].short} · not for press` : format === 'svg' ? PROFILES[docCol.rgbProfile].short : `${PROFILES[docCol.rgbProfile].short} · ${useSel ? 8 : outDepth}-bit · profile embedded`}
             </span>
           </Field>
-          {format === 'svg' && <p className="note ex-note">Shapes and text stay editable vectors. Photos and pixel layers are embedded as PNG.</p>}
+          {format === 'svg' && (
+            <p className="note ex-note" data-testid="export-svg-note">
+              Shapes and text stay editable vectors.{' '}
+              {!svgImages ? 'There are no photos or pixel layers to include.' : `Photos and pixel layers are ${svgMode === 'link' ? 'linked' : 'embedded'} as ${svgEnc === 'png' ? 'PNG' : 'JPEG where they have no transparency, PNG otherwise'}.`}
+            </p>
+          )}
           {kind === 'pdf' && <p className="note ex-note" data-testid="export-pdf-note">Shapes and text stay sharp vectors with embedded fonts, so text can be searched and copied. Photos keep their own resolution. Text in system fonts and see-through gradients are placed as images.</p>}
           {kind === 'pdf-x4' && <p className="note ex-note" data-testid="export-pdf-note">For print shops: colours become CMYK for {PROFILES[press].name} and the press profile travels with the file. Shapes and text stay vectors, fonts are embedded, see-through objects stay live and photos stay lossless.</p>}
           {kind === 'pdf-x1a' && <p className="note ex-note" data-testid="export-pdf-note">For print shops that ask for PDF/X-1a: CMYK and spot colours only, fonts embedded. Anything see-through is flattened into an image together with what lies under it.</p>}

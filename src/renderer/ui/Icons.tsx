@@ -51,6 +51,23 @@ const paths: Record<string, ReactElement> = {
   clip: <>{P('M6.5 3.5v6.2a1.8 1.8 0 003.6 0V5.5')}{P('M4.5 13h11M7.5 16.5h5')}</>,
   filter: <>{P('M3.5 4.5h13l-5 6v5l-3 1.5v-6.5z')}</>,
   feather: P('M16.5 3.5c-6.5 0-11 4.5-11 11M5.5 14.5l-2 2M5.5 14.5h5.5M7.5 10.5h5.5M10 6.5h5'),
+  rrect: R(3.5, 4.5, 13, 11, 4),
+  arrow: P('M4 16L15.5 4.5M9.5 4.5h6v6'),
+  // a square with a ramp line and its two stops: the gradient tool
+  gradient: <>{R(3.5, 3.5, 13, 13, 1.5)}{P('M8 12l4-4')}{R(5, 12, 3, 3, 1)}{R(12, 5, 3, 3, 1)}</>,
+  // a board with crop-style corner ticks
+  artboard: <>{R(6, 6, 8, 8, 1)}{P('M6 2.5v2M14 2.5v2M6 15.5v2M14 15.5v2M2.5 6h2M15.5 6h2M2.5 14h2M15.5 14h2')}</>,
+  symbol: <>{P('M10 3l4.5 4.5L10 12 5.5 7.5z')}{P('M5.5 12.5L10 17l4.5-4.5')}</>,
+  slice: <>{R(3.5, 6.5, 10, 10, 1, DASH)}{P('M9.5 10.5l7-7M12 3.5h4.5V8')}</>,
+  'text-path': <>{P('M3.5 15c3-6.5 10-6.5 13 0')}{P('M7 4h6M10 4v5.5')}</>,
+  compound: <>{R(3.5, 3.5, 9, 9, 1.5)}<circle cx="12" cy="12" r="4.5" /></>,
+  'node-sharp': <>{P('M3.5 16l5-7.5M16.5 16l-5-7.5')}{R(8.5, 5.5, 3, 3, 1)}</>,
+  'node-smooth': <>{P('M3.5 16C3.5 9.5 6.5 8.2 8.5 8.2M16.5 16c0-6.5-3-7.8-5-7.8M3.5 8.2h2M14.5 8.2h2')}{R(8.5, 6.7, 3, 3, 1)}</>,
+  'node-break': <>{P('M3.5 16c1-5 2.8-7 4.5-7.5M16.5 16c-1-5-2.8-7-4.5-7.5')}{P('M8 4.5l4 3M12 4.5l-4 3')}</>,
+  'node-join': <>{P('M3.5 16c1-5 2.8-7 5-7.5M16.5 16c-1-5-2.8-7-5-7.5')}{R(8.5, 7, 3, 3, 1)}{P('M10 3.5v2')}</>,
+  reverse: P('M4 7.5h11.5l-3-3M16 12.5H4.5l3 3'),
+  'space-h': <>{P('M3.5 4.5v11M16.5 4.5v11')}{R(7.5, 6.5, 5, 7, 1)}</>,
+  'space-v': <>{P('M4.5 3.5h11M4.5 16.5h11')}{R(6.5, 7.5, 7, 5, 1)}</>,
 
   // pixel selection commands (dashed frame = selection, as the marquee tools)
   'select-all': <>{R(3.5, 3.5, 13, 13, 1, DASH)}{P('M7 10.2l2 2 4-4.2')}</>,

@@ -3,6 +3,7 @@
  * the active studio, tool, selection and tool options. React subscribes with
  * useSyncExternalStore; the canvas viewport subscribes directly.
  */
+import { syncSymbols } from '../../core/symbols';
 import { DocumentHistory } from '../../core/history';
 import { findNode, getContainer, referencedAssets } from '../../core/document';
 import type { QuvreloDocument, Id, Paint, PathCommand, SceneNode, StudioKind, Unit } from '../../core/types';
@@ -17,6 +18,7 @@ export type ToolId =
   | 'marquee-rect' | 'marquee-ellipse' | 'lasso' | 'object-select' | 'brush' | 'eraser' | 'fill' | 'eyedropper' | 'crop'
   | 'polygon-lasso' | 'magic-wand' | 'clone' | 'heal' | 'spot-heal' | 'dodge' | 'burn' | 'smudge' | 'liquify'
   | 'pen' | 'pencil' | 'rect' | 'ellipse' | 'polygon' | 'star' | 'line'
+  | 'rrect' | 'arrow' | 'gradient' | 'artboard'
   | 'text' | 'textframe' | 'imageframe';
 
 export interface ToolOptions {
@@ -61,6 +63,15 @@ export interface ToolOptions {
   liquifyMode: import('../../core/liquify').LiquifyMode;
   liquifySize: number;
   liquifyStrength: number;
+  /** gradient tool: which paint it edits and the type a new gradient gets */
+  gradientTarget: 'fill' | 'stroke';
+  gradientType: 'linear' | 'radial' | 'conical';
+  /** rounded rectangle tool radius */
+  roundRadius: number;
+  /** Arrange › Space: gap between objects (px) */
+  spaceGap: number;
+  /** what Align lines objects up with */
+  alignTo: 'auto' | 'selection' | 'first' | 'last' | 'page';
 }
 
 export interface UiState {
@@ -153,6 +164,11 @@ const DEFAULT_TOOL_OPTIONS: ToolOptions = {
   liquifyMode: 'push',
   liquifySize: 120,
   liquifyStrength: 0.6,
+  gradientTarget: 'fill',
+  gradientType: 'linear',
+  roundRadius: 16,
+  spaceGap: 20,
+  alignTo: 'auto',
 };
 
 /** Every tool per studio in rail order; the rail layout and flyout groups live in toolGroups.ts. */
@@ -287,7 +303,8 @@ export class Editor {
   commit(label: string, fn: (doc: QuvreloDocument) => QuvreloDocument, mergeKey?: string): boolean {
     const h = this.history;
     if (!h) return false;
-    const next = fn(h.doc);
+    // symbols: an edit inside one instance updates every instance (core/symbols)
+    const next = syncSymbols(h.doc, fn(h.doc));
     return h.push(label, next, mergeKey);
   }
 
@@ -295,7 +312,7 @@ export class Editor {
   preview(fn: (doc: QuvreloDocument) => QuvreloDocument): void {
     const h = this.history;
     if (!h) return;
-    h.replace(fn(h.doc));
+    h.replace(syncSymbols(h.doc, fn(h.doc)));
   }
 
   setUi(patch: Partial<UiState>): void {

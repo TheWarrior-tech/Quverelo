@@ -6,8 +6,9 @@ import { templateById } from '../../core/templates';
 import type { QuvreloDocument, ImageFrameNode, SceneNode, StudioKind } from '../../core/types';
 import type { FileFilter } from '../../shared/api';
 import { canvasToBytes, createCanvas, ctx2d, DNG_MIME } from '../engine/assets';
-import { exportImagePdf, exportPdf, exportRaster, exportSelectionRaster, exportSvg, renderPageCanvas } from '../engine/export';
-import { importSvg } from '../engine/svgImport';
+import { exportImagePdf, exportPdf, exportRaster, exportSelectionRaster, exportSvg, exportSvgWithImages, renderPageCanvas } from '../engine/export';
+import { dirName, svgBaseName, type SvgImageEncoding, type SvgImageMode } from '../../core/svgImages';
+import { importSvg, type SvgImportImage } from '../engine/svgImport';
 import { defaultExportFormat, pagesStillValid, type ExportFormat } from '../../core/exportDefaults';
 import { DEFAULT_COLOUR, docColour, type CmykProfileId } from '../../core/colour/profiles';
 import { editor } from './editor';
@@ -84,6 +85,21 @@ async function loadQuvreloBytes(data: Uint8Array, path: string | null): Promise<
   editor.openSession(doc, path);
 }
 
+/** Put an SVG's embedded images into the asset store (under the ids its nodes use) and the document. */
+async function withSvgImages(doc: QuvreloDocument, images: SvgImportImage[]): Promise<QuvreloDocument> {
+  if (!images.length) return doc;
+  const assets = { ...doc.assets };
+  for (const im of images) {
+    try {
+      await editor.assets.addBytes(im.bytes, im.mime, im.id);
+      assets[im.id] = editor.assets.ref(im.id, im.name);
+    } catch {
+      /* an unreadable image is skipped */
+    }
+  }
+  return { ...doc, assets };
+}
+
 /** Open a new photo document from an image file. */
 async function openImageAsDocument(bytes: Uint8Array, name: string, path: string | null): Promise<void> {
   editor.assets.clear();
@@ -92,7 +108,8 @@ async function openImageAsDocument(bytes: Uint8Array, name: string, path: string
     const r = importSvg(text);
     const w = Math.max(1, Math.round(r.width || 800));
     const h = Math.max(1, Math.round(r.height || 600));
-    const doc = createDocument({ title: baseName(name), studio: 'vector', settings: { width: w, height: h } });
+    let doc = createDocument({ title: baseName(name), studio: 'vector', settings: { width: w, height: h } });
+    doc = await withSvgImages(doc, r.images);
     editor.openSession(addNodes(doc, doc.pages[0].id, r.nodes), null, 'vector');
     return;
   }
@@ -233,6 +250,8 @@ export async function placeImages(files?: { data: Uint8Array; name: string }[]):
   for (const f of list) {
     if (mimeFor(f.name) === 'image/svg+xml') {
       const r = importSvg(new TextDecoder().decode(f.data));
+      const withImages = await withSvgImages(editor.doc!, r.images);
+      if (withImages !== editor.doc) editor.preview(() => withImages);
       const g = make.group(r.nodes.map((n) => ({ ...n })), { name: baseName(f.name) });
       // centre imported artwork on the page
       const cx = r.nodes.reduce((s, n) => s + n.x, 0) / Math.max(1, r.nodes.length);
@@ -316,6 +335,8 @@ export interface ExportRequest {
   fileName?: string;
   /** PNG only: bits per channel (defaults to the document's bit depth) */
   bitDepth?: 8 | 16;
+  /** SVG only: embed or link images, PNG or JPEG for opaque images (default: embed, PNG) */
+  svgImages?: { mode: SvgImageMode; encoding: SvgImageEncoding };
 }
 
 /** What the last vector PDF had to place as images (for the toast), or null. */
@@ -360,8 +381,24 @@ export async function runExportFiles(req: ExportRequest, targets: (string | null
       const suffix = req.pages.length > 1 || doc.pages.length > 1 ? ` - ${doc.pages[i].name}` : '';
       let p: string | null;
       if (req.format === 'svg') {
-        const svg = exportSvg(doc, editor.assets, i, req.includeBleed);
-        p = await window.quvrelo.saveFile({ path: targets[k] ?? null, data: new TextEncoder().encode(svg), defaultName: `${title}${suffix}.svg`, filters: [{ name: 'SVG', extensions: ['svg'] }], title: 'Export SVG' });
+        const img = { mode: req.svgImages?.mode ?? 'embed', encoding: req.svgImages?.encoding ?? 'png', quality: req.quality } as const;
+        const write = (svg: string, path: string | null) =>
+          window.quvrelo.saveFile({ path, data: new TextEncoder().encode(svg), defaultName: `${title}${suffix}.svg`, filters: [{ name: 'SVG', extensions: ['svg'] }], title: 'Export SVG' });
+        if (img.mode === 'embed' && img.encoding === 'png') {
+          p = await write(exportSvg(doc, editor.assets, i, req.includeBleed), targets[k] ?? null);
+        } else {
+          // linked images are named after the SVG: pick the file first, then write the SVG and its images beside it
+          let out = exportSvgWithImages(doc, editor.assets, i, req.includeBleed, img, `${title}${suffix}`);
+          p = await write(out.svg, targets[k] ?? null);
+          if (p && img.mode === 'link') {
+            const base = svgBaseName(p);
+            if (base !== `${title}${suffix}`) {
+              out = exportSvgWithImages(doc, editor.assets, i, req.includeBleed, img, base);
+              await write(out.svg, p);
+            }
+            if (out.files.length) await window.quvrelo.saveFilesToFolder({ files: out.files, folder: dirName(p), title: 'Save linked images' });
+          }
+        }
       } else if (req.selection?.length) {
         const data = await exportSelectionRaster(doc, editor.assets, req.selection, { scale: req.scale, transparent: req.transparent, format: req.format, quality: req.quality });
         const ext = req.format === 'jpg' ? 'jpg' : 'png';

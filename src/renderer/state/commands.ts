@@ -29,6 +29,7 @@ import { rasterView, resultToWorldPath, runSelectSubject } from '../engine/mlSel
 import { markStep } from './onboarding';
 import { drawNodeTransformed } from '../engine/draw';
 import { applyCrop, cancelCrop } from './crop';
+import { registerVectorCommands } from './vectorCommands';
 
 let viewport: Viewport | null = null;
 export function setViewport(v: Viewport | null): void {
@@ -249,8 +250,17 @@ for (const mode of ['left', 'hcenter', 'right', 'top', 'vcenter', 'bottom'] as A
   reg(`arrange.align-${mode}`, () => {
     const doc = editor.doc;
     if (!doc || !sel().length) return;
-    // a single object aligns to the page (or its margins in layout)
-    const target = sel().length === 1 ? pageRect(doc) : null;
+    // a single object aligns to the page (or its margins in layout); Align to can pick the page, the first or last selected
+    const to = editor.ui.toolOptions.alignTo;
+    const ids = sel();
+    const keyOf = (id: string) => {
+      const loc = findNode(doc, id);
+      return loc ? bounds(loc.node) : null;
+    };
+    const target = to === 'page' || (to === 'auto' && ids.length === 1) ? pageRect(doc)
+      : to === 'first' && ids.length > 1 ? keyOf(ids[0])
+      : to === 'last' && ids.length > 1 ? keyOf(ids[ids.length - 1])
+      : null;
     editor.commit('Align', (d) => alignNodes(d, sel(), mode, target, bounds));
   });
 }
@@ -633,6 +643,8 @@ reg('view.theme-contrast', () => setSetting({ theme: 'high-contrast' }));
 reg('view.ui-bigger', () => setSetting({ uiScale: Math.min(2, Math.round((editor.settings.uiScale + 0.1) * 10) / 10) }));
 reg('view.ui-smaller', () => setSetting({ uiScale: Math.max(0.75, Math.round((editor.settings.uiScale - 0.1) * 10) / 10) }));
 reg('view.ui-reset', () => setSetting({ uiScale: 1 }));
+
+registerVectorCommands(reg);
 
 export async function setSetting(patch: Partial<typeof editor.settings>): Promise<void> {
   if (editor.policy.forceTheme && patch.theme) {

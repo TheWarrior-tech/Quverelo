@@ -31,5 +31,7 @@ export function migrateDocument(raw: unknown): QuvreloDocument {
     assets: d.assets ?? {},
     studio: d.studio ?? 'vector',
     ...(d.assignment ? { assignment: d.assignment } : {}),
+    ...(Array.isArray(d.symbols) && d.symbols.length ? { symbols: d.symbols.map((x) => ({ ...x, nodes: Array.isArray(x.nodes) ? x.nodes : [] })) } : {}),
+    ...(Array.isArray(d.slices) && d.slices.length ? { slices: d.slices } : {}),
   };
 }

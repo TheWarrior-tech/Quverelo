@@ -23,7 +23,7 @@ import type { Viewport } from './Viewport';
 
 function paintColor(p: Paint): string {
   if (p.type === 'solid') return p.color;
-  if (p.type === 'linear' || p.type === 'radial') return p.stops[0]?.color ?? '#000';
+  if (p.type === 'linear' || p.type === 'radial' || p.type === 'conical') return p.stops[0]?.color ?? '#000';
   return '#000';
 }
 

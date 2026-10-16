@@ -13,6 +13,7 @@ import {
   mapNodes, nodeBounds, nodeMatrix, nodeToPath, setContainerNodes, walk, worldMatrix,
 } from './document';
 import { centrePath, transformPath } from './path';
+import { compoundPieces } from './compound';
 import type {
   QuvreloDocument, GroupNode, Guide, Id, Page, PathNode, SceneNode, Story, TextStyle, Swatch, NodeBase,
 } from './types';
@@ -275,12 +276,112 @@ export function distributeNodes(doc: QuvreloDocument, ids: Id[], axis: 'h' | 'v'
   });
 }
 
+/**
+ * Space objects with a fixed gap along an axis (Affinity's "Space horizontally
+ * / vertically" with a value): the first object stays, the rest follow it in
+ * position order.
+ */
+export function spaceNodes(doc: QuvreloDocument, ids: Id[], axis: 'h' | 'v', gap: number, bounds: BoundsFn = nodeBounds): QuvreloDocument {
+  const locs = ids.map((id) => findNode(doc, id)).filter((l): l is NonNullable<typeof l> => !!l);
+  if (locs.length < 2) return doc;
+  const items = locs.map((l) => ({ id: l.node.id, b: bounds(l.node) }));
+  const key = axis === 'h' ? 'x' : 'y';
+  const size = axis === 'h' ? 'w' : 'h';
+  items.sort((a, b) => a.b[key] - b.b[key]);
+  const deltas = new Map<Id, number>();
+  let cursor = items[0].b[key];
+  for (const it of items) {
+    deltas.set(it.id, cursor - it.b[key]);
+    cursor += it.b[size] + gap;
+  }
+  return updateNodes(doc, ids, (n) => {
+    const d = deltas.get(n.id) ?? 0;
+    if (!d) return n;
+    return axis === 'h' ? { ...n, x: n.x + d } : { ...n, y: n.y + d };
+  });
+}
+
+/** Distribute centres evenly between the first and last object (Illustrator's "distribute centres"). */
+export function distributeCentres(doc: QuvreloDocument, ids: Id[], axis: 'h' | 'v', bounds: BoundsFn = nodeBounds): QuvreloDocument {
+  const locs = ids.map((id) => findNode(doc, id)).filter((l): l is NonNullable<typeof l> => !!l);
+  if (locs.length < 3) return doc;
+  const items = locs.map((l) => {
+    const b = bounds(l.node);
+    return { id: l.node.id, c: axis === 'h' ? b.x + b.w / 2 : b.y + b.h / 2 };
+  });
+  items.sort((a, b) => a.c - b.c);
+  const first = items[0].c;
+  const step = (items[items.length - 1].c - first) / (items.length - 1);
+  const deltas = new Map(items.map((it, i) => [it.id, first + step * i - it.c]));
+  return updateNodes(doc, ids, (n) => {
+    const d = deltas.get(n.id) ?? 0;
+    if (!d) return n;
+    return axis === 'h' ? { ...n, x: n.x + d } : { ...n, y: n.y + d };
+  });
+}
+
+/** Make objects the same width and/or height as a reference object (resizes shapes, scales the rest). */
+export function matchSize(doc: QuvreloDocument, ids: Id[], refId: Id, which: 'w' | 'h' | 'both', bounds: BoundsFn = nodeBounds): QuvreloDocument {
+  const ref = findNode(doc, refId);
+  if (!ref) return doc;
+  const rb = bounds(ref.node);
+  return updateNodes(doc, ids.filter((id) => id !== refId), (n) => {
+    const b = bounds(n);
+    const fw = which !== 'h' && b.w ? rb.w / b.w : 1;
+    const fh = which !== 'w' && b.h ? rb.h / b.h : 1;
+    if ((n.type === 'rect' || n.type === 'ellipse' || n.type === 'polygon' || n.type === 'star' || n.type === 'textframe' || n.type === 'imageframe') && !n.rotation) return { ...n, w: n.w * fw, h: n.h * fh };
+    return { ...n, scaleX: n.scaleX * fw, scaleY: n.scaleY * fh };
+  });
+}
+
 export function flipNodes(doc: QuvreloDocument, ids: Id[], axis: 'h' | 'v'): QuvreloDocument {
-  return updateNodes(doc, ids, (n) => (axis === 'h' ? { ...n, flipX: !n.flipX } : { ...n, flipY: !n.flipY }));
+  return updateNodes(doc, ids, (n) => (isArtboard(n) ? flipArtboardContent(n, axis) : axis === 'h' ? { ...n, flipX: !n.flipX } : { ...n, flipY: !n.flipY }));
 }
 
 export function rotateNodes(doc: QuvreloDocument, ids: Id[], deg: number): QuvreloDocument {
-  return updateNodes(doc, ids, (n) => ({ ...n, rotation: (((n.rotation + deg) % 360) + 360) % 360 }));
+  return updateNodes(doc, ids, (n) => (isArtboard(n) ? rotateArtboardContent(n, deg) : { ...n, rotation: normDeg(n.rotation + deg) }));
+}
+
+const normDeg = (v: number) => (((v % 360) + 360) % 360);
+const isArtboard = (n: SceneNode): n is GroupNode => n.type === 'group' && !!n.artboard;
+
+/*
+ * Artboards stay upright, as in Affinity Designer and Illustrator (neither
+ * rotates a board: the board is the output rectangle of an export). Turning
+ * or flipping a board turns or mirrors what is on it about the board's centre
+ * instead; a quarter turn also swaps the board to the other orientation.
+ */
+
+/** Rotate a board's content by a multiple of 90° about its centre; ±90 swaps width and height. */
+export function rotateArtboardContent(g: GroupNode, deg: number): GroupNode {
+  if (!g.artboard) return g;
+  const q = Math.round(deg / 90) * 90;
+  if (!q || q % 360 === 0) return g;
+  const r = (q * Math.PI) / 180;
+  const c = Math.round(Math.cos(r));
+  const s = Math.round(Math.sin(r));
+  const quarter = Math.abs(q % 180) === 90;
+  return {
+    ...g,
+    rotation: 0,
+    artboard: quarter ? { ...g.artboard, w: g.artboard.h, h: g.artboard.w } : g.artboard,
+    children: g.children.map((ch) => ({ ...ch, x: c * ch.x - s * ch.y, y: s * ch.x + c * ch.y, rotation: normDeg(ch.rotation + q) })),
+  };
+}
+
+/** Mirror a board's content about its centre line (the board itself never flips). */
+export function flipArtboardContent(g: GroupNode, axis: 'h' | 'v'): GroupNode {
+  if (!g.artboard) return g;
+  return {
+    ...g,
+    flipX: false,
+    flipY: false,
+    children: g.children.map((ch) =>
+      axis === 'h'
+        ? { ...ch, x: -ch.x, rotation: normDeg(-ch.rotation), flipX: !ch.flipX }
+        : { ...ch, y: -ch.y, rotation: normDeg(-ch.rotation), flipY: !ch.flipY },
+    ),
+  };
 }
 
 export function nudgeNodes(doc: QuvreloDocument, ids: Id[], dx: number, dy: number): QuvreloDocument {
@@ -292,6 +393,25 @@ export function convertToCurves(doc: QuvreloDocument, id: Id): QuvreloDocument {
   const loc = findNode(doc, id);
   if (!loc) return doc;
   const n = loc.node;
+  if (n.type === 'group' && n.compound) {
+    // expand a compound: bake its live boolean result into a plain path;
+    // a divide compound becomes a group of separate pieces (what Divide is for)
+    if (n.compound.op === 'divide') {
+      const c = n.compound;
+      const pieces = compoundPieces(n, nodeToPath).map((raw, i): PathNode => {
+        const { cx, cy, d } = centrePath(raw);
+        return {
+        ...pickBase(n), id: newId(), name: `Piece ${i + 1}`, x: cx, y: cy, rotation: 0, scaleX: 1, scaleY: 1, skewX: 0, flipX: false, flipY: false,
+        opacity: 1, blend: 'normal', mask: undefined, type: 'path', d, closed: true, fill: c.fill, stroke: c.stroke,
+        };
+      });
+      return updateNode(doc, id, () => ({ ...n, compound: undefined, children: pieces }) as GroupNode);
+    }
+    const d = nodeToPath(n);
+    if (!d) return doc;
+    const pathNode: PathNode = { ...pickBase(n), type: 'path', d, closed: true, fill: n.compound.fill, stroke: n.compound.stroke };
+    return updateNode(doc, id, () => pathNode);
+  }
   if (n.type === 'path' || !['rect', 'ellipse', 'polygon', 'star'].includes(n.type)) return doc;
   const d = nodeToPath(n);
   if (!d) return doc;

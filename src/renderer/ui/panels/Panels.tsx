@@ -5,6 +5,7 @@ import { PropertiesPanel } from './PropertiesPanel';
 import { AdjustmentsPanel } from './AdjustmentsPanel';
 import { HistoryPanel } from './HistoryPanel';
 import { HistogramPanel } from './HistogramPanel';
+import { SlicesPanel } from './SlicesPanel';
 import { PreflightPanel, usePreflight } from './PreflightPanel';
 import { PanelTabs, loadTab, saveTab, useShowTab, type Tab } from './PanelTabs';
 
@@ -26,6 +27,7 @@ export function Panels() {
     ...(studio === 'photo' ? [{ id: 'adjust', label: 'Adjust', render: () => <AdjustmentsPanel /> }, { id: 'histogram', label: 'Histogram', render: () => <HistogramPanel /> }] : []),
     // Layout: live preflight; the tab carries the error count
     ...(studio === 'layout' ? [{ id: 'preflight', label: 'Preflight', badge: preflightErrors || undefined, render: () => <PreflightPanel /> }] : []),
+    ...(studio === 'vector' ? [{ id: 'export', label: 'Export', render: () => <SlicesPanel /> }] : []),
     { id: 'history', label: 'History', render: () => <HistoryPanel /> },
   ];
   const fallback = studio === 'photo' ? 'adjust' : 'properties';

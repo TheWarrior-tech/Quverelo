@@ -1,0 +1,230 @@
+/* Vector studio additions (stroke extras, align-to, symbols and export panels). Tokens only: DESIGN.md §2. */
+
+.properties .stroke-extras {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 8px 64px;
+}
+.properties .stroke-extras .grid2,
+.properties .stroke-extras .grid3 {
+  margin-bottom: 0;
+}
+.properties .stroke-extras .insp-row {
+  margin-left: -64px;
+}
+.arrow-selects {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.arrow-selects select {
+  min-width: 0;
+  width: 100%;
+}
+.arrange-bar .align-to {
+  flex: none;
+  width: auto;
+  max-width: 92px;
+  height: 24px;
+  margin-right: 4px;
+  padding: 0 18px 0 6px;
+  font-size: 11px;
+  color: var(--c-text-2);
+  background-color: transparent;
+  border-color: transparent;
+}
+.arrange-bar .align-to:hover,
+.arrange-bar .align-to:focus-visible {
+  border-color: var(--c-line);
+  color: var(--c-text);
+}
+
+/* Symbols and Export (slices) panels */
+.symbols-panel,
+.slices-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.symbol-list,
+.slice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.symbol-item {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 4px 6px;
+  border-radius: var(--r-1);
+}
+.symbol-item:hover {
+  background: var(--c-hover);
+}
+.symbol-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-1);
+  background: var(--c-raised);
+  border: 1px solid var(--c-line);
+  display: block;
+}
+.symbol-item > div {
+  min-width: 0;
+}
+.symbol-actions {
+  display: flex;
+  gap: 2px;
+}
+/* the name is edited in place: it reads as a label until hovered or focused */
+.symbol-name.inline-edit {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 22px;
+  padding: 0 4px;
+  margin-left: -4px;
+  border: 1px solid transparent;
+  border-radius: var(--r-1);
+  background: transparent;
+}
+.symbol-name.inline-edit:hover {
+  border-color: var(--c-line);
+}
+.symbol-name.inline-edit:focus {
+  border-color: var(--c-focus);
+  outline: none;
+}
+.symbol-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--c-text);
+}
+.symbol-meta,
+.slice-meta {
+  color: var(--c-text-3);
+  font-size: 11px;
+}
+.slice-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--c-line);
+}
+.slice-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.slice-head input[type='text'] {
+  flex: 1;
+  min-width: 0;
+}
+.slice-outputs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.slice-output {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 24px;
+  gap: 4px;
+  align-items: center;
+}
+.slice-files {
+  color: var(--c-text-3);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.panel-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* node tool: "2 of 8 nodes" stays in the bar when the hint is dropped */
+:is(.contextbar, .ctx-more-body) .ctx-count {
+  color: var(--c-text-2);
+  white-space: nowrap;
+  padding: 0 4px;
+}
+
+/* width-profile graph (ProfileEditor): the stroke's silhouette with draggable width points */
+.profile-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.profile-graph {
+  position: relative;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-1);
+  background: var(--c-app);
+  margin: 0 7px; /* keeps the end points' rings inside the panel */
+  cursor: copy;
+}
+.profile-graph svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.profile-spine {
+  stroke: var(--c-line);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+.profile-shape {
+  fill: var(--c-accent-wash);
+  stroke: var(--c-accent);
+  stroke-width: 1;
+}
+.profile-point {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  padding: 0;
+  border-radius: var(--r-full);
+  border: 1.5px solid var(--c-accent);
+  background: var(--c-panel);
+  cursor: grab;
+  touch-action: none;
+}
+.profile-point:hover {
+  background: var(--c-hover);
+}
+.profile-point.selected {
+  background: var(--c-accent);
+}
+.profile-point:active {
+  cursor: grabbing;
+}
+.profile-point:focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: 2px;
+}
+.profile-hint {
+  margin: 0;
+}
+
+/* five operations share the inspector width; segments shrink to their text rather than overflow */
+.segmented.compound-ops button {
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
