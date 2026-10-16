@@ -18,8 +18,17 @@ async function blankVector(page: Page) {
     editor.commit('Clear', (d: any) => ({ ...d, pages: d.pages.map((p: any) => ({ ...p, nodes: [] })) }));
     editor.select([]);
   });
+  // screenshot runs can render every scene in another theme (QUVRELO_SHOT_THEME=light | contrast)
+  if (process.env.QUVRELO_SHOT_THEME) await run(page, `view.theme-${process.env.QUVRELO_SHOT_THEME}`);
   await run(page, 'view.zoom-fit');
   await page.waitForTimeout(100);
+}
+
+/** Close-up of one panel for design review (only when QUVRELO_SHOTS_DIR is set). */
+async function panelShot(page: Page, selector: string, name: string) {
+  if (!process.env.QUVRELO_SHOTS_DIR) return;
+  fs.mkdirSync(process.env.QUVRELO_SHOTS_DIR, { recursive: true });
+  await page.locator(selector).first().screenshot({ path: path.join(process.env.QUVRELO_SHOTS_DIR, `${name}.png`) });
 }
 
 const nodes = (page: Page) => state<any[]>(page, 'editor.doc.pages[0].nodes');
@@ -174,6 +183,8 @@ test.describe('vector studio parity', () => {
     await insp.getByLabel('Width point width').fill('100');
     await insp.getByLabel('Width point width').press('Enter');
     expect((await sel(page))[0].stroke.profile[1].w).toBeCloseTo(1, 2);
+    await panelShot(page, '.profile-editor', 'vector-profile-editor');
+    await shot(page, 'vector-profile-editor-full');
     // Delete removes it; back to the preset's two points
     await mid.focus();
     await page.keyboard.press('Delete');
@@ -211,6 +222,7 @@ test.describe('vector studio parity', () => {
     await expect(page.locator('#section-compound, [data-section="compound"], .section').filter({ hasText: 'Compound' }).first()).toBeVisible();
     await page.locator('.inspector').getByRole('radio', { name: 'Intersect' }).click();
     expect((await nodes(page))[0].compound.op).toBe('intersect');
+    await shot(page, 'vector-compound');
     // a child stays editable: move the ellipse and the compound follows (still one object)
     await page.evaluate(() => {
       const { editor, runCommand } = (window as any).__quvrelo;
