@@ -73,7 +73,7 @@ test.describe('export', () => {
     const v = await loadPdf(vec);
     expect(v.pdf.getPageCount()).toBe(1);
     expect(v.pages[0].ops).toMatch(/BT\n\/F\d+ [\d.]+ Tf/); // real text
-    expect(v.pages[0].ops).toMatch(/> Tj/);
+    expect(v.pages[0].ops).toMatch(/> Tj|\] TJ/); // shaped text: plain Tj, or TJ with kerning adjustments
     expect(v.pages[0].fonts).toBeGreaterThan(0);
     const raw = Buffer.from(await v.pdf.save({ useObjectStreams: false })).toString('latin1');
     expect(raw).toContain('/FontFile2'); // the font travels with the file
@@ -95,7 +95,7 @@ test.describe('export', () => {
     expect(r.pdf.getPageCount()).toBe(2);
     for (const p of r.pages) {
       expect(p.images).toBe(1);
-      expect(p.ops).not.toContain(' Tj');
+      expect(p.ops).not.toMatch(/ Tj| TJ/);
     }
   });
 
