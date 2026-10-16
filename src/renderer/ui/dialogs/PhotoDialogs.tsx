@@ -264,9 +264,11 @@ export function ColorRangeDialog() {
       <Field label="Sample">
         <Segmented label="Sample from" full value={allLayers ? 'all' : 'layer'} onChange={(v) => setAllLayers(v === 'all')} options={[{ value: 'layer', label: 'Active layer' }, { value: 'all', label: 'All layers' }]} />
       </Field>
-      <Field label="Mode">
+      {/* four choices need the dialog's full width (a label column left too little room for Intersect) */}
+      <div className="photo-combine" role="group" aria-label="Mode">
+        <span className="flabel">Combine with selection</span>
         <Segmented label="Combine with the selection" full value={combine} onChange={setCombine} options={(['new', 'add', 'subtract', 'intersect'] as const).map((m) => ({ value: m, label: m[0].toUpperCase() + m.slice(1) }))} />
-      </Field>
+      </div>
       <p className="fhint num" data-share={share.toFixed(4)}>{(share * 100).toFixed(1)}% of the image selected</p>
     </Dialog>
   );

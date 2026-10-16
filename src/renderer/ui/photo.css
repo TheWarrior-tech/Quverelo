@@ -52,16 +52,23 @@
   cursor: pointer;
 }
 .anchor-grid button span {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
   border-radius: 999px;
   background: var(--c-text-3);
 }
+.anchor-grid button:hover:not(.on) {
+  background: var(--c-hover);
+}
+/* the chosen anchor reads at a glance: solid accent tile, larger ink dot (accent "on" state, rule 4) */
 .anchor-grid button.on {
-  box-shadow: inset 0 0 0 1px var(--c-accent);
+  background: var(--c-accent);
+  box-shadow: none;
 }
 .anchor-grid button.on span {
-  background: var(--c-accent);
+  width: 8px;
+  height: 8px;
+  background: var(--c-accent-ink);
 }
 .anchor-grid button:focus-visible {
   outline: 2px solid var(--c-focus);
@@ -170,4 +177,16 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--c-text-2);
+}
+/* a field row after the slider stack (Refine edge › Output) keeps the dialog's row rhythm */
+.photo-params + .frow {
+  margin-top: 12px;
+}
+.photo-combine {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+.photo-combine + .fhint {
+  margin-top: 8px;
 }
