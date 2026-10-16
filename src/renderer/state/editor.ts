@@ -3,6 +3,7 @@
  * the active studio, tool, selection and tool options. React subscribes with
  * useSyncExternalStore; the canvas viewport subscribes directly.
  */
+import { syncSymbols } from '../../core/symbols';
 import { DocumentHistory } from '../../core/history';
 import { findNode, getContainer, referencedAssets } from '../../core/document';
 import type { QuvreloDocument, Id, Paint, PathCommand, SceneNode, StudioKind, Unit } from '../../core/types';
@@ -228,7 +229,8 @@ export class Editor {
   commit(label: string, fn: (doc: QuvreloDocument) => QuvreloDocument, mergeKey?: string): boolean {
     const h = this.history;
     if (!h) return false;
-    const next = fn(h.doc);
+    // symbols: an edit inside one instance updates every instance (core/symbols)
+    const next = syncSymbols(h.doc, fn(h.doc));
     return h.push(label, next, mergeKey);
   }
 
@@ -236,7 +238,7 @@ export class Editor {
   preview(fn: (doc: QuvreloDocument) => QuvreloDocument): void {
     const h = this.history;
     if (!h) return;
-    h.replace(fn(h.doc));
+    h.replace(syncSymbols(h.doc, fn(h.doc)));
   }
 
   setUi(patch: Partial<UiState>): void {

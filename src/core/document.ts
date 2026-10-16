@@ -2,6 +2,7 @@ import { newId } from './ids';
 import {
   composeTransform, transformRect, unionRects, multiply, type Matrix, type Rect,
 } from './geometry';
+import { compoundPath } from './compound';
 import { ellipsePath, pathBounds, pointsToPath, polygonPoints, rectPath, starPoints } from './path';
 import type {
   DocumentSettings, QuvreloDocument, GroupNode, MasterPage, NodeBase, Page, Paint, PathCommand,
@@ -193,6 +194,7 @@ export function nodeSize(n: SceneNode): { w: number; h: number } {
     case 'text':
       return estimateTextSize(n.text, n.style);
     case 'group': {
+      if (n.artboard) return { w: n.artboard.w, h: n.artboard.h };
       const r = unionRects(n.children.map(nodeBounds));
       return { w: r.w, h: r.h };
     }
@@ -204,6 +206,7 @@ export function nodeSize(n: SceneNode): { w: number; h: number } {
 /** Local bounds (before the node's own transform). */
 export function nodeLocalBounds(n: SceneNode): Rect {
   if (n.type === 'path') return pathBounds(n.d);
+  if (n.type === 'group' && n.artboard) return { x: -n.artboard.w / 2, y: -n.artboard.h / 2, w: n.artboard.w, h: n.artboard.h };
   if (n.type === 'group') return unionRects(n.children.map(nodeBounds));
   const { w, h } = nodeSize(n);
   return { x: -w / 2, y: -h / 2, w, h };
@@ -231,6 +234,10 @@ export function nodeToPath(n: SceneNode): PathCommand[] | null {
     case 'textframe':
     case 'raster':
       return rectPath(n.w, n.h);
+    case 'group':
+      if (n.compound) return compoundPath(n, nodeToPath);
+      if (n.artboard) return rectPath(n.artboard.w, n.artboard.h);
+      return null;
     default:
       return null;
   }
@@ -337,6 +344,12 @@ export function referencedAssets(doc: QuvreloDocument): Set<Id> {
   const ids = new Set<Id>();
   for (const c of allContainers(doc)) {
     walk(c.nodes, (n) => {
+      if (n.type === 'raster') ids.add(n.assetId);
+      if (n.type === 'imageframe' && n.assetId) ids.add(n.assetId);
+    });
+  }
+  for (const sym of doc.symbols ?? []) {
+    walk(sym.nodes, (n) => {
       if (n.type === 'raster') ids.add(n.assetId);
       if (n.type === 'imageframe' && n.assetId) ids.add(n.assetId);
     });

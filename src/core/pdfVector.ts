@@ -23,6 +23,9 @@ import { PDFDict, PDFDocument, PDFName, PDFString, type PDFFont, type PDFImage, 
 import fontkit from '@pdf-lib/fontkit';
 import { composeTransform, type Matrix } from './geometry';
 import { nodeToPath } from './document';
+import { gradientGeometry } from './gradient';
+import { expandNode, isNonZeroFill } from './vectorExpand';
+import { layoutTextOnPath, textPathCommands } from './textPath';
 import { lineHeightPx, type FlowResult, type MeasureFn } from './textflow';
 import { baselineOffset, imageFrameContentRect } from './svg';
 import { firstFamily } from './pdfFonts';
@@ -186,15 +189,10 @@ type Box = { x: number; y: number; w: number; h: number };
 
 /** Gradient geometry in the node's local space, matching the canvas renderer. */
 export function gradientCoords(p: Extract<Paint, { type: 'linear' | 'radial' }>, box: Box): number[] {
-  const cx = box.x + box.w / 2;
-  const cy = box.y + box.h / 2;
-  if (p.type === 'linear') {
-    const a = (p.angle * Math.PI) / 180;
-    const dx = (Math.cos(a) * box.w) / 2;
-    const dy = (Math.sin(a) * box.h) / 2;
-    return [cx - dx, cy - dy, cx + dx, cy + dy];
-  }
-  return [cx, cy, 0, cx, cy, Math.max(box.w, box.h) / 2];
+  const g = gradientGeometry(p, box);
+  if (g.type === 'linear') return [g.x1, g.y1, g.x2, g.y2];
+  if (g.type === 'radial') return [g.fx, g.fy, 0, g.cx, g.cy, g.r];
+  return [];
 }
 
 function pathBox(d: PathCommand[]): Box {
@@ -216,6 +214,7 @@ function pathBox(d: PathCommand[]): Box {
 function paintProblem(p: Paint): string | null {
   if (p.type === 'none') return null;
   if (p.type === 'solid') return parseCssColor(p.color) ? null : `colour “${p.color}”`;
+  if (p.type === 'conical') return 'conical gradient';
   if (p.stops.length < 1) return 'empty gradient';
   for (const s of p.stops) {
     const c = parseCssColor(s.color);
@@ -350,7 +349,7 @@ function matrixOp(m: Matrix): string {
 
 /** Fill the current path definition `path` with paint `p` (solid or gradient). */
 function fillPath(pw: PageWriter, w: Writer, path: string, p: Paint, box: Box, g: Gfx, evenOdd = true) {
-  if (p.type === 'none') return;
+  if (p.type === 'none' || p.type === 'conical') return;
   if (p.type === 'solid') {
     const c = parseCssColor(p.color)!;
     if (c.a <= 0) return;
@@ -412,6 +411,8 @@ interface TextRun {
   y: number;
   wordSpacing: number;
   underlineW: number;
+  /** baseline rotation in radians (text on a path), clockwise in document space */
+  angle?: number;
 }
 
 /** Write runs of text in one style. Returns why not when the text has to be placed as an image. */
@@ -457,7 +458,11 @@ async function writeText(
     for (const r of runs) {
       for (const p of pieces(r)) {
         if (!p.t) continue;
-        pw.push(`1 0 ${fmt(slant)} -1 ${fmt(p.x)} ${fmt(r.y)} Tm`);
+        if (r.angle) {
+          const c = Math.cos(r.angle);
+          const sn = Math.sin(r.angle);
+          pw.push(`${fmt(c)} ${fmt(sn)} ${fmt(slant * c + sn)} ${fmt(slant * sn - c)} ${fmt(p.x)} ${fmt(r.y)} Tm`);
+        } else pw.push(`1 0 ${fmt(slant)} -1 ${fmt(p.x)} ${fmt(r.y)} Tm`);
         pw.push(`${font.encodeText(p.t).toString()} Tj`);
       }
     }
@@ -502,8 +507,9 @@ async function writeImageAt(pw: PageWriter, img: PDFImage, b: Box, g: Gfx) {
   pw.push('Q');
 }
 
-async function writeNode(pw: PageWriter, w: Writer, n: SceneNode, parent: Gfx): Promise<void> {
-  if (!n.visible) return;
+async function writeNode(pw: PageWriter, w: Writer, node: SceneNode, parent: Gfx): Promise<void> {
+  if (!node.visible) return;
+  const n = expandNode(node, { conicalWedges: true });
   const g: Gfx = { alpha: parent.alpha * n.opacity, blend: n.blend !== 'normal' ? n.blend : parent.blend };
   if (g.alpha <= 0) return;
   pw.push('q');
@@ -529,13 +535,29 @@ async function writeContent(pw: PageWriter, w: Writer, n: SceneNode, g: Gfx): Pr
       const d = nodeToPath(n) ?? [];
       const path = pathOps(d);
       const box = n.type === 'path' ? pathBox(d) : { x: -n.w / 2, y: -n.h / 2, w: n.w, h: n.h };
-      if (n.type !== 'path' || n.closed || n.fill.type !== 'none') fillPath(pw, w, path, n.fill, box, g);
+      if (n.type !== 'path' || n.closed || n.fill.type !== 'none') fillPath(pw, w, path, n.fill, box, g, !isNonZeroFill(n));
       strokePath(pw, path, n.stroke, g);
       w.report.vectorObjects++;
       return;
     }
     case 'text': {
       const s = n.style;
+      if (n.onPath) {
+        const tracking = (s.letterSpacing / 1000) * s.fontSize;
+        const { glyphs } = layoutTextOnPath(n.text, n.onPath.d, n.onPath.start, (ch) => w.hooks.measure(ch, s) + tracking, n.onPath.flip);
+        const runs: TextRun[] = glyphs.map((gl) => ({ text: gl.ch, x: gl.x, y: gl.y, wordSpacing: 0, underlineW: 0, angle: gl.angle }));
+        const scratch = new PageWriter(w, pw.res);
+        const problem = runs.length ? await writeText(scratch, w, runs, { ...s, underline: false }, n.onPath.showPath ? null : n.stroke, g) : null;
+        if (problem) return writeRasterised(pw, w, n, g, problem);
+        if (n.onPath.showPath) {
+          const sp = strokeProblem(n.stroke);
+          if (sp) return writeRasterised(pw, w, n, g, sp);
+          strokePath(pw, pathOps(textPathCommands(n.onPath.d)), n.stroke, g);
+        }
+        for (const op of scratch.ops) pw.push(op);
+        w.report.textObjects++;
+        return;
+      }
       const size = w.hooks.textSize(n.text, s);
       const lh = lineHeightPx(s);
       const box = { x: -size.w / 2, y: -size.h / 2, w: size.w, h: size.h };

@@ -20,14 +20,14 @@ export function uiPaint(ui: UiPaintFields, t: PaintTarget): Paint {
   const enabled = t === 'fill' ? ui.fillEnabled : ui.strokeEnabled;
   if (!enabled) return { type: 'none' };
   const grad = t === 'fill' ? ui.fillGradient : ui.strokeGradient;
-  if (grad && (grad.type === 'linear' || grad.type === 'radial')) return grad;
+  if (grad && (grad.type === 'linear' || grad.type === 'radial' || grad.type === 'conical')) return grad;
   return { type: 'solid', color: t === 'fill' ? ui.fillColor : ui.strokeColor };
 }
 
 /** UI patch that makes `p` the default paint for one target. The flat colour follows the paint's first colour. */
 export function uiPaintPatch(t: PaintTarget, p: Paint, current: UiPaintFields): Partial<UiPaintFields> {
   const color = firstColorOf(p, t === 'fill' ? current.fillColor : current.strokeColor);
-  const grad = p.type === 'linear' || p.type === 'radial' ? p : null;
+  const grad = p.type === 'linear' || p.type === 'radial' || p.type === 'conical' ? p : null;
   const enabled = p.type !== 'none';
   return t === 'fill'
     ? { fillColor: color, fillEnabled: enabled, fillGradient: enabled ? grad : current.fillGradient }

@@ -4,6 +4,9 @@
  */
 import { nodeToPath } from './document';
 import { pathToString } from './path';
+import { gradientGeometry, linearDefault, type Box } from './gradient';
+import { expandNode, isNonZeroFill, shapeBox } from './vectorExpand';
+import { textPathCommands } from './textPath';
 import { flowStory, lineHeightPx, monoMeasure, type MeasureFn } from './textflow';
 import type { QuvreloDocument, Id, Page, Paint, SceneNode, Stroke, TextStyle } from './types';
 
@@ -40,44 +43,64 @@ class Ctx {
   }
 }
 
-function paintAttr(ctx: Ctx, p: Paint, attr: 'fill' | 'stroke'): string {
+const UNIT_BOX: Box = { x: 0, y: 0, w: 1, h: 1 };
+
+function stopsSvg(stops: { offset: number; color: string }[]): string {
+  return [...stops].sort((a, b) => a.offset - b.offset).map((s) => {
+    const m = /^rgba\(([^,]+),([^,]+),([^,]+),([^)]+)\)$/.exec(s.color.replace(/\s+/g, ''));
+    if (m) return `<stop offset="${num(Math.min(1, Math.max(0, s.offset)))}" stop-color="rgb(${m[1]},${m[2]},${m[3]})" stop-opacity="${num(parseFloat(m[4]))}"/>`;
+    return `<stop offset="${num(Math.min(1, Math.max(0, s.offset)))}" stop-color="${esc(s.color)}"/>`;
+  }).join('');
+}
+
+/**
+ * Paint as an SVG attribute. Gradients are written in user space from the
+ * painted object's box, using the same geometry as the canvas and PDF. A
+ * conical paint reaching here (strokes, text) has no SVG equivalent and is
+ * written as a linear gradient at its angle; conical fills are expanded into
+ * wedges before this (core/vectorExpand).
+ */
+function paintAttr(ctx: Ctx, p: Paint, attr: 'fill' | 'stroke', box: Box = UNIT_BOX): string {
   switch (p.type) {
     case 'none':
       return `${attr}="none"`;
-    case 'solid':
+    case 'solid': {
+      const m = /^rgba\(([^,]+),([^,]+),([^,]+),([^)]+)\)$/.exec(p.color.replace(/\s+/g, ''));
+      if (m) return `${attr}="rgb(${m[1]},${m[2]},${m[3]})" ${attr}-opacity="${num(parseFloat(m[4]))}"`;
       return `${attr}="${esc(p.color)}"`;
-    case 'linear': {
+    }
+    case 'linear':
+    case 'conical': {
       const id = ctx.id('lg');
-      const a = (p.angle * Math.PI) / 180;
-      const x1 = 0.5 - Math.cos(a) / 2;
-      const y1 = 0.5 - Math.sin(a) / 2;
-      const x2 = 0.5 + Math.cos(a) / 2;
-      const y2 = 0.5 + Math.sin(a) / 2;
+      const lp = p.type === 'linear' ? p : { type: 'linear' as const, stops: p.stops, angle: p.angle, ...linearDefault(p.angle) };
+      const g = gradientGeometry(lp, box) as Extract<ReturnType<typeof gradientGeometry>, { type: 'linear' }>;
       ctx.defs.push(
-        `<linearGradient id="${id}" x1="${num(x1)}" y1="${num(y1)}" x2="${num(x2)}" y2="${num(y2)}">` +
-          p.stops.map((s) => `<stop offset="${num(s.offset)}" stop-color="${esc(s.color)}"/>`).join('') +
-          `</linearGradient>`,
+        `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${num(g.x1)}" y1="${num(g.y1)}" x2="${num(g.x2)}" y2="${num(g.y2)}">` +
+          stopsSvg(p.stops) + `</linearGradient>`,
       );
       return `${attr}="url(#${id})"`;
     }
     case 'radial': {
       const id = ctx.id('rg');
+      const g = gradientGeometry(p, box) as Extract<ReturnType<typeof gradientGeometry>, { type: 'radial' }>;
+      const focal = g.fx !== g.cx || g.fy !== g.cy ? ` fx="${num(g.fx)}" fy="${num(g.fy)}"` : '';
       ctx.defs.push(
-        `<radialGradient id="${id}">` +
-          p.stops.map((s) => `<stop offset="${num(s.offset)}" stop-color="${esc(s.color)}"/>`).join('') +
-          `</radialGradient>`,
+        `<radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="${num(g.cx)}" cy="${num(g.cy)}" r="${num(g.r)}"${focal}>` +
+          stopsSvg(p.stops) + `</radialGradient>`,
       );
       return `${attr}="url(#${id})"`;
     }
   }
 }
 
-function strokeAttrs(ctx: Ctx, s: Stroke): string {
+function strokeAttrs(ctx: Ctx, s: Stroke, box: Box = UNIT_BOX): string {
   if (s.paint.type === 'none' || s.width <= 0) return 'stroke="none"';
-  const parts = [paintAttr(ctx, s.paint, 'stroke'), `stroke-width="${num(s.width)}"`];
+  const parts = [paintAttr(ctx, s.paint, 'stroke', box), `stroke-width="${num(s.width)}"`];
   if (s.dash.length) parts.push(`stroke-dasharray="${s.dash.map(num).join(' ')}"`);
+  if (s.dash.length && s.dashOffset) parts.push(`stroke-dashoffset="${num(s.dashOffset)}"`);
   if (s.cap !== 'butt') parts.push(`stroke-linecap="${s.cap}"`);
   if (s.join !== 'miter') parts.push(`stroke-linejoin="${s.join}"`);
+  if (s.join === 'miter' && s.miter !== undefined && s.miter !== 4) parts.push(`stroke-miterlimit="${num(s.miter)}"`);
   return parts.join(' ');
 }
 
@@ -105,8 +128,9 @@ function textStyleAttrs(style: TextStyle): string {
   return attrs.join(' ');
 }
 
-function nodeToSvg(ctx: Ctx, n: SceneNode): string {
-  if (!n.visible) return '';
+function nodeToSvg(ctx: Ctx, node: SceneNode): string {
+  if (!node.visible) return '';
+  const n = expandNode(node, { conicalWedges: true });
   const common: string[] = [`transform="${transformAttr(n)}"`];
   if (n.opacity < 1) common.push(`opacity="${num(n.opacity)}"`);
   if (n.blend !== 'normal') common.push(`style="mix-blend-mode:${n.blend}"`);
@@ -124,27 +148,41 @@ function nodeToSvg(ctx: Ctx, n: SceneNode): string {
       common.push(`clip-path="url(#${id})"`);
     }
   }
-  const label = `data-name="${esc(n.name)}"`;
+  const label = `data-name="${esc(node.name)}"${node.type === 'group' && node.artboard ? ' data-artboard="true"' : ''}${node.type === 'group' && node.symbolId ? ` data-symbol="${esc(node.symbolId)}"` : ''}`;
   const open = `<g id="${esc(n.id)}" ${label} ${common.join(' ')}>`;
   let body = '';
   switch (n.type) {
     case 'rect':
       body = `<rect x="${num(-n.w / 2)}" y="${num(-n.h / 2)}" width="${num(n.w)}" height="${num(n.h)}"${
         n.radius ? ` rx="${num(Math.min(n.radius, n.w / 2, n.h / 2))}"` : ''
-      } ${paintAttr(ctx, n.fill, 'fill')} ${strokeAttrs(ctx, n.stroke)}/>`;
+      } ${paintAttr(ctx, n.fill, 'fill', shapeBox(n))} ${strokeAttrs(ctx, n.stroke, shapeBox(n))}/>`;
       break;
     case 'ellipse':
-      body = `<ellipse cx="0" cy="0" rx="${num(n.w / 2)}" ry="${num(n.h / 2)}" ${paintAttr(ctx, n.fill, 'fill')} ${strokeAttrs(ctx, n.stroke)}/>`;
+      body = `<ellipse cx="0" cy="0" rx="${num(n.w / 2)}" ry="${num(n.h / 2)}" ${paintAttr(ctx, n.fill, 'fill', shapeBox(n))} ${strokeAttrs(ctx, n.stroke, shapeBox(n))}/>`;
       break;
     case 'polygon':
     case 'star':
     case 'path': {
       const d = nodeToPath(n) ?? [];
-      body = `<path d="${pathToString(d)}" ${paintAttr(ctx, n.fill, 'fill')} ${strokeAttrs(ctx, n.stroke)} fill-rule="evenodd"/>`;
+      const box = shapeBox(n, d);
+      const open = n.type === 'path' && !n.closed && n.fill.type === 'none';
+      body = `<path d="${pathToString(d)}" ${open ? 'fill="none"' : paintAttr(ctx, n.fill, 'fill', box)} ${strokeAttrs(ctx, n.stroke, box)} fill-rule="${isNonZeroFill(n) ? 'nonzero' : 'evenodd'}"/>`;
       break;
     }
     case 'text': {
       const s = n.style;
+      if (n.onPath) {
+        const pid = ctx.id('tp');
+        const pd = textPathCommands(n.onPath.d, n.onPath.flip);
+        ctx.defs.push(`<path id="${pid}" d="${pathToString(pd)}"/>`);
+        const shown = n.onPath.showPath && n.stroke.width > 0 && n.stroke.paint.type !== 'none'
+          ? `<path d="${pathToString(n.onPath.d)}" fill="none" ${strokeAttrs(ctx, n.stroke)}/>`
+          : '';
+        body = shown +
+          `<text ${textStyleAttrs(s)} ${paintAttr(ctx, s.fill, 'fill')}${n.onPath.showPath ? '' : ' ' + strokeAttrs(ctx, n.stroke)} xml:space="preserve">` +
+          `<textPath href="#${pid}" xlink:href="#${pid}" startOffset="${num(Math.min(1, Math.max(0, n.onPath.start)) * 100)}%">${esc(n.text.replace(/\n/g, ' '))}</textPath></text>`;
+        break;
+      }
       const lines = n.text.split('\n');
       const lh = lineHeightPx(s);
       const measure = ctx.opts.measure ?? monoMeasure();

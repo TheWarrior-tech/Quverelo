@@ -41,11 +41,34 @@ export interface GradientStop {
   color: string; // css colour (#rrggbb or rgba())
 }
 
+/** A point in a node's bounding box: 0,0 = top-left corner, 1,1 = bottom-right (gradient geometry). */
+export interface UnitPoint {
+  x: number;
+  y: number;
+}
+
+/**
+ * Paints. Gradient geometry is optional and relative to the painted object's
+ * box (see core/gradient.ts): without it a linear gradient runs across the box
+ * at `angle`, a radial one fills it from the centre and a conical one sweeps
+ * round the centre starting at `angle`.
+ */
 export type Paint =
   | { type: 'none' }
   | { type: 'solid'; color: string }
-  | { type: 'linear'; stops: GradientStop[]; angle: number }
-  | { type: 'radial'; stops: GradientStop[] };
+  | { type: 'linear'; stops: GradientStop[]; angle: number; from?: UnitPoint; to?: UnitPoint }
+  | { type: 'radial'; stops: GradientStop[]; center?: UnitPoint; /** edge point; distance from centre = radius */ edge?: UnitPoint; focal?: UnitPoint }
+  | { type: 'conical'; stops: GradientStop[]; angle: number; center?: UnitPoint };
+
+export type GradientPaint = Extract<Paint, { type: 'linear' | 'radial' | 'conical' }>;
+
+export type ArrowHead = 'none' | 'triangle' | 'open' | 'circle' | 'square' | 'diamond' | 'bar';
+
+/** One point of a variable-width stroke profile: `t` along the path (0..1), width multiplier `w` (0..1+). */
+export interface WidthPoint {
+  t: number;
+  w: number;
+}
 
 export interface Stroke {
   paint: Paint;
@@ -53,6 +76,17 @@ export interface Stroke {
   dash: number[];
   cap: 'butt' | 'round' | 'square';
   join: 'miter' | 'round' | 'bevel';
+  /** mitre limit (default 10) */
+  miter?: number;
+  /** offset into the dash pattern */
+  dashOffset?: number;
+  /** arrowheads at the path's start / end (open paths) */
+  startArrow?: ArrowHead;
+  endArrow?: ArrowHead;
+  /** arrowhead size as a multiple of the stroke width × 3 (default 1) */
+  arrowScale?: number;
+  /** variable width profile; absent or < 2 points = constant width */
+  profile?: WidthPoint[];
 }
 
 /** Absolute path commands in node-local coordinates (centre of node = 0,0). */
@@ -156,6 +190,17 @@ export interface TextNode extends NodeBase {
   text: string;
   style: TextStyle;
   stroke: Stroke;
+  /** Text on a path: glyphs flow along `d` (node-local) starting `start` (0..1) of the way along. */
+  onPath?: TextPath;
+}
+
+export interface TextPath {
+  d: PathCommand[];
+  start: number;
+  /** put the text on the other side of the path (runs backwards) */
+  flip?: boolean;
+  /** keep drawing the path itself (stroke from the node's stroke) */
+  showPath?: boolean;
 }
 
 /** Layout text frame: a fixed box that shows part of a (possibly linked) story. */
@@ -222,9 +267,33 @@ export interface RasterNode extends NodeBase {
   adjustments: Adjustment[];
 }
 
+export type CompoundOp = 'add' | 'subtract' | 'intersect' | 'exclude';
+
+export interface CompoundInfo {
+  op: CompoundOp;
+  fill: Paint;
+  stroke: Stroke;
+}
+
+/** An artboard: a group with a fixed, clipped board (node-local, centred on 0,0). */
+export interface ArtboardInfo {
+  w: number;
+  h: number;
+  background: string | null;
+}
+
 export interface GroupNode extends NodeBase {
   type: 'group';
   children: SceneNode[];
+  /**
+   * Non-destructive compound: the children's outlines are combined with this
+   * boolean operation (bottom-most child is the base) and drawn as one shape
+   * with the compound's own fill and stroke. Children stay editable.
+   */
+  compound?: CompoundInfo;
+  artboard?: ArtboardInfo;
+  /** Symbol instance: every group with the same symbolId shows the same children. */
+  symbolId?: Id;
 }
 
 export type SceneNode =
@@ -325,6 +394,37 @@ export interface QuvreloDocument {
   studio: StudioKind;
   /** Optional classroom assignment metadata (hand-in workflow). */
   assignment?: AssignmentInfo;
+  /** Symbols (Vector): names for the symbol ids instances share. */
+  symbols?: SymbolDef[];
+  /** Export slices (Vector Export persona). */
+  slices?: Slice[];
+}
+
+export interface SymbolDef {
+  id: Id;
+  name: string;
+  /** the symbol's content (instance-local), kept in step with its instances */
+  nodes: SceneNode[];
+}
+
+export type SliceFormat = 'png' | 'jpg' | 'svg' | 'pdf';
+
+export interface SliceOutput {
+  format: SliceFormat;
+  /** 1 = @1x, 2 = @2x ... */
+  scale: number;
+}
+
+/** An export slice: a named area (or one object's / artboard's bounds) with its own outputs. */
+export interface Slice {
+  id: Id;
+  name: string;
+  pageId: Id;
+  /** follow this node's bounds (artboard or object); null = fixed rect */
+  nodeId: Id | null;
+  rect: { x: number; y: number; w: number; h: number };
+  outputs: SliceOutput[];
+  enabled: boolean;
 }
 
 export interface AssignmentInfo {

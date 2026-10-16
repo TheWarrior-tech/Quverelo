@@ -272,6 +272,64 @@ export function distributeNodes(doc: QuvreloDocument, ids: Id[], axis: 'h' | 'v'
   });
 }
 
+/**
+ * Space objects with a fixed gap along an axis (Affinity's "Space horizontally
+ * / vertically" with a value): the first object stays, the rest follow it in
+ * position order.
+ */
+export function spaceNodes(doc: QuvreloDocument, ids: Id[], axis: 'h' | 'v', gap: number, bounds: BoundsFn = nodeBounds): QuvreloDocument {
+  const locs = ids.map((id) => findNode(doc, id)).filter((l): l is NonNullable<typeof l> => !!l);
+  if (locs.length < 2) return doc;
+  const items = locs.map((l) => ({ id: l.node.id, b: bounds(l.node) }));
+  const key = axis === 'h' ? 'x' : 'y';
+  const size = axis === 'h' ? 'w' : 'h';
+  items.sort((a, b) => a.b[key] - b.b[key]);
+  const deltas = new Map<Id, number>();
+  let cursor = items[0].b[key];
+  for (const it of items) {
+    deltas.set(it.id, cursor - it.b[key]);
+    cursor += it.b[size] + gap;
+  }
+  return updateNodes(doc, ids, (n) => {
+    const d = deltas.get(n.id) ?? 0;
+    if (!d) return n;
+    return axis === 'h' ? { ...n, x: n.x + d } : { ...n, y: n.y + d };
+  });
+}
+
+/** Distribute centres evenly between the first and last object (Illustrator's "distribute centres"). */
+export function distributeCentres(doc: QuvreloDocument, ids: Id[], axis: 'h' | 'v', bounds: BoundsFn = nodeBounds): QuvreloDocument {
+  const locs = ids.map((id) => findNode(doc, id)).filter((l): l is NonNullable<typeof l> => !!l);
+  if (locs.length < 3) return doc;
+  const items = locs.map((l) => {
+    const b = bounds(l.node);
+    return { id: l.node.id, c: axis === 'h' ? b.x + b.w / 2 : b.y + b.h / 2 };
+  });
+  items.sort((a, b) => a.c - b.c);
+  const first = items[0].c;
+  const step = (items[items.length - 1].c - first) / (items.length - 1);
+  const deltas = new Map(items.map((it, i) => [it.id, first + step * i - it.c]));
+  return updateNodes(doc, ids, (n) => {
+    const d = deltas.get(n.id) ?? 0;
+    if (!d) return n;
+    return axis === 'h' ? { ...n, x: n.x + d } : { ...n, y: n.y + d };
+  });
+}
+
+/** Make objects the same width and/or height as a reference object (resizes shapes, scales the rest). */
+export function matchSize(doc: QuvreloDocument, ids: Id[], refId: Id, which: 'w' | 'h' | 'both', bounds: BoundsFn = nodeBounds): QuvreloDocument {
+  const ref = findNode(doc, refId);
+  if (!ref) return doc;
+  const rb = bounds(ref.node);
+  return updateNodes(doc, ids.filter((id) => id !== refId), (n) => {
+    const b = bounds(n);
+    const fw = which !== 'h' && b.w ? rb.w / b.w : 1;
+    const fh = which !== 'w' && b.h ? rb.h / b.h : 1;
+    if ((n.type === 'rect' || n.type === 'ellipse' || n.type === 'polygon' || n.type === 'star' || n.type === 'textframe' || n.type === 'imageframe') && !n.rotation) return { ...n, w: n.w * fw, h: n.h * fh };
+    return { ...n, scaleX: n.scaleX * fw, scaleY: n.scaleY * fh };
+  });
+}
+
 export function flipNodes(doc: QuvreloDocument, ids: Id[], axis: 'h' | 'v'): QuvreloDocument {
   return updateNodes(doc, ids, (n) => (axis === 'h' ? { ...n, flipX: !n.flipX } : { ...n, flipY: !n.flipY }));
 }
@@ -289,6 +347,13 @@ export function convertToCurves(doc: QuvreloDocument, id: Id): QuvreloDocument {
   const loc = findNode(doc, id);
   if (!loc) return doc;
   const n = loc.node;
+  if (n.type === 'group' && n.compound) {
+    // expand a compound: bake its live boolean result into a plain path
+    const d = nodeToPath(n);
+    if (!d) return doc;
+    const pathNode: PathNode = { ...pickBase(n), type: 'path', d, closed: true, fill: n.compound.fill, stroke: n.compound.stroke };
+    return updateNode(doc, id, () => pathNode);
+  }
   if (n.type === 'path' || !['rect', 'ellipse', 'polygon', 'star'].includes(n.type)) return doc;
   const d = nodeToPath(n);
   if (!d) return doc;

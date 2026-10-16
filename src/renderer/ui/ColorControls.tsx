@@ -20,10 +20,11 @@ export function paintCss(p: Paint): string {
     case 'solid': return p.color;
     case 'linear': return `linear-gradient(${p.angle + 90}deg, ${p.stops.map((s) => `${s.color} ${s.offset * 100}%`).join(', ')})`;
     case 'radial': return `radial-gradient(circle, ${p.stops.map((s) => `${s.color} ${s.offset * 100}%`).join(', ')})`;
+    case 'conical': return `conic-gradient(from ${p.angle + 90}deg, ${p.stops.map((s) => `${s.color} ${s.offset * 100}%`).join(', ')})`;
   }
 }
 
-const PAINT_LABELS: Record<Paint['type'], string> = { none: 'None', solid: 'Solid', linear: 'Linear', radial: 'Radial' };
+const PAINT_LABELS: Record<Paint['type'], string> = { none: 'None', solid: 'Solid', linear: 'Linear', radial: 'Radial', conical: 'Conical' };
 
 /** Paint editor: none / solid / linear / radial gradient. */
 export function PaintEditor({ paint, onChange, onCommit, allowNone = true, allowGradient = true, fallback = '#8f959e' }: { paint: Paint; onChange: (p: Paint) => void; onCommit?: () => void; allowNone?: boolean; allowGradient?: boolean; fallback?: string }) {
@@ -34,15 +35,15 @@ export function PaintEditor({ paint, onChange, onCommit, allowNone = true, allow
     if (t === 'none') onChange({ type: 'none' });
     else if (t === 'solid') onChange({ type: 'solid', color: firstColor });
     else {
-      const stops = paint.type === 'linear' || paint.type === 'radial' ? paint.stops : [{ offset: 0, color: firstColor }, { offset: 1, color: '#ffffff' }];
-      onChange(t === 'linear' ? { type: 'linear', stops, angle: 0 } : { type: 'radial', stops });
+      const stops = paint.type === 'linear' || paint.type === 'radial' || paint.type === 'conical' ? paint.stops : [{ offset: 0, color: firstColor }, { offset: 1, color: '#ffffff' }];
+      onChange(t === 'linear' ? { type: 'linear', stops, angle: 0 } : t === 'conical' ? { type: 'conical', stops, angle: 0 } : { type: 'radial', stops });
     }
     onCommit?.();
   };
   // all four types always show, in the same order, so the first row never changes shape; ones this target can't take are disabled
   const allowed = (t: Paint['type']) => (allowNone || t !== 'none') && (allowGradient || t === 'none' || t === 'solid');
-  const types = ['none', 'solid', 'linear', 'radial'] as const;
-  const grad = paint.type === 'linear' || paint.type === 'radial' ? paint : null;
+  const types = ['none', 'solid', 'linear', 'radial', 'conical'] as const;
+  const grad = paint.type === 'linear' || paint.type === 'radial' || paint.type === 'conical' ? paint : null;
   const cur = grad ? Math.min(stop, grad.stops.length - 1) : 0;
   const setStops = (stops: { offset: number; color: string }[], commit = false) => {
     if (!grad) return;
@@ -83,10 +84,10 @@ export function PaintEditor({ paint, onChange, onCommit, allowNone = true, allow
             <NumberField label="Pos" ariaLabel="Stop position percent" unit="%" digits={0} min={0} max={100} value={Math.round((grad.stops[cur]?.offset ?? 0) * 100)}
               onChange={(v) => setStops(grad.stops.map((s, i) => (i === cur ? { ...s, offset: v / 100 } : s)))}
               onCommit={(v) => setStops(grad.stops.map((s, i) => (i === cur ? { ...s, offset: v / 100 } : s)), true)} />
-            {grad.type === 'linear' ? (
+            {grad.type === 'linear' || grad.type === 'conical' ? (
               <NumberField label="Angle" ariaLabel="Gradient angle degrees" unit="°" digits={0} min={0} max={360} value={Math.round(grad.angle)}
-                onChange={(v) => onChange({ ...grad, angle: v })}
-                onCommit={(v) => { onChange({ ...grad, angle: v }); onCommit?.(); }} />
+                onChange={(v) => onChange(grad.type === 'linear' ? { ...grad, angle: v, from: undefined, to: undefined } : { ...grad, angle: v })}
+                onCommit={(v) => { onChange(grad.type === 'linear' ? { ...grad, angle: v, from: undefined, to: undefined } : { ...grad, angle: v }); onCommit?.(); }} />
             ) : <span />}
             <div className="gradient-actions">
               <button type="button" className="icon-btn sm" aria-label="Add stop" data-tip="Add stop" onClick={() => {

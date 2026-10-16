@@ -138,9 +138,9 @@ export function ColorChipButton({ kind, label, value, onChange, onCommit, allowN
   }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const color = firstColorOf(value, fallback ?? '#8f959e');
-  const grad = value.type === 'linear' || value.type === 'radial';
+  const grad = value.type === 'linear' || value.type === 'radial' || value.type === 'conical';
   const enabled = value.type !== 'none';
-  const desc = !enabled ? (transparent ? 'transparent' : 'none') : grad ? (value.type === 'linear' ? 'linear gradient' : 'radial gradient') : color.toUpperCase();
+  const desc = !enabled ? (transparent ? 'transparent' : 'none') : grad ? `${value.type} gradient` : color.toUpperCase();
   return (
     <>
       <button type="button" className={`chip-select${chevron ? '' : ' bare'}${anchor ? ' open' : ''}${className ? ' ' + className : ''}`} aria-label={`${label} colour`} aria-haspopup="dialog" aria-expanded={!!anchor} data-tip={`${label}: ${desc}`} disabled={disabled} onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}>
