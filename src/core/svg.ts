@@ -4,7 +4,11 @@
  */
 import { nodeToPath } from './document';
 import { pathToString } from './path';
-import { flowStory, lineHeightPx, monoMeasure, type MeasureFn } from './textflow';
+import { drawnStyle, flowRichStory, lineHeightPx, monoMeasure, type LaidOutLine, type MeasureFn } from './textflow';
+import { sheetOf } from './typography';
+import { featureSettings } from './otFeatures';
+import { fieldContext, masterItemsFor } from './layout';
+import { isCovered, layoutCell } from './tables';
 import type { QuvreloDocument, Id, Page, Paint, SceneNode, Stroke, TextStyle } from './types';
 
 export interface SvgExportOptions {
@@ -33,6 +37,8 @@ export function baselineOffset(style: TextStyle): number {
 class Ctx {
   defs: string[] = [];
   private n = 0;
+  /** page being exported (page-number fields) */
+  pageIndex = -1;
   constructor(public opts: SvgExportOptions, public doc: QuvreloDocument) {}
   id(prefix: string) {
     this.n++;
@@ -98,11 +104,31 @@ function textStyleAttrs(style: TextStyle): string {
   ];
   if (style.fontWeight !== 400) attrs.push(`font-weight="${style.fontWeight}"`);
   if (style.italic) attrs.push('font-style="italic"');
-  if (style.underline) attrs.push('text-decoration="underline"');
+  const deco = [style.underline ? 'underline' : '', style.strike ? 'line-through' : ''].filter(Boolean).join(' ');
+  if (deco) attrs.push(`text-decoration="${deco}"`);
   if (style.letterSpacing) attrs.push(`letter-spacing="${num((style.letterSpacing / 1000) * style.fontSize)}"`);
   if (style.kerning === false) attrs.push('font-kerning="none"');
   if (style.caps && style.caps !== 'normal') attrs.push(`font-variant="${style.caps}"`);
+  const fs = featureSettings(style);
+  if (fs) attrs.push(`style="font-feature-settings: ${esc(fs)}"`);
   return attrs.join(' ');
+}
+
+/** Laid-out lines (styled runs) as <text> elements, origin = frame top-left at (ox, oy). */
+function linesToSvg(ctx: Ctx, lines: LaidOutLine[], fallback: TextStyle, ox: number, oy: number): string {
+  const out: string[] = [];
+  for (const l of lines) {
+    const base = l.baseline ?? l.y + baselineOffset(fallback);
+    for (const r of l.runs ?? [{ text: l.text, x: l.x, width: l.width, style: fallback, start: l.start, end: l.end, wordSpacing: l.wordSpacing, rise: 0 }]) {
+      if (!r.text) continue;
+      const ds = drawnStyle(r.style);
+      out.push(
+        `<text ${textStyleAttrs(ds)} ${paintAttr(ctx, ds.fill, 'fill')} xml:space="preserve" x="${num(ox + r.x)}" y="${num(oy + base - r.rise)}"` +
+          `${r.wordSpacing ? ` word-spacing="${num(r.wordSpacing)}"` : ''}>${esc(r.text)}</text>`,
+      );
+    }
+  }
+  return out.join('');
 }
 
 function nodeToSvg(ctx: Ctx, n: SceneNode): string {
@@ -169,16 +195,29 @@ function nodeToSvg(ctx: Ctx, n: SceneNode): string {
       }
       const frames = story.chain
         .map((fid) => findFrame(ctx.doc, fid))
-        .filter((f): f is Extract<SceneNode, { type: 'textframe' }> => !!f);
-      const flow = flowStory(story.text, story.style, frames, ctx.opts.measure ?? monoMeasure());
+        .filter((f): f is Extract<SceneNode, { type: 'textframe' }> => !!f)
+        .map((f) => ({ id: f.id, w: f.w, h: f.h, padding: f.padding, columns: f.columns, columnGap: f.columnGap, fields: ctx.pageIndex >= 0 ? fieldContext(ctx.doc, ctx.pageIndex) : null }));
+      const g = ctx.doc.settings.baselineGrid;
+      const flow = flowRichStory(story, sheetOf(ctx.doc), frames, ctx.opts.measure ?? monoMeasure(), { grid: g?.enabled ? g : null });
       const layout = flow.frames[n.id];
-      const s = story.style;
-      const ox = -n.w / 2;
-      const oy = -n.h / 2 + baselineOffset(s);
-      const tspans = (layout?.lines ?? [])
-        .map((l) => `<tspan x="${num(ox + l.x)}" y="${num(oy + l.y)}"${l.wordSpacing ? ` word-spacing="${num(l.wordSpacing)}"` : ''}>${esc(l.text)}</tspan>`)
-        .join('');
-      body = bg + `<text ${textStyleAttrs(s)} ${paintAttr(ctx, s.fill, 'fill')} xml:space="preserve">${tspans}</text>`;
+      body = bg + linesToSvg(ctx, layout?.lines ?? [], story.style, -n.w / 2, -n.h / 2);
+      break;
+    }
+    case 'table': {
+      const sheet = sheetOf(ctx.doc);
+      const parts: string[] = [];
+      const borders: string[] = [];
+      for (let r = 0; r < n.rowHeights.length; r++) for (let c = 0; c < n.colWidths.length; c++) {
+        if (isCovered(n, r, c)) continue;
+        const cl = layoutCell(n, sheet, r, c, ctx.opts.measure ?? monoMeasure());
+        const x = -n.w / 2 + cl.rect.x;
+        const y = -n.h / 2 + cl.rect.y;
+        const rect = `x="${num(x)}" y="${num(y)}" width="${num(cl.rect.w)}" height="${num(cl.rect.h)}"`;
+        if (cl.props.fill.type !== 'none') parts.push(`<rect ${rect} ${paintAttr(ctx, cl.props.fill, 'fill')}/>`);
+        parts.push(linesToSvg(ctx, cl.flow.frames.cell?.lines ?? [], cl.style, x, y));
+        if (cl.props.strokeWidth > 0 && cl.props.stroke.type !== 'none') borders.push(`<rect ${rect} fill="none" ${paintAttr(ctx, cl.props.stroke, 'stroke')} stroke-width="${num(cl.props.strokeWidth)}"/>`);
+      }
+      body = parts.join('') + borders.join('');
       break;
     }
     case 'imageframe': {
@@ -256,10 +295,10 @@ export function pageToSvg(doc: QuvreloDocument, page: Page, opts: SvgExportOptio
   const ctx = new Ctx(opts, doc);
   const { width, height, background, bleed } = doc.settings;
   const b = opts.includeBleed ? bleed : 0;
-  const master = page.masterId ? doc.masters.find((m) => m.id === page.masterId) : null;
+  ctx.pageIndex = doc.pages.indexOf(page);
   const content = [
     background ? `<rect x="${num(-b)}" y="${num(-b)}" width="${num(width + 2 * b)}" height="${num(height + 2 * b)}" fill="${esc(background)}"/>` : '',
-    ...(master ? master.nodes.map((n) => nodeToSvg(ctx, n)) : []),
+    ...masterItemsFor(doc, page).map((n) => nodeToSvg(ctx, n)),
     ...page.nodes.map((n) => nodeToSvg(ctx, n)),
   ].join(opts.pretty ? '\n' : '');
   const defs = ctx.defs.length ? `<defs>${ctx.defs.join('')}</defs>` : '';

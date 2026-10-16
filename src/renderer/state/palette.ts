@@ -120,6 +120,10 @@ export function commandIcon(id: string): string | undefined {
     'layer.adjust-levels': 'adjust', 'layer.adjust-curves': 'adjust', 'layer.adjust-hue-saturation': 'adjust', 'layer.adjust-brightness-contrast': 'adjust', 'layer.adjust-exposure': 'adjust', 'layer.adjust-vibrance': 'adjust', 'layer.adjust-color-balance': 'adjust', 'layer.adjust-temperature': 'adjust', 'layer.adjust-black-white': 'adjust', 'layer.adjust-gradient-map': 'adjust', 'layer.adjust-invert': 'adjust', 'layer.adjust-threshold': 'adjust', 'layer.adjust-posterize': 'adjust',
     'filter.vignette': 'filter',
     'filter.liquify': 'liquify', 'doc.canvas-size': 'crop',
+    // Layout: pro typography, tables, masters, preflight
+    'text.autoflow': 'link', 'text.insert-page-number': 'field', 'text.insert-page-count': 'field', 'text.insert-section-name': 'field',
+    'text.styles': 'pilcrow', 'table.insert': 'table', 'table.fit-rows': 'table', 'master.override-all': 'pages', 'master.remove-overrides': 'pages',
+    'layout.preflight': 'preflight', 'view.baseline-grid': 'baseline-grid',
     // every command has an icon, so no row reads as a gap (critique 3 P2-5)
     'doc.clear-guides': 'close', 'view.rulers': 'layout', 'view.snapping': 'magnet', 'view.theme-dark': 'adjust', 'view.theme-light': 'adjust',
     'view.theme-contrast': 'adjust', 'doc.new-swatch': 'swatch', 'view.soft-proof': 'proof', 'view.gamut-warning': 'gamut', 'view.ui-bigger': 'plus', 'view.ui-smaller': 'minus', 'view.ui-reset': 'undo', 'view.devtools': 'settings',

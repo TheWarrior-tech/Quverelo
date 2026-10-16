@@ -18,6 +18,8 @@ import { Icon } from '../Icons';
 import { tip } from '../tips';
 import { evalArithmetic } from '../controls/numeric';
 import { TextSection } from './TextSection';
+import { frameTextTarget } from '../../state/textTarget';
+import { BaselineGridSection, FrameFlowSection, TableSection, WrapSection } from './LayoutSections';
 import type { Unit } from '../../../core/types';
 
 export { evalArithmetic };
@@ -115,6 +117,7 @@ function DocumentProperties() {
         <Field label="Fill"><PaintRow kind="fill" label="Default fill" paint={fill} fallback={ed.ui.fillColor} onChange={setDefault('fill')} /></Field>
         <Field label="Stroke"><PaintRow kind="stroke" label="Default stroke" paint={stroke} fallback={ed.ui.strokeColor} onChange={setDefault('stroke')} /></Field>
       </Section>
+      {ed.ui.studio === 'layout' && <BaselineGridSection />}
       <p className="hint pad">Select an object to edit it here. Double-click text to type, or a picture frame to place an image.</p>
     </div>
   );
@@ -122,7 +125,7 @@ function DocumentProperties() {
 
 const KIND: Record<SceneNode['type'], string> = {
   rect: 'Rectangle', ellipse: 'Ellipse', polygon: 'Polygon', star: 'Star', path: 'Path', text: 'Text', textframe: 'Text frame',
-  imageframe: 'Picture frame', raster: 'Pixel layer', adjustment: 'Adjustment layer', group: 'Group',
+  imageframe: 'Picture frame', raster: 'Pixel layer', adjustment: 'Adjustment layer', table: 'Table', group: 'Group',
 };
 /**
  * The object's own section is named for what it edits, not for the object, so it
@@ -229,11 +232,17 @@ export function PropertiesPanel() {
             <PaintRow kind="fill" label="Text colour" paint={n.style.fill} allowNone={false} onChange={(p) => patchSel('Text colour', (m) => (m.type === 'text' ? { ...m, style: { ...m.style, fill: p } } : m), 'tfill')} />
           </Field>
         )}
-        {n.type === 'textframe' && story && (
-          <Field label="Colour">
-            <PaintRow kind="fill" label="Text colour" paint={story.style.fill} allowNone={false} onChange={(p) => editor.commit('Text colour', (d) => ({ ...d, stories: { ...d.stories, [n.storyId]: { ...d.stories[n.storyId], style: { ...d.stories[n.storyId].style, fill: p } } } }), 'sfill')} />
-          </Field>
-        )}
+        {n.type === 'textframe' && story && (() => {
+          // the selected characters while editing, otherwise all of the frame's text (state/textTarget.ts)
+          const t = frameTextTarget(ed.doc!, n.storyId);
+          return (
+            <div data-keep-text-edit>
+              <Field label="Colour">
+                <PaintRow kind="fill" label="Text colour" paint={t?.style.fill ?? story.style.fill} allowNone={false} onChange={(p) => t?.apply({ fill: p })} />
+              </Field>
+            </div>
+          );
+        })()}
         {strokeOf && (
           <>
             <Field label="Stroke">
@@ -253,7 +262,9 @@ export function PropertiesPanel() {
         </Field>
       </Section>
 
-      {!multi && (n.type === 'text' || n.type === 'textframe') && <TextSection />}
+      {!multi && (n.type === 'text' || n.type === 'textframe' || (n.type === 'table' && ed.ui.editingTextId === n.id && !!ed.ui.tableCell)) && <TextSection />}
+      {!multi && n.type === 'textframe' && ed.ui.studio === 'layout' && <FrameFlowSection node={n} />}
+      {!multi && n.type === 'table' && <TableSection node={n} />}
 
       {!multi && (
         <Section id="transform" title={<>Transform <span className="count">{u}</span></>}>
@@ -333,6 +344,8 @@ export function PropertiesPanel() {
           )}
         </Section>
       )}
+
+      {!multi && ed.ui.studio === 'layout' && <WrapSection node={n} />}
 
       {!multi && n.mask && (
         <Section id="mask" title="Mask">

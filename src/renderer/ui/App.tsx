@@ -3,6 +3,8 @@ import { editor } from '../state/editor';
 import { getViewport, handleKeydown, runCommand } from '../state/commands';
 import '../state/photoCommands';
 import '../state/photoTestHooks';
+import '../state/layoutCommands';
+import { storyFlow } from '../engine/draw';
 import { hookTitle, openPath, startAutosave } from '../state/io';
 import { onToast, type Toast } from '../state/bus';
 import { startUpdates } from '../state/updates';
@@ -170,7 +172,7 @@ export function App() {
     window.addEventListener('dragend', endDrag);
     const offOnboarding = startOnboardingWatcher();
     // test hook: lets end-to-end tests drive commands and inspect state
-    (window as unknown as { __quvrelo: unknown }).__quvrelo = { editor, runCommand, getViewport };
+    (window as unknown as { __quvrelo: unknown }).__quvrelo = { editor, runCommand, getViewport, storyFlow };
     return () => {
       offMenu();
       offOpen();

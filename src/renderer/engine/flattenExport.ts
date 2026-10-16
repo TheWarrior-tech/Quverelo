@@ -20,6 +20,7 @@ import type { QuvreloDocument, RasterNode, SceneNode } from '../../core/types';
 import type { AssetStore } from './assets';
 import { createCanvas, ctx2d } from './assets';
 import { clipRuns, drawNodeList } from './compose';
+import { masterItemsFor } from '../../core/layout';
 import { drawNodeTransformed, renderBounds, type DrawEnv } from './draw';
 
 /** Depends on what is composited below it. */
@@ -70,8 +71,11 @@ export function flattenForVector(doc: QuvreloDocument, assets: AssetStore): { do
   const { width: W, height: H, background, bleed } = doc.settings;
   const pageBox = { x: -bleed, y: -bleed, w: W + 2 * bleed, h: H + 2 * bleed };
 
-  const pages = doc.pages.map((p) => {
-    const master = p.masterId ? doc.masters.find((m) => m.id === p.masterId) : null;
+  const pages = doc.pages.map((p, pageIndex) => {
+    // master items minus this page's overrides (core/layout.ts); fields show this page's number
+    const masterNodes = masterItemsFor(doc, p);
+    const master = masterNodes.length ? { nodes: masterNodes } : null;
+    const penv: DrawEnv = { ...env, pageIndex };
     let nodes = p.nodes;
     let masterId = p.masterId;
     const runs = clipRuns(nodes);
@@ -88,8 +92,8 @@ export function flattenForVector(doc: QuvreloDocument, assets: AssetStore): { do
           ctx.fillStyle = background;
           ctx.fillRect(pageBox.x, pageBox.y, pageBox.w, pageBox.h);
         }
-        if (master) drawNodeList(ctx, master.nodes, env, drawNodeTransformed);
-        drawNodeList(ctx, prefix, env, drawNodeTransformed);
+        if (master) drawNodeList(ctx, master.nodes, penv, drawNodeTransformed);
+        drawNodeList(ctx, prefix, penv, drawNodeTransformed);
       }, 'Flattened layers');
       nodes = [flat, ...rest];
       masterId = null;
@@ -101,7 +105,7 @@ export function flattenForVector(doc: QuvreloDocument, assets: AssetStore): { do
       if (r.followers.length || needsPixels(r.base)) {
         const b = renderBounds(r.base);
         if (b.w > 0 && b.h > 0 && r.base.visible) {
-          out.push(picture(b, density(items, assets), (ctx) => drawNodeList(ctx, items, env, drawNodeTransformed), r.base.name || 'Layer'));
+          out.push(picture(b, density(items, assets), (ctx) => drawNodeList(ctx, items, penv, drawNodeTransformed), r.base.name || 'Layer'));
         }
       } else out.push(...items);
     }

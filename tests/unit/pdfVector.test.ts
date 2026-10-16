@@ -1,10 +1,11 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { PDFArray, PDFDocument, PDFName, PDFRawStream, PDFDict } from 'pdf-lib';
 import { createDocument, make, solid } from '../../src/core/document';
 import { addNodes, addTextFrame } from '../../src/core/commands';
-import { exportVectorPdf, gradientCoords, parseCssColor, pathOps, type VectorPdfHooks } from '../../src/core/pdfVector';
+import { capsSegments, exportVectorPdf, gradientCoords, parseCssColor, pathOps, pdfShapingFeatures, shapedText, type VectorPdfHooks } from '../../src/core/pdfVector';
+import fontkit from '@pdf-lib/fontkit';
 import { BUNDLED_FACES, bundledFaceFor, matchWeight } from '../../src/core/pdfFonts';
 import { formatPageRange, parsePageRange } from '../../src/core/pageRange';
 import { flowStory, lineHeightPx, monoMeasure } from '../../src/core/textflow';
@@ -26,7 +27,9 @@ function hooks(doc: QuvreloDocument, rasterised: SceneNode[] = []): VectorPdfHoo
     font: async (style) => {
       const f = bundledFaceFor(style);
       if (!f) return 'font not bundled';
-      return { key: f.file, bytes: readFileSync(`node_modules/@fontsource/${f.pkg}/${f.file}`), synthItalic: f.synthItalic };
+      const local = `src/renderer/assets/fonts/${f.pkg}/${f.file.replace('files/', '')}`;
+      const file = existsSync(local) ? local : `node_modules/@fontsource/${f.pkg}/${f.file}`;
+      return { key: f.file, bytes: readFileSync(file), synthItalic: f.synthItalic };
     },
     rasterPixels: async () => ({ bytes: PNG, mime: 'image/png' }),
     assetImage: async () => ({ bytes: PNG, mime: 'image/png' }),
@@ -78,7 +81,7 @@ describe('vector PDF', () => {
     expect(s).toMatch(/\[4 2\] 0 d/); // dash
     expect(s).toContain('1 J 2 j');
     expect(s).toMatch(/BT\n\/F\d+ \d+ Tf/); // real text
-    expect(s).toMatch(/> Tj/);
+    expect(s).toMatch(/> Tj|\] TJ/);
     expect(xobjects(pdf)).toBe(0); // nothing placed as an image
     const raw = Buffer.from(await pdf.save({ useObjectStreams: false })).toString('latin1');
     expect(raw).toContain('/FontFile2'); // embedded TrueType outlines
@@ -181,6 +184,14 @@ describe('bundled PDF fonts', () => {
   it('embeds exactly the faces main.tsx loads, and every file exists', () => {
     const main = readFileSync('src/renderer/main.tsx', 'utf8');
     const loaded = [...main.matchAll(/@fontsource\/([a-z-]+)\/(\d+)\.css/g)].map((m) => `${m[1]}/${m[2]}`).sort();
+    // faces shipped in the repo (full OpenType feature sets) are loaded by their own @font-face file
+    const local = readdirSync('src/renderer/assets/fonts');
+    for (const pkg of local) {
+      const css = readFileSync(`src/renderer/assets/fonts/${pkg}/${pkg}.css`, 'utf8');
+      expect(main).toContain(`./assets/fonts/${pkg}/${pkg}.css`);
+      for (const m of css.matchAll(/font-weight: (\d+);/g)) loaded.push(`${pkg}/${m[1]}`);
+    }
+    loaded.sort();
     const declared = Object.values(BUNDLED_FACES).flatMap((f) => f.weights.map((w) => `${f.pkg}/${w}`)).sort();
     expect(declared).toEqual(loaded);
     const urls = readFileSync('src/renderer/engine/pdfFontFiles.ts', 'utf8');
@@ -188,8 +199,90 @@ describe('bundled PDF fonts', () => {
       for (const w of f.weights) {
         const file = `files/${f.pkg}-latin-${w}-normal.woff`;
         expect(urls).toContain(`'${f.pkg}/${file}'`);
-        expect(readFileSync(`node_modules/@fontsource/${f.pkg}/${file}`).length).toBeGreaterThan(1000);
+        const path = local.includes(f.pkg) ? `src/renderer/assets/fonts/${f.pkg}/${f.pkg}-latin-${w}-normal.woff` : `node_modules/@fontsource/${f.pkg}/${file}`;
+        expect(readFileSync(path).length).toBeGreaterThan(1000);
       }
     }
+  });
+});
+
+describe('PDF shaping: kerning and small caps as real text', () => {
+  const inter = readFileSync('node_modules/@fontsource/inter/files/inter-latin-400-normal.woff');
+  const garamond = readFileSync('src/renderer/assets/fonts/eb-garamond/eb-garamond-latin-400-normal.woff');
+  async function embed(bytes: Uint8Array, features: Record<string, boolean>) {
+    const pdf = await PDFDocument.create();
+    pdf.registerFontkit(fontkit);
+    return pdf.embedFont(bytes, { subset: true, features });
+  }
+
+  it('writes GPOS kerning as TJ adjustments, and plain Tj with kerning off', async () => {
+    const kerned = shapedText(await embed(inter, pdfShapingFeatures({}, false)), 'AVATAR To', 20);
+    expect(kerned.adjusted).toBe(true);
+    expect(kerned.op).toMatch(/^\[<[0-9A-F]+> -?[\d.]+ .*\] TJ$/);
+    const flat = shapedText(await embed(inter, pdfShapingFeatures({ kerning: false }, false)), 'AVATAR To', 20);
+    expect(flat.adjusted).toBe(false);
+    expect(flat.op).toMatch(/^<[0-9A-F]+> Tj$/);
+    // kerning tightens AV / To: the shaped width is narrower than the raw advances
+    expect(kerned.width).toBeLessThan(flat.width);
+  });
+
+  it('uses the real smcp / c2sc glyphs when the face has them (EB Garamond)', async () => {
+    const plain = await embed(garamond, pdfShapingFeatures({}, false));
+    const sc = await embed(garamond, pdfShapingFeatures({ caps: 'small-caps' }, true));
+    expect(pdfShapingFeatures({ caps: 'all-small-caps' }, true)).toMatchObject({ smcp: true, c2sc: true });
+    const fk = fontkit.create(garamond as unknown as Buffer);
+    expect(fk.availableFeatures).toEqual(expect.arrayContaining(['smcp', 'c2sc', 'kern']));
+    const a = fk.layout('abc', {}).glyphs.map((g) => g.id);
+    const b = fk.layout('abc', { smcp: true }).glyphs.map((g) => g.id);
+    expect(b).not.toEqual(a); // different (small-cap) glyphs
+    expect(shapedText(sc, 'abc', 12).width).not.toBeCloseTo(shapedText(plain, 'abc', 12).width, 3);
+  });
+
+  it('splits text for synthesised small caps like Chromium', () => {
+    expect(capsSegments('Hello World 42', 'small-caps')).toEqual([
+      { t: 'H', small: false }, { t: 'ELLO', small: true }, { t: ' W', small: false }, { t: 'ORLD', small: true }, { t: ' 42', small: false },
+    ]);
+    expect(capsSegments('Hi 2', 'all-small-caps')).toEqual([{ t: 'HI', small: true }, { t: ' 2', small: false }]);
+  });
+
+  it('exports small caps frames as text, never as an image', async () => {
+    let d = createDocument({ settings: { width: 400, height: 300, background: '#ffffff', dpi: 96 } });
+    const r1 = addTextFrame(d, d.pages[0].id, { x: 20, y: 20, w: 300, h: 60 }, 'Small caps in Inter');
+    d = r1.doc;
+    const r2 = addTextFrame(d, d.pages[0].id, { x: 20, y: 120, w: 300, h: 60 }, 'Small caps in Garamond');
+    d = r2.doc;
+    const sid = (id: string) => (d.pages[0].nodes.find((n) => n.id === id) as Extract<SceneNode, { type: 'textframe' }>).storyId;
+    const s1 = sid(r1.id);
+    const s2 = sid(r2.id);
+    d = { ...d, stories: { ...d.stories,
+      [s1]: { ...d.stories[s1], style: { ...d.stories[s1].style, fontFamily: 'Inter', caps: 'small-caps' } },
+      [s2]: { ...d.stories[s2], style: { ...d.stories[s2].style, fontFamily: 'EB Garamond', caps: 'small-caps' } } } };
+    const out: SceneNode[] = [];
+    const { bytes, report } = await exportVectorPdf(d, { pages: [0], includeBleed: false, cropMarks: false, fallbackDpi: 150 }, hooks(d, out));
+    expect(report.rasterised).toEqual([]);
+    expect(out).toHaveLength(0);
+    const { pdf, ops } = await contents(bytes);
+    expect(xobjects(pdf)).toBe(0);
+    // Inter has no smcp: synthesised at 70% of the size (two Tf sizes in one text object)
+    const size = d.stories[s1].style.fontSize;
+    expect(ops[0]).toContain(` ${+(size * 0.7).toFixed(3)} Tf`);
+  });
+});
+
+describe('PDF: tables with per-character formatting, tabs and hyphens', () => {
+  it('writes a bold word inside a cell as text in the bold face', async () => {
+    const { makeTable, setCellText, applyCellCharProps } = await import('../../src/core/tables');
+    let d = createDocument({ settings: { width: 400, height: 300, background: '#ffffff', dpi: 96 } });
+    let t = setCellText(makeTable(1, 2, { w: 300, h: 40, x: 200, y: 100 }), 0, 0, 'Plain bold');
+    t = setCellText(applyCellCharProps(t, 0, 0, 6, 10, { fontWeight: 700 }), 0, 1, 'x');
+    t = { ...t, cells: t.cells.map((row) => row.map((c) => ({ ...c, props: { text: { fontFamily: 'Inter' } } }))) };
+    d = addNodes(d, d.pages[0].id, [t]);
+    const out: SceneNode[] = [];
+    const { bytes, report } = await exportVectorPdf(d, { pages: [0], includeBleed: false, cropMarks: false, fallbackDpi: 150 }, hooks(d, out));
+    expect(report.rasterised).toEqual([]);
+    const { pdf } = await contents(bytes);
+    const raw = Buffer.from(await pdf.save({ useObjectStreams: false })).toString('latin1');
+    const fonts = new Set([...raw.matchAll(/\/FontName \/([A-Za-z0-9-]+)-\d+/g)].map((x) => x[1]));
+    expect(fonts).toEqual(new Set(['Inter-Regular', 'Inter-Bold']));
   });
 });

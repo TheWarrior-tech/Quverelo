@@ -45,7 +45,7 @@ function reg(id: string, fn: Handler) {
   handlers.set(id, fn);
 }
 
-/** Register (or replace) a command handler; used by feature modules such as state/photoCommands.ts. */
+/** Register (or replace) a command handler from a feature module (state/photoCommands.ts, Layout's layoutCommands.ts…). */
 export function registerCommand(id: string, fn: Handler): void {
   handlers.set(id, fn);
 }

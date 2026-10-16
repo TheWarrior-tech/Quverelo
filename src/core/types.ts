@@ -139,6 +139,10 @@ export interface NodeBase extends Transform {
   pixelMask?: PixelMask;
   /** clipping mask: drawn only where the nearest unclipped layer below has pixels */
   clipped?: boolean;
+  /** text wrap (Layout); absent = none */
+  wrap?: TextWrap;
+  /** set on a page item copied from a master item (master override) */
+  overrideOf?: Id;
 }
 
 export interface ShapeStyle {
@@ -196,6 +200,109 @@ export interface TextStyle {
   kerning?: boolean;
   /** capitals: small caps from the font's smcp/c2sc features */
   caps?: TextCaps;
+  // --- Pro typography (Layout studio). All optional: absent = the default noted.
+  /** standard ligatures (liga/clig), default on */
+  ligatures?: boolean;
+  /** discretionary ligatures (dlig), default off */
+  discretionaryLigatures?: boolean;
+  /** figure style: lnum / onum, default = the font's own */
+  figures?: FigureStyle;
+  /** figure spacing: pnum / tnum, default = the font's own */
+  figureSpacing?: FigureSpacing;
+  /** baseline shift in px, positive raises */
+  baselineShift?: number;
+  /** superscript / subscript (synthesised from size and shift) */
+  position?: TextPosition;
+  strike?: boolean;
+  /** paragraph: absolute leading in px (overrides lineHeight when > 0) */
+  leading?: number;
+  /** paragraph spacing and indents, px */
+  spaceBefore?: number;
+  spaceAfter?: number;
+  firstIndent?: number;
+  leftIndent?: number;
+  rightIndent?: number;
+  /** paragraph: snap baselines to the document baseline grid */
+  alignToGrid?: boolean;
+  /** paragraph: hyphenate words at line ends (Liang / TeX patterns), default off */
+  hyphenate?: boolean;
+  /** paragraph: language for hyphenation, default en-GB */
+  language?: TextLanguage;
+  /** paragraph: tab stops (px from the column's left edge, ascending); past the last, default stops every 48px (½ in) */
+  tabStops?: TabStop[];
+  /** paragraph: keep the last line in the same column / frame as the next paragraph's first line */
+  keepWithNext?: boolean;
+  /** paragraph: never split the paragraph across columns / frames */
+  keepTogether?: boolean;
+  /** paragraph: fewest lines left at the foot of a column when a paragraph breaks (orphans), 0/1 = off */
+  orphans?: number;
+  /** paragraph: fewest lines carried to the top of the next column (widows), 0/1 = off */
+  widows?: number;
+}
+
+export type TextLanguage = 'en-GB' | 'en-US';
+export type TabAlign = 'left' | 'center' | 'right' | 'decimal';
+export interface TabStop {
+  /** px from the left edge of the column (inside the frame inset) */
+  pos: number;
+  align: TabAlign;
+  /** characters repeated to fill the tab space ('' or absent = none), e.g. '.' or '. ' */
+  leader?: string;
+}
+
+export type FigureStyle = 'default' | 'lining' | 'oldstyle';
+export type FigureSpacing = 'default' | 'proportional' | 'tabular';
+export type TextPosition = 'normal' | 'superscript' | 'subscript';
+
+/** Named paragraph style (paragraph + character attributes); resolved through its basedOn chain. */
+export interface ParagraphStyleDef {
+  id: Id;
+  name: string;
+  basedOn: Id | null;
+  props: Partial<TextStyle>;
+  /** style given to a new paragraph made by pressing Return */
+  nextStyle?: Id | null;
+}
+
+/** Named character style (character attributes only). */
+export interface CharacterStyleDef {
+  id: Id;
+  name: string;
+  basedOn: Id | null;
+  props: Partial<TextStyle>;
+}
+
+/** Named table cell style. */
+export interface CellStyleDef {
+  id: Id;
+  name: string;
+  props: Partial<CellProps>;
+}
+
+export interface TextStyleSheet {
+  paragraph: ParagraphStyleDef[];
+  character: CharacterStyleDef[];
+  cell: CellStyleDef[];
+}
+
+/** Character formatting over [start, end) of a story's text. Spans are sorted and never overlap. */
+export interface CharSpan {
+  start: number;
+  end: number;
+  styleId?: Id | null;
+  props?: Partial<TextStyle>;
+}
+
+/** Per-paragraph formatting (index = paragraph number in the story). */
+export interface ParaAttrs {
+  styleId?: Id | null;
+  props?: Partial<TextStyle>;
+}
+
+/** Text wrap set on an object: text in other frames on its page flows around it. */
+export interface TextWrap {
+  mode: 'none' | 'box' | 'contour' | 'jump';
+  offset: number;
 }
 
 export type TextCaps = 'normal' | 'small-caps' | 'all-small-caps';
@@ -290,6 +397,41 @@ export interface AdjustmentNode extends NodeBase {
   adjustment: Adjustment;
 }
 
+export interface CellProps {
+  fill: Paint;
+  /** border colour + width (all four sides) */
+  stroke: Paint;
+  strokeWidth: number;
+  padding: number;
+  vAlign: 'top' | 'middle' | 'bottom';
+  /** text formatting for the cell's content */
+  text: Partial<TextStyle>;
+}
+
+export interface TableCell {
+  text: string;
+  /** character formatting inside the cell (same model as Story.spans) */
+  spans?: CharSpan[];
+  /** merged cells: the top-left cell carries the span, covered cells are hidden */
+  rowSpan?: number;
+  colSpan?: number;
+  styleId?: Id | null;
+  props?: Partial<CellProps>;
+}
+
+/** Layout table: rows × cols grid with merges and cell styles. Size = sum of rows/cols. */
+export interface TableNode extends NodeBase {
+  type: 'table';
+  w: number;
+  h: number;
+  /** column widths and row heights in px (scaled to w/h when the frame is resized) */
+  colWidths: number[];
+  rowHeights: number[];
+  cells: TableCell[][];
+  /** number of header rows (drawn with the header style) */
+  headerRows: number;
+}
+
 export interface GroupNode extends NodeBase {
   type: 'group';
   children: SceneNode[];
@@ -313,6 +455,7 @@ export type SceneNode =
   | ImageFrameNode
   | RasterNode
   | AdjustmentNode
+  | TableNode
   | GroupNode;
 
 export type NodeType = SceneNode['type'];
@@ -323,6 +466,10 @@ export interface Story {
   style: TextStyle;
   /** Ordered ids of the text frames the story flows through. */
   chain: Id[];
+  /** character formatting runs (absent = whole story in `style`) */
+  spans?: CharSpan[];
+  /** paragraph formatting by paragraph index */
+  paras?: (ParaAttrs | null)[];
 }
 
 export interface Page {
@@ -330,6 +477,21 @@ export interface Page {
   name: string;
   masterId: Id | null;
   nodes: SceneNode[]; // bottom-most first
+  /** master items hidden on this page because they were overridden (copied to the page) */
+  overrides?: Id[];
+  /** starts a new section here (page numbering restarts) */
+  section?: PageSection;
+}
+
+export type PageNumberStyle = 'arabic' | 'roman' | 'ROMAN' | 'alpha' | 'ALPHA';
+
+export interface PageSection {
+  name: string;
+  /** number of this page; default 1 */
+  startAt: number;
+  style: PageNumberStyle;
+  /** text shown before the number, e.g. "A-" */
+  prefix?: string;
 }
 
 export interface MasterPage {
@@ -387,6 +549,19 @@ export interface DocumentSettings {
   columnGutter: number;
   /** colour management (absent = RGB, sRGB, 8-bit; see core/colour/profiles.ts) */
   colour?: DocColour;
+  /** baseline grid (Layout); absent = off */
+  baselineGrid?: BaselineGrid;
+}
+
+export interface BaselineGrid {
+  enabled: boolean;
+  /** first line, px from the top of the page */
+  start: number;
+  /** increment, px */
+  increment: number;
+  /** draw the grid on the canvas */
+  visible: boolean;
+  colour?: string;
 }
 
 export interface QuvreloDocument {
@@ -406,6 +581,8 @@ export interface QuvreloDocument {
   assets: Record<Id, AssetRef>;
   /** Studio the document was last edited in (UI hint only). */
   studio: StudioKind;
+  /** Named paragraph / character / cell styles (Layout). */
+  textStyles?: TextStyleSheet;
   /** Optional classroom assignment metadata (hand-in workflow). */
   assignment?: AssignmentInfo;
 }

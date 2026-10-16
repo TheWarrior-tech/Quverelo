@@ -153,6 +153,22 @@ const paths: Record<string, ReactElement> = {
   // type spacing: leading (two baselines, vertical span) and tracking (two stems, horizontal span)
   leading: P('M3.5 4h13M3.5 16h13M10 6.5v7M8 8.5l2-2 2 2M8 11.5l2 2 2-2'),
   tracking: P('M3.5 4.5v11M16.5 4.5v11M6.5 10h7M8.5 8l-2 2 2 2M11.5 8l2 2-2 2'),
+  // layout: table (3x3 grid), text wrap (text lines around a block), pilcrow (paragraph styles),
+  // character style (A with underline), baseline grid, preflight (check on a page), field (#)
+  table: <>{R(3, 4, 14, 12, 1.5)}{P('M3.5 8h13M3.5 12h13M8 4.5v11M12.5 4.5v11')}</>,
+  wrap: <>{R(7.5, 7.5, 5, 5, 1)}{P('M3.5 4.5h13M3.5 10h2M14.5 10h2M3.5 15.5h13')}</>,
+  pilcrow: P('M9 16.5V4h7M13 4v12.5M9 4a3.5 3.5 0 000 7'),
+  charstyle: P('M5 14l5-10 5 10M6.8 10.5h6.4M4 16.5h12'),
+  'baseline-grid': P('M3.5 4.5h13M3.5 8.2h13M3.5 11.8h13M3.5 15.5h13'),
+  preflight: <>{R(4.5, 3, 11, 14, 1.5)}{P('M7.5 10.2l1.8 1.8 3.4-3.6')}</>,
+  field: P('M8 4l-1.5 12M13.5 4L12 16M4.5 8h11.5M4 12h11.5'),
+  // tab stops (ruler markers as in InDesign / Word): stem with its foot showing the alignment
+  'tab-left': P('M7 4.5v9h6M3.5 16.5h13'),
+  'tab-center': P('M10 4.5v9M6.5 13.5h7M3.5 16.5h13'),
+  'tab-right': P('M13 4.5v9H7M3.5 16.5h13'),
+  'tab-decimal': <>{P('M8.5 4.5v9M5 13.5h7M3.5 16.5h13')}<circle cx="13.5" cy="10" r="1" /></>,
+  // hyphenation: a word broken at the line end
+  hyphenate: P('M3.5 6h9M3.5 10h6M11 10h2.5M3.5 14h13'),
 };
 
 /** True when the set has a glyph called `name` (unknown names fall back to a square). */

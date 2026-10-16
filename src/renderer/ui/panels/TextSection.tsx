@@ -17,6 +17,8 @@ import { Section } from '../controls/Panel';
 import { Segmented } from '../controls/Segmented';
 import { Icon } from '../Icons';
 import { useEditor } from '../hooks';
+import { OpenTypeOptions, ParagraphOptions, StylePickers } from './TypeOptions';
+import type { FrameTextTarget } from '../../state/textTarget';
 
 const WEIGHTS: { w: number; name: string }[] = [
   { w: 300, name: 'Light' },
@@ -54,11 +56,15 @@ export function TextSection() {
   if (!target) return null;
   const s: TextStyle = target.style;
   const apply = target.apply;
+  // Layout frames: styles, paragraph spacing and per-character scope (state/textTarget.ts)
+  const frame = 'storyId' in target ? (target as FrameTextTarget) : null;
+  const mixed = (k: keyof TextStyle) => !!frame && frame.mixed(k);
   const styleValue = `${s.fontWeight}${s.italic ? 'i' : ''}`;
   const styleOptions = WEIGHTS.flatMap(({ w }) => [`${w}`, `${w}i`]);
   if (!styleOptions.includes(styleValue)) styleOptions.unshift(styleValue);
   return (
-    <Section id="text" title="Text" className="text-section">
+    <Section id="text" title={frame && frame.scope !== 'story' ? <>Text <span className="count">{frame.scope === 'selection' ? 'selection' : 'at caret'}</span></> : 'Text'} className="text-section">
+      {frame && <StylePickers target={frame} />}
       <div className="row text-font-row" data-keep-text-edit>
         <FontPicker full value={primaryFamily(s.fontFamily)} onPreview={(f) => apply({ fontFamily: f })} onCommit={(f) => apply({ fontFamily: f })} />
       </div>
@@ -69,7 +75,7 @@ export function TextSection() {
         }}>
           {styleOptions.map((v) => <option key={v} value={v}>{styleName(parseInt(v, 10), v.endsWith('i'))}</option>)}
         </select>
-        <NumberField label="Size" ariaLabel="Font size (pt)" unit="pt" digits={1} value={s.fontSize} min={4} max={1000} onChange={(v) => apply({ fontSize: v })} onCommit={(v) => apply({ fontSize: v })} />
+        <NumberField label="Size" ariaLabel="Font size (pt)" unit="pt" digits={1} mixed={mixed('fontSize')} value={s.fontSize} min={4} max={1000} onChange={(v) => apply({ fontSize: v })} onCommit={(v) => apply({ fontSize: v })} />
       </div>
       <div className="grid2" data-keep-text-edit>
         <NumberField label={<Icon name="leading" size={16} />} title="Leading: line height as a multiple of the size" ariaLabel="Leading (line height multiple)" unit="×" unitInline digits={2} value={s.lineHeight} min={0.6} max={4} step={0.05} onChange={(v) => apply({ lineHeight: v })} onCommit={(v) => apply({ lineHeight: v })} />
@@ -84,7 +90,8 @@ export function TextSection() {
           options={ALIGN.map((a) => ({ value: a.value, ariaLabel: a.label, label: <Icon name={`text-${a.value}`} size={16} /> }))}
         />
       </div>
-      <div className="row">
+      {frame?.kind === 'frame' && <ParagraphOptions style={s} apply={apply} mixed={mixed} />}
+      <div className="row" data-keep-text-edit>
         <button type="button" className="btn sm ghost more-type" aria-expanded={more} aria-controls="more-type-options" onClick={() => setMore(!more)}>
           <Icon name={more ? 'chevron-down' : 'chevron-right'} size={16} /> More type options
         </button>
@@ -101,6 +108,7 @@ export function TextSection() {
             <label className="check"><input type="checkbox" checked={s.kerning !== false} onChange={(e) => apply({ kerning: e.target.checked })} /> Kerning</label>
             <label className="check"><input type="checkbox" checked={!!s.underline} onChange={(e) => apply({ underline: e.target.checked })} /> Underline</label>
           </div>
+          {frame && <OpenTypeOptions style={s} apply={apply} />}
         </div>
       )}
     </Section>

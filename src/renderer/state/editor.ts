@@ -106,6 +106,10 @@ export interface UiState {
   softProof: boolean;
   /** View › Gamut Warning: grey out colours the press can't print */
   gamutWarning: boolean;
+  /** Layout: the selected table cell range (anchor r/c, optional extent r2/c2) */
+  tableCell?: { nodeId: Id; r: number; c: number; r2?: number; c2?: number } | null;
+  /** Layout: selection inside the story being edited, in story indices */
+  textSel?: { storyId: Id; start: number; end: number } | null;
 }
 
 export interface DocSession {

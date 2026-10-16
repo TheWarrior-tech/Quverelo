@@ -17,12 +17,28 @@ import type { AssetStore } from './assets';
 import { createCanvas } from './assets';
 import { drawNodeTransformed, toPath2D, type DrawEnv } from './draw';
 import type { RasterExportOptions } from './export';
+import { masterItemsFor } from '../../core/layout';
 
 /** Does this subtree need to be walked here (pixel layers, or blend modes that must see what is under the group)? */
 function needsWalk(n: SceneNode): boolean {
   if (n.type === 'raster') return true;
   if (n.type === 'group') return n.children.some((c) => c.visible && (c.blend !== 'normal' || needsWalk(c)));
   return false;
+}
+
+/**
+ * Photo layer features the 16-bit compositor does not model (adjustment
+ * layers, pixel masks, clipping masks). A page holding any of them is
+ * rendered by the 8-bit canvas pipeline instead and widened to 16 bits, so
+ * the PNG matches the screen exactly (at 8-bit precision) rather than
+ * silently dropping the effect.
+ */
+export function page16Supported(doc: QuvreloDocument, pageIndex: number): boolean {
+  const page = doc.pages[pageIndex];
+  if (!page) return true;
+  const bad = (n: SceneNode): boolean =>
+    n.visible && (n.type === 'adjustment' || !!n.pixelMask?.enabled || !!n.clipped || (n.type === 'group' && n.children.some(bad)));
+  return ![...masterItemsFor(doc, page), ...page.nodes].some(bad);
 }
 
 export function renderPage16(doc: QuvreloDocument, assets: AssetStore, o: RasterExportOptions): Pixels16 {
@@ -34,7 +50,7 @@ export function renderPage16(doc: QuvreloDocument, assets: AssetStore, o: Raster
   const H = Math.max(1, Math.round(h * k));
   const comp = new Compositor16(W, H);
   const docForRender = o.transparent ? { ...doc, settings: { ...doc.settings, background: null } } : doc;
-  const env: DrawEnv = { doc: docForRender, assets, editor: false, preview: false, zoom: o.scale };
+  const env: DrawEnv = { doc: docForRender, assets, editor: false, preview: false, zoom: o.scale, pageIndex: o.pageIndex };
   const bg = docForRender.settings.background;
   if (bg) {
     const c = createCanvas(1, 1);
@@ -108,7 +124,6 @@ export function renderPage16(doc: QuvreloDocument, assets: AssetStore, o: Raster
   };
 
   const page = doc.pages[o.pageIndex];
-  const master = page?.masterId ? doc.masters.find((m) => m.id === page.masterId) : null;
-  walk([...(master?.nodes ?? []), ...(page?.nodes ?? [])], base, 1, 'normal', null);
+  walk(page ? [...masterItemsFor(doc, page), ...page.nodes] : [], base, 1, 'normal', null);
   return comp.toPixels16();
 }

@@ -6,7 +6,12 @@
 import { composeTransform } from '../../core/geometry';
 import { docColour } from '../../core/colour/profiles';
 import { nodeToPath, estimateTextSize } from '../../core/document';
-import { flowStory, lineHeightPx, type FlowResult, type MeasureFn } from '../../core/textflow';
+import { drawnStyle, flowRichStory, lineHeightPx, type FlowFrame, type FlowResult, type LaidOutLine, type MeasureFn } from '../../core/textflow';
+import { sheetOf } from '../../core/typography';
+import { fieldContext, frameExclusions, masterItemsFor } from '../../core/layout';
+import { cellRect, isCovered, layoutCell, colCount, rowCount } from '../../core/tables';
+import { familyFor } from './otFonts';
+import { composeTransform as _ct, multiply as _mul } from '../../core/geometry';
 import { baselineOffset, imageFrameContentRect } from '../../core/svg';
 import { pathToString } from '../../core/path';
 import type { QuvreloDocument, Id, Paint, PathCommand, SceneNode, Story, Stroke, TextStyle } from '../../core/types';
@@ -29,6 +34,12 @@ export interface DrawEnv {
    */
   livePaint?: { nodeId: Id; canvas: HTMLCanvasElement; mask?: boolean; adjusted?: boolean } | null;
   zoom: number;
+  /** page being drawn (fields in master items show this page's number) */
+  pageIndex?: number;
+  /** rich text editing: the edited frame stays drawn (the caret/selection are overlay chrome) */
+  richEdit?: boolean;
+  /** table cell being edited / selected (editor chrome) */
+  tableCell?: { nodeId: Id; r: number; c: number } | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -37,7 +48,7 @@ export interface DrawEnv {
 let measureCtx: CanvasRenderingContext2D | null = null;
 
 export function cssFont(style: TextStyle, size = style.fontSize): string {
-  return `${style.italic ? 'italic ' : ''}${style.fontWeight} ${size}px ${style.fontFamily}`;
+  return `${style.italic ? 'italic ' : ''}${style.fontWeight} ${size}px ${familyFor(style)}`;
 }
 
 type TypoCtx = CanvasRenderingContext2D & { fontKerning?: string; fontVariantCaps?: string };
@@ -82,45 +93,127 @@ export function artisticTextSize(text: string, style: TextStyle): { w: number; h
 // ---------------------------------------------------------------------------
 // Story flow cache
 
-const flowCache = new Map<string, { story: Story; frames: string; result: FlowResult }>();
+const flowCache = new Map<string, { story: Story; key: string; result: FlowResult }>();
 
-export function frameChain(doc: QuvreloDocument, story: Story): Extract<SceneNode, { type: 'textframe' }>[] {
-  const out: Extract<SceneNode, { type: 'textframe' }>[] = [];
+type FrameNode = Extract<SceneNode, { type: 'textframe' }>;
+
+interface FrameInfo {
+  node: FrameNode;
+  /** page index, −1 on a master */
+  pageIndex: number;
+  /** page y of the frame's top edge */
+  pageTop: number;
+}
+
+export function frameChain(doc: QuvreloDocument, story: Story): FrameNode[] {
+  const out: FrameNode[] = [];
   const index = frameIndex(doc);
   for (const id of story.chain) {
     const f = index.get(id);
-    if (f) out.push(f);
+    if (f) out.push(f.node);
   }
   return out;
 }
 
-const frameIndexCache = new WeakMap<QuvreloDocument, Map<Id, Extract<SceneNode, { type: 'textframe' }>>>();
-function frameIndex(doc: QuvreloDocument) {
+const frameIndexCache = new WeakMap<QuvreloDocument, Map<Id, FrameInfo>>();
+function frameIndex(doc: QuvreloDocument): Map<Id, FrameInfo> {
   let m = frameIndexCache.get(doc);
   if (m) return m;
   m = new Map();
-  const visit = (nodes: SceneNode[]) => {
+  const visit = (nodes: SceneNode[], pi: number, parent: [number, number, number, number, number, number]) => {
     for (const n of nodes) {
-      if (n.type === 'textframe') m!.set(n.id, n);
-      else if (n.type === 'group') visit(n.children);
+      if (n.type === 'textframe') {
+        const w = _mul(parent, _ct(n));
+        m!.set(n.id, { node: n, pageIndex: pi, pageTop: w[1] * (-n.w / 2) + w[3] * (-n.h / 2) + w[5] });
+      } else if (n.type === 'group') visit(n.children, pi, _mul(parent, _ct(n)));
     }
   };
-  doc.pages.forEach((p) => visit(p.nodes));
-  doc.masters.forEach((p) => visit(p.nodes));
+  doc.pages.forEach((p, i) => visit(p.nodes, i, [1, 0, 0, 1, 0, 0]));
+  doc.masters.forEach((p) => visit(p.nodes, -1, [1, 0, 0, 1, 0, 0]));
   frameIndexCache.set(doc, m);
   return m;
 }
 
-export function storyFlow(doc: QuvreloDocument, storyId: Id): FlowResult | null {
+const exclusionCache = new WeakMap<QuvreloDocument, Map<string, FlowFrame['exclusions']>>();
+function exclusionsFor(doc: QuvreloDocument, frameId: Id, pageIndex: number | undefined): FlowFrame['exclusions'] {
+  let m = exclusionCache.get(doc);
+  if (!m) {
+    m = new Map();
+    exclusionCache.set(doc, m);
+  }
+  const k = `${frameId}|${pageIndex ?? ''}`;
+  let ex = m.get(k);
+  if (!ex) {
+    ex = frameExclusions(doc, frameId, renderLocalBounds, pageIndex);
+    m.set(k, ex);
+  }
+  return ex;
+}
+
+/** Whether any item in the document has text wrap (skips exclusion work otherwise). */
+const wrapCache = new WeakMap<QuvreloDocument, boolean>();
+function docHasWrap(doc: QuvreloDocument): boolean {
+  let v = wrapCache.get(doc);
+  if (v === undefined) {
+    v = false;
+    const visit = (nodes: SceneNode[]) => {
+      for (const n of nodes) {
+        if (n.wrap && n.wrap.mode !== 'none') v = true;
+        if (n.type === 'group') visit(n.children);
+      }
+    };
+    doc.pages.forEach((p) => visit(p.nodes));
+    doc.masters.forEach((p) => visit(p.nodes));
+    wrapCache.set(doc, v);
+  }
+  return v;
+}
+
+/**
+ * Lay out a story with everything that affects it: frame geometry, text wrap,
+ * the baseline grid, styles and page-number fields. `pageIndex` is the page a
+ * master item is being drawn on (fields in master frames show its number).
+ */
+export function storyFlow(doc: QuvreloDocument, storyId: Id, pageIndex?: number): FlowResult | null {
   const story = doc.stories[storyId];
   if (!story) return null;
-  const frames = frameChain(doc, story);
-  const key = frames.map((f) => `${f.id}:${f.w}:${f.h}:${f.padding}:${f.columns}:${f.columnGap}`).join('|');
-  const hit = flowCache.get(storyId);
-  if (hit && hit.story === story && hit.frames === key) return hit.result;
-  const result = flowStory(story.text, story.style, frames, measureText);
-  flowCache.set(storyId, { story, frames: key, result });
+  const index = frameIndex(doc);
+  const wrap = docHasWrap(doc);
+  const frames: FlowFrame[] = [];
+  for (const id of story.chain) {
+    const info = index.get(id);
+    if (!info) continue;
+    const f = info.node;
+    const pi = info.pageIndex >= 0 ? info.pageIndex : pageIndex;
+    frames.push({
+      id: f.id, w: f.w, h: f.h, padding: f.padding, columns: f.columns, columnGap: f.columnGap,
+      pageTop: info.pageTop,
+      fields: pi !== undefined && pi >= 0 && doc.pages[pi] ? fieldContext(doc, pi) : null,
+      exclusions: wrap ? exclusionsFor(doc, f.id, info.pageIndex >= 0 ? undefined : pageIndex) : undefined,
+    });
+  }
+  const g = doc.settings.baselineGrid;
+  const grid = g && g.enabled ? { start: g.start, increment: g.increment } : null;
+  const sheet = sheetOf(doc);
+  const key = JSON.stringify([frames, grid]) + '|' + sheetKey(sheet);
+  const cacheKey = storyId + '|' + (pageIndex ?? '');
+  const hit = flowCache.get(cacheKey);
+  if (hit && hit.story === story && hit.key === key) return hit.result;
+  const result = flowRichStory(story, sheet, frames, measureText, { grid });
+  if (flowCache.size > 4000) flowCache.clear();
+  flowCache.set(cacheKey, { story, key, result });
   return result;
+}
+
+const sheetKeys = new WeakMap<object, string>();
+let sheetSeq = 0;
+function sheetKey(sheet: object): string {
+  let k = sheetKeys.get(sheet);
+  if (!k) {
+    k = String(++sheetSeq);
+    sheetKeys.set(sheet, k);
+  }
+  return k;
 }
 
 // ---------------------------------------------------------------------------
@@ -206,7 +299,7 @@ export function drawNodeTransformed(ctx: CanvasRenderingContext2D, n: SceneNode,
 
 /** Draw a node's content in its local space (transform already applied by the caller). */
 export function drawNodeContent(ctx: CanvasRenderingContext2D, n: SceneNode, env: DrawEnv): void {
-  if (env.hiddenNodeId === n.id && (n.type === 'text' || n.type === 'textframe')) {
+  if (env.hiddenNodeId === n.id && (n.type === 'text' || n.type === 'textframe') && !env.richEdit) {
     if (n.type === 'textframe') drawFrameBox(ctx, n, env);
     return;
   }
@@ -245,6 +338,9 @@ export function drawNodeContent(ctx: CanvasRenderingContext2D, n: SceneNode, env
       break;
     case 'imageframe':
       drawImageFrame(ctx, n, env);
+      break;
+    case 'table':
+      drawTable(ctx, n, env);
       break;
     case 'raster': {
       const lp = env.livePaint && env.livePaint.nodeId === n.id && !env.livePaint.mask ? env.livePaint : null;
@@ -378,28 +474,38 @@ function drawFrameBox(ctx: CanvasRenderingContext2D, n: Extract<SceneNode, { typ
   }
 }
 
+/** Draw laid-out lines (styled runs) with the frame's top-left corner at (ox, oy). */
+export function drawFlowLines(ctx: CanvasRenderingContext2D, lines: LaidOutLine[], ox: number, oy: number, fallback: TextStyle, box: { x: number; y: number; w: number; h: number }): void {
+  for (const l of lines) {
+    const runs = l.runs ?? [{ text: l.text, x: l.x, width: l.width, style: fallback, start: l.start, end: l.end, wordSpacing: l.wordSpacing, rise: 0 }];
+    const base = l.baseline ?? l.y + baselineOffset(fallback);
+    for (const r of runs) {
+      if (!r.text) continue;
+      const ds = drawnStyle(r.style);
+      setTextCtx(ctx, ds);
+      const fill = makeFillStyle(ctx, ds.fill, box);
+      if (!fill) continue;
+      ctx.fillStyle = fill;
+      const x = ox + r.x;
+      const y = oy + base - r.rise;
+      drawLineText(ctx, r.text, x, y, r.wordSpacing, ds);
+      drawUnderline(ctx, x, y, r.width, ds);
+      if (ds.strike) ctx.fillRect(x, y - ds.fontSize * 0.28, r.width, Math.max(1, ds.fontSize / 16));
+    }
+  }
+}
+
 function drawTextFrame(ctx: CanvasRenderingContext2D, n: Extract<SceneNode, { type: 'textframe' }>, env: DrawEnv) {
   drawFrameBox(ctx, n, env);
   const story = env.doc.stories[n.storyId];
   if (!story) return;
-  const flow = storyFlow(env.doc, n.storyId);
+  const flow = storyFlow(env.doc, n.storyId, env.pageIndex);
   const layout = flow?.frames[n.id];
-  const s = story.style;
-  const ox = -n.w / 2;
-  const oy = -n.h / 2 + baselineOffset(s);
   ctx.save();
   ctx.beginPath();
   ctx.rect(-n.w / 2 - 2, -n.h / 2 - 2, n.w + 4, n.h + 4);
   ctx.clip();
-  setTextCtx(ctx, s);
-  const fill = makeFillStyle(ctx, s.fill, { x: -n.w / 2, y: -n.h / 2, w: n.w, h: n.h });
-  if (fill && layout) {
-    ctx.fillStyle = fill;
-    for (const l of layout.lines) {
-      drawLineText(ctx, l.text, ox + l.x, oy + l.y, l.wordSpacing, s);
-      drawUnderline(ctx, ox + l.x, oy + l.y, l.wordSpacing ? n.w : l.width, s);
-    }
-  }
+  if (layout) drawFlowLines(ctx, layout.lines, -n.w / 2, -n.h / 2, story.style, { x: -n.w / 2, y: -n.h / 2, w: n.w, h: n.h });
   ctx.restore();
   if (env.editor && flow) {
     const isLast = story.chain[story.chain.length - 1] === n.id;
@@ -407,18 +513,8 @@ function drawTextFrame(ctx: CanvasRenderingContext2D, n: Extract<SceneNode, { ty
     const sz = 10 / z;
     const x = n.w / 2 - sz - 2 / z;
     const y = n.h / 2 - sz - 2 / z;
-    if (isLast && flow.overflow) {
-      ctx.fillStyle = '#e63946';
-      ctx.fillRect(x, y, sz, sz);
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 1.5 / z;
-      ctx.beginPath();
-      ctx.moveTo(x + sz / 2, y + 2 / z);
-      ctx.lineTo(x + sz / 2, y + sz - 2 / z);
-      ctx.moveTo(x + 2 / z, y + sz / 2);
-      ctx.lineTo(x + sz - 2 / z, y + sz / 2);
-      ctx.stroke();
-    } else if (!isLast) {
+    if (isLast && flow.overflow) drawOversetMarker(ctx, x, y, sz, z);
+    else if (!isLast) {
       ctx.fillStyle = '#2fb8a6';
       ctx.beginPath();
       ctx.moveTo(x, y);
@@ -427,6 +523,78 @@ function drawTextFrame(ctx: CanvasRenderingContext2D, n: Extract<SceneNode, { ty
       ctx.closePath();
       ctx.fill();
     }
+  }
+}
+
+/** The red "+" out-port shown on a frame or cell whose text does not fit. */
+function drawOversetMarker(ctx: CanvasRenderingContext2D, x: number, y: number, sz: number, z: number) {
+  ctx.fillStyle = '#e63946';
+  ctx.fillRect(x, y, sz, sz);
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1.5 / z;
+  ctx.beginPath();
+  ctx.moveTo(x + sz / 2, y + 2 / z);
+  ctx.lineTo(x + sz / 2, y + sz - 2 / z);
+  ctx.moveTo(x + 2 / z, y + sz / 2);
+  ctx.lineTo(x + sz - 2 / z, y + sz / 2);
+  ctx.stroke();
+}
+
+function drawTable(ctx: CanvasRenderingContext2D, n: Extract<SceneNode, { type: 'table' }>, env: DrawEnv) {
+  const sheet = sheetOf(env.doc);
+  const ox = -n.w / 2;
+  const oy = -n.h / 2;
+  const z = Math.max(0.01, env.zoom);
+  const cells: { r: number; c: number; lay: ReturnType<typeof layoutCell> }[] = [];
+  for (let r = 0; r < rowCount(n); r++) for (let c = 0; c < colCount(n); c++) {
+    if (isCovered(n, r, c)) continue;
+    cells.push({ r, c, lay: layoutCell(n, sheet, r, c, measureText) });
+  }
+  // fills
+  for (const { lay } of cells) {
+    const box = { x: ox + lay.rect.x, y: oy + lay.rect.y, w: lay.rect.w, h: lay.rect.h };
+    const fill = makeFillStyle(ctx, lay.props.fill, box);
+    if (fill) {
+      ctx.fillStyle = fill;
+      ctx.fillRect(box.x, box.y, box.w, box.h);
+    }
+  }
+  // text (clipped per cell)
+  for (const { r, c, lay } of cells) {
+    const box = { x: ox + lay.rect.x, y: oy + lay.rect.y, w: lay.rect.w, h: lay.rect.h };
+    const editing = !env.richEdit && env.hiddenNodeId === n.id && env.tableCell?.nodeId === n.id && env.tableCell.r === r && env.tableCell.c === c;
+    if (!editing) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(box.x, box.y, box.w, box.h);
+      ctx.clip();
+      drawFlowLines(ctx, lay.flow.frames.cell.lines, box.x, box.y, lay.style, box);
+      ctx.restore();
+    }
+    if (env.editor && lay.flow.overflow) {
+      const sz = Math.min(8 / z, box.h / 2);
+      drawOversetMarker(ctx, box.x + box.w - sz - 1 / z, box.y + box.h - sz - 1 / z, sz, z);
+    }
+  }
+  // borders
+  for (const { lay } of cells) {
+    const p = lay.props;
+    if (p.strokeWidth <= 0 || p.stroke.type === 'none') continue;
+    const box = { x: ox + lay.rect.x, y: oy + lay.rect.y, w: lay.rect.w, h: lay.rect.h };
+    const st = makeFillStyle(ctx, p.stroke, box);
+    if (!st) continue;
+    ctx.strokeStyle = st;
+    ctx.lineWidth = p.strokeWidth;
+    ctx.setLineDash([]);
+    ctx.strokeRect(box.x, box.y, box.w, box.h);
+  }
+  if (env.editor && env.tableCell?.nodeId === n.id && n.cells[env.tableCell.r]?.[env.tableCell.c]) {
+    const rc = cellRect(n, env.tableCell.r, env.tableCell.c);
+    ctx.save();
+    ctx.strokeStyle = '#2fb8a6';
+    ctx.lineWidth = 2 / z;
+    ctx.strokeRect(ox + rc.x, oy + rc.y, rc.w, rc.h);
+    ctx.restore();
   }
 }
 
@@ -475,9 +643,10 @@ export function drawPage(ctx: CanvasRenderingContext2D, doc: QuvreloDocument, pa
     ctx.fillStyle = background;
     ctx.fillRect(-bleed, -bleed, width + 2 * bleed, height + 2 * bleed);
   }
-  const master = page.masterId ? doc.masters.find((m) => m.id === page.masterId) : null;
-  if (master) drawNodeList(ctx, master.nodes, env, drawNodeTransformed);
-  drawNodeList(ctx, page.nodes, env, drawNodeTransformed);
+  // master items (minus those overridden on this page); fields show this page's number
+  const penv = env.pageIndex === pageIndex ? env : { ...env, pageIndex };
+  drawNodeList(ctx, masterItemsFor(doc, page), penv, drawNodeTransformed);
+  drawNodeList(ctx, page.nodes, penv, drawNodeTransformed);
 }
 
 /** Local bounds using real font metrics (renderer-side counterpart of nodeLocalBounds). */

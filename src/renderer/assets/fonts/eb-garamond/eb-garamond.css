@@ -1,0 +1,17 @@
+/* EB Garamond (SIL OFL 1.1, see OFL.txt): Latin subset with every OpenType
+   layout feature kept (liga, dlig, onum, lnum, tnum, pnum, smcp, c2sc, kern),
+   static 400 and 700 instances of the variable font. Bundled offline. */
+@font-face {
+  font-family: 'EB Garamond';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./eb-garamond-latin-400-normal.woff') format('woff');
+}
+@font-face {
+  font-family: 'EB Garamond';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./eb-garamond-latin-700-normal.woff') format('woff');
+}

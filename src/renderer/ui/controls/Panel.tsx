@@ -173,7 +173,8 @@ export function Popover({ anchor, onClose, children, label, placement = 'below',
     };
   }, [anchor]);
   return createPortal(
-    <div ref={ref} className={`popover${className ? ' ' + className : ''}`} role={role} aria-label={label} data-side={pos?.side} style={pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }}>
+    // popovers (colour, font) opened from the inspector keep an in-place text edit alive
+    <div ref={ref} data-keep-text-edit className={`popover${className ? ' ' + className : ''}`} role={role} aria-label={label} data-side={pos?.side} style={pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }}>
       {children}
     </div>,
     document.body,

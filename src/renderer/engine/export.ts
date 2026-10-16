@@ -10,12 +10,14 @@ import type { PdfxStandard } from '../../core/colour/pdfx';
 import { loadColourEngine, profileFileBytes } from './colour';
 import { embedIccInJpeg, embedIccInPng } from '../../core/colour/embedIcc';
 import { encodePng16 } from '../../core/png16';
-import { renderPage16 } from './export16';
+import { page16Supported, renderPage16 } from './export16';
+import { to16 } from '../../core/pixels16';
 import { bundledFaceFor } from '../../core/pdfFonts';
 import type { Id, QuvreloDocument, SceneNode } from '../../core/types';
 import { docPxPerInch, pdfPtPerPx } from '../../core/units';
+import { masterItemsFor } from '../../core/layout';
 import type { AssetStore } from './assets';
-import { canvasToBytes, createCanvas, ctx2d } from './assets';
+import { canvasToBytes, canvasToPixels, createCanvas, ctx2d } from './assets';
 import { artisticTextSize, drawNodeContent, drawNodeTransformed, drawPage, measureText, renderLocalBounds, storyFlow } from './draw';
 import { fontUrl } from './pdfFontFiles';
 
@@ -63,7 +65,10 @@ export async function exportRaster(
   doc: QuvreloDocument, assets: AssetStore, o: RasterExportOptions & { format: 'png' | 'jpg' | 'webp'; quality: number; bitDepth?: 8 | 16 },
 ): Promise<Uint8Array> {
   if (o.format === 'png' && (o.bitDepth ?? defaultExportBitDepth(doc, 'png')) === 16) {
-    const px = renderPage16(doc, assets, o);
+    // adjustment layers / pixel masks / clipping: 8-bit canvas render, widened (see page16Supported)
+    const px = page16Supported(doc, o.pageIndex)
+      ? renderPage16(doc, assets, o)
+      : to16(canvasToPixels(renderPageCanvas(doc, assets, o)));
     return embedDocProfile(doc, encodePng16(px), 'png');
   }
   const c = renderPageCanvas(doc, assets, { ...o, transparent: o.format === 'png' ? o.transparent : false });
@@ -276,8 +281,8 @@ function pixelHooks(doc: QuvreloDocument, assets: AssetStore): PdfPixelHooks {
     composite: async (pageIndex, count, box, ppu) => {
       const page = doc.pages[pageIndex];
       if (!page) return null;
-      const master = page.masterId ? doc.masters.find((m) => m.id === page.masterId) : null;
-      const nodes = [...(master?.nodes ?? []), ...page.nodes].slice(0, count);
+      // same order as core/pdfVector.ts: non-overridden master items, then the page's own
+      const nodes = [...masterItemsFor(doc, page), ...page.nodes].slice(0, count);
       const k = Math.min(ppu, 8000 / Math.max(box.w, box.h, 1));
       const c = createCanvas(Math.max(1, Math.round(box.w * k)), Math.max(1, Math.round(box.h * k)));
       const ctx = ctx2d(c);
@@ -348,7 +353,7 @@ export async function exportPdf(doc: QuvreloDocument, assets: AssetStore, o: Vec
     pixels: colour ? pixelHooks(doc, assets) : undefined,
     measure: measureText,
     textSize: artisticTextSize,
-    flow: (id) => storyFlow(doc, id),
+    flow: (id, pi) => storyFlow(doc, id, pi),
     font: async (style) => {
       const face = bundledFaceFor(style);
       const fam = style.fontFamily.split(',')[0].trim().replace(/^["']|["']$/g, '');

@@ -52,6 +52,7 @@
     "esbuild": "^0.28.2",
     "fabric": "^6.9.1",
     "fast-png": "^8.0.0",
+    "hyphen": "^1.14.1",
     "jpeg-js": "^0.4.4",
     "jszip": "^3.10.2",
     "onnxruntime-web": "^1.30.0",
