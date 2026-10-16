@@ -91,7 +91,7 @@ export function TextSection() {
         />
       </div>
       {frame && <ParagraphOptions style={s} apply={apply} mixed={mixed} />}
-      <div className="row">
+      <div className="row" data-keep-text-edit>
         <button type="button" className="btn sm ghost more-type" aria-expanded={more} aria-controls="more-type-options" onClick={() => setMore(!more)}>
           <Icon name={more ? 'chevron-down' : 'chevron-right'} size={16} /> More type options
         </button>

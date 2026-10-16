@@ -17,6 +17,7 @@ import { Icon } from '../Icons';
 import { tip } from '../tips';
 import { evalArithmetic } from '../controls/numeric';
 import { TextSection } from './TextSection';
+import { frameTextTarget } from '../../state/textTarget';
 import { BaselineGridSection, FrameFlowSection, TableSection, WrapSection } from './LayoutSections';
 import type { Unit } from '../../../core/types';
 
@@ -218,11 +219,17 @@ export function PropertiesPanel() {
             <PaintRow kind="fill" label="Text colour" paint={n.style.fill} allowNone={false} onChange={(p) => patchSel('Text colour', (m) => (m.type === 'text' ? { ...m, style: { ...m.style, fill: p } } : m), 'tfill')} />
           </Field>
         )}
-        {n.type === 'textframe' && story && (
-          <Field label="Colour">
-            <PaintRow kind="fill" label="Text colour" paint={story.style.fill} allowNone={false} onChange={(p) => editor.commit('Text colour', (d) => ({ ...d, stories: { ...d.stories, [n.storyId]: { ...d.stories[n.storyId], style: { ...d.stories[n.storyId].style, fill: p } } } }), 'sfill')} />
-          </Field>
-        )}
+        {n.type === 'textframe' && story && (() => {
+          // the selected characters while editing, otherwise all of the frame's text (state/textTarget.ts)
+          const t = frameTextTarget(ed.doc!, n.storyId);
+          return (
+            <div data-keep-text-edit>
+              <Field label="Colour">
+                <PaintRow kind="fill" label="Text colour" paint={t?.style.fill ?? story.style.fill} allowNone={false} onChange={(p) => t?.apply({ fill: p })} />
+              </Field>
+            </div>
+          );
+        })()}
         {strokeOf && (
           <>
             <Field label="Stroke">

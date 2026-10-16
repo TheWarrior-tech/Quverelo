@@ -22,6 +22,8 @@ import './ui/layout.css';
 import { App } from './ui/App';
 import { editor } from './state/editor';
 import { resetMeasureCache } from './engine/draw';
+import { onFeatureFontsChanged } from './engine/otFonts';
+import { getViewport } from './state/commands';
 import { browserFallbackApi } from './state/fallbackApi';
 
 async function boot() {
@@ -33,6 +35,12 @@ async function boot() {
   // re-measure text once bundled fonts are ready so layout is exact
   document.fonts.ready.then(() => {
     resetMeasureCache();
+    editor.emitNow();
+  });
+  // OpenType feature faces load on demand: re-measure and redraw when one is ready
+  onFeatureFontsChanged(() => {
+    resetMeasureCache();
+    getViewport()?.render();
     editor.emitNow();
   });
   createRoot(document.getElementById('root')!).render(<App />);
