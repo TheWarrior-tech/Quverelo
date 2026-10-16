@@ -213,3 +213,13 @@ export function cleanMask(bin: Uint8Array, w: number, h: number, clicks: Selecti
   for (let i = 0; i < out.length; i++) out[i] = keep.has(labels[i]) ? 1 : 0;
   return out;
 }
+
+/** Soft mask (0..255) -> alpha bytes at another resolution (bilinear / antialiased like resizePlane). */
+export function upsampleMatte(mask: MaskImage, width: number, height: number): Uint8ClampedArray {
+  const f = new Float32Array(mask.data.length);
+  for (let i = 0; i < f.length; i++) f[i] = mask.data[i];
+  const r = mask.width === width && mask.height === height ? f : resizePlane(f, mask.width, mask.height, width, height);
+  const out = new Uint8ClampedArray(width * height);
+  for (let i = 0; i < out.length; i++) out[i] = r[i];
+  return out;
+}

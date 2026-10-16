@@ -6,3 +6,8 @@ logs/
 __pycache__/
 *.pyc
 # the shipped model (ml/models/*.onnx, < 10 MB) IS committed
+# QuvSelect v1 weights are a CI-downloaded GitHub Release asset (no git LFS in this repo), see
+# ml/models/manifest.json and scripts/fetch-ml-models.mjs. Only v0 (quvselect.onnx, 3.2 MB) is committed.
+models/quvselect_v1*.onnx
+models/*.pre.onnx
+models/*.part

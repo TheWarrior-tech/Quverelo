@@ -23,7 +23,7 @@ import { isEditable } from '../engine/Viewport';
 import { cycleTool, groupOf, toolForKeyIn, toolName, TOOL_KEYS } from './toolGroups';
 import { activeRaster, commitRasterCanvas, createPixelLayer, editRaster, selectionInPixels } from '../engine/pixelOps';
 import { createCanvas, ctx2d, cloneCanvas } from '../engine/assets';
-import { rasterView, resultToWorldPath, runSelectSubject } from '../engine/mlSelect';
+import { cachedSubject, cutoutCanvas, rasterView, resultToWorldPath, runSelectSubject } from '../engine/mlSelect';
 import { markStep } from './onboarding';
 import { drawNodeTransformed } from '../engine/draw';
 import { applyCrop, cancelCrop } from './crop';
@@ -504,6 +504,47 @@ reg('select.remove-background', async () => {
   editor.setUi({ pixelSelection: null });
   editor.select([r.id]);
   toast('Background removed', 'success', { action: { label: 'Undo', run: () => void runCommand('edit.undo') } });
+});
+/**
+ * Cut Out Subject (soft edges): a new layer holding the subject with the soft alpha matte from the model's
+ * edge refinement (hair, fur), placed above the photo; the photo itself is hidden, not changed. One undo step.
+ * Reuses the last Select Subject result for this layer when there is one.
+ */
+reg('select.cutout', async () => {
+  const doc = editor.doc;
+  const r = photoLayer();
+  const container = editor.activeContainer;
+  if (!doc || !r || !container) return toast('Add or select a photo layer first');
+  if (subjectBusy || editor.ui.mlBusy) return;
+  const view = rasterView(editor, r);
+  if (!view) return;
+  let res = cachedSubject(view);
+  if (!res) {
+    subjectBusy = true;
+    editor.setUi({ status: 'Cutting out subject…', mlBusy: true });
+    try {
+      res = await runSelectSubject(view);
+    } finally {
+      subjectBusy = false;
+      editor.setUi({ mlBusy: false });
+    }
+  }
+  if (!res.binary.some((v) => v)) {
+    editor.setUi({ status: '' });
+    return toast('No clear subject found');
+  }
+  const c = cutoutCanvas(editor, view, res);
+  if (!c) return;
+  const assetId = editor.assets.add(c, 'image/png');
+  const node: RasterNode = { ...(cloneNode(r) as RasterNode), assetId, adjustments: [], name: r.name + ' (cut-out)', mask: undefined, visible: true };
+  const idx = container.nodes.findIndex((n) => n.id === r.id);
+  editor.commit('Cut out subject', (d) => {
+    const withAsset = { ...d, assets: { ...d.assets, [assetId]: editor.assets.ref(assetId, node.name) } };
+    return updateNode(addNodes(withAsset, container.id, [node], idx + 1), r.id, { visible: false });
+  });
+  editor.setUi({ pixelSelection: null, status: `Subject cut out (${res.source === 'ml' ? 'on-device model, soft edges' : 'basic fallback'})` });
+  editor.select([node.id]);
+  toast('Subject cut out to a new layer', 'success', { action: { label: 'Undo', run: () => void runCommand('edit.undo') } });
 });
 reg('select.copy-to-layer', () => {
   const doc = editor.doc;

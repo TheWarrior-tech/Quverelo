@@ -118,6 +118,7 @@ export const APP_MENU: MenuSection[] = [
       { id: 'select.invert', label: 'Invert Pixel Selection', accel: 'CmdOrCtrl+Shift+I', keywords: ['inverse', 'reverse', 'opposite'] },
       { id: 'select.subject', label: 'Select Subject', accel: 'CmdOrCtrl+Alt+S', keywords: ['cutout', 'cut out', 'remove background', 'background remover', 'auto select', 'ai', 'person', 'object', 'magic'] },
       { id: 'select.remove-background', label: 'Remove Background', keywords: ['cutout', 'cut out', 'background remover', 'transparent', 'mask', 'isolate'] },
+      { id: 'select.cutout', label: 'Cut Out Subject (Soft Edges)', keywords: ['cutout', 'cut out', 'remove background', 'hair', 'fur', 'matte', 'matting', 'soft edges', 'transparent', 'png'] },
       '-',
       { id: 'select.crop', label: 'Crop to Selection', keywords: ['trim', 'cut', 'crop'] },
       { id: 'select.fill', label: 'Fill Selection', keywords: ['paint', 'colour', 'color', 'bucket'] },

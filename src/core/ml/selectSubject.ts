@@ -12,6 +12,7 @@ import type { SelectionClick } from './clickMaps';
 import { clickFallback, subjectFallback } from './fallback';
 import { cropRect, type CropRect } from './coords';
 import { refineWithPrior } from './refine';
+import { refineMatte } from './matte';
 import { binarize, buildInput, cleanMask, logitsToProb, MODEL_SIZE, probToMask, type MaskImage, type RgbaImage } from './tensor';
 
 export type { SelectionClick } from './clickMaps';
@@ -20,6 +21,8 @@ export type { MaskImage, RgbaImage } from './tensor';
 /** Runs the network: input [1,6,S,S] -> logits [1,1,S,S] (flattened). */
 export interface SegmentationBackend {
   readonly name: string;
+  /** model input size to run whole-image passes at (default MODEL_SIZE) */
+  readonly inputSize?: number;
   run(input: Float32Array, size: number): Promise<Float32Array>;
 }
 
@@ -47,6 +50,13 @@ export interface SelectOptions {
   focusSize?: number;
   /** click-to-select: snap the result to image edges with the GrabCut-style refine (default true) */
   refine?: boolean;
+  /**
+   * Select Subject: turn the network's low-resolution probability into a soft alpha matte at image
+   * resolution with the colour-model edge refinement in matte.ts (hair, fur). Default true.
+   */
+  matte?: boolean;
+  /** Select Subject: also run the horizontally flipped image and average (test-time augmentation). Default false. */
+  flipTTA?: boolean;
 }
 
 /**
@@ -83,6 +93,17 @@ function cropMask(m: MaskImage, r: CropRect): MaskImage {
   const out = new Uint8Array(r.side * r.side);
   for (let y = 0; y < r.side; y++) out.set(m.data.subarray((y + r.y) * m.width + r.x, (y + r.y) * m.width + r.x + r.side), y * r.side);
   return { width: r.side, height: r.side, data: out };
+}
+
+function flipImage(img: RgbaImage): RgbaImage {
+  const { width: W, height: H } = img;
+  const out = new Uint8ClampedArray(W * H * 4);
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const s = (y * W + x) * 4, d = (y * W + (W - 1 - x)) * 4;
+      out[d] = img.data[s]; out[d + 1] = img.data[s + 1]; out[d + 2] = img.data[s + 2]; out[d + 3] = img.data[s + 3];
+    }
+  return { width: W, height: H, data: out };
 }
 
 /** Run the network on `img` and return the probability at img resolution. */
@@ -130,7 +151,7 @@ export function focusCrops(b: { x0: number; y0: number; x1: number; y1: number }
 
 async function clickSegment(backend: SegmentationBackend, img: RgbaImage, clicks: SelectionClick[], opts: SelectOptions, thr: number): Promise<{ prob: Float32Array; binary: Uint8Array }> {
   const { width: W, height: H } = img;
-  const size = opts.size ?? MODEL_SIZE;
+  const size = opts.size ?? backend.inputSize ?? MODEL_SIZE;
   const prev = opts.previous ?? null;
   // 1. coarse
   let prob = await predict(backend, img, clicks, prev, size);
@@ -188,7 +209,7 @@ function binarizeProb(prob: Float32Array, thr: number): Uint8Array {
 async function segment(img: RgbaImage, clicks: SelectionClick[], opts: SelectOptions): Promise<SelectionResult> {
   const t0 = now();
   const thr = Math.round((opts.threshold ?? 0.5) * 255);
-  const size = opts.size ?? MODEL_SIZE;
+  const size = opts.size ?? opts.backend?.inputSize ?? MODEL_SIZE;
   let error: string | undefined;
   if (opts.backend) {
     try {
@@ -201,7 +222,12 @@ async function segment(img: RgbaImage, clicks: SelectionClick[], opts: SelectOpt
         return { mask, binary, source: 'ml', ms: now() - t0 };
       }
       const prob = await predict(opts.backend, img, clicks, opts.previous ?? null, size);
-      const mask = probToMask(prob, img.width, img.height);
+      if (opts.flipTTA) {
+        const f = await predict(opts.backend, flipImage(img), [], null, size);
+        const W = img.width;
+        for (let y = 0; y < img.height; y++) for (let x = 0; x < W; x++) prob[y * W + x] = 0.5 * (prob[y * W + x] + f[y * W + (W - 1 - x)]);
+      }
+      const mask = opts.matte === false ? probToMask(prob, img.width, img.height) : refineMatte(img, prob, { modelScale: Math.max(img.width, img.height) / size });
       const binary = cleanMask(binarize(mask, thr), img.width, img.height, clicks);
       return { mask, binary, source: 'ml', ms: now() - t0 };
     } catch (e) {
