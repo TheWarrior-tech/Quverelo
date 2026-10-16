@@ -161,7 +161,7 @@ test.describe('photo parity: tools', () => {
     await (await ctx(page, (r) => r.getByRole('button', { name: 'Feather' }))).click();
     await expect(page.getByRole('dialog', { name: 'Feather selection' })).toBeVisible();
     await page.getByLabel('Feather radius', { exact: true }).fill('8');
-    await page.getByRole('dialog').getByRole('button', { name: 'Feather' }).click();
+    await page.getByRole('dialog', { name: 'Feather selection' }).getByRole('button', { name: 'Feather', exact: true }).click();
     expect(await state<number>(page, 'editor.ui.pixelSelectionFeather')).toBe(8);
     // fill: soft edge, full inside, none far outside
     await ui(page, { fillColor: '#000000' });

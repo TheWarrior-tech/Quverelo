@@ -12,7 +12,11 @@ describe('tool rail groups', () => {
       expect(tools[0], s).toBe('move');
     }
     // the tools each studio offered before flyouts are all still reachable
-    expect(new Set(studioTools('photo'))).toEqual(new Set(['move', 'marquee-rect', 'marquee-ellipse', 'lasso', 'object-select', 'crop', 'brush', 'eraser', 'fill', 'eyedropper', 'text', 'rect', 'ellipse', 'polygon', 'star', 'hand', 'zoom']));
+    expect(new Set(studioTools('photo'))).toEqual(new Set([
+      'move', 'marquee-rect', 'marquee-ellipse', 'lasso', 'object-select', 'crop', 'brush', 'eraser', 'fill', 'eyedropper', 'text', 'rect', 'ellipse', 'polygon', 'star', 'hand', 'zoom',
+      // photo parity: selection and retouch tools
+      'polygon-lasso', 'magic-wand', 'spot-heal', 'heal', 'clone', 'dodge', 'burn', 'smudge',
+    ]));
     expect(new Set(studioTools('vector'))).toEqual(new Set(['move', 'node', 'pen', 'pencil', 'rect', 'ellipse', 'polygon', 'star', 'line', 'text', 'eyedropper', 'hand', 'zoom']));
     expect(new Set(studioTools('layout'))).toEqual(new Set(['move', 'node', 'textframe', 'imageframe', 'text', 'rect', 'ellipse', 'line', 'eyedropper', 'hand', 'zoom']));
   });
@@ -41,6 +45,13 @@ describe('tool rail groups', () => {
     expect(groupOf('layout', 'ellipse')?.id).toBe('layout-shapes');
     expect(groupOf('vector', 'move')).toBeNull();
     expect(STUDIO_RAIL.vector.filter(isGroup).map((g) => g.id)).toEqual(['vector-pen', 'vector-shapes']);
+    // photo parity rail groups: Lasso (L), Smart selection (W), Healing (J), Dodge and burn (O)
+    expect(STUDIO_RAIL.photo.filter(isGroup).map((g) => g.id)).toEqual(['photo-marquee', 'photo-lasso', 'photo-smart-select', 'photo-heal', 'photo-tone', 'photo-shapes']);
+    expect(groupOf('photo', 'polygon-lasso')?.id).toBe('photo-lasso');
+    expect(groupOf('photo', 'magic-wand')?.id).toBe('photo-smart-select');
+    expect(groupOf('photo', 'heal')?.id).toBe('photo-heal');
+    expect(groupOf('photo', 'burn')?.id).toBe('photo-tone');
+    expect(groupOf('photo', 'clone')).toBeNull();
   });
 
   it('shows the active member, else the last used, else the first', () => {
@@ -101,5 +112,17 @@ describe('tool rail groups', () => {
       for (const t of keyed) expect(tools.has(t), `${s}:${t}`).toBe(true);
       expect(new Set(Object.values(TOOL_KEYS[s])).size, s).toBe(Object.values(TOOL_KEYS[s]).length);
     }
+  });
+
+  it('Photo retouch tools have keys J / S / O / R and the new groups cycle', () => {
+    expect(toolForKeyIn('photo', 'j')).toBe('spot-heal');
+    expect(toolForKeyIn('photo', 's')).toBe('clone');
+    expect(toolForKeyIn('photo', 'o')).toBe('dodge');
+    expect(toolForKeyIn('photo', 'r')).toBe('smudge');
+    expect(toolForKeyIn('photo', 'l')).toBe('lasso');
+    expect(toolForKeyIn('photo', 'w')).toBe('object-select');
+    expect(cycleTool(groupOf('photo', 'lasso')!, 'lasso', {})).toBe('polygon-lasso');
+    expect(cycleTool(groupOf('photo', 'heal')!, 'heal', {})).toBe('spot-heal');
+    expect(cycleTool(groupOf('photo', 'dodge')!, 'dodge', {})).toBe('burn');
   });
 });

@@ -1,7 +1,8 @@
-import { Children, Fragment, isValidElement, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { Children, Fragment, isValidElement, useEffect, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { Icon } from '../Icons';
 import { Popover } from './Panel';
 import { CtxHint } from './CtxHint';
+import { onDialog } from '../../state/bus';
 
 /**
  * Collapse priority for a run of context-bar groups: lower collapses into
@@ -58,6 +59,9 @@ export function CtxOverflow({ children, label = 'More options' }: { children: Re
   const [hidden, setHidden] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
   const keysKey = slots.map((s) => s.key).join('|');
+  // a control tucked into More that opens a dialog (Feather…, Refine edge…) closes More,
+  // so the popover never sits behind the modal
+  useEffect(() => onDialog((name) => { if (name) setOpen(false); }), []);
 
   // start from "everything visible" whenever the groups or the bar width change
   useLayoutEffect(() => setHidden((h) => (h.length ? [] : h)), [keysKey]);
