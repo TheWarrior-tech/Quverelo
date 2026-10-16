@@ -241,7 +241,10 @@ class ShapeTool implements Tool {
         const e = this.lineEnd();
         const cx = (s.x + e.x) / 2;
         const cy = (s.y + e.y) / 2;
-        const color = ed.ui.strokeEnabled ? ed.ui.strokeColor : ed.ui.fillColor;
+        // a line or arrow is all stroke: it takes the stroke chip's colour even
+        // while new shapes get no stroke (it used to borrow the mid-grey fill,
+        // which drew a faint arrow with a barely visible head)
+        const color = ed.ui.strokeColor;
         const arrow = this.kind === 'arrow';
         addAndSelect(ed, make.path({
           name: arrow ? 'Arrow' : 'Line', x: cx, y: cy, d: [['M', s.x - cx, s.y - cy], ['L', e.x - cx, e.y - cy]],

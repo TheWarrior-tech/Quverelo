@@ -280,9 +280,13 @@ function useOverflowEnd() {
   return ref;
 }
 
-/** Node tool: node type, curve actions and what to do next (Affinity's node context toolbar). */
-function NodeControls() {
-  const ne = useSyncExternalStore(subscribeNodeEdit, getNodeEdit);
+/**
+ * Node tool: node type, curve actions and what to do next (Affinity's node
+ * context toolbar). A plain function (ContextBar subscribes to the node-edit
+ * store) so the priority+ row sees each group: the node count and Convert
+ * never collapse, the hint is dropped first, Curve actions go to More next.
+ */
+function nodeControls(ne: ReturnType<typeof getNodeEdit>) {
   const sel = editor.selectedNodes();
   const b = (id: string, label: string, icon: string, enabled: boolean, pressed?: boolean) => (
     <button key={id} type="button" className={`icon-btn sm${pressed ? ' active' : ''}`} {...tip(label, id)} aria-pressed={pressed} disabled={!enabled} onClick={() => runCommand(id)}><Icon name={icon} /></button>
@@ -298,6 +302,11 @@ function NodeControls() {
           {b('node.symmetric', 'Symmetric', 'node-smooth', any, ne.kind === 'symmetric')}
         </div>
       </Pri>
+      {any && (
+        <Pri n={Infinity}>
+          <span className="ctx-count num" data-testid="node-count">{ne.selected} of {ne.total} nodes</span>
+        </Pri>
+      )}
       <Pri n={8}>
         <div className="group" role="group" aria-label="Curve actions">
           <span className="ctx-label">Curve</span>
@@ -313,15 +322,15 @@ function NodeControls() {
         </div>
       )}
       <CtxHint title="Click a segment to add a node · drag it to bend · Shift-click or drag a box to select nodes · double-click: sharp/smooth · Alt-drag a handle: cusp · Delete removes nodes">
-        {any ? `${ne.selected} of ${ne.total} nodes · click a segment to add a node · Alt-drag a handle for a cusp` : 'Select a curve or shape to edit its nodes'}
+        {any ? 'Click a segment to add a node · Alt-drag a handle for a cusp' : 'Select a curve or shape to edit its nodes'}
       </CtxHint>
     </>
   );
 }
 
-/** Gradient tool: which paint it edits and the gradient type. */
-function GradientControls() {
-  const ed = useEditor();
+/** Gradient tool: which paint it edits and the gradient type (a plain function, see nodeControls). */
+function gradientControls() {
+  const ed = editor;
   const o = ed.ui.toolOptions;
   const n = ed.selectedNodes()[0];
   const paint = n ? getPaint(n, o.gradientTarget) : null;
@@ -338,20 +347,22 @@ function GradientControls() {
   const cur = paint && (paint.type === 'linear' || paint.type === 'radial' || paint.type === 'conical') ? paint.type : o.gradientType;
   return (
     <>
+      <Pri n={Infinity}>
       <div className="group">
         <Segmented ariaLabel="Gradient target" value={o.gradientTarget} onChange={(v: 'fill' | 'stroke') => ed.setToolOptions({ gradientTarget: v })} options={[{ value: 'fill', label: 'Fill' }, { value: 'stroke', label: 'Stroke' }]} />
       </div>
       <div className="group">
         <Segmented ariaLabel="Gradient type" value={cur} onChange={setType} options={[{ value: 'linear', label: 'Linear' }, { value: 'radial', label: 'Radial' }, { value: 'conical', label: 'Conical' }]} />
       </div>
+      </Pri>
       <CtxHint title="Drag across an object to lay a gradient · drag the end handles to move it · drag a stop along the line · double-click the line to add a stop · Delete removes the selected stop">Drag across an object · double-click the line to add a stop</CtxHint>
     </>
   );
 }
 
-/** Artboard tool: presets for a new board and Insert artboard from the selection. */
-function ArtboardControls() {
-  const ed = useEditor();
+/** Artboard tool: presets for a new board and Insert artboard from the selection (a plain function, see nodeControls). */
+function artboardControls() {
+  const ed = editor;
   const board = ed.selectedNodes().find((x): x is Extract<SceneNode, { type: 'group' }> => x.type === 'group' && !!x.artboard);
   return (
     <>
@@ -379,6 +390,7 @@ function ArtboardControls() {
 export function ContextBar() {
   const ed = useEditor();
   const barRef = useOverflowEnd();
+  const ne = useSyncExternalStore(subscribeNodeEdit, getNodeEdit);
   const t = ed.ui.tool;
   const o = ed.ui.toolOptions;
   const sel = ed.selectedNodes();
@@ -473,9 +485,9 @@ export function ContextBar() {
       {(t === 'textframe' || t === 'move') && frames.length > 0 && <Pri n={2}><TextFrameControls frames={frames} /></Pri>}
       {(t === 'text' || t === 'textframe' || (t === 'move' && textSelected)) && textControls()}
       {t === 'textframe' && frames.length === 0 && <CtxHint>Drag to draw a text frame · link two frames to flow a story</CtxHint>}
-      {t === 'node' && <NodeControls />}
-      {t === 'gradient' && <GradientControls />}
-      {t === 'artboard' && <ArtboardControls />}
+      {t === 'node' && nodeControls(ne)}
+      {t === 'gradient' && gradientControls()}
+      {t === 'artboard' && artboardControls()}
       {t === 'rrect' && (
         <div className="group">
           <NumberField className="ctx" label="Radius" ariaLabel="Corner radius (px)" unit="px" value={o.roundRadius} min={0} max={1000} onCommit={(v) => ed.setToolOptions({ roundRadius: v })} onChange={(v) => ed.setToolOptions({ roundRadius: v })} />

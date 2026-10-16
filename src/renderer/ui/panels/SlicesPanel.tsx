@@ -49,7 +49,7 @@ function SliceRow({ s }: { s: Slice }) {
           <button type="button" className="btn sm ghost" onClick={() => {
             const last = s.outputs[s.outputs.length - 1] ?? { format: 'png' as const, scale: 1 };
             setOutputs(s, [...s.outputs, { format: last.format, scale: last.format === 'png' || last.format === 'jpg' ? Math.min(4, last.scale + 1) : 1 }]);
-          }}><Icon name="plus" /> Output</button>
+          }}><Icon name="plus" /> Add output</button>
         </div>
       </div>
       <div className="slice-files" data-testid="slice-files">{files.join(' · ')}</div>
@@ -66,7 +66,7 @@ export function SlicesPanel() {
   return (
     <div className="slices-panel" data-testid="slices-panel">
       <div className="panel-actions">
-        <button type="button" className="btn sm" onClick={() => runCommand('slice.add')} {...tip('Add export slice', 'slice.add')} data-tip-hint={ed.ui.selection.length ? 'One slice per selected object or artboard' : 'One per artboard, or the whole page'}>
+        <button type="button" className="btn sm" onClick={() => runCommand('slice.add')} {...tip('Add slice', 'slice.add')} data-tip-hint={ed.ui.selection.length ? 'One slice per selected object or artboard' : 'One per artboard, or the whole page'}>
           <Icon name="plus" /> Add slice
         </button>
         <button type="button" className="btn sm primary" disabled={!enabled} onClick={() => void exportSlices()} {...tip('Export slices', 'file.export-slices')}>

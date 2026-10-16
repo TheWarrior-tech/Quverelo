@@ -125,3 +125,10 @@
   gap: 6px;
   flex-wrap: wrap;
 }
+
+/* node tool: "2 of 8 nodes" stays in the bar when the hint is dropped */
+:is(.contextbar, .ctx-more-body) .ctx-count {
+  color: var(--c-text-2);
+  white-space: nowrap;
+  padding: 0 4px;
+}

@@ -282,7 +282,7 @@ test.describe('vector studio parity', () => {
     const slices = await state<any[]>(page, 'editor.doc.slices');
     expect(slices).toHaveLength(1);
     expect(slices[0]).toMatchObject({ name: 'Hero card', nodeId: boardId });
-    await page.locator('[data-testid="slices-panel"]').getByRole('button', { name: 'Output' }).click();
+    await page.locator('[data-testid="slices-panel"]').getByRole('button', { name: 'Add output' }).click();
     const rows = page.locator('.slice-output');
     await expect(rows).toHaveCount(3);
     await rows.nth(2).getByLabel('Format').selectOption('svg');
@@ -349,8 +349,8 @@ test.describe('vector studio parity', () => {
     expect(t.onPath.d.length).toBe(2);
     expect((await nodes(page)).some((n: any) => n.id === 'p')).toBe(false);
     await expect(page.locator('.inspector')).toContainText('Text on path');
-    await page.locator('.inspector').getByLabel('Start along the path').fill('25');
-    await page.locator('.inspector').getByLabel('Start along the path').press('Enter');
+    await page.locator('.inspector').getByLabel('Start along the path value').fill('25');
+    await page.locator('.inspector').getByLabel('Start along the path value').press('Enter');
     await expect.poll(async () => (await sel(page))[0].onPath.start).toBeCloseTo(0.25);
     await shot(page, 'vector-text-on-path');
 
@@ -365,7 +365,7 @@ test.describe('vector studio parity', () => {
     const xs = await state<number[]>(page, "['a','b','c'].map((id) => editor.doc.pages[0].nodes.find((n) => n.id === id).x)");
     expect(xs).toEqual([100, 205, 300]); // a 50..150, b 180..230, c 260..340
     // align tops to the first selected
-    await page.locator('.inspector').getByLabel('Align to').selectOption('first');
+    await page.locator('.inspector').getByLabel('Align to', { exact: true }).selectOption('first');
     await run(page, 'arrange.align-top');
     const ys = await state<number[]>(page, "['a','b','c'].map((id) => editor.doc.pages[0].nodes.find((n) => n.id === id).y)");
     expect(ys).toEqual([900, 900, 900]);
