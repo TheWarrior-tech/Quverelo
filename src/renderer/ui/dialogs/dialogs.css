@@ -338,10 +338,6 @@
   height: 16px;
   color: var(--c-text-3);
 }
-.nav-item[aria-current='true'] :is(.count, .sub),
-.nav-item[aria-selected='true'] :is(.count, .sub) {
-  color: var(--c-text-2); /* --c-text-3 is below 4.5:1 on the selected tone (axe audit) */
-}
 .nav-item[aria-current='true'] svg.icon,
 .nav-item[aria-selected='true'] svg.icon {
   color: var(--c-text);
@@ -365,6 +361,11 @@
   line-height: 16px;
   font-weight: 400;
   color: var(--c-text-3);
+}
+/* after .two-line .sub (same specificity): --c-text-3 is below 4.5:1 on the selected press tone (axe audit) */
+.nav-item[aria-current='true'] :is(.count, .sub),
+.nav-item[aria-selected='true'] :is(.count, .sub) {
+  color: var(--c-text-2);
 }
 .dlg-main {
   flex: 1;

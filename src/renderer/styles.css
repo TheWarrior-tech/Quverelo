@@ -231,6 +231,11 @@ textarea:focus-visible {
   overflow: hidden;
   clip: rect(0 0 0 0);
 }
+/* screen-reader-only text that stays inline, so it joins the accessible name without a stray space */
+.sr-inline {
+  font-size: 0;
+  line-height: 0;
+}
 
 svg.icon {
   width: 20px;

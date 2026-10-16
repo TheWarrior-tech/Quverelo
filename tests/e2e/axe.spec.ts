@@ -51,6 +51,10 @@ test.describe('axe audit', () => {
   test('Welcome screen has no serious violations', async () => {
     L = await launch();
     expect(await axeScan(L.page, 'welcome')).toEqual([]);
+    // template tiles are named by their visible words and described by the template's blurb
+    const tile = L.page.locator('button[data-template="worksheet"]');
+    await expect(tile).toHaveAccessibleName(/^Worksheet\s/);
+    await expect(tile).toHaveAccessibleDescription(/^New document: /);
   });
 
   for (const theme of ['dark', 'light', 'high-contrast'] as const) {
