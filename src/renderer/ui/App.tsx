@@ -16,6 +16,10 @@ import { DialogHost } from './dialogs/DialogHost';
 import { CommandPalette } from './CommandPalette';
 import { TooltipHost } from './Tooltip';
 import { openPalette } from '../state/palette';
+import { installPickerCmyk } from '../engine/colour';
+
+// the picker's CMYK fields follow the document's press profile (ICC)
+installPickerCmyk(() => editor.doc);
 
 function applyAppearance() {
   const s = editor.settings;

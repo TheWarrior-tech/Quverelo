@@ -15,6 +15,7 @@ import { invertSelection, pageGridView } from '../engine/selectionPixels';
 import { cloneNode, findNode, getContainer, make } from '../../core/document';
 import { pathBounds, rectPath, translatePath } from '../../core/path';
 import { newId } from '../../core/ids';
+import { docColour } from '../../core/colour/profiles';
 import type { QuvreloDocument, Id, PathNode, RasterNode, SceneNode } from '../../core/types';
 import { editor, type ToolId } from './editor';
 import { closeDialog, openDialog, toast } from './bus';
@@ -281,7 +282,7 @@ reg('layer.rasterize', () => {
   if (!doc || !n) return;
   if (n.type === 'raster' && n.adjustments.length) {
     // bake the adjustment stack into the pixels
-    const c = editor.assets.rendered(n.assetId, n.adjustments, false);
+    const c = editor.assets.rendered(n.assetId, n.adjustments, false, docColour(doc.settings).bitDepth === 16);
     if (!c) return;
     const id = editor.assets.add(cloneCanvas(c));
     editor.commit('Apply adjustments', (d) => updateNode({ ...d, assets: { ...d.assets, [id]: editor.assets.ref(id, n.name) } }, n.id, { assetId: id, adjustments: [] } as Partial<SceneNode>));
@@ -312,7 +313,7 @@ reg('layer.merge-down', () => {
     toast('Merging down needs a pixel layer underneath');
     return;
   }
-  const base = editor.assets.rendered(below.assetId, below.adjustments, false);
+  const base = editor.assets.rendered(below.assetId, below.adjustments, false, docColour(doc.settings).bitDepth === 16);
   if (!base) return;
   const work = cloneCanvas(base);
   const ctx = ctx2d(work);
@@ -609,6 +610,16 @@ reg('view.zoom-out', () => viewport?.zoomBy(0.8));
 reg('view.zoom-fit', () => viewport?.zoomToFit());
 reg('view.zoom-100', () => viewport?.zoomTo(1));
 reg('view.rulers', () => setSetting({ showRulers: !editor.settings.showRulers }));
+reg('doc.new-swatch', () => needDoc() && openDialog('swatch', { kind: 'cmyk' }));
+reg('view.soft-proof', () => {
+  if (!needDoc()) return;
+  if (docColour(editor.doc!.settings).mode === 'cmyk') {
+    toast('CMYK documents always show the press proof. Switch to RGB in Document setup to see screen colours.', 'info');
+    return;
+  }
+  editor.setUi({ softProof: !editor.ui.softProof });
+});
+reg('view.gamut-warning', () => needDoc() && editor.setUi({ gamutWarning: !editor.ui.gamutWarning }));
 reg('view.snapping', () => {
   setSetting({ snapping: !editor.settings.snapping });
   toast(`Snapping ${editor.settings.snapping ? 'on' : 'off'}`);

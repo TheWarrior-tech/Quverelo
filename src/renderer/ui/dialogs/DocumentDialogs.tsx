@@ -9,6 +9,14 @@ import { Dialog } from './DialogHost';
 import { Check, Field, NumberInput, Segmented } from './controls';
 import { RESAMPLE_METHODS, type ResampleMethod } from '../../../core/resample';
 import { resampleDocument } from '../../engine/photoDoc';
+import { CMYK_PROFILES, docColour, PROFILES, RGB_PROFILES, type CmykProfileId, type ColourMode, type RenderingIntent, type RgbProfileId } from '../../../core/colour/profiles';
+
+const INTENTS: { value: RenderingIntent; label: string; detail: string }[] = [
+  { value: 'relative', label: 'Relative colorimetric', detail: 'Keeps printable colours exact' },
+  { value: 'perceptual', label: 'Perceptual', detail: 'Squeezes vivid photos into the press gamut smoothly' },
+  { value: 'saturation', label: 'Saturation', detail: 'Keeps colours bright for charts' },
+  { value: 'absolute', label: 'Absolute colorimetric', detail: 'Simulates the paper white (proofing)' },
+];
 
 export function DocumentSetupDialog() {
   const doc = editor.doc!;
@@ -25,6 +33,12 @@ export function DocumentSetupDialog() {
   const [dpi, setDpi] = useState(s.dpi);
   const [bg, setBg] = useState(s.background ?? '#ffffff');
   const [transparent, setTransparent] = useState(!s.background);
+  const col = docColour(s);
+  const [mode, setMode] = useState<ColourMode>(col.mode);
+  const [rgbProfile, setRgbProfile] = useState<RgbProfileId>(col.rgbProfile);
+  const [cmykProfile, setCmykProfile] = useState<CmykProfileId>(col.cmykProfile);
+  const [bitDepth, setBitDepth] = useState<8 | 16>(col.bitDepth);
+  const [intent, setIntent] = useState<RenderingIntent>(col.intent);
   const apply = () => {
     // an untouched field keeps its exact px value (no drift from display rounding)
     const keep = (v: number, orig: number) => (v === lengthIn(orig, unit) ? orig : toPx(v, unit));
@@ -44,6 +58,7 @@ export function DocumentSetupDialog() {
           columnGutter: keep(gutter, s.columnGutter),
           dpi,
           background: transparent ? null : bg,
+          colour: { mode, rgbProfile, cmykProfile, bitDepth, intent },
         },
       };
     });
@@ -92,6 +107,27 @@ export function DocumentSetupDialog() {
         </Field>
         <Field label="Output DPI" htmlFor="ds-dpi" hint={unit === 'px' ? `Raster exports and the PDF page size: ${formatSize(toPx(w, unit) * 96 / dpi, toPx(h, unit) * 96 / dpi, 'mm')} at ${dpi} dpi` : `Raster exports: ${pixelsAt(toPx(w, unit), dpi)} × ${pixelsAt(toPx(h, unit), dpi)} px at ${dpi} dpi`}>
           <NumberInput id="ds-dpi" label="Output DPI" unit="dpi" value={dpi} min={72} max={1200} step={1} onChange={(v) => setDpi(Math.round(v))} />
+        </Field>
+        <Field label="Colour mode" hint={mode === 'cmyk' ? 'Colours are picked in CMYK and the page always shows the press proof.' : 'Screen colours. Soft proof (View menu) previews print.'}>
+          <Segmented label="Colour mode" value={mode} onChange={(v) => setMode(v as ColourMode)} options={[{ value: 'rgb', label: 'RGB' }, { value: 'cmyk', label: 'CMYK' }]} />
+        </Field>
+        <Field label="RGB profile" htmlFor="ds-rgb" hint={rgbProfile !== col.rgbProfile ? 'Colour numbers stay the same and are read in the new profile (assign).' : PROFILES[rgbProfile].detail}>
+          <select id="ds-rgb" value={rgbProfile} onChange={(e) => setRgbProfile(e.target.value as RgbProfileId)} data-testid="ds-rgb-profile">
+            {RGB_PROFILES.map((id) => <option key={id} value={id}>{PROFILES[id].name}</option>)}
+          </select>
+        </Field>
+        <Field label="CMYK profile" htmlFor="ds-cmyk" hint={PROFILES[cmykProfile].detail}>
+          <select id="ds-cmyk" value={cmykProfile} onChange={(e) => setCmykProfile(e.target.value as CmykProfileId)} data-testid="ds-cmyk-profile">
+            {CMYK_PROFILES.map((id) => <option key={id} value={id}>{PROFILES[id].name}</option>)}
+          </select>
+        </Field>
+        <Field label="Rendering intent" htmlFor="ds-intent" hint={INTENTS.find((i) => i.value === intent)!.detail}>
+          <select id="ds-intent" value={intent} onChange={(e) => setIntent(e.target.value as RenderingIntent)}>
+            {INTENTS.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
+          </select>
+        </Field>
+        <Field label="Bit depth" hint={bitDepth === 16 ? 'Photos keep 16 bits per channel through adjustments, saving and PNG export. 16-bit PNGs and DNG raw files open as 16-bit.' : undefined}>
+          <Segmented label="Bit depth" value={String(bitDepth)} onChange={(v) => setBitDepth(v === '16' ? 16 : 8)} options={[{ value: '8', label: '8-bit' }, { value: '16', label: '16-bit' }]} />
         </Field>
         <Field label="Background">
           <div className="inline">

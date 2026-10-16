@@ -17,6 +17,11 @@ import { formatLength } from '../../core/units';
 import { createTool, type Tool, type ToolContext } from './tools';
 import { TextEditOverlay } from './textEdit';
 import { HANDLE_SIZE, readOverlayColors, tuneControls, type OverlayColors } from './controls';
+import { displayLut } from './colour';
+import { applyLut } from '../../core/colour/lut3d';
+
+/** gamut warning: out-of-gamut colours turn flat mid grey, like other editors */
+const GAMUT_GREY: [number, number, number] = [128, 128, 128];
 
 class QuvreloCanvas extends Canvas {
   pageW = 100;
@@ -379,6 +384,7 @@ export class Viewport {
         this.drawOverlay();
       }
     });
+    c.on('after:render', () => this.applyDisplayColour());
     c.on('after:render', () => this.drawOverlay());
     c.on('mouse:over', (e) => {
       const t = e.target as NodeObject | undefined;
@@ -740,6 +746,37 @@ export class Viewport {
       this.antsTimer = null;
     }
   }
+
+  /**
+   * Colour management of the page on screen: map the rendered page (trim area)
+   * through the display LUT for soft proofing, the gamut warning, or an Adobe RGB /
+   * Display P3 document on an sRGB screen. The pasteboard and the UI stay as drawn.
+   */
+  private applyDisplayColour(): void {
+    const ed = this.editor;
+    const doc = ed.doc;
+    if (!doc) return;
+    const lut = displayLut(doc, ed.ui, () => this.canvas.requestRenderAll());
+    this.displayColourActive = !!lut;
+    if (!lut) return;
+    const el = this.canvas.lowerCanvasEl;
+    const ctx = el.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+    const k = this.canvas.getRetinaScaling();
+    const v = this.vpt;
+    // the trim area: the bleed band is drawn as editor chrome (dark), which the gamut warning would grey
+    const x0 = Math.max(0, Math.floor(v[4] * k));
+    const y0 = Math.max(0, Math.floor(v[5] * k));
+    const x1 = Math.min(el.width, Math.ceil((doc.settings.width * v[0] + v[4]) * k));
+    const y1 = Math.min(el.height, Math.ceil((doc.settings.height * v[3] + v[5]) * k));
+    if (x1 <= x0 || y1 <= y0) return;
+    const img = ctx.getImageData(x0, y0, x1 - x0, y1 - y0);
+    applyLut(img.data, lut, ed.ui.gamutWarning ? { gamutColor: GAMUT_GREY, gamutOpacity: 0.9 } : {});
+    ctx.putImageData(img, x0, y0);
+  }
+
+  /** the last frame was colour-managed (tests read it) */
+  displayColourActive = false;
 
   drawOverlay(): void {
     const ctx = this.overlay.getContext('2d');

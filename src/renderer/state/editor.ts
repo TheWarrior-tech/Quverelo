@@ -102,6 +102,10 @@ export interface UiState {
   status: string;
   /** last-used tool per tool-rail flyout group (shown on the rail) */
   railTools: RailMemory;
+  /** View › Soft Proof: show the page as the document's CMYK press prints it (always on in CMYK documents) */
+  softProof: boolean;
+  /** View › Gamut Warning: grey out colours the press can't print */
+  gamutWarning: boolean;
 }
 
 export interface DocSession {
@@ -183,6 +187,8 @@ export class Editor {
     interacting: false,
     status: '',
     railTools: {},
+    softProof: false,
+    gamutWarning: false,
   };
   /** clipboard (in-app) */
   clipboard: { nodes: SceneNode[]; stories: QuvreloDocument['stories'] } | null = null;

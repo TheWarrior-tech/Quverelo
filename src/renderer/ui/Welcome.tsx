@@ -149,7 +149,7 @@ function startEntries(feature: (f: never) => boolean): StartEntry[] {
       id: 'photo',
       title: 'Edit a photo…',
       text: 'Retouch, crop or cut out a picture.',
-      meta: 'JPG · PNG · WebP',
+      meta: 'JPG · PNG · WebP · DNG',
       run: () => void openPhotoDialog(),
       alt: { label: 'Blank canvas', run: () => openDialog('new', { category: 'photo' }) },
     });

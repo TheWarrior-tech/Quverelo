@@ -6,7 +6,7 @@ import { Icon } from '../Icons';
 import { NumberField } from '../controls/NumberField';
 import { Segmented } from '../controls/Panel';
 import { clamp } from '../controls/numeric';
-import { channels, fromChannels, hsvToRgb, MODEL_CHANNELS, parseCss, parseHex, rgbToHsv, sameRgb, toCss, toHex, type ColorModel, type RGB } from './colorMath';
+import { activeCmykConverter, channels, fromChannels, hsvToRgb, MODEL_CHANNELS, parseCss, parseHex, rgbToHsv, sameRgb, toCss, toHex, type ColorModel, type RGB } from './colorMath';
 import { addRecentColour, useRecentColours } from './recent';
 
 type View = 'square' | 'wheel';
@@ -132,7 +132,11 @@ export function ColorPicker({ value, onChange, onCommit, showPalette = true }: {
   };
 
   const chans = model === 'hex' ? null : MODEL_CHANNELS[model];
-  const chanVals = model === 'hex' ? [] : channels(model, rgb);
+  // CMYK numbers the user typed stay as typed while the colour they made is shown
+  // (an ICC round trip of C100 can read back as C99 M2 K1)
+  const [typedCmyk, setTypedCmyk] = useState<{ css: string; vals: number[] } | null>(null);
+  const chanVals = model === 'hex' ? [] : model === 'cmyk' && typedCmyk && typedCmyk.css === lastOut.current ? typedCmyk.vals : channels(model, rgb);
+  const conv = activeCmykConverter();
   const isCurrent = (col: string) => sameRgb(col, solidCss);
 
   return (
@@ -251,7 +255,7 @@ export function ColorPicker({ value, onChange, onCommit, showPalette = true }: {
             { value: 'hex', label: 'Hex' },
             { value: 'rgb', label: 'RGB' },
             { value: 'hsl', label: 'HSL' },
-            { value: 'cmyk', label: 'CMYK', title: 'Device CMYK (uncalibrated preview)' },
+            { value: 'cmyk', label: 'CMYK', title: conv ? `CMYK · ${conv.name}` : 'Device CMYK (uncalibrated preview)' },
           ]}
         />
         <Segmented
@@ -279,12 +283,16 @@ export function ColorPicker({ value, onChange, onCommit, showPalette = true }: {
               onChange={(v) => {
                 const vals = [...chanVals];
                 vals[i] = v;
-                outRgb(fromChannels(model as Exclude<ColorModel, 'hex'>, vals), alpha, false);
+                const col = fromChannels(model as Exclude<ColorModel, 'hex'>, vals);
+                if (model === 'cmyk') setTypedCmyk({ css: toCss(col, alpha), vals });
+                outRgb(col, alpha, false);
               }}
               onCommit={(v) => {
                 const vals = [...chanVals];
                 vals[i] = v;
-                outRgb(fromChannels(model as Exclude<ColorModel, 'hex'>, vals), alpha);
+                const col = fromChannels(model as Exclude<ColorModel, 'hex'>, vals);
+                if (model === 'cmyk') setTypedCmyk({ css: toCss(col, alpha), vals });
+                outRgb(col, alpha);
               }}
             />
           ))

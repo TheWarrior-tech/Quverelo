@@ -65,7 +65,7 @@ export const DEFAULT_GRADIENT_MAP: GradientStop[] = [
   { offset: 1, color: '#ffffff' },
 ];
 
-function hexRgb(c: string): [number, number, number] {
+export function hexRgb(c: string): [number, number, number] {
   const m = c.trim().match(/^#?([0-9a-f]{6})/i);
   if (m) {
     const n = parseInt(m[1], 16);

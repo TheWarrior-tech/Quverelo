@@ -4,7 +4,13 @@ import { flattenForVector } from './flattenExport';
 import { pageToSvg } from '../../core/svg';
 import { findNode, nodeMatrix, worldMatrix } from '../../core/document';
 import { multiply, type Matrix } from '../../core/geometry';
-import { exportVectorPdf, type PdfImageData, type VectorPdfReport } from '../../core/pdfVector';
+import { exportVectorPdf, type PdfColourOutput, type PdfImageData, type PdfPixelHooks, type RgbaImage, type VectorPdfReport } from '../../core/pdfVector';
+import { docColour, PROFILES, type CmykProfileId } from '../../core/colour/profiles';
+import type { PdfxStandard } from '../../core/colour/pdfx';
+import { loadColourEngine, profileFileBytes } from './colour';
+import { embedIccInJpeg, embedIccInPng } from '../../core/colour/embedIcc';
+import { encodePng16 } from '../../core/png16';
+import { renderPage16 } from './export16';
 import { bundledFaceFor } from '../../core/pdfFonts';
 import type { Id, QuvreloDocument, SceneNode } from '../../core/types';
 import { docPxPerInch, pdfPtPerPx } from '../../core/units';
@@ -38,9 +44,28 @@ export function renderPageCanvas(doc: QuvreloDocument, assets: AssetStore, o: Ra
   return canvas;
 }
 
+/** Bits per channel an export of this document writes by default (16 for 16-bit Photo documents' PNGs). */
+export function defaultExportBitDepth(doc: QuvreloDocument, format: 'png' | 'jpg' | 'webp'): 8 | 16 {
+  return format === 'png' && docColour(doc.settings).bitDepth === 16 ? 16 : 8;
+}
+
+/** Embed the document's RGB profile (PNG iCCP / JPEG APP2) so other apps read its colours correctly. */
+export async function embedDocProfile(doc: QuvreloDocument, bytes: Uint8Array, format: 'png' | 'jpg' | 'webp'): Promise<Uint8Array> {
+  if (format === 'webp') return bytes;
+  const id = docColour(doc.settings).rgbProfile;
+  const profile = await profileFileBytes(id);
+  if (format === 'jpg') return embedIccInJpeg(bytes, profile);
+  // the readable profile name (the compact profiles' own descriptions are terse, such as "A98C")
+  return embedIccInPng(bytes, profile, PROFILES[id].name);
+}
+
 export async function exportRaster(
-  doc: QuvreloDocument, assets: AssetStore, o: RasterExportOptions & { format: 'png' | 'jpg' | 'webp'; quality: number },
+  doc: QuvreloDocument, assets: AssetStore, o: RasterExportOptions & { format: 'png' | 'jpg' | 'webp'; quality: number; bitDepth?: 8 | 16 },
 ): Promise<Uint8Array> {
+  if (o.format === 'png' && (o.bitDepth ?? defaultExportBitDepth(doc, 'png')) === 16) {
+    const px = renderPage16(doc, assets, o);
+    return embedDocProfile(doc, encodePng16(px), 'png');
+  }
   const c = renderPageCanvas(doc, assets, { ...o, transparent: o.format === 'png' ? o.transparent : false });
   if (o.format === 'jpg') {
     // flatten onto white
@@ -49,9 +74,9 @@ export async function exportRaster(
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, flat.width, flat.height);
     ctx.drawImage(c, 0, 0);
-    return canvasToBytes(flat, 'image/jpeg', o.quality);
+    return embedDocProfile(doc, await canvasToBytes(flat, 'image/jpeg', o.quality), 'jpg');
   }
-  return canvasToBytes(c, o.format === 'webp' ? 'image/webp' : 'image/png', o.quality);
+  return embedDocProfile(doc, await canvasToBytes(c, o.format === 'webp' ? 'image/webp' : 'image/png', o.quality), o.format);
 }
 
 export function exportSvg(doc: QuvreloDocument, assets: AssetStore, pageIndex: number, includeBleed = false): string {
@@ -62,7 +87,7 @@ export function exportSvg(doc: QuvreloDocument, assets: AssetStore, pageIndex: n
     includeBleed,
     assetHref: (id, node) => {
       if (node && node.type === 'raster') {
-        const c = assets.rendered(id, node.adjustments, false);
+        const c = assets.rendered(id, node.adjustments, false, docColour(doc.settings).bitDepth === 16);
         return c ? c.toDataURL('image/png') : null;
       }
       return assets.dataUrl(id);
@@ -198,9 +223,9 @@ export async function exportSelectionRaster(
     fx.fillStyle = '#ffffff';
     fx.fillRect(0, 0, flat.width, flat.height);
     fx.drawImage(c, 0, 0);
-    return canvasToBytes(flat, 'image/jpeg', o.quality);
+    return embedDocProfile(doc, await canvasToBytes(flat, 'image/jpeg', o.quality), 'jpg');
   }
-  return canvasToBytes(c, 'image/png');
+  return embedDocProfile(doc, await canvasToBytes(c, 'image/png'), 'png');
 }
 
 // ---------------------------------------------------------------------------
@@ -214,6 +239,80 @@ export interface VectorPdfExportOptions {
   quality: number;
   /** resolution for the few objects PDF can't draw as vectors */
   fallbackDpi: number;
+  /** print output: CMYK for this press, optionally as PDF/X (absent = RGB) */
+  print?: { cmykProfile: CmykProfileId; standard: PdfxStandard | null };
+}
+
+function canvasRgba(c: HTMLCanvasElement): RgbaImage {
+  const d = c.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, c.width, c.height);
+  return { data: d.data, width: d.width, height: d.height };
+}
+
+/** Pixels for CMYK output: what the canvas renderer draws, read back as RGBA. */
+function pixelHooks(doc: QuvreloDocument, assets: AssetStore): PdfPixelHooks {
+  const env = (zoom: number) => ({ doc, assets, editor: false, preview: false, zoom });
+  return {
+    raster: async (n) => {
+      const c = assets.rendered(n.assetId, n.adjustments, false, docColour(doc.settings).bitDepth === 16);
+      return c ? canvasRgba(c) : null;
+    },
+    asset: async (id) => {
+      const c = assets.get(id);
+      return c ? canvasRgba(c) : null;
+    },
+    rasterise: async (n, ppu) => {
+      const b = renderLocalBounds(n);
+      const sw = 'stroke' in n && n.stroke.width > 0 ? n.stroke.width : 0;
+      const pad = sw / 2 + 2;
+      const box = { x: b.x - pad, y: b.y - pad, w: b.w + 2 * pad, h: b.h + 2 * pad };
+      const k = Math.min(ppu, 8000 / Math.max(box.w, box.h, 1));
+      const c = createCanvas(Math.max(1, Math.ceil(box.w * k)), Math.max(1, Math.ceil(box.h * k)));
+      const ctx = ctx2d(c);
+      ctx.scale(k, k);
+      ctx.translate(-box.x, -box.y);
+      drawNodeContent(ctx, n, env(k));
+      return { ...canvasRgba(c), box };
+    },
+    composite: async (pageIndex, count, box, ppu) => {
+      const page = doc.pages[pageIndex];
+      if (!page) return null;
+      const master = page.masterId ? doc.masters.find((m) => m.id === page.masterId) : null;
+      const nodes = [...(master?.nodes ?? []), ...page.nodes].slice(0, count);
+      const k = Math.min(ppu, 8000 / Math.max(box.w, box.h, 1));
+      const c = createCanvas(Math.max(1, Math.round(box.w * k)), Math.max(1, Math.round(box.h * k)));
+      const ctx = ctx2d(c);
+      // paper white under everything (PDF/X-1a pages are opaque)
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, c.width, c.height);
+      ctx.scale(c.width / box.w, c.height / box.h);
+      ctx.translate(-box.x, -box.y);
+      const flat: QuvreloDocument = { ...doc, pages: doc.pages.map((p, i) => (i === pageIndex ? { ...p, masterId: null, nodes } : p)) };
+      drawPage(ctx, flat, pageIndex, env(k), true);
+      return canvasRgba(c);
+    },
+    bounds: (n) => {
+      const b = renderLocalBounds(n);
+      const sw = 'stroke' in n && n.stroke.width > 0 ? n.stroke.width : 0;
+      const pad = sw / 2 + 1;
+      return { x: b.x - pad, y: b.y - pad, w: b.w + 2 * pad, h: b.h + 2 * pad };
+    },
+  };
+}
+
+/** How document colours become the press's CMYK (lcms2, the document's RGB profile and intent). */
+export async function printColour(doc: QuvreloDocument, cmykProfile: CmykProfileId, standard: PdfxStandard | null): Promise<PdfColourOutput> {
+  const e = await loadColourEngine();
+  const c = docColour(doc.settings);
+  // vector colours: relative colorimetric keeps in-gamut colours exact; photos use the document intent
+  const vec = { intent: 'relative' as const, bpc: true };
+  const img = { intent: c.intent };
+  return {
+    cmyk: (rgb) => e.rgbToCmyk(rgb, c.rgbProfile, cmykProfile, vec),
+    image: (px) => (px.data instanceof Uint16Array
+      ? e.rgba16ToCmyk(px.data, px.width * px.height, c.rgbProfile, cmykProfile, img)
+      : e.rgbaToCmyk(px.data, px.width * px.height, c.rgbProfile, cmykProfile, img)),
+    pdfx: standard ? { standard, profile: e.profileBytes(cmykProfile), condition: PROFILES[cmykProfile].pdfx! } : undefined,
+  };
 }
 
 function isOpaque(c: HTMLCanvasElement): boolean {
@@ -244,7 +343,9 @@ function loadFont(key: string): Promise<Uint8Array | null> {
 /** Shapes and text as PDF vectors with embedded fonts; photos at their own resolution. */
 export async function exportPdf(doc: QuvreloDocument, assets: AssetStore, o: VectorPdfExportOptions): Promise<{ bytes: Uint8Array; report: VectorPdfReport }> {
   doc = flattenForVector(doc, assets).doc; // adjustment layers, pixel masks, clipping (engine/flattenExport.ts)
-  return exportVectorPdf(doc, { pages: o.pages, includeBleed: o.includeBleed, cropMarks: o.cropMarks, fallbackDpi: o.fallbackDpi }, {
+  const colour = o.print ? await printColour(doc, o.print.cmykProfile, o.print.standard) : undefined;
+  return exportVectorPdf(doc, { pages: o.pages, includeBleed: o.includeBleed, cropMarks: o.cropMarks, fallbackDpi: o.fallbackDpi, colour }, {
+    pixels: colour ? pixelHooks(doc, assets) : undefined,
     measure: measureText,
     textSize: artisticTextSize,
     flow: (id) => storyFlow(doc, id),
@@ -265,7 +366,7 @@ export async function exportPdf(doc: QuvreloDocument, assets: AssetStore, o: Vec
         const blob = await assets.blob(n.assetId);
         if (blob?.mime === 'image/jpeg') return { bytes: blob.bytes, mime: 'image/jpeg' };
       }
-      const c = assets.rendered(n.assetId, n.adjustments, false);
+      const c = assets.rendered(n.assetId, n.adjustments, false, docColour(doc.settings).bitDepth === 16);
       return c ? canvasImage(c, o.quality) : null;
     },
     assetImage: async (id) => {

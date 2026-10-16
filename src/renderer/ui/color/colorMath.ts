@@ -164,6 +164,26 @@ export function thumbTint(fill: string | undefined, tile: string): string | null
   return contrastRatio(f, parseCss(tile)) < 1.5 ? null : fill;
 }
 
+/** An ICC conversion for the picker's CMYK fields (the document's CMYK profile); RGB 0..255, CMYK 0..1. */
+export interface CmykConverter {
+  /** profile name for the tooltip */
+  name: string;
+  toCmyk: (c: RGB) => [number, number, number, number];
+  toRgb: (c: number, m: number, y: number, k: number) => RGB;
+}
+
+let cmykConverter: (() => CmykConverter | null) | null = null;
+
+/** Use ICC conversions for CMYK fields (the app installs this once the colour engine is ready). */
+export function setCmykConverter(fn: (() => CmykConverter | null) | null): void {
+  cmykConverter = fn;
+}
+
+/** The active CMYK conversion, or null for the device approximation. */
+export function activeCmykConverter(): CmykConverter | null {
+  return cmykConverter?.() ?? null;
+}
+
 /** Channel values shown in the picker for a model, rounded for display. */
 export function channels(model: Exclude<ColorModel, 'hex'>, c: RGB): number[] {
   if (model === 'rgb') return [c.r, c.g, c.b].map((v) => Math.round(v));
@@ -171,14 +191,16 @@ export function channels(model: Exclude<ColorModel, 'hex'>, c: RGB): number[] {
     const [h, s, l] = rgbToHsl(c);
     return [Math.round(h) % 360, Math.round(s * 100), Math.round(l * 100)];
   }
-  return rgbToCmyk(c).map((v) => Math.round(v * 100));
+  const conv = activeCmykConverter();
+  return (conv ? conv.toCmyk(c) : rgbToCmyk(c)).map((v) => Math.round(v * 100));
 }
 
 /** Inverse of channels(): rebuild RGB after one display channel was edited. */
 export function fromChannels(model: Exclude<ColorModel, 'hex'>, v: number[]): RGB {
   if (model === 'rgb') return { r: clamp255(v[0]), g: clamp255(v[1]), b: clamp255(v[2]) };
   if (model === 'hsl') return hslToRgb(v[0], v[1] / 100, v[2] / 100);
-  return cmykToRgb(v[0] / 100, v[1] / 100, v[2] / 100, v[3] / 100);
+  const conv = activeCmykConverter();
+  return (conv ? conv.toRgb : cmykToRgb)(v[0] / 100, v[1] / 100, v[2] / 100, v[3] / 100);
 }
 
 export const MODEL_CHANNELS: Record<Exclude<ColorModel, 'hex'>, { key: string; label: string; max: number; unit: string }[]> = {

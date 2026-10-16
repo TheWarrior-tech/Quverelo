@@ -1423,3 +1423,27 @@ label.check {
 :root[data-theme='high-contrast'] .layer-row .toggle {
   opacity: 1;
 }
+
+/* CMYK and spot swatches: a corner mark tells them apart from screen colours */
+.swatch.cmyk,
+.swatch.spot {
+  position: relative;
+}
+.swatch.cmyk::after,
+.swatch.spot::after {
+  content: '';
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: 6px;
+  height: 6px;
+  background: var(--c-panel);
+  box-shadow: 0 0 0 1px rgba(128, 128, 128, 0.5);
+}
+/* process CMYK: a corner triangle; spot ink: a dot */
+.swatch.cmyk::after {
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+.swatch.spot::after {
+  border-radius: 50%;
+}

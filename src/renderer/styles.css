@@ -1088,22 +1088,22 @@ kbd {
   background: var(--c-line-strong);
 }
 /* Snap is a real toggle (critique 2 P2-2): ghost button, aria-pressed; on = pressed fill + accent magnet (the "on" role) */
-.statusbar .snap-toggle {
+.statusbar :is(.snap-toggle, .status-toggle) {
   height: 20px;
   min-width: 0;
   gap: 4px;
   padding: 0 6px 0 4px;
   color: var(--c-text-3);
 }
-.statusbar .snap-toggle svg.icon {
+.statusbar :is(.snap-toggle, .status-toggle) svg.icon {
   width: 16px;
   height: 16px;
 }
-.statusbar .snap-toggle.on {
+.statusbar :is(.snap-toggle, .status-toggle).on {
   background: var(--c-press);
   color: var(--c-text);
 }
-.statusbar .snap-toggle.on svg.icon {
+.statusbar :is(.snap-toggle, .status-toggle).on svg.icon {
   color: var(--c-accent);
 }
 
@@ -1862,7 +1862,8 @@ kbd {
     .font-row.active,
     .btn.selected,
     .icon-btn.sm.active,
-    .statusbar .snap-toggle.on
+    .statusbar .snap-toggle.on,
+    .statusbar .status-toggle.on
   ) {
   background: var(--c-accent);
   color: var(--c-accent-ink);
@@ -1884,7 +1885,8 @@ kbd {
     .font-row.active,
     .btn.selected,
     .icon-btn.sm.active,
-    .statusbar .snap-toggle.on
+    .statusbar .snap-toggle.on,
+    .statusbar .status-toggle.on
   ) :not(input, textarea, select, .thumb, .thumb *) {
   color: var(--c-accent-ink);
 }
@@ -2018,4 +2020,9 @@ kbd {
   border-color: #fff;
   border-bottom-width: 1px;
   color: #fff;
+}
+
+/* colour status: soft-proof switch shows the document colour space; gamut warning is icon-only */
+.statusbar .status-toggle.icon-only {
+  padding: 0 4px;
 }

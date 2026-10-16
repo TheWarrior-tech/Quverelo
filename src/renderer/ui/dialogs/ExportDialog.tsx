@@ -11,10 +11,13 @@ import { Menu, type MenuEntry } from '../controls/Menu';
 import { Icon } from '../Icons';
 import { Dialog } from './DialogHost';
 import { Check, Field, Segmented, formatBytes } from './controls';
+import { CMYK_PROFILES, docColour, PROFILES, type CmykProfileId } from '../../../core/colour/profiles';
+import { applyLut } from '../../../core/colour/lut3d';
+import { colourEngine, whenColourReady } from '../../engine/colour';
 
 type Format = ExportRequest['format'];
 /** Entries in the format list: PDF comes in two kinds. */
-type Kind = 'png' | 'jpg' | 'svg' | 'pdf' | 'pdf-image';
+type Kind = 'png' | 'jpg' | 'svg' | 'pdf' | 'pdf-image' | 'pdf-x4' | 'pdf-x1a';
 type Area = 'current' | 'all' | 'range' | 'selection';
 
 const KINDS: { id: Kind; format: Format; name: string; sub: string }[] = [
@@ -23,7 +26,11 @@ const KINDS: { id: Kind; format: Format; name: string; sub: string }[] = [
   { id: 'svg', format: 'svg', name: 'SVG', sub: 'Scalable vectors' },
   { id: 'pdf', format: 'pdf', name: 'PDF', sub: 'Vectors and live text' },
   { id: 'pdf-image', format: 'pdf', name: 'Image PDF', sub: 'One picture per page' },
+  { id: 'pdf-x4', format: 'pdf', name: 'PDF/X-4', sub: 'Print · CMYK, live transparency' },
+  { id: 'pdf-x1a', format: 'pdf', name: 'PDF/X-1a', sub: 'Print · CMYK, flattened' },
 ];
+
+const X_NAME: Partial<Record<Kind, string>> = { 'pdf-x4': 'PDF/X-4', 'pdf-x1a': 'PDF/X-1a:2003' };
 
 const SCALE_PRESETS: { v: number; label: string; detail?: string }[] = [
   { v: 0.5, label: '0.5×' },
@@ -60,6 +67,14 @@ export function ExportDialog({ format: initial }: { format: Format }) {
   const [kind, setKind] = useState<Kind>(kinds.some((k) => k.id === initial) ? (initial as Kind) : kinds[0]?.id ?? 'png');
   const format = KINDS.find((k) => k.id === kind)!.format;
   const isPdf = format === 'pdf';
+  const isX = kind === 'pdf-x4' || kind === 'pdf-x1a';
+  const docCol = docColour(doc.settings);
+  const [press, setPress] = useState<CmykProfileId>(docCol.cmykProfile);
+  // the preview of a print PDF is soft-proofed once the colour engine has loaded
+  const [engineReady, setEngineReady] = useState(!!colourEngine());
+  useEffect(() => {
+    if (isX && !engineReady) whenColourReady(() => setEngineReady(true));
+  }, [isX, engineReady]);
   const raster = format === 'png' || format === 'jpg';
   const [scale, setScale] = useState(1);
   /** The Scale control edits either the factor (2×) or the output width (W px); the other is the read-only hint. */
@@ -70,6 +85,9 @@ export function ExportDialog({ format: initial }: { format: Format }) {
   const [dpi, setDpi] = useState(doc.settings.unit === 'px' ? [96, 150, 300].reduce((a, b) => (Math.abs(b - doc.settings.dpi) < Math.abs(a - doc.settings.dpi) ? b : a)) : 300);
   const [quality, setQuality] = useState(90);
   const [transparent, setTransparent] = useState(!doc.settings.background);
+  // PNG bit depth: 16-bit Photo documents export 16 bits per channel by default
+  const [pngDepth, setPngDepth] = useState<8 | 16>(docCol.bitDepth);
+  const outDepth: 8 | 16 = format === 'png' ? pngDepth : 8;
   const [bleed, setBleed] = useState(false);
   const [cropMarks, setCropMarks] = useState(false);
   const [fileName, setFileName] = useState(doc.title || 'Untitled');
@@ -108,6 +126,7 @@ export function ExportDialog({ format: initial }: { format: Format }) {
     ? `${title}${useSel ? ' - selection' : !isPdf && multi ? ` - ${doc.pages[pages[0] ?? cur].name}` : ''}.${ext}`
     : `${title} - ${pages.length} files.${ext}`;
   const hasImages = useMemo(() => pagesHaveImages(doc, pages), [doc, pages.join(',')]);
+  // print PDFs keep photos lossless (CMYK Flate), so there is no quality to choose
   const showQuality = format === 'jpg' || kind === 'pdf-image' || (kind === 'pdf' && hasImages);
   // a PDF page is physical: show it in the document unit (mm for a px document, sized
   // by its Output DPI), pt in the tooltip (CRITIQUE-3 N1, CRITIQUE-4 P2-17)
@@ -128,11 +147,22 @@ export function ExportDialog({ format: initial }: { format: Format }) {
       const pv = pages[0] ?? cur;
       const s = PREVIEW_MAX / Math.max(doc.settings.width + 2 * b, doc.settings.height + 2 * b);
       const c = renderPageCanvas(doc, editor.assets, { pageIndex: pv, scale: s, includeBleed: b > 0, transparent: isTransparent });
-      return format === 'png' ? c : flatten(c);
+      const out = format === 'png' ? c : flatten(c);
+      const e = isX && engineReady ? colourEngine() : null;
+      if (e) {
+        // show the page as the press will print it
+        const lut = e.displayLut({ rgbProfile: docCol.rgbProfile, cmykProfile: press, proof: true, gamut: false, intent: docCol.intent });
+        const x = ctx2d(out);
+        const img = x.getImageData(0, 0, out.width, out.height);
+        applyLut(img.data, lut);
+        x.putImageData(img, 0, 0);
+        out.dataset.proof = press;
+      }
+      return out;
     } catch {
       return null;
     }
-  }, [doc, cur, b, isTransparent, format, useSel, selBox, pages[0]]);
+  }, [doc, cur, b, isTransparent, format, useSel, selBox, pages[0], isX, press, engineReady]);
 
   useEffect(() => {
     const host = previewRef.current;
@@ -156,7 +186,7 @@ export function ExportDialog({ format: initial }: { format: Format }) {
         let bytes = 0;
         if (format === 'svg') {
           for (const i of pages) bytes += new TextEncoder().encode(exportSvg(doc, editor.assets, i, b > 0)).length;
-        } else if (kind === 'pdf') {
+        } else if (kind === 'pdf' || isX) {
           // vectors are small; photos dominate. A rough per-page figure plus embedded images.
           let img = 0;
           if (hasImages && preview) {
@@ -169,7 +199,9 @@ export function ExportDialog({ format: initial }: { format: Format }) {
           const type = format === 'png' ? 'image/png' : 'image/jpeg';
           const sample = await toBlobSize(preview, type, format === 'png' ? undefined : quality / 100);
           // compression gets more efficient as resolution grows; damp the linear extrapolation
-          const per = sample * Math.pow(Math.max(ratio, 0.01), format === 'png' ? 0.9 : 0.8);
+          // 16-bit PNG samples are twice as wide and the low byte compresses poorly
+          const depthK = format === 'png' && pngDepth === 16 && !useSel ? 2.6 : 1;
+          const per = sample * depthK * Math.pow(Math.max(ratio, 0.01), format === 'png' ? 0.9 : 0.8);
           const n = useSel ? 1 : pages.length;
           bytes = per * n + (isPdf ? 2000 + 600 * n : 0);
         }
@@ -182,7 +214,7 @@ export function ExportDialog({ format: initial }: { format: Format }) {
       live = false;
       window.clearTimeout(t);
     };
-  }, [kind, preview, pxW, pxH, quality, pages.length, b, hasImages]);
+  }, [kind, preview, pxW, pxH, quality, pages.length, b, hasImages, pngDepth, useSel]);
 
   const rangeError = effArea === 'range' && range && !range.ok ? range.error : null;
   const canGo = !busy && !rangeError && pages.length > 0;
@@ -193,9 +225,11 @@ export function ExportDialog({ format: initial }: { format: Format }) {
     try {
       const path = await runExport({
         format, pages, scale, dpi, quality: quality / 100, transparent, includeBleed: b > 0, cropMarks,
-        pdfKind: kind === 'pdf-image' ? 'image' : isPdf ? 'vector' : undefined,
+        pdfKind: kind === 'pdf-image' ? 'image' : kind === 'pdf-x4' ? 'x4' : kind === 'pdf-x1a' ? 'x1a' : isPdf ? 'vector' : undefined,
+        cmykProfile: isX ? press : undefined,
         selection: useSel ? [...selIds] : undefined,
         fileName: title,
+        bitDepth: format === 'png' && !useSel ? pngDepth : undefined,
       });
       if (path) {
         toast(`Exported ${path.split(/[\\/]/).pop()}`, 'success');
@@ -339,6 +373,11 @@ export function ExportDialog({ format: initial }: { format: Format }) {
               <Segmented label="Background" value={transparent ? 't' : 'p'} onChange={(v) => setTransparent(v === 't')} options={[{ value: 'p', label: 'Page colour' }, { value: 't', label: 'Transparent' }]} />
             </Field>
           )}
+          {format === 'png' && !useSel && (
+            <Field label="Bit depth" hint={pngDepth === 16 ? 'Photos keep 16 bits per channel: smoother gradients for further editing and print. Files are about twice the size.' : undefined}>
+              <Segmented label="Bit depth" value={String(pngDepth)} onChange={(v) => setPngDepth(v === '16' ? 16 : 8)} options={[{ value: '8', label: '8-bit' }, { value: '16', label: '16-bit' }]} />
+            </Field>
+          )}
           {!useSel && (
             <Field label="Bleed" hint={hasBleed ? undefined : 'This document has no bleed. Set one in Document setup.'}>
               <Check checked={bleed} onChange={setBleed} disabled={!hasBleed}>Include bleed</Check>
@@ -349,11 +388,22 @@ export function ExportDialog({ format: initial }: { format: Format }) {
               <Check checked={cropMarks} onChange={setCropMarks}>Crop marks</Check>
             </Field>
           )}
+          {isX && (
+            <Field label="Press" htmlFor="ex-press" hint={PROFILES[press].detail}>
+              <select id="ex-press" value={press} onChange={(e) => setPress(e.target.value as CmykProfileId)} data-testid="export-press">
+                {CMYK_PROFILES.map((id) => <option key={id} value={id}>{PROFILES[id].name}</option>)}
+              </select>
+            </Field>
+          )}
           <Field label="Colour">
-            <span className="value-text">{isPdf ? 'RGB · not PDF/X' : 'sRGB · 8-bit'}</span>
+            <span className="value-text" data-testid="export-colour">
+              {isX ? `CMYK · ${PROFILES[press].short} · ${X_NAME[kind]}` : isPdf ? `${PROFILES[docCol.rgbProfile].short} · not for press` : format === 'svg' ? PROFILES[docCol.rgbProfile].short : `${PROFILES[docCol.rgbProfile].short} · ${useSel ? 8 : outDepth}-bit · profile embedded`}
+            </span>
           </Field>
           {format === 'svg' && <p className="note ex-note">Shapes and text stay editable vectors. Photos and pixel layers are embedded as PNG.</p>}
           {kind === 'pdf' && <p className="note ex-note" data-testid="export-pdf-note">Shapes and text stay sharp vectors with embedded fonts, so text can be searched and copied. Photos keep their own resolution. Text in system fonts and see-through gradients are placed as images.</p>}
+          {kind === 'pdf-x4' && <p className="note ex-note" data-testid="export-pdf-note">For print shops: colours become CMYK for {PROFILES[press].name} and the press profile travels with the file. Shapes and text stay vectors, fonts are embedded, see-through objects stay live and photos stay lossless.</p>}
+          {kind === 'pdf-x1a' && <p className="note ex-note" data-testid="export-pdf-note">For print shops that ask for PDF/X-1a: CMYK and spot colours only, fonts embedded. Anything see-through is flattened into an image together with what lies under it.</p>}
           {kind === 'pdf-image' && <p className="note ex-note" data-testid="export-pdf-note">Every page is flattened into one picture, so text can't be selected or searched. Use it when a viewer or printer has trouble with the vector PDF.</p>}
         </div>
       </div>

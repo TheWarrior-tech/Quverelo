@@ -5,16 +5,18 @@ import { addNodes, updateNode } from '../../core/commands';
 import { templateById } from '../../core/templates';
 import type { QuvreloDocument, ImageFrameNode, SceneNode, StudioKind } from '../../core/types';
 import type { FileFilter } from '../../shared/api';
-import { canvasToBytes, createCanvas, ctx2d } from '../engine/assets';
+import { canvasToBytes, createCanvas, ctx2d, DNG_MIME } from '../engine/assets';
 import { exportImagePdf, exportPdf, exportRaster, exportSelectionRaster, exportSvg, renderPageCanvas } from '../engine/export';
 import { importSvg } from '../engine/svgImport';
 import { defaultExportFormat, pagesStillValid, type ExportFormat } from '../../core/exportDefaults';
+import { DEFAULT_COLOUR, docColour, type CmykProfileId } from '../../core/colour/profiles';
 import { editor } from './editor';
 import { openDialog, toast } from './bus';
 import { markStep } from './onboarding';
 
 const QUVRELO_FILTER: FileFilter[] = [{ name: 'Quvrelo Document', extensions: ['quvrelo'] }];
-const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'];
+/** DNG raw files are developed on import (core/raw/dng.ts); proprietary raw formats are not read (see docs/RAW.md). */
+const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'dng'];
 
 function mimeFor(name: string): string {
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
@@ -23,6 +25,7 @@ function mimeFor(name: string): string {
   if (ext === 'gif') return 'image/gif';
   if (ext === 'bmp') return 'image/bmp';
   if (ext === 'svg') return 'image/svg+xml';
+  if (ext === 'dng') return DNG_MIME;
   return 'image/png';
 }
 
@@ -93,8 +96,11 @@ async function openImageAsDocument(bytes: Uint8Array, name: string, path: string
     editor.openSession(addNodes(doc, doc.pages[0].id, r.nodes), null, 'vector');
     return;
   }
-  const { id, width, height } = await editor.assets.addBytes(bytes, mimeFor(name));
-  let doc = createDocument({ title: baseName(name), studio: 'photo', settings: { width, height, background: null, dpi: 300 } });
+  const { id, width, height, bitDepth, raw } = await editor.assets.addBytes(bytes, mimeFor(name));
+  // a 16-bit PNG or a raw file opens as a 16-bit Photo document, so its precision is used
+  const colour = bitDepth === 16 ? { ...DEFAULT_COLOUR, bitDepth: 16 as const } : undefined;
+  let doc = createDocument({ title: baseName(name), studio: 'photo', settings: { width, height, background: null, dpi: 300, ...(colour ? { colour } : {}) } });
+  if (raw) toast(`Developed ${raw.model || 'raw'} DNG: ${raw.bitsPerSample}-bit ${raw.cfa}, as-shot white balance, 16-bit document`, 'info');
   const node = make.raster({ assetId: id, w: width, h: height, x: width / 2, y: height / 2, name: 'Background' });
   doc = { ...doc, assets: { [id]: editor.assets.ref(id, name) } };
   doc = addNodes(doc, doc.pages[0].id, [node]);
@@ -238,7 +244,7 @@ export async function placeImages(files?: { data: Uint8Array; name: string }[]):
       added.push(g.id);
       continue;
     }
-    const { id, width, height } = await editor.assets.addBytes(f.data, mimeFor(f.name));
+    const { id, width, height } = await editor.assets.addBytes(f.data, mimeFor(f.name), undefined, { rawTarget: docColour(doc.settings).rgbProfile });
     const ref = editor.assets.ref(id, f.name);
     if (frame && list.length === 1) {
       editor.commit('Place image in frame', (d) =>
@@ -297,12 +303,19 @@ export interface ExportRequest {
   transparent: boolean;
   includeBleed: boolean;
   cropMarks: boolean;
-  /** PDF only: 'vector' (default) keeps shapes and text as vectors; 'image' makes one picture per page */
-  pdfKind?: 'vector' | 'image';
+  /**
+   * PDF only: 'vector' (default) keeps shapes and text as vectors; 'image' makes one picture per page;
+   * 'x4' / 'x1a' are print-ready PDF/X-4 and PDF/X-1a:2003 (vector, CMYK for `cmykProfile`)
+   */
+  pdfKind?: 'vector' | 'image' | 'x4' | 'x1a';
+  /** PDF/X: the press to convert to (defaults to the document's CMYK profile) */
+  cmykProfile?: CmykProfileId;
   /** PNG/JPEG only: export just these objects, cropped to their bounds */
   selection?: string[];
   /** file name offered in the save dialog (without extension); defaults to the document title */
   fileName?: string;
+  /** PNG only: bits per channel (defaults to the document's bit depth) */
+  bitDepth?: 8 | 16;
 }
 
 /** What the last vector PDF had to place as images (for the toast), or null. */
@@ -329,10 +342,15 @@ export async function runExportFiles(req: ExportRequest, targets: (string | null
     if (req.pdfKind === 'image') {
       data = await exportImagePdf(doc, editor.assets, { dpi: req.dpi, includeBleed: req.includeBleed, cropMarks: req.cropMarks, quality: req.quality, pages: req.pages });
     } else {
-      const out = await exportPdf(doc, editor.assets, { pages: req.pages, includeBleed: req.includeBleed, cropMarks: req.cropMarks, quality: req.quality, fallbackDpi: Math.max(150, req.dpi) });
+      const standard = req.pdfKind === 'x4' || req.pdfKind === 'x1a' ? req.pdfKind : null;
+      const print = standard ? { standard, cmykProfile: req.cmykProfile ?? docColour(doc.settings).cmykProfile } : undefined;
+      // print PDFs place fallback images at 300 dpi at least
+      const out = await exportPdf(doc, editor.assets, { pages: req.pages, includeBleed: req.includeBleed, cropMarks: req.cropMarks, quality: req.quality, fallbackDpi: Math.max(standard ? 300 : 150, req.dpi), print });
       data = out.bytes;
       const r = out.report.rasterised;
-      if (r.length) lastPdfNote = r.length === 1 ? `“${r[0].name}” was placed as an image: ${r[0].reason}` : `${r.length} objects were placed as images (${r[0].reason}…)`;
+      const f = out.report.flattened;
+      if (f.length) lastPdfNote = f.length === 1 ? `PDF/X-1a has no transparency, so “${f[0].name}” (${f[0].reason}) was flattened into an image with what lies under it` : `PDF/X-1a has no transparency, so ${f.length} objects were flattened into images (${f[0].reason}…)`;
+      else if (r.length) lastPdfNote = r.length === 1 ? `“${r[0].name}” was placed as an image: ${r[0].reason}` : `${r.length} objects were placed as images (${r[0].reason}…)`;
     }
     const p = await window.quvrelo.saveFile({ path: targets[0] ?? null, data, defaultName: `${title}.pdf`, filters: [{ name: 'PDF', extensions: ['pdf'] }], title: 'Export PDF' });
     if (!p) return null;
@@ -352,7 +370,7 @@ export async function runExportFiles(req: ExportRequest, targets: (string | null
         written.push(p); // one image of the selection, whatever the page range
         break;
       } else {
-        const data = await exportRaster(doc, editor.assets, { pageIndex: i, scale: req.scale, includeBleed: req.includeBleed, transparent: req.transparent, format: req.format, quality: req.quality });
+        const data = await exportRaster(doc, editor.assets, { pageIndex: i, scale: req.scale, includeBleed: req.includeBleed, transparent: req.transparent, format: req.format, quality: req.quality, bitDepth: req.bitDepth });
         const ext = req.format === 'jpg' ? 'jpg' : 'png';
         p = await window.quvrelo.saveFile({ path: targets[k] ?? null, data, defaultName: `${title}${suffix}.${ext}`, filters: [{ name: ext.toUpperCase(), extensions: [ext] }], title: `Export ${ext.toUpperCase()}` });
       }
