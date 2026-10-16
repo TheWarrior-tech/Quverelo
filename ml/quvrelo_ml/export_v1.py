@@ -53,7 +53,13 @@ def main():
     ap.add_argument("--int8", default=os.path.join(ML, "models", "quvselect_v1_int8.onnx"))
     ap.add_argument("--report", default=os.path.join(ML, "models", "export_report_v1.json"))
     ap.add_argument("--calib", type=int, default=64)
+    ap.add_argument("--repo", default="TheWarrior-tech/Quverelo")
+    ap.add_argument("--release-tag", default="ml-quvselect-v1")
+    ap.add_argument("--release-dir", default=None, help="also copy the ONNX files + manifest here (release staging)")
+    ap.add_argument("--manifest-only", action="store_true", help="only (re)write manifest.json for existing files")
     a = ap.parse_args()
+    if a.manifest_only:
+        return write_manifest(a, json.load(open(a.report)).get("checkpoint_step"))
     ck = torch.load(a.ckpt, map_location="cpu", weights_only=False)
     m = QuvSelectV1(pretrained=False).eval(); m.load_state_dict(ck["ema"])
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
@@ -81,6 +87,33 @@ def main():
                                   "mask_agreement_vs_torch": round(float(((ref > 0) == (out > 0)).mean()), 5), "ort_cpu_ms": ms}
     print(json.dumps(rep, indent=1))
     json.dump(rep, open(a.report, "w"), indent=1)
+    write_manifest(a, ck["step"])
+
+
+def sha256(path):
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for b in iter(lambda: f.read(1 << 20), b""):
+            h.update(b)
+    return h.hexdigest()
+
+
+def write_manifest(a, step):
+    """ml/models/manifest.json: what scripts/fetch-ml-models.mjs downloads (GitHub Release asset) and checks."""
+    models = [{"id": i, "file": os.path.basename(p), "bytes": os.path.getsize(p), "sha256": sha256(p)}
+              for i, p in (("quvselect-v1", a.out), ("quvselect-v1-int8", a.int8))]
+    m = {"repo": a.repo, "releaseTag": a.release_tag, "checkpoint_step": step, "licence": "MIT (weights, Quvrelo); "
+         "encoder initialised from timm mobilenetv3_large_100.ra_in1k (Apache-2.0); data Open Images (CC BY), see ml/DATA_SOURCES.md",
+         "models": models}
+    json.dump(m, open(os.path.join(os.path.dirname(a.out), "manifest.json"), "w"), indent=1)
+    if a.release_dir:
+        import shutil
+        os.makedirs(a.release_dir, exist_ok=True)
+        for p in (a.out, a.int8):
+            shutil.copy2(p, os.path.join(a.release_dir, os.path.basename(p)))
+        shutil.copy2(os.path.join(os.path.dirname(a.out), "manifest.json"), os.path.join(a.release_dir, "manifest.json"))
+    print(json.dumps(m, indent=1))
 
 
 if __name__ == "__main__":

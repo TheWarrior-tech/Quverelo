@@ -17,9 +17,13 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = join(root, 'ml', 'models');
-const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
 const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || '';
 const strict = process.env.QUVRELO_REQUIRE_ML_MODELS === '1';
+if (!existsSync(join(dir, 'manifest.json'))) {
+  console.warn('ml: WARNING ml/models/manifest.json is missing; the build will use the committed QuvSelect v0 model.');
+  process.exit(strict ? 1 : 0);
+}
+const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
 const sha = (buf) => createHash('sha256').update(buf).digest('hex');
 
 async function download(m) {
