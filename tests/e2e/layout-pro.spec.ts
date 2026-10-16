@@ -509,8 +509,8 @@ test.describe('layout: tables, wrap, grid, preflight', () => {
     expect(raw).not.toMatch(/\/Subtype \/Image/);
     // shaped text: kerning written as TJ adjustments
     const { inflateSync } = await import('node:zlib');
-    const { PDFName, PDFRawStream } = await import('pdf-lib');
-    const c = doc.getPages()[0].node.lookup(PDFName.of('Contents')) as InstanceType<typeof PDFRawStream>;
+    const { PDFName } = await import('pdf-lib');
+    const c = doc.getPages()[0].node.lookup(PDFName.of('Contents')) as unknown as { contents: Uint8Array };
     const ops = inflateSync(Buffer.from(c.contents)).toString('latin1');
     expect(ops).toMatch(/BT\n\/F\d+ [\d.]+ Tf/);
     expect(ops).toMatch(/\] TJ|> Tj/);
