@@ -31,7 +31,7 @@ export function ScriptEditorDialog({ id, example }: { id?: string; example?: str
     setBusy(true);
     setError(null);
     try {
-      const ok = await runAndReport(s.name, s.source, s.language);
+      const ok = await runAndReport(s.name, s.source, s.language, true);
       if (ok) closeDialog();
       else setError(getLastRun()?.result.error ?? 'The script stopped');
     } finally {

@@ -1,41 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import { PDFDocument, PDFName, PDFOperator, PDFString, StandardFonts, rgb, cmyk } from 'pdf-lib';
+import { PDFDocument, rgb } from 'pdf-lib';
+import { samplePdf } from '../fixtures/interop';
 import { importPdfVectors, isPostScriptOnlyAi, Lexer, parseToUnicode, PX_PER_PT } from '../../src/core/interop/pdfImport';
 import type { GroupNode, PathNode, RasterNode, SceneNode, TextNode } from '../../src/core/types';
 
 const flat = (nodes: SceneNode[]): SceneNode[] => nodes.flatMap((n) => (n.type === 'group' ? [n, ...flat(n.children)] : [n]));
-
-async function samplePdf(): Promise<Uint8Array> {
-  const pdf = await PDFDocument.create();
-  const page = pdf.addPage([200, 100]);
-  page.drawRectangle({ x: 10, y: 10, width: 50, height: 30, color: rgb(1, 0, 0), borderColor: cmyk(0, 0, 0, 1), borderWidth: 2, opacity: 0.5 });
-  page.drawSvgPath('M 0 0 L 40 0 L 20 -30 Z', { x: 100, y: 80, color: rgb(0, 0, 1) });
-  const font = await pdf.embedFont(StandardFonts.HelveticaBold);
-  page.drawText('Hello PDF', { x: 20, y: 70, size: 12, font, color: rgb(0, 0.5, 0) });
-  const png = await pdf.embedPng(fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'gradient.png')));
-  page.drawImage(png, { x: 150, y: 10, width: 40, height: 20 });
-
-  // Illustrator-style layers: optional content groups, one hidden
-  const ctx = pdf.context;
-  const ocgOn = ctx.register(ctx.obj({ Type: 'OCG', Name: PDFString.of('Artwork') }));
-  const ocgOff = ctx.register(ctx.obj({ Type: 'OCG', Name: PDFString.of('Sketch') }));
-  pdf.catalog.set(PDFName.of('OCProperties'), ctx.obj({ OCGs: [ocgOn, ocgOff], D: ctx.obj({ OFF: [ocgOff] }) }));
-  const res = page.node.Resources()!;
-  res.set(PDFName.of('Properties'), ctx.obj({ L1: ocgOn, L2: ocgOff }));
-  const op = (o: string, ...args: unknown[]) => PDFOperator.of(o as never, args as never);
-  page.pushOperators(
-    op('BDC', PDFName.of('OC'), PDFName.of('L1')),
-    op('q'), op('rg', ctx.obj(0), ctx.obj(1), ctx.obj(0)), op('re', ctx.obj(0), ctx.obj(0), ctx.obj(10), ctx.obj(10)), op('f'), op('Q'),
-    op('EMC'),
-    op('BDC', PDFName.of('OC'), PDFName.of('L2')),
-    op('q'), op('re', ctx.obj(20), ctx.obj(0), ctx.obj(10), ctx.obj(10)), op('W'), op('n'),
-    op('rg', ctx.obj(1), ctx.obj(1), ctx.obj(0)), op('re', ctx.obj(15), ctx.obj(0), ctx.obj(30), ctx.obj(10)), op('f'), op('Q'),
-    op('EMC'),
-  );
-  return pdf.save({ useObjectStreams: false });
-}
 
 describe('PDF / Illustrator vector import', () => {
   it('lexes content stream tokens', () => {

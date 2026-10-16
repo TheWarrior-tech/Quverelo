@@ -8,12 +8,12 @@ import { deleteUserScript, examples, getLastRun, listUserScripts, onScriptsChang
 import './scripts.css';
 
 /** Run a script and record the result for the Output section. */
-export async function runAndReport(name: string, source: string, language: 'js' | 'ts'): Promise<boolean> {
+export async function runAndReport(name: string, source: string, language: 'js' | 'ts', inlineErrors = false): Promise<boolean> {
   const r = await runUserScript(name, source, language);
   if (!r) return false;
   setLastRun(name, r);
   if (r.ok) toast(r.changed ? `Ran “${name}” — undo with Ctrl+Z` : `Ran “${name}” (no changes)`, 'success');
-  else toast(`“${name}” stopped: ${r.error}`, 'error');
+  else if (!inlineErrors) toast(`“${name}” stopped: ${r.error}`, 'error');
   return r.ok;
 }
 

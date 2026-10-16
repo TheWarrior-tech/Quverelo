@@ -1,56 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { writePsdUint8Array, readPsd, type Psd } from 'ag-psd';
+import { img, samplePsd } from '../fixtures/interop';
 import { applyPixelMask, bezierToPath, blendFromPsd, blendToPsd, fontFromPostScript, importPsd, psdColorHex } from '../../src/core/interop/psd';
 import { BLEND_MODES } from '../../src/core/types';
 import type { GroupNode, PathNode, RasterNode, TextNode } from '../../src/core/types';
-
-function img(w: number, h: number, rgba: [number, number, number, number]) {
-  const data = new Uint8ClampedArray(w * h * 4);
-  for (let i = 0; i < data.length; i += 4) data.set(rgba, i);
-  return { width: w, height: h, data };
-}
-
-/** A small layered PSD written with ag-psd: background, group with two layers, shape and text. */
-export function samplePsd(): Uint8Array {
-  const psd: Psd = {
-    width: 200,
-    height: 100,
-    imageData: img(200, 100, [255, 255, 255, 255]),
-    children: [
-      { name: 'Background', left: 0, top: 0, right: 200, bottom: 100, imageData: img(200, 100, [250, 250, 250, 255]) },
-      {
-        name: 'Stuff',
-        opened: true,
-        opacity: 0.5,
-        blendMode: 'pass through',
-        children: [
-          { name: 'Red', left: 10, top: 10, right: 50, bottom: 30, blendMode: 'multiply', opacity: 0.75, imageData: img(40, 20, [255, 0, 0, 255]) },
-          { name: 'Hidden', left: 60, top: 10, right: 70, bottom: 20, hidden: true, blendMode: 'linear burn', imageData: img(10, 10, [0, 0, 255, 255]) },
-        ],
-      },
-      {
-        name: 'Masked', left: 100, top: 0, right: 140, bottom: 40, imageData: img(40, 40, [0, 255, 0, 255]),
-        mask: { left: 100, top: 0, right: 120, bottom: 40, defaultColor: 0, imageData: img(20, 40, [255, 255, 255, 255]) },
-      },
-      {
-        name: 'Box', left: 150, top: 50, right: 190, bottom: 90, imageData: img(40, 40, [0, 0, 0, 255]),
-        vectorFill: { type: 'color', color: { r: 10, g: 20, b: 30 } },
-        vectorMask: {
-          paths: [{
-            open: false, fillRule: 'non-zero',
-            knots: [
-              { linked: false, points: [150, 50, 150, 50, 150, 50] },
-              { linked: false, points: [190, 50, 190, 50, 190, 50] },
-              { linked: false, points: [190, 90, 190, 90, 190, 90] },
-              { linked: false, points: [150, 90, 150, 90, 150, 90] },
-            ],
-          }],
-        },
-      },
-    ],
-  };
-  return writePsdUint8Array(psd, { generateThumbnail: false });
-}
 
 function importPsdRaw(): Psd {
   importPsd(samplePsd(), 'warm-up'); // installs the pixel factory for Node
