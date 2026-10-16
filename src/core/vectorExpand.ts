@@ -10,10 +10,12 @@ import { make, makeStroke, nodeToPath, NO_PAINT } from './document';
 import { conicalWedges, type Box } from './gradient';
 import { parsePath, rectPath } from './path';
 import { hasArrows, hasProfile, strokeFx, strokeVisible } from './strokeFx';
+import { strokeOutline } from './strokeOutline';
+import { booleanPaths } from './boolean';
 import type { GroupNode, NodeBase, Paint, PathCommand, PathNode, SceneNode, Stroke } from './types';
 
 export interface ExpandOptions {
-  /** replace conical gradient fills by solid wedges (SVG / PDF) */
+  /** replace conical gradient fills and strokes by solid wedges (SVG / PDF have no conical paint) */
   conicalWedges?: boolean;
 }
 
@@ -49,6 +51,7 @@ export function needsExpansion(n: SceneNode, opts: ExpandOptions = {}): boolean 
     const s = n as Shape;
     if (strokeVisible(s.stroke) && (hasProfile(s.stroke) || (n.type === 'path' && hasArrows(s.stroke)))) return true;
     if (opts.conicalWedges && s.fill.type === 'conical') return true;
+    if (opts.conicalWedges && strokeVisible(s.stroke) && s.stroke.paint.type === 'conical') return true;
   }
   return false;
 }
@@ -120,7 +123,26 @@ function expandShape(n: Shape, opts: ExpandOptions): SceneNode {
     children.push({ ...n, ...IDENTITY, id: `${n.id}:fill`, opacity: 1, blend: 'normal', mask: undefined, stroke: makeStroke() } as SceneNode);
   }
   // stroke
-  if (strokeVisible(s)) {
+  if (strokeVisible(s) && s.paint.type === 'conical' && opts.conicalWedges) {
+    // no conical paint on strokes in SVG / PDF: the stroke's area (line, width
+    // profile, arrowheads) becomes a clip for the same solid wedges as a fill
+    const fx = n.type === 'path' || hasProfile(s) ? strokeFx(d, n.type === 'path' ? s : { ...s, startArrow: 'none', endArrow: 'none' }) : { line: d, outline: null, heads: [] };
+    const plain: Stroke = { ...s, startArrow: undefined, endArrow: undefined, profile: undefined };
+    const parts: PathCommand[][] = [];
+    if (fx.outline) parts.push(fx.outline);
+    if (fx.line) parts.push(strokeOutline(fx.line, plain));
+    for (const h of fx.heads) parts.push(h.mode === 'fill' ? h.d : strokeOutline(h.d, { ...plain, dash: [], join: 'round', cap: s.cap === 'butt' ? 'round' : s.cap }));
+    const area = parts.filter((p) => p.length);
+    const clipD = area.length > 1 ? booleanPaths(area, 'add').flat() : area[0] ?? [];
+    if (clipD.length) {
+      const pad = s.width * Math.max(1, s.miter ?? 10) + 2;
+      const wedges = conicalWedges(s.paint, box, 180, pad);
+      children.push({
+        ...make.group(wedges.map((w, i) => pathChild(`${n.id}:sw${i}`, parsePath(w.d), { type: 'solid', color: w.color }, makeStroke()))),
+        ...IDENTITY, id: `${n.id}:stroke`, name: 'stroke-conical', mask: { d: clipD, inverted: false, enabled: true },
+      } as GroupNode);
+    }
+  } else if (strokeVisible(s)) {
     const fx = n.type === 'path' || hasProfile(s) ? strokeFx(d, n.type === 'path' ? s : { ...s, startArrow: 'none', endArrow: 'none' }) : { line: d, outline: null, heads: [] };
     const plain: Stroke = { ...s, startArrow: undefined, endArrow: undefined, profile: undefined };
     if (fx.outline) children.push({ ...pathChild(`${n.id}:outline`, fx.outline, s.paint, makeStroke()), name: 'stroke-outline' });
@@ -134,7 +156,7 @@ function expandShape(n: Shape, opts: ExpandOptions): SceneNode {
   return { ...baseOf(n), type: 'group', name: n.name, children };
 }
 
-/** A path child produced by expansion that must be filled non-zero (variable-width outline). */
+/** A path filled non-zero: its own fill rule says so, or it is a variable-width outline produced by expansion. */
 export function isNonZeroFill(n: SceneNode): boolean {
-  return n.type === 'path' && n.name === 'stroke-outline';
+  return n.type === 'path' && (n.fillRule === 'nonzero' || n.name === 'stroke-outline');
 }

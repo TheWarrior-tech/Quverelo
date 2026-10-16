@@ -61,6 +61,14 @@ test.describe('vector studio parity', () => {
     // corner, smooth (drag), corner, then Enter
     await click(page, 200, 500);
     await drag(page, await at(page, 450, 300), await at(page, 550, 300), 6);
+    // rubber band: the next segment follows the pointer, bent by the smooth node's out handle
+    const hover = await at(page, 800, 500);
+    await page.mouse.move(hover.x, hover.y, { steps: 3 });
+    const pv = await page.evaluate(() => (window as any).__quvrelo.getViewport().activeTool.preview);
+    expect(pv.d[1][0]).toBe('C');
+    expect(pv.d[1][1]).toBeCloseTo(550, -1);
+    expect(pv.target.x).toBeCloseTo(800, -1); // 1 screen px ≈ 1.6 doc px at this zoom
+    expect(pv.target.y).toBeCloseTo(500, -1);
     await click(page, 800, 500);
     await page.keyboard.press('Enter');
     let ns = await nodes(page);
@@ -144,6 +152,33 @@ test.describe('vector studio parity', () => {
     expect(n.stroke.dash.length).toBe(2);
     expect(n.stroke.profile).toEqual([{ t: 0, w: 1 }, { t: 1, w: 0 }]);
     await expect(insp.getByLabel('Dash length')).toBeVisible();
+    // custom width profile: double-click the graph to add a point, then shape it
+    const graph = insp.getByTestId('profile-graph');
+    await graph.scrollIntoViewIfNeeded();
+    const gb = (await graph.boundingBox())!;
+    await page.mouse.dblclick(gb.x + gb.width * 0.25, gb.y + gb.height / 2);
+    await expect(insp.getByRole('slider', { name: /^Width point \d of 3$/ })).toHaveCount(3);
+    const mid = insp.getByRole('slider', { name: 'Width point 2 of 3' });
+    await expect(mid).toBeFocused();
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('Shift+ArrowRight');
+    n = (await sel(page))[0];
+    expect(n.stroke.profile).toHaveLength(3);
+    expect(n.stroke.profile[1].t).toBeCloseTo(0.3, 2);
+    expect(n.stroke.profile[1].w).toBeCloseTo(0.89, 1);
+    await expect(insp.getByLabel('Width profile')).toHaveValue('custom');
+    // drag the point to the spine: zero width there
+    const mb = (await mid.boundingBox())!;
+    await drag(page, { x: mb.x + mb.width / 2, y: mb.y + mb.height / 2 }, { x: mb.x + mb.width / 2, y: gb.y + gb.height / 2 }, 5);
+    expect((await sel(page))[0].stroke.profile[1].w).toBeLessThan(0.1);
+    await insp.getByLabel('Width point width').fill('100');
+    await insp.getByLabel('Width point width').press('Enter');
+    expect((await sel(page))[0].stroke.profile[1].w).toBeCloseTo(1, 2);
+    // Delete removes it; back to the preset's two points
+    await mid.focus();
+    await page.keyboard.press('Delete');
+    await expect(insp.getByRole('slider', { name: /^Width point/ })).toHaveCount(2);
+    await insp.getByLabel('Width profile').selectOption('taper-end');
     // the arrowheads are drawn: ink right at the arrow's tip
     const ink = await page.evaluate(() => {
       const c = document.querySelector('.viewport canvas.lower-canvas') as HTMLCanvasElement;
@@ -197,6 +232,17 @@ test.describe('vector studio parity', () => {
     ns = await nodes(page);
     expect(ns[0].type).toBe('path');
     await run(page, 'edit.undo');
+    // live Divide: one object while live, separate pieces once expanded
+    await page.locator('.inspector').getByRole('radio', { name: 'Divide' }).click();
+    expect((await nodes(page))[0].compound.op).toBe('divide');
+    await run(page, 'layer.expand-compound');
+    ns = await nodes(page);
+    expect(ns).toHaveLength(1);
+    expect(ns[0].type).toBe('group');
+    expect(ns[0].compound).toBeUndefined();
+    expect(ns[0].children.length).toBeGreaterThanOrEqual(3);
+    expect(ns[0].children.every((c: any) => c.type === 'path')).toBe(true);
+    await run(page, 'edit.undo');
     await run(page, 'layer.release-compound');
     expect((await nodes(page)).map((n: any) => n.id)).toEqual(['a', 'b']);
   });
@@ -237,6 +283,14 @@ test.describe('vector studio parity', () => {
     expect(f.stops).toHaveLength(3);
     await page.locator('.contextbar').getByRole('radio', { name: 'Conical' }).click();
     expect((await sel(page))[0].fill.type).toBe('conical');
+    // conical on the stroke: the gradient tool lays it on the outline, the stroke gets a width
+    await page.locator('.contextbar').getByRole('radio', { name: 'Stroke' }).click();
+    await drag(page, await at(page, 300, 400), await at(page, 780, 400));
+    const st = (await sel(page))[0].stroke;
+    expect(st.paint.type).toBe('conical');
+    expect(st.width).toBeGreaterThan(0);
+    expect((await sel(page))[0].fill.type).toBe('conical');
+    await page.locator('.contextbar').getByRole('radio', { name: 'Fill' }).click();
     await page.waitForTimeout(100);
     await shot(page, 'vector-gradient-tool');
   });
@@ -274,6 +328,24 @@ test.describe('vector studio parity', () => {
     ns = await nodes(page);
     expect(ns).toHaveLength(1);
     expect(ns[0].children[0].id).toBe(childId);
+
+    // boards stay upright: rotation is not editable, Rotate 90° turns the content and the orientation
+    await page.evaluate((id) => (window as any).__quvrelo.editor.select([id]), boardId);
+    await page.locator('.inspector [data-panel="properties"]').click();
+    await expect(page.locator('.inspector').getByLabel('Rotation (degrees)')).toBeDisabled();
+    await run(page, 'arrange.rotate-cw');
+    ns = await nodes(page);
+    expect(ns[0].rotation).toBe(0);
+    expect(ns[0].artboard).toMatchObject({ w: 300, h: 400 });
+    expect(ns[0].children[0].rotation).toBe(90);
+    await expect(page.locator('.inspector').getByRole('radio', { name: 'Portrait' })).toBeChecked();
+    await page.locator('.inspector').getByRole('radio', { name: 'Landscape' }).click();
+    expect((await nodes(page))[0].artboard).toMatchObject({ w: 400, h: 300 });
+    await run(page, 'edit.undo');
+    await run(page, 'edit.undo');
+    ns = await nodes(page);
+    expect(ns[0].artboard).toMatchObject({ w: 400, h: 300 });
+    expect(ns[0].children[0].rotation).toBe(0);
 
     // Export tab: a slice for the board with PNG @1x, @2x and SVG
     await page.evaluate(() => (window as any).__quvrelo.editor.select([]));
@@ -379,6 +451,8 @@ test.describe('vector studio parity', () => {
   <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ff0000"/><stop offset="1" stop-color="#0000ff"/></linearGradient></defs>
   <g id="badge" opacity="0.5"><rect x="10" y="10" width="100" height="50" fill="url(#g)"/><circle cx="200" cy="40" r="30" fill="#00ff00" stroke="#000" stroke-width="4" stroke-dasharray="6 3"/></g>
   <image x="250" y="150" width="120" height="80" xlink:href="data:image/jpeg;base64,${png}"/>
+  <path d="M300 10 L390 10 L390 100 L300 100 Z M320 30 L370 30 L370 80 L320 80 Z" fill="#123456" fill-rule="evenodd"/>
+  <path d="M300 10 L390 10 L390 100 L300 100 Z M320 30 L370 30 L370 80 L320 80 Z" fill="#654321" transform="translate(0 100)"/>
   <text x="20" y="250" font-family="Inter" font-size="24" fill="#333">Hello</text>
 </svg>`);
     L = await launch({ QUVRELO_E2E_OPEN: svgPath });
@@ -401,6 +475,9 @@ test.describe('vector studio parity', () => {
     expect(img).toBeTruthy();
     expect(await state<boolean>(page, `!!editor.assets.get(${JSON.stringify(img.assetId)})`)).toBe(true);
     expect(flat.some((n) => n.type === 'text' && n.text === 'Hello')).toBe(true);
+    // fill-rule survives: evenodd as written, nonzero when the file says nothing (SVG's default)
+    expect(flat.find((n) => n.fill?.color === '#123456').fillRule).toBe('evenodd');
+    expect(flat.find((n) => n.fill?.color === '#654321').fillRule).toBe('nonzero');
     // export SVG: gradients, image data and text come back out
     await run(page, 'file.export-svg');
     await page.locator('[data-testid="export-go"]').click();
@@ -410,5 +487,23 @@ test.describe('vector studio parity', () => {
     expect(out).toContain('<image href="data:image/');
     expect(out).toContain('>Hello</tspan>');
     expect(out).toContain('stroke-dasharray="6 3"');
+    expect(out).toMatch(/fill="#654321"[^>]*fill-rule="nonzero"/);
+    expect(out).toMatch(/fill="#123456"[^>]*fill-rule="evenodd"/);
+
+    // again with the photo linked as a file beside the SVG, JPEG because it is opaque
+    await run(page, 'file.export-svg');
+    const dlg = page.locator('.dialog, [role="dialog"]').filter({ has: page.locator('[data-testid="export-go"]') });
+    await dlg.getByRole('radio', { name: 'Link' }).click();
+    await dlg.getByRole('radio', { name: 'JPEG if opaque' }).click();
+    await expect(dlg.getByTestId('export-svg-note')).toContainText('linked as JPEG where they have no transparency');
+    await page.locator('[data-testid="export-go"]').click();
+    await expect.poll(() => fs.readdirSync(L.saveDir).filter((f) => / image 1\.jpg$/.test(f)).length).toBe(1);
+    const jpg = fs.readdirSync(L.saveDir).find((f) => / image 1\.jpg$/.test(f))!;
+    expect(fs.readFileSync(path.join(L.saveDir, jpg)).subarray(0, 3)).toEqual(Buffer.from([0xff, 0xd8, 0xff]));
+    const svgFile = fs.readdirSync(L.saveDir).find((f) => f.endsWith('.svg'))!;
+    expect(jpg).toBe(svgFile.replace(/\.svg$/, '') + ' image 1.jpg');
+    const linked = fs.readFileSync(path.join(L.saveDir, svgFile), 'utf8');
+    expect(linked).toContain(`<image href="${encodeURIComponent(jpg)}"`);
+    expect(linked).not.toContain('data:image/');
   });
 });

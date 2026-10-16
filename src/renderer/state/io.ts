@@ -6,7 +6,8 @@ import { templateById } from '../../core/templates';
 import type { QuvreloDocument, ImageFrameNode, SceneNode, StudioKind } from '../../core/types';
 import type { FileFilter } from '../../shared/api';
 import { canvasToBytes, createCanvas, ctx2d } from '../engine/assets';
-import { exportImagePdf, exportPdf, exportRaster, exportSelectionRaster, exportSvg, renderPageCanvas } from '../engine/export';
+import { exportImagePdf, exportPdf, exportRaster, exportSelectionRaster, exportSvg, exportSvgWithImages, renderPageCanvas } from '../engine/export';
+import { dirName, svgBaseName, type SvgImageEncoding, type SvgImageMode } from '../../core/svgImages';
 import { importSvg, type SvgImportImage } from '../engine/svgImport';
 import { defaultExportFormat, pagesStillValid, type ExportFormat } from '../../core/exportDefaults';
 import { editor } from './editor';
@@ -321,6 +322,8 @@ export interface ExportRequest {
   selection?: string[];
   /** file name offered in the save dialog (without extension); defaults to the document title */
   fileName?: string;
+  /** SVG only: embed or link images, PNG or JPEG for opaque images (default: embed, PNG) */
+  svgImages?: { mode: SvgImageMode; encoding: SvgImageEncoding };
 }
 
 /** What the last vector PDF had to place as images (for the toast), or null. */
@@ -360,8 +363,24 @@ export async function runExportFiles(req: ExportRequest, targets: (string | null
       const suffix = req.pages.length > 1 || doc.pages.length > 1 ? ` - ${doc.pages[i].name}` : '';
       let p: string | null;
       if (req.format === 'svg') {
-        const svg = exportSvg(doc, editor.assets, i, req.includeBleed);
-        p = await window.quvrelo.saveFile({ path: targets[k] ?? null, data: new TextEncoder().encode(svg), defaultName: `${title}${suffix}.svg`, filters: [{ name: 'SVG', extensions: ['svg'] }], title: 'Export SVG' });
+        const img = { mode: req.svgImages?.mode ?? 'embed', encoding: req.svgImages?.encoding ?? 'png', quality: req.quality } as const;
+        const write = (svg: string, path: string | null) =>
+          window.quvrelo.saveFile({ path, data: new TextEncoder().encode(svg), defaultName: `${title}${suffix}.svg`, filters: [{ name: 'SVG', extensions: ['svg'] }], title: 'Export SVG' });
+        if (img.mode === 'embed' && img.encoding === 'png') {
+          p = await write(exportSvg(doc, editor.assets, i, req.includeBleed), targets[k] ?? null);
+        } else {
+          // linked images are named after the SVG: pick the file first, then write the SVG and its images beside it
+          let out = exportSvgWithImages(doc, editor.assets, i, req.includeBleed, img, `${title}${suffix}`);
+          p = await write(out.svg, targets[k] ?? null);
+          if (p && img.mode === 'link') {
+            const base = svgBaseName(p);
+            if (base !== `${title}${suffix}`) {
+              out = exportSvgWithImages(doc, editor.assets, i, req.includeBleed, img, base);
+              await write(out.svg, p);
+            }
+            if (out.files.length) await window.quvrelo.saveFilesToFolder({ files: out.files, folder: dirName(p), title: 'Save linked images' });
+          }
+        }
       } else if (req.selection?.length) {
         const data = await exportSelectionRaster(doc, editor.assets, req.selection, { scale: req.scale, transparent: req.transparent, format: req.format, quality: req.quality });
         const ext = req.format === 'jpg' ? 'jpg' : 'png';

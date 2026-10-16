@@ -14,7 +14,7 @@ import {
 import { booleanPaths } from '../../core/boolean';
 import {
   bendSegment, breakAt, closeSubpath, deleteNodes, dragHandle, insertNode, joinSelected, moveNodes, nearestOnPath, nodeKind, nodesInRect,
-  reversePath, setNodeKind, type NodeKind, type NodeRef,
+  penPreview, reversePath, setNodeKind, snap45, type NodeKind, type NodeRef, type PenPreview,
 } from '../../core/pathEdit';
 import { addArtboard, artboardAt, reparentToArtboards } from '../../core/artboards';
 import { gradientHandles, insertStop, isGradient, setGradientHandles } from '../../core/gradient';
@@ -332,15 +332,6 @@ class TextTool implements Tool {
 // ---------------------------------------------------------------------------
 // Pen & pencil
 
-/** Snap the vector from `o` to `p` to the nearest 45°. */
-function snap45(o: Point, p: Point): Point {
-  const dx = p.x - o.x;
-  const dy = p.y - o.y;
-  const ang = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4);
-  const len = Math.hypot(dx, dy);
-  return { x: o.x + Math.cos(ang) * len, y: o.y + Math.sin(ang) * len };
-}
-
 /**
  * Pen tool: click for a sharp node, drag for a smooth one (Alt while dragging
  * makes a cusp: only the outgoing handle moves), Shift snaps to 45°. Click the
@@ -352,6 +343,9 @@ class PenTool implements Tool {
   private anchors: Anchor[] = [];
   private dragging = false;
   private mouse: Point | null = null;
+  private shift = false;
+  /** the rubber band last drawn (read by the e2e hook) */
+  preview: PenPreview | null = null;
   /** continuing an existing curve: its node id, the other subpaths and where ours sits */
   private cont: { id: string; others: Subpath[]; index: number } | null = null;
   constructor(private c: ToolContext) {}
@@ -398,6 +392,7 @@ class PenTool implements Tool {
   }
   onMove(p: Point, e: MouseEvent) {
     this.mouse = p;
+    this.shift = e.shiftKey;
     if (this.dragging) {
       const a = this.anchors[this.anchors.length - 1];
       const q = e.shiftKey ? snap45(a, p) : p;
@@ -473,15 +468,25 @@ class PenTool implements Tool {
     ctx.strokeStyle = '#2fb8a6';
     ctx.lineWidth = 1.5 / z;
     ctx.stroke(new Path2D(pathToString(d)));
-    const last = this.anchors[this.anchors.length - 1];
-    if (this.mouse && !this.dragging) {
+    // rubber band: the exact segment the next click adds, bent by the last
+    // node's outgoing handle; a ring on the first node when a click would close
+    const pv = this.mouse && !this.dragging ? penPreview(this.anchors, this.mouse, { shift: this.shift, closeRadius: 8 / z }) : null;
+    this.preview = pv;
+    if (pv) {
       ctx.setLineDash([4 / z, 4 / z]);
-      ctx.beginPath();
-      ctx.moveTo(last.x, last.y);
-      if (last.outX !== null) ctx.quadraticCurveTo(last.outX, last.outY!, this.mouse.x, this.mouse.y);
-      else ctx.lineTo(this.mouse.x, this.mouse.y);
-      ctx.stroke();
+      ctx.stroke(new Path2D(pathToString(pv.d)));
       ctx.setLineDash([]);
+      if (pv.closing) {
+        const f = this.anchors[0];
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, 7 / z, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        const s = 5 / z;
+        ctx.fillStyle = 'rgba(47,184,166,0.35)';
+        ctx.fillRect(pv.target.x - s / 2, pv.target.y - s / 2, s, s);
+        ctx.strokeRect(pv.target.x - s / 2, pv.target.y - s / 2, s, s);
+      }
     }
     drawAnchors(ctx, this.anchors, z, -1);
     ctx.restore();

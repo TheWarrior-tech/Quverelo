@@ -259,6 +259,55 @@ export function profileId(profile: WidthPoint[] | undefined): string {
   return hit?.id ?? 'custom';
 }
 
+// ---- custom profile editing (the inspector's width-profile graph) ----------
+
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+const round3 = (v: number) => Math.round(v * 1000) / 1000;
+
+/** A profile to edit: uniform (empty) becomes a flat two-point line, points sorted, ends pinned at t = 0 and 1. */
+export function editableProfile(profile: WidthPoint[] | undefined): WidthPoint[] {
+  const p = (profile && profile.length >= 2 ? [...profile] : [{ t: 0, w: 1 }, { t: 1, w: 1 }]).map((x) => ({ t: clamp01(x.t), w: clamp01(x.w) })).sort((a, b) => a.t - b.t);
+  p[0] = { ...p[0], t: 0 };
+  p[p.length - 1] = { ...p[p.length - 1], t: 1 };
+  return p;
+}
+
+/** Add a point at t on the current curve (the stroke does not change shape); returns the profile and the new point's index. */
+export function addProfilePoint(profile: WidthPoint[] | undefined, t: number): { profile: WidthPoint[]; index: number } {
+  const p = editableProfile(profile);
+  const tt = round3(clamp01(t));
+  if (p.some((x) => Math.abs(x.t - tt) < 0.01)) return { profile: p, index: p.findIndex((x) => Math.abs(x.t - tt) < 0.01) };
+  const pt = { t: tt, w: round3(profileAt(p, tt)) };
+  const out = [...p, pt].sort((a, b) => a.t - b.t);
+  return { profile: out, index: out.indexOf(pt) };
+}
+
+/** Move point i: width anywhere in 0..1; position between its neighbours (the two end points keep t = 0 / 1). */
+export function moveProfilePoint(profile: WidthPoint[] | undefined, i: number, t: number, w: number): WidthPoint[] {
+  const p = editableProfile(profile);
+  if (i < 0 || i >= p.length) return p;
+  const last = p.length - 1;
+  const gap = 0.01;
+  const nt = i === 0 ? 0 : i === last ? 1 : Math.min(p[i + 1].t - gap, Math.max(p[i - 1].t + gap, t));
+  return p.map((x, j) => (j === i ? { t: round3(nt), w: round3(clamp01(w)) } : x));
+}
+
+/** Remove point i (never an end point, never below two points). */
+export function removeProfilePoint(profile: WidthPoint[] | undefined, i: number): WidthPoint[] {
+  const p = editableProfile(profile);
+  if (i <= 0 || i >= p.length - 1) return p;
+  return p.filter((_, j) => j !== i);
+}
+
+/**
+ * Store a profile on a stroke: the bare two-point line at full width is
+ * "uniform" (no profile); a flat line with points the user added is kept, so
+ * a point just added on a uniform stroke stays there to be dragged.
+ */
+export function storedProfile(profile: WidthPoint[]): WidthPoint[] | undefined {
+  return profile.length <= 2 && profile.every((x) => Math.abs(x.w - 1) < 1e-6) ? undefined : profile;
+}
+
 /** Resample a polyline at roughly `spacing` px intervals; returns points with their arc-length fraction. */
 function resample(poly: Point[], spacing: number): { p: Point; t: number }[] {
   const lens = [0];

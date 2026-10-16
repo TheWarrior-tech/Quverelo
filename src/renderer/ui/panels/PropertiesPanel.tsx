@@ -23,8 +23,8 @@ import type { Unit } from '../../../core/types';
 export { evalArithmetic };
 
 /** Compact numeric field used across Properties (scrub label, arrow keys, units, arithmetic). */
-export function NumField({ value, onCommit, onChange, step = 1, min, max, label, suffix, unit, lengthUnit, digits = 2, ariaLabel }: { value: number; onCommit: (v: number) => void; onChange?: (v: number) => void; step?: number; min?: number; max?: number; label: string; suffix?: string; unit?: string; lengthUnit?: Unit; digits?: number; ariaLabel?: string }) {
-  return <NumberField label={label} ariaLabel={ariaLabel ?? label + (suffix ? ` (${suffix})` : '')} value={value} onCommit={onCommit} onChange={onChange} step={step} min={min} max={max} digits={digits} unit={unit} lengthUnit={lengthUnit} />;
+export function NumField({ value, onCommit, onChange, step = 1, min, max, label, suffix, unit, lengthUnit, digits = 2, ariaLabel, disabled, title }: { value: number; onCommit: (v: number) => void; onChange?: (v: number) => void; step?: number; min?: number; max?: number; label: string; suffix?: string; unit?: string; lengthUnit?: Unit; digits?: number; ariaLabel?: string; disabled?: boolean; title?: string }) {
+  return <NumberField label={label} ariaLabel={ariaLabel ?? label + (suffix ? ` (${suffix})` : '')} value={value} onCommit={onCommit} onChange={onChange} step={step} min={min} max={max} digits={digits} unit={unit} lengthUnit={lengthUnit} disabled={disabled} title={title} />;
 }
 
 function patchSel(label: string, fn: (n: SceneNode) => SceneNode, merge?: string) {
@@ -188,6 +188,7 @@ function ArrangeBar({ count }: { count: number }) {
             { id: 'c-subtract', label: 'Compound subtract', icon: 'compound', run: () => runCommand('layer.compound-subtract') },
             { id: 'c-intersect', label: 'Compound intersect', icon: 'compound', run: () => runCommand('layer.compound-intersect') },
             { id: 'c-exclude', label: 'Compound exclude', icon: 'compound', run: () => runCommand('layer.compound-exclude') },
+            { id: 'c-divide', label: 'Compound divide', icon: 'compound', run: () => runCommand('layer.compound-divide') },
           ]}
         />
       )}
@@ -236,6 +237,7 @@ export function PropertiesPanel() {
   const mixedBlend = nodes.some((m) => m.blend !== n.blend);
   const story = n.type === 'textframe' ? ed.doc.stories[n.storyId] : null;
   const strokeOf = hasStroke ? (n as { stroke: Stroke }).stroke : null;
+  const board = n.type === 'group' && !!n.artboard;
   const setStroke = (st: Stroke) => patchSel('Stroke', (m) => ('stroke' in m ? ({ ...m, stroke: st } as SceneNode) : m), 'stroke');
   return (
     <div className="properties">
@@ -249,6 +251,12 @@ export function PropertiesPanel() {
         {hasFill && (
           <Field label="Fill">
             <PaintRow kind="fill" label="Fill" paint={(n as { fill: Paint }).fill} onChange={(p) => patchSel('Fill', (m) => ('fill' in m ? ({ ...m, fill: p } as SceneNode) : m), 'fill')} />
+          </Field>
+        )}
+        {!multi && n.type === 'path' && n.fill.type !== 'none' && n.d.filter((c) => c[0] === 'M').length > 1 && (
+          <Field label="Rule">
+            {/* how overlapping subpaths fill: even-odd leaves holes where they overlap, non-zero fills them (SVG fill-rule) */}
+            <Segmented ariaLabel="Fill rule" className="full" value={n.fillRule ?? 'evenodd'} onChange={(r: 'evenodd' | 'nonzero') => patch('Fill rule', { fillRule: r } as Partial<SceneNode>)} options={[{ value: 'evenodd', label: 'Even-odd' }, { value: 'nonzero', label: 'Non-zero' }]} />
           </Field>
         )}
         {n.type === 'text' && (
@@ -297,8 +305,8 @@ export function PropertiesPanel() {
             <NumField label="H" ariaLabel={`Height (${u})`} lengthUnit={u} digits={lenDigits} step={lenStep} value={conv(b.h)} min={0.01} onChange={(v) => resize(null, v, k('h'))} onCommit={(v) => resize(null, v, k('h'))} />
           </div>
           <div className="grid4">
-            <NumField label="R" ariaLabel="Rotation (degrees)" unit="°" digits={1} value={n.rotation} step={1} onChange={(v) => patch('Rotate', { rotation: ((v % 360) + 360) % 360 }, k('r'))} onCommit={(v) => patch('Rotate', { rotation: ((v % 360) + 360) % 360 }, k('r'))} />
-            <NumField label="S" ariaLabel="Shear (degrees)" unit="°" digits={1} value={n.skewX} step={1} min={-80} max={80} onChange={(v) => patch('Shear', { skewX: v }, k('s'))} onCommit={(v) => patch('Shear', { skewX: v }, k('s'))} />
+            <NumField label="R" ariaLabel="Rotation (degrees)" unit="°" digits={1} value={n.rotation} step={1} disabled={board} title={board ? 'Artboards stay upright: Rotate 90° turns what is on the board' : undefined} onChange={(v) => patch('Rotate', { rotation: ((v % 360) + 360) % 360 }, k('r'))} onCommit={(v) => patch('Rotate', { rotation: ((v % 360) + 360) % 360 }, k('r'))} />
+            <NumField label="S" ariaLabel="Shear (degrees)" unit="°" digits={1} value={n.skewX} step={1} min={-80} max={80} disabled={board} title={board ? 'Artboards are never sheared' : undefined} onChange={(v) => patch('Shear', { skewX: v }, k('s'))} onCommit={(v) => patch('Shear', { skewX: v }, k('s'))} />
             <button type="button" className="icon-btn sm" {...tip('Flip horizontal')} onClick={() => runCommand('arrange.flip-h')}><Icon name="flip-h" /></button>
             <button type="button" className="icon-btn sm" {...tip('Flip vertical')} onClick={() => runCommand('arrange.flip-v')}><Icon name="flip-v" /></button>
           </div>

@@ -9,6 +9,7 @@
  */
 import type { Anchor, Subpath } from './path';
 import type { Point } from './geometry';
+import type { PathCommand } from './types';
 
 export type NodeKind = 'sharp' | 'smooth' | 'symmetric';
 
@@ -419,4 +420,44 @@ export function bendSegment(subs: Subpath[], sub: number, segment: number, t: nu
   b.inX = pts[2].x + dx * k2;
   b.inY = pts[2].y + dy * k2;
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Pen rubber band
+
+/** Snap the vector from `o` to `p` to the nearest 45°. */
+export function snap45(o: Point, p: Point): Point {
+  const dx = p.x - o.x;
+  const dy = p.y - o.y;
+  const ang = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4);
+  const len = Math.hypot(dx, dy);
+  return { x: o.x + Math.cos(ang) * len, y: o.y + Math.sin(ang) * len };
+}
+
+export interface PenPreview {
+  /** the segment a click at the pointer would add, from the last node: ['M', …] then ['L' | 'C', …] */
+  d: PathCommand[];
+  /** a click here closes the curve on its first node */
+  closing: boolean;
+  /** where the next node would land (Shift-snapped, or the first node when closing) */
+  target: Point;
+}
+
+/**
+ * The rubber band the pen draws between clicks: exactly the segment the next
+ * click would commit, so the last node's outgoing handle bends it the way the
+ * finished curve will bend (a cubic, not an approximation).
+ */
+export function penPreview(anchors: Anchor[], mouse: Point, opts: { shift?: boolean; closeRadius: number }): PenPreview | null {
+  const last = anchors[anchors.length - 1];
+  if (!last) return null;
+  const first = anchors[0];
+  const closing = anchors.length > 2 && Math.hypot(mouse.x - first.x, mouse.y - first.y) < opts.closeRadius;
+  const target = closing ? { x: first.x, y: first.y } : opts.shift ? snap45(last, mouse) : { x: mouse.x, y: mouse.y };
+  const inX = closing ? first.inX : null;
+  const inY = closing ? first.inY : null;
+  const d: PathCommand[] = [['M', last.x, last.y]];
+  if (last.outX === null && inX === null) d.push(['L', target.x, target.y]);
+  else d.push(['C', last.outX ?? last.x, last.outY ?? last.y, inX ?? target.x, inY ?? target.y, target.x, target.y]);
+  return { d, closing, target };
 }

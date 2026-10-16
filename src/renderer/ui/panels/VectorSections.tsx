@@ -6,7 +6,7 @@
 import type { ArrowHead, CompoundOp, GroupNode, SceneNode, Stroke, TextNode } from '../../../core/types';
 import { updateNode } from '../../../core/commands';
 import { ARROW_HEADS, WIDTH_PROFILES, profileId } from '../../../core/strokeFx';
-import { ARTBOARD_PRESETS, setArtboardBackground, setArtboardSize } from '../../../core/artboards';
+import { ARTBOARD_PRESETS, setArtboardBackground, setArtboardOrientation, setArtboardSize } from '../../../core/artboards';
 import { renameSymbol, symbolInstances } from '../../../core/symbols';
 import { editor } from '../../state/editor';
 import { runCommand } from '../../state/commands';
@@ -18,6 +18,7 @@ import { ColorChipButton } from '../color/Chips';
 import { PaintRow } from '../color/PaintRow';
 import { Icon } from '../Icons';
 import { tip } from '../tips';
+import { ProfileEditor } from './ProfileEditor';
 
 const ARROW_LABEL: Record<ArrowHead, string> = { none: 'None', triangle: 'Triangle', open: 'Open', circle: 'Circle', square: 'Square', diamond: 'Diamond', bar: 'Bar' };
 
@@ -77,6 +78,7 @@ export function StrokeExtras({ stroke, onChange, openPath }: { stroke: Stroke; o
           {prof === 'custom' && <option value="custom">Custom</option>}
         </select>
       </Row>
+      <ProfileEditor profile={stroke.profile} onChange={(profile) => onChange({ ...stroke, profile })} />
     </div>
   );
 }
@@ -86,6 +88,7 @@ const OPS: { value: CompoundOp; label: string; icon: string }[] = [
   { value: 'subtract', label: 'Subtract', icon: 'bool-subtract' },
   { value: 'intersect', label: 'Intersect', icon: 'bool-intersect' },
   { value: 'exclude', label: 'Exclude', icon: 'bool-exclude' },
+  { value: 'divide', label: 'Divide', icon: 'bool-divide' },
 ];
 
 /** Live compound: operation, its own fill and stroke, release / expand. */
@@ -105,7 +108,7 @@ export function CompoundSection({ n }: { n: GroupNode }) {
       <p className="hint">The shapes inside stay editable: select one in Layers or with the Node tool.</p>
       <div className="row">
         <button className="btn sm ghost" onClick={() => runCommand('layer.release-compound')} {...tip('Release compound', 'layer.release-compound')} data-tip-hint="Back to separate shapes">Release</button>
-        <button className="btn sm ghost" onClick={() => runCommand('layer.expand-compound')} {...tip('Expand compound', 'layer.expand-compound')} data-tip-hint="Bake into one curve">Expand</button>
+        <button className="btn sm ghost" onClick={() => runCommand('layer.expand-compound')} {...tip('Expand compound', 'layer.expand-compound')} data-tip-hint={c.op === 'divide' ? 'Bake into separate pieces' : 'Bake into one curve'}>Expand</button>
       </div>
     </Section>
   );
@@ -121,6 +124,9 @@ export function ArtboardSection({ n }: { n: GroupNode }) {
         <NumberField label="W" ariaLabel="Artboard width (px)" unit="px" min={1} max={100000} digits={0} value={a.w} onCommit={(v) => size(v, a.h, 'abw')} onChange={(v) => size(v, a.h, 'abw')} />
         <NumberField label="H" ariaLabel="Artboard height (px)" unit="px" min={1} max={100000} digits={0} value={a.h} onCommit={(v) => size(a.w, v, 'abh')} onChange={(v) => size(a.w, v, 'abh')} />
       </div>
+      <Row label="Orientation">
+        <Segmented ariaLabel="Artboard orientation" className="full" value={a.h > a.w ? 'portrait' : 'landscape'} onChange={(o: 'portrait' | 'landscape') => editor.commit('Artboard orientation', (d) => setArtboardOrientation(d, n.id, o))} options={[{ value: 'portrait', label: 'Portrait' }, { value: 'landscape', label: 'Landscape' }]} />
+      </Row>
       <Row label="Preset" htmlFor="ab-preset">
         <select id="ab-preset" value="" onChange={(e) => {
           const p = ARTBOARD_PRESETS.find((x) => x.id === e.target.value);

@@ -1,6 +1,7 @@
 /** Exporters: PNG, JPEG, SVG, vector PDF and image PDF (all offline). */
 import { PDFDocument, PDFName, PDFString } from 'pdf-lib';
 import { pageToSvg } from '../../core/svg';
+import { hasTransparency, imageMime, linkedHref, linkedImageName, type SvgImageOptions } from '../../core/svgImages';
 import { findNode, nodeMatrix, worldMatrix } from '../../core/document';
 import { multiply, type Matrix } from '../../core/geometry';
 import { exportVectorPdf, type PdfImageData, type VectorPdfReport } from '../../core/pdfVector';
@@ -66,6 +67,59 @@ export function exportSvg(doc: QuvreloDocument, assets: AssetStore, pageIndex: n
       return assets.dataUrl(id);
     },
   });
+}
+
+export interface SvgExportResult {
+  svg: string;
+  /** linked images to write next to the SVG (empty when images are embedded) */
+  files: { name: string; data: Uint8Array }[];
+}
+
+function canvasHasAlpha(c: HTMLCanvasElement): boolean {
+  return hasTransparency(ctx2d(c).getImageData(0, 0, c.width, c.height).data);
+}
+
+function dataUrlBytes(url: string): Uint8Array {
+  const bin = atob(url.slice(url.indexOf(',') + 1));
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+/**
+ * SVG with a choice for images: embed them or link them (written as files
+ * named after the SVG), PNG always or JPEG for images without transparency.
+ * Each distinct image (asset + adjustments) is encoded and written once.
+ */
+export function exportSvgWithImages(doc: QuvreloDocument, assets: AssetStore, pageIndex: number, includeBleed: boolean, img: SvgImageOptions, svgBase: string): SvgExportResult {
+  const page = doc.pages[pageIndex];
+  const files: SvgExportResult['files'] = [];
+  const seen = new Map<string, string>();
+  const svg = pageToSvg(doc, page, {
+    measure: measureText,
+    includeBleed,
+    assetHref: (id, node) => {
+      const adj = node && node.type === 'raster' ? node.adjustments : [];
+      const key = id + '|' + JSON.stringify(adj);
+      const hit = seen.get(key);
+      if (hit) return hit;
+      const c = adj.length ? assets.rendered(id, adj, false) : assets.get(id);
+      if (!c) return null;
+      // a JPEG photo placed as is stays JPEG: re-encoding it as PNG only makes it bigger
+      const srcJpeg = !adj.length && assets.ref(id, '').mime === 'image/jpeg';
+      const mime = srcJpeg ? 'image/jpeg' : imageMime(canvasHasAlpha(c), img.encoding);
+      const url = c.toDataURL(mime, img.quality);
+      let href = url;
+      if (img.mode === 'link') {
+        const name = linkedImageName(svgBase, files.length + 1, mime);
+        files.push({ name, data: dataUrlBytes(url) });
+        href = linkedHref(name);
+      }
+      seen.set(key, href);
+      return href;
+    },
+  });
+  return { svg, files };
 }
 
 /** Options for the image PDF: every page is one picture. */

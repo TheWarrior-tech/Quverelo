@@ -180,10 +180,11 @@ export function colorAt(stops: GradientStop[], t: number): string {
  * gradient: SVG and PDF). Each wedge spans 360/n degrees and reaches
  * `radius`, which must cover the box.
  */
-export function conicalWedges(p: Extract<Paint, { type: 'conical' }>, box: Box, n = 180): { d: string; color: string; points: [number, number][] }[] {
+/** `pad` grows the wedges past the box (a stroke paints outside it) without changing the gradient. */
+export function conicalWedges(p: Extract<Paint, { type: 'conical' }>, box: Box, n = 180, pad = 0): { d: string; color: string; points: [number, number][] }[] {
   const g = gradientGeometry(p, box) as Extract<GradientGeometry, { type: 'conical' }>;
   const corners = [[box.x, box.y], [box.x + box.w, box.y], [box.x, box.y + box.h], [box.x + box.w, box.y + box.h]];
-  const radius = Math.max(...corners.map(([x, y]) => Math.hypot(x - g.cx, y - g.cy))) * 1.05 + 1;
+  const radius = Math.max(...corners.map(([x, y]) => Math.hypot(x - g.cx, y - g.cy))) * 1.05 + 1 + pad;
   const out: { d: string; color: string; points: [number, number][] }[] = [];
   const a0 = (g.angle * Math.PI) / 180;
   const step = (2 * Math.PI) / n;

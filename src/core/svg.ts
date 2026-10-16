@@ -55,10 +55,10 @@ function stopsSvg(stops: { offset: number; color: string }[]): string {
 
 /**
  * Paint as an SVG attribute. Gradients are written in user space from the
- * painted object's box, using the same geometry as the canvas and PDF. A
- * conical paint reaching here (strokes, text) has no SVG equivalent and is
- * written as a linear gradient at its angle; conical fills are expanded into
- * wedges before this (core/vectorExpand).
+ * painted object's box, using the same geometry as the canvas and PDF.
+ * Conical fills and strokes of shapes are expanded into clipped wedges before
+ * this (core/vectorExpand); a conical paint still reaching here (text) has no
+ * SVG equivalent and is written as a linear gradient at its angle.
  */
 function paintAttr(ctx: Ctx, p: Paint, attr: 'fill' | 'stroke', box: Box = UNIT_BOX): string {
   switch (p.type) {

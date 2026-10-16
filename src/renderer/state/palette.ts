@@ -116,7 +116,7 @@ export function commandIcon(id: string): string | undefined {
     'view.theme-contrast': 'adjust', 'view.ui-bigger': 'plus', 'view.ui-smaller': 'minus', 'view.ui-reset': 'undo', 'view.devtools': 'settings',
     // Vector studio
     'arrange.space-h': 'space-h', 'arrange.space-v': 'space-v', 'arrange.distribute-centres-h': 'distribute-h', 'arrange.distribute-centres-v': 'distribute-v', 'arrange.match-width': 'distribute-h', 'arrange.match-height': 'distribute-v', 'arrange.match-size': 'rect',
-    'layer.compound-add': 'compound', 'layer.compound-subtract': 'compound', 'layer.compound-intersect': 'compound', 'layer.compound-exclude': 'compound',
+    'layer.compound-add': 'compound', 'layer.compound-subtract': 'compound', 'layer.compound-intersect': 'compound', 'layer.compound-exclude': 'compound', 'layer.compound-divide': 'compound',
     'layer.release-compound': 'compound', 'layer.expand-compound': 'node',
     'node.join': 'node-join', 'node.break': 'node-break', 'node.close': 'node-join', 'node.reverse': 'reverse',
     'node.sharp': 'node-sharp', 'node.smooth': 'node-smooth', 'node.symmetric': 'node-smooth',

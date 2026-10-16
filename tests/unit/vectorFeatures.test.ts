@@ -5,7 +5,8 @@ import { colorAt, conicalWedges, gradientGeometry, gradientHandles, insertStop, 
 import { arrowize, hasProfile, profileAt, strokeFx, trimSubpath, variableWidthOutline, WIDTH_PROFILES, profileId } from '../../src/core/strokeFx';
 import { layoutTextOnPath, glyphBounds } from '../../src/core/textPath';
 import { expandNode, needsExpansion } from '../../src/core/vectorExpand';
-import { pathToSubpaths, pointInPath, pathBounds } from '../../src/core/path';
+import { compoundPieces } from '../../src/core/compound';
+import { pathToSubpaths, pointInPath, pathBounds, translatePath } from '../../src/core/path';
 import { createSymbol, insertInstance, syncSymbols, symbolInstances, detachInstances, contentKey } from '../../src/core/symbols';
 import { addSlice, plannedFiles, sliceFileName, sliceRect, slicesFromArtboards, pruneSlices, removeSlice } from '../../src/core/slices';
 import { addArtboard, artboardAt, moveIntoArtboard, nextArtboardName, setArtboardSize } from '../../src/core/artboards';
@@ -153,6 +154,30 @@ describe('non-destructive compounds and expansion', () => {
     const n = findNode(baked, g.id)!.node as PathNode;
     expect(n.type).toBe('path');
     expect(n.fill).toEqual(solid('#00ff00'));
+  });
+  it('divide: live pieces tile the union, follow edits to a child, and Expand makes them separate curves', () => {
+    const { d, g } = docWith();
+    const div: GroupNode = { ...g, children: [...g.children], compound: { ...g.compound!, op: 'divide' } };
+    const pieces = compoundPieces(div, nodeToPath);
+    expect(pieces).toHaveLength(3); // rect only, overlap, ellipse only
+    const outline = nodeToPath(div)!;
+    // the fill covers what Add covers: the overlap and both sides
+    for (const p of [{ x: -30, y: 0 }, { x: 45, y: 0 }, { x: 75, y: 0 }]) expect(pointInPath(outline, p)).toBe(true);
+    expect(outline.filter((c) => c[0] === 'M').length).toBeGreaterThanOrEqual(3);
+    // moving a child away: no overlap left, two pieces
+    const apart: GroupNode = { ...div, children: [div.children[0], { ...div.children[1], x: 300 }] };
+    expect(compoundPieces(apart, nodeToPath)).toHaveLength(2);
+    // Expand: a plain group of pieces with the compound's style
+    let doc = d;
+    doc = { ...doc, pages: doc.pages.map((pg) => ({ ...pg, nodes: pg.nodes.map((n) => (n.id === g.id ? div : n)) })) };
+    const baked = findNode(convertToCurves(doc, g.id), g.id)!.node as GroupNode;
+    expect(baked.type).toBe('group');
+    expect(baked.compound).toBeUndefined();
+    expect(baked.children).toHaveLength(3);
+    expect(baked.children.every((c) => c.type === 'path' && (c as PathNode).closed && (c as PathNode).fill.type === 'solid')).toBe(true);
+    // each piece sits where it was: the overlap piece still covers (45, 0) in group space
+    const hits = baked.children.filter((c) => pointInPath(translatePath((c as PathNode).d, c.x, c.y), { x: 45, y: 0 }));
+    expect(hits).toHaveLength(1);
   });
   it('expands artboards to a clipped group with their background and conical fills to wedges', () => {
     const ab: GroupNode = { ...make.group([make.rect({ x: 0, y: 0 })]), artboard: { w: 200, h: 100, background: '#ffffff' } };

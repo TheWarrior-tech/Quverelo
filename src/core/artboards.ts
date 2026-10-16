@@ -75,6 +75,16 @@ export function setArtboardSize(doc: QuvreloDocument, id: Id, w: number, h: numb
   return updateNode<GroupNode>(doc, id, (g) => (g.artboard ? { ...g, artboard: { ...g.artboard, w: Math.max(1, w), h: Math.max(1, h) } } : g));
 }
 
+/** Portrait / landscape: swap the board's sides when it is the other way round (content stays where it is). */
+export function setArtboardOrientation(doc: QuvreloDocument, id: Id, o: 'portrait' | 'landscape'): QuvreloDocument {
+  return updateNode<GroupNode>(doc, id, (g) => {
+    if (!g.artboard) return g;
+    const { w, h } = g.artboard;
+    const want = o === 'portrait' ? h >= w : w >= h;
+    return want ? g : { ...g, artboard: { ...g.artboard, w: h, h: w } };
+  });
+}
+
 export function setArtboardBackground(doc: QuvreloDocument, id: Id, background: string | null): QuvreloDocument {
   return updateNode<GroupNode>(doc, id, (g) => (g.artboard ? { ...g, artboard: { ...g.artboard, background } } : g));
 }

@@ -142,6 +142,8 @@ export function importSvg(svgText: string): SvgImportResult {
         fill,
         stroke: strokeOf(it, b),
         opacity,
+        // SVG's default (and paper's) is nonzero; keep whichever the file says
+        fillRule: (it as unknown as { fillRule?: string }).fillRule === 'evenodd' ? 'evenodd' : 'nonzero',
       });
     }
     if (it instanceof s.PointText) {

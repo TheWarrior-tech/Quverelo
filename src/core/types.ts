@@ -162,6 +162,11 @@ export interface PathNode extends NodeBase, ShapeStyle {
   type: 'path';
   d: PathCommand[];
   closed: boolean;
+  /**
+   * How overlapping subpaths fill (SVG fill-rule; Affinity's Alternate /
+   * Winding). Absent means even-odd, what every earlier file was drawn with.
+   */
+  fillRule?: 'nonzero' | 'evenodd';
 }
 
 export type TextAlign = 'left' | 'center' | 'right' | 'justify';
@@ -267,7 +272,8 @@ export interface RasterNode extends NodeBase {
   adjustments: Adjustment[];
 }
 
-export type CompoundOp = 'add' | 'subtract' | 'intersect' | 'exclude';
+/** divide: every overlap becomes its own piece (live, the cut lines show in the stroke; Expand makes the pieces separate curves) */
+export type CompoundOp = 'add' | 'subtract' | 'intersect' | 'exclude' | 'divide';
 
 export interface CompoundInfo {
   op: CompoundOp;

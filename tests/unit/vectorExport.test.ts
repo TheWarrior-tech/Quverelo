@@ -107,4 +107,15 @@ describe('PDF export of vector features', () => {
     expect(s).toMatch(/\/Sh\d+ sh/);
     expect(s).toMatch(/\nf\n/);
   });
+  it('draws a conical stroke as clipped wedges (it used to be dropped)', async () => {
+    let d = createDocument({ settings: { width: 300, height: 300, background: '#ffffff' } });
+    const ring = make.ellipse({ x: 150, y: 150, w: 120, h: 120, fill: { type: 'none' }, stroke: { ...makeStroke('#000000', 16), paint: { type: 'conical', angle: 0, stops } } });
+    d = addNodes(d, d.pages[0].id, [ring]);
+    const { bytes, report } = await exportVectorPdf(d, { pages: [0], includeBleed: false, cropMarks: false, fallbackDpi: 150 }, hooks());
+    expect(report.rasterised).toEqual([]);
+    const s = await ops(bytes);
+    expect((s.match(/ rg\n/g) ?? []).length).toBeGreaterThanOrEqual(180);
+    expect(s).toMatch(/\nW\*? n/);
+  });
 });
+

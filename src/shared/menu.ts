@@ -117,6 +117,7 @@ export const APP_MENU: MenuSection[] = [
       { id: 'layer.compound-subtract', label: 'Compound: Subtract', keywords: ['non-destructive', 'live boolean', 'cut', 'punch'] },
       { id: 'layer.compound-intersect', label: 'Compound: Intersect', keywords: ['non-destructive', 'live boolean', 'overlap'] },
       { id: 'layer.compound-exclude', label: 'Compound: Exclude', keywords: ['non-destructive', 'live boolean', 'xor'] },
+      { id: 'layer.compound-divide', label: 'Compound: Divide', keywords: ['non-destructive', 'live boolean', 'split', 'pieces', 'shape builder'] },
       { id: 'layer.release-compound', label: 'Release Compound', keywords: ['separate', 'undo boolean', 'split compound'] },
       { id: 'layer.expand-compound', label: 'Expand Compound', keywords: ['flatten', 'bake', 'apply boolean'] },
       '-',

@@ -56,7 +56,7 @@ export function registerVectorCommands(reg: Reg): void {
   }
 
   // ---- live compounds -------------------------------------------------------
-  for (const op of ['add', 'subtract', 'intersect', 'exclude'] as CompoundOp[]) {
+  for (const op of ['add', 'subtract', 'intersect', 'exclude', 'divide'] as CompoundOp[]) {
     reg(`layer.compound-${op}`, () => {
       const doc = editor.doc;
       if (!doc) return;
