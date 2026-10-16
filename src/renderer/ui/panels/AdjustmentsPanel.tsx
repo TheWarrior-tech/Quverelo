@@ -42,7 +42,9 @@ function Histogram({ node }: { node: RasterNode }) {
   const [mode, setMode] = useState<HistMode>('rgb');
   useEffect(() => {
     const c = ref.current;
-    const src = editor.assets.rendered(node.assetId, node.adjustments, true);
+    // a small render level (shared with the canvas cache) is plenty for 256 bins; never a separate 1600 px render
+    const base = editor.assets.get(node.assetId);
+    const src = base && editor.assets.rendered(node.assetId, node.adjustments, 512 / Math.max(base.width, base.height));
     if (!c || !src) return;
     const dpr = window.devicePixelRatio || 1;
     const cw = c.clientWidth || 264;

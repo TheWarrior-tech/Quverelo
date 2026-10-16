@@ -23,6 +23,7 @@ import { PDFDict, PDFDocument, PDFName, PDFString, type PDFFont, type PDFImage, 
 import fontkit from '@pdf-lib/fontkit';
 import { composeTransform, type Matrix } from './geometry';
 import { nodeToPath } from './document';
+import { withWordCache } from './pdfTextCache';
 import { lineHeightPx, type FlowResult, type MeasureFn } from './textflow';
 import { baselineOffset, imageFrameContentRect } from './svg';
 import { firstFamily } from './pdfFonts';
@@ -303,7 +304,7 @@ class Writer {
   font(face: PdfFontFace): Promise<PDFFont | null> {
     let f = this.fontCache.get(face.key);
     if (!f) {
-      f = this.pdf.embedFont(face.bytes, { subset: true }).catch(() => null);
+      f = this.pdf.embedFont(face.bytes, { subset: true }).then(withWordCache).catch(() => null);
       this.fontCache.set(face.key, f);
     }
     return f;

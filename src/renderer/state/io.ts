@@ -3,7 +3,7 @@ import { packQuvrelo, unpackQuvrelo } from '../../core/serialization';
 import { createDocument, findNode, make, structuredCloneSafe } from '../../core/document';
 import { addNodes, updateNode } from '../../core/commands';
 import { templateById } from '../../core/templates';
-import type { QuvreloDocument, ImageFrameNode, SceneNode, StudioKind } from '../../core/types';
+import type { Adjustment, QuvreloDocument, ImageFrameNode, SceneNode, StudioKind } from '../../core/types';
 import type { FileFilter } from '../../shared/api';
 import { canvasToBytes, createCanvas, ctx2d } from '../engine/assets';
 import { exportImagePdf, exportPdf, exportRaster, exportSelectionRaster, exportSvg, renderPageCanvas } from '../engine/export';
@@ -345,11 +345,20 @@ export function takePdfNote(): string | null {
  * `targets` overwrites known files without asking ("Export again"); a missing
  * or disallowed target falls back to the save dialog in the main process.
  */
+function rasterNodes(doc: QuvreloDocument, pages: number[]): { assetId: string; adjustments: Adjustment[] }[] {
+  const out: { assetId: string; adjustments: Adjustment[] }[] = [];
+  const walk = (ns: SceneNode[]) => { for (const n of ns) { if (n.type === 'raster' && n.adjustments.some((a) => a.enabled)) out.push(n); else if (n.type === 'group') walk(n.children); } };
+  for (const i of pages) if (doc.pages[i]) walk(doc.pages[i].nodes);
+  return out;
+}
+
 export async function runExportFiles(req: ExportRequest, targets: (string | null)[] = []): Promise<string[] | null> {
   const doc = editor.doc;
   if (!doc) return null;
   const title = req.fileName?.trim() || doc.title || 'Untitled';
   const written: string[] = [];
+  // full-size adjustment renders of big photos run in a worker (the UI keeps painting meanwhile)
+  await editor.assets.prepareFull(rasterNodes(doc, req.pages));
   if (req.format === 'pdf') {
     let data: Uint8Array;
     lastPdfNote = null;

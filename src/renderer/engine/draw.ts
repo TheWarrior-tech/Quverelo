@@ -235,7 +235,9 @@ export function drawNodeContent(ctx: CanvasRenderingContext2D, n: SceneNode, env
       break;
     case 'raster': {
       const live = env.livePaint && env.livePaint.nodeId === n.id ? env.livePaint.canvas : null;
-      const img = live ?? env.assets.rendered(n.assetId, n.adjustments, env.preview);
+      // the editor view asks for the resolution it shows (big photos filter at screen size first, full size in a worker)
+      const need = env.editor && !env.preview ? viewScale(env, n) : null;
+      const img = live ?? env.assets.rendered(n.assetId, n.adjustments, need ?? env.preview);
       if (img) {
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
@@ -251,6 +253,14 @@ export function drawNodeContent(ctx: CanvasRenderingContext2D, n: SceneNode, env
       break;
   }
   ctx.restore();
+}
+
+/** Output pixels per source pixel for a raster drawn in the editor at the current zoom. */
+function viewScale(env: DrawEnv, n: Extract<SceneNode, { type: 'raster' }>): number | null {
+  const src = env.assets.get(n.assetId);
+  if (!src || !src.width) return null;
+  const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+  return (env.zoom * dpr * Math.abs(n.w * (n.scaleX || 1))) / src.width;
 }
 
 const pathBoxCache = new WeakMap<PathCommand[], { x: number; y: number; w: number; h: number }>();

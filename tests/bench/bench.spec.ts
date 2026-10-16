@@ -13,10 +13,7 @@ import { test, expect, type Page } from '@playwright/test';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { createDocument, createStory, make } from '../../src/core/document';
-import { addNodes } from '../../src/core/commands';
-import { packQuvrelo } from '../../src/core/serialization';
-import type { QuvreloDocument } from '../../src/core/types';
+import { fiftyPageDoc } from './fixtures';
 import { launch, run, state } from '../e2e/helpers';
 
 const results: { scenario: string; step: string; ms: number }[] = [];
@@ -78,10 +75,22 @@ test('photo 6000 × 4000: open, filter, export', async () => {
     const { editor } = (window as unknown as { __quvrelo: { editor: { commit: (l: string, f: (d: unknown) => unknown) => void } } }).__quvrelo;
     editor.commit('bench', (d: any) => ({ ...d, pages: d.pages.map((pg: any) => ({ ...pg, nodes: pg.nodes.map((n: any) => n.id === id ? { ...n, adjustments: [...n.adjustments, { id: 'adj' + n.adjustments.length, type, enabled: true, params }] } : n) })) }));
   }, { id: rasterId, type, params });
-  rec('photo', 'add Brightness/Contrast (preview render)', await timed(p, () => addAdj('brightness-contrast', { brightness: 10, contrast: 15 })));
-  rec('photo', 'add Hue/Saturation (preview render)', await timed(p, () => addAdj('hue-saturation', { hue: 10, saturation: 20, lightness: 0 })));
-  rec('photo', 'add Gaussian blur r=8 (preview render)', await timed(p, () => addAdj('blur', { radius: 8 })));
-  rec('photo', 'full-resolution adjustment render (24 MP)', await timed(p, () => p.evaluate((id) => {
+  const pending = () => state<number>(p, 'editor.assets.pendingRenders()');
+  // "shown": the canvas has painted the new stack at the size the view needs (or a smaller level while
+  // the full one is in the worker); "full detail": the worker render for the current zoom has landed
+  const step = async (label: string, fn: () => Promise<unknown>) => {
+    const t0 = Date.now();
+    rec('photo', `${label}: shown`, await timed(p, fn));
+    await expect.poll(pending, { intervals: [20], timeout: 120_000 }).toBe(0);
+    await painted(p);
+    rec('photo', `${label}: full detail`, Date.now() - t0);
+  };
+  await step('fit view, add Brightness/Contrast', () => addAdj('brightness-contrast', { brightness: 10, contrast: 15 }));
+  await step('fit view, add Hue/Saturation', () => addAdj('hue-saturation', { hue: 10, saturation: 20, lightness: 0 }));
+  await step('fit view, add Gaussian blur r=8', () => addAdj('blur', { radius: 8 }));
+  await step('zoom to 100 % (3 adjustments)', () => run(p, 'view.zoom-100'));
+  await step('100 %, add Vibrance', () => addAdj('vibrance', { amount: 30 }));
+  rec('photo', 'full-resolution adjustment render (24 MP, cached by the view)', await timed(p, () => p.evaluate((id) => {
     const { editor } = (window as unknown as { __quvrelo: { editor: any } }).__quvrelo;
     const n = editor.doc.pages[0].nodes.find((x: any) => x.id === id);
     editor.assets.rendered(n.assetId, n.adjustments, false);
@@ -96,30 +105,6 @@ test('photo 6000 × 4000: open, filter, export', async () => {
   expect(fs.readdirSync(L2.saveDir).some((f) => f.endsWith('.jpg'))).toBe(true);
   await L2.app.close();
 });
-
-async function fiftyPageDoc(dir: string): Promise<string> {
-  let doc: QuvreloDocument = createDocument({ title: 'Fifty pages', studio: 'layout', pages: 50, settings: { width: 794, height: 1123, unit: 'mm', margins: { top: 57, right: 57, bottom: 57, left: 57 } } });
-  const png = fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'sample-photo.jpg'));
-  const assetId = 'a_bench_photo';
-  doc = { ...doc, assets: { [assetId]: { id: assetId, name: 'photo', mime: 'image/jpeg', width: 640, height: 427 } } };
-  const para = 'Quvrelo lays out long documents offline. '.repeat(40);
-  const story = createStory(Array.from({ length: 120 }, (_, i) => `${i + 1}. ${para}`).join('\n'), { fontSize: 13 });
-  const frames: string[] = [];
-  for (const [i, pg] of doc.pages.entries()) {
-    const tf = make.textframe({ storyId: story.id, x: 397, y: 700, w: 680, h: 700, columns: 2, columnGap: 20, name: `Body ${i + 1}` });
-    frames.push(tf.id);
-    const img = make.imageframe({ assetId, x: 397, y: 220, w: 680, h: 300, name: `Photo ${i + 1}` });
-    const shapes = Array.from({ length: 10 }, (_, k) => make.rect({ x: 80 + k * 70, y: 1080, w: 50, h: 20, name: `Bar ${k}` }));
-    const title = make.text({ text: `Chapter ${i + 1}`, x: 397, y: 40, name: 'Title' });
-    doc = addNodes(doc, pg.id, [img, tf, title, ...shapes]);
-  }
-  story.chain = frames;
-  doc = { ...doc, stories: { [story.id]: story } };
-  const bytes = await packQuvrelo(doc, async (id) => (id === assetId ? { bytes: new Uint8Array(png), mime: 'image/jpeg' } : null));
-  const p = path.join(dir, 'Fifty pages.quvrelo');
-  fs.writeFileSync(p, bytes);
-  return p;
-}
 
 test('layout 50 pages: open, scroll every page, export PDF', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'quvrelo-bench-'));
