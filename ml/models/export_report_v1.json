@@ -1,0 +1,38 @@
+{
+ "checkpoint_step": 1200,
+ "opset": 17,
+ "params": 3160065,
+ "fp32_bytes": 12633087,
+ "int8_bytes": 3660725,
+ "cpu_count": 2,
+ "fp32_320": {
+  "max_abs_diff_vs_torch": 6e-06,
+  "mask_agreement_vs_torch": 1.0,
+  "ort_cpu_ms": 113.0
+ },
+ "int8_320": {
+  "max_abs_diff_vs_torch": 2.29097,
+  "mask_agreement_vs_torch": 0.98394,
+  "ort_cpu_ms": 68.0
+ },
+ "fp32_384": {
+  "max_abs_diff_vs_torch": 1.4e-05,
+  "mask_agreement_vs_torch": 1.0,
+  "ort_cpu_ms": 186.2
+ },
+ "int8_384": {
+  "max_abs_diff_vs_torch": 2.237776,
+  "mask_agreement_vs_torch": 0.98429,
+  "ort_cpu_ms": 118.1
+ },
+ "fp32_512": {
+  "max_abs_diff_vs_torch": 1.3e-05,
+  "mask_agreement_vs_torch": 1.0,
+  "ort_cpu_ms": 214.5
+ },
+ "int8_512": {
+  "max_abs_diff_vs_torch": 2.187449,
+  "mask_agreement_vs_torch": 0.98558,
+  "ort_cpu_ms": 131.6
+ }
+}

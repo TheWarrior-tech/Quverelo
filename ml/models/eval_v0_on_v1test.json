@@ -1,0 +1,15 @@
+{
+ "model": "models/quvselect.onnx",
+ "checkpoint_step": null,
+ "input_size": 320,
+ "n_subject": 717,
+ "subject_mIoU": 0.444,
+ "subject_median_IoU": 0.4486,
+ "subject_IoU_ge_0.8_frac": 0.0544,
+ "centre_box_baseline_mIoU": 0.3347,
+ "n_click": 843,
+ "click1_mIoU": 0.3045,
+ "click3_mIoU": 0.4745,
+ "click3_IoU_ge_0.8_frac": 0.0391,
+ "seconds": 442.5
+}
