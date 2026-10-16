@@ -7,7 +7,7 @@ import type { QuvreloDocument, ImageFrameNode, SceneNode, StudioKind } from '../
 import type { FileFilter } from '../../shared/api';
 import { canvasToBytes, createCanvas, ctx2d } from '../engine/assets';
 import { exportImagePdf, exportPdf, exportRaster, exportSelectionRaster, exportSvg, renderPageCanvas } from '../engine/export';
-import { importSvg } from '../engine/svgImport';
+import { importSvg, type SvgImportImage } from '../engine/svgImport';
 import { defaultExportFormat, pagesStillValid, type ExportFormat } from '../../core/exportDefaults';
 import { editor } from './editor';
 import { openDialog, toast } from './bus';
@@ -81,6 +81,21 @@ async function loadQuvreloBytes(data: Uint8Array, path: string | null): Promise<
   editor.openSession(doc, path);
 }
 
+/** Put an SVG's embedded images into the asset store (under the ids its nodes use) and the document. */
+async function withSvgImages(doc: QuvreloDocument, images: SvgImportImage[]): Promise<QuvreloDocument> {
+  if (!images.length) return doc;
+  const assets = { ...doc.assets };
+  for (const im of images) {
+    try {
+      await editor.assets.addBytes(im.bytes, im.mime, im.id);
+      assets[im.id] = editor.assets.ref(im.id, im.name);
+    } catch {
+      /* an unreadable image is skipped */
+    }
+  }
+  return { ...doc, assets };
+}
+
 /** Open a new photo document from an image file. */
 async function openImageAsDocument(bytes: Uint8Array, name: string, path: string | null): Promise<void> {
   editor.assets.clear();
@@ -89,7 +104,8 @@ async function openImageAsDocument(bytes: Uint8Array, name: string, path: string
     const r = importSvg(text);
     const w = Math.max(1, Math.round(r.width || 800));
     const h = Math.max(1, Math.round(r.height || 600));
-    const doc = createDocument({ title: baseName(name), studio: 'vector', settings: { width: w, height: h } });
+    let doc = createDocument({ title: baseName(name), studio: 'vector', settings: { width: w, height: h } });
+    doc = await withSvgImages(doc, r.images);
     editor.openSession(addNodes(doc, doc.pages[0].id, r.nodes), null, 'vector');
     return;
   }
@@ -227,6 +243,8 @@ export async function placeImages(files?: { data: Uint8Array; name: string }[]):
   for (const f of list) {
     if (mimeFor(f.name) === 'image/svg+xml') {
       const r = importSvg(new TextDecoder().decode(f.data));
+      const withImages = await withSvgImages(editor.doc!, r.images);
+      if (withImages !== editor.doc) editor.preview(() => withImages);
       const g = make.group(r.nodes.map((n) => ({ ...n })), { name: baseName(f.name) });
       // centre imported artwork on the page
       const cx = r.nodes.reduce((s, n) => s + n.x, 0) / Math.max(1, r.nodes.length);
