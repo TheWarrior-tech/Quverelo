@@ -5,7 +5,7 @@ _Last updated 2026-10-16 by the ML engineer session (round 2)._
 ## Models
 | Model | File | Status |
 |---|---|---|
-| QuvSelect **v1** (app default) | `ml/models/quvselect_v1.onnx` (+ `_int8`), release asset `ml-quvselect-v1`, sha256 in `ml/models/manifest.json` | phase 1 finished (step 1200, shipped in the staged release); phase 2 (to step 2000) running |
+| QuvSelect **v1** (app default) | `ml/models/quvselect_v1.onnx` (+ `_int8`), release asset `ml-quvselect-v1`, sha256 in `ml/models/manifest.json` | **finished** at step 2000 (phase 1 to 1200, phase 2 warm restart to 2000); exported fp32 + int8; staged in /workspace/work/ml-release for publishing |
 | QuvSelect v0 (fallback, committed) | `ml/models/quvselect.onnx` | finished at step 3500 (2026-10-15); see the v0 section of `ml/MODEL_CARD.md` |
 
 Held-out metrics are in `ml/MODEL_CARD.md` and `ml/models/eval_*.json`.
@@ -39,7 +39,7 @@ python -m quvrelo_ml.evaluate_v1 --onnx models/quvselect_v1.onnx --size 320 --js
 |---|---|---|
 | 2026-10-16 | 0 -> 300 | Phase 1 on the dataset parts available at the time (build finished during the run) |
 | 2026-10-16 | 300 -> 1200 | Phase 1 finished; two sandbox resets, resumed from checkpoint (steps 650, 1250). 2-12 s/step on the shared 2 vCPU |
-| 2026-10-16 | 1200 -> 2000 | Phase 2 warm restart, larger crops, lower LR |
+| 2026-10-16 | 1200 -> 2000 | Phase 2 warm restart (larger crops, lower LR), finished; one more reset (resumed at 1250). Step 2000 is the shipped v1 |
 
 ## Next run (recommended)
 1. The metric, not just the model, is the bottleneck for Select Subject: U2-Net-p (dedicated saliency model) scores 0.654 on

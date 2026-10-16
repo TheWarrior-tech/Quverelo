@@ -22,7 +22,7 @@ test('Select Subject: model backend loads offline and a 1024 px analysis runs en
   page.on('console', (m) => logs.push(m.text()));
   await openPhoto(L);
   const times: number[] = [];
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 5; i++) {
     await page.evaluate(() => (window as any).__quvrelo.editor.setUi({ pixelSelection: null, status: '' }));
     await run(page, 'select.subject');
     await expect.poll(() => state<boolean>(page, '!!editor.ui.pixelSelection'), { timeout: 30_000 }).toBe(true);
@@ -32,11 +32,13 @@ test('Select Subject: model backend loads offline and a 1024 px analysis runs en
   }
   const backend = logs.find((t) => t.startsWith('[ml] backend'));
   expect(backend, logs.join('\n')).toBeTruthy();
-  console.log(`${backend}; Select Subject end-to-end ms (first, warm, warm): ${times.join(', ')}`);
+  const warm = times.slice(1).sort((a, b) => a - b);
+  const median = (warm[1] + warm[2]) / 2;
+  console.log(`${backend}; Select Subject end-to-end ms (first, then 4 warm): ${times.join(', ')}; warm median ${median}`);
   console.log(logs.filter((t) => t.startsWith('[ml] select subject')).join('\n'));
   // the first run includes creating the session; warm runs are the per-use cost. CI-safe bound; the
   // measured figure is recorded in ml/MODEL_CARD.md
-  expect(Math.min(times[1], times[2])).toBeLessThan(2000);
+  expect(median).toBeLessThan(2000);
 });
 
 test('Cut Out Subject (soft edges): new layer with a soft alpha matte, photo hidden, one undo', async () => {

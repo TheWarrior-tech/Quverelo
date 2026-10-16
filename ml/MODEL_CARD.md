@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Files | `ml/models/quvselect_v1.onnx` (fp32, 12.6 MB) and `ml/models/quvselect_v1_int8.onnx` (int8 QDQ, 3.7 MB). Not in git: GitHub Release asset `ml-quvselect-v1`, fetched by `scripts/fetch-ml-models.mjs` (CI) and checked against `ml/models/manifest.json` (sha256 + bytes) |
-| Version | v1, checkpoint step 1200 (`ml/checkpoints/v1_step*.pt`, gitignored), trained 2026-10-16 |
+| Version | v1, checkpoint step 2000 (`ml/checkpoints/v1_step*.pt`, gitignored), trained 2026-10-16 |
 | Licence of weights | MIT (Quvrelo). Encoder initialised from `timm/mobilenetv3_large_100.ra_in1k` (Apache-2.0); see `ml/DATA_SOURCES.md` for the ImageNet note |
 | Runtime | ONNX opset 17; onnxruntime-web 1.30 WASM (CPU, 1 thread) in the app, onnxruntime (Python) for evaluation |
 | App choice | `src/core/ml/models.ts`: v1 fp32 if bundled, else v1 int8, else the committed v0 (`quvselect.onnx`) |
@@ -31,8 +31,8 @@ clicks and, 30 % of the time, a corrupted previous mask. Random-resized crops, f
 | 1 | 0 -> 1200 | 8 @ 192, last 20 %: 4 @ 256 | 2e-3 / 4e-4, 200-step warm-up, cosine |
 | 2 (warm restart, `--restart-at 1200`) | 1200 -> 2000 | 8 @ 224, last 30 %: 4 @ 288 | 1e-3 / 2e-4, 50-step warm-up, cosine |
 
-Phase 1 is about 9,600 samples (0.22 epochs of the pack); the run was CPU-bound at 2-9 s per step depending on the
-other jobs on the machine, and resumed from its checkpoint after two sandbox resets. Loss log: `ml/logs/train_v1*.log`
+Phase 1 is about 9,600 samples and phase 2 about 5,400 (together ~0.35 epochs of the pack); phase 2 added +0.017 subject and +0.03 click IoU; the run was CPU-bound at 2-9 s per step depending on the
+other jobs on the machine, and resumed from its checkpoint after three sandbox resets. Loss log: `ml/logs/train_v1*.log`
 (gitignored); history in `ml/TRAINING_STATE.md`.
 
 ## Metrics (held-out test split, GT at 256 x 256, model input 320, threshold 0.5)
@@ -41,28 +41,29 @@ other jobs on the machine, and resumed from its checkpoint after two sandbox res
 
 | Model | Subject mIoU (n=717) | Subject IoU >= 0.8 | Click@1 mIoU (n=843) | Click@3 mIoU | Click@3 IoU >= 0.8 |
 |---|---|---|---|---|---|
-| **QuvSelect v1** (step 1200) | **0.658** | 44 % | **0.592** | **0.663** | 43 % |
+| **QuvSelect v1** (step 2000) | **0.675** | 47 % | **0.624** | **0.699** | 49 % |
+| QuvSelect v1, end of phase 1 (step 1200) | 0.658 | 44 % | 0.592 | 0.663 | 43 % |
 | QuvSelect v0 (same items, input 320) | 0.444 | 5 % | 0.304 | 0.474 | 4 % |
 | Reference: U2-Net-p (not shipped) | 0.654 | 46 % | n/a | n/a | n/a |
 | Centred 50 % box baseline | 0.335 | | | | |
 
 How to read this:
-* v1 is a large step over v0 on every task (subject +0.21 IoU, click@1 roughly doubled).
+* v1 is a large step over v0 on every task (subject +0.23 IoU, click@1 roughly doubled).
 * **It does not reach the 0.80 subject-IoU target.** The reference row is the reason we think the target is not reachable
   *on this metric*: U2-Net-p, a dedicated salient-object model trained on DUTS-TR (research licence; evaluated, never
   shipped or distilled), scores 0.654 on the same items. Our "subject" label is a heuristic over non-exhaustive Open Images
   instance annotations (e.g. a person and their bicycle, or one of three equal-size people), so a perfect saliency model is
-  still penalised; v1 already matches U2-Net-p on it. Closing the rest needs a better-defined subject label (human-judged
+  still penalised; v1 (0.675) is already slightly above U2-Net-p on it. Closing the rest needs a better-defined subject label (human-judged
   subject masks, permissively licensed) rather than more steps, plus far more compute (published models train for GPU-days).
-* The median subject IoU is ~0.74 and ~44 % of subject results are >= 0.8, i.e. the mean is pulled down by a tail of
+* The median subject IoU is 0.768 and 47 % of subject results are >= 0.8, i.e. the mean is pulled down by a tail of
   "wrong subject" picks rather than by ragged edges.
 
 ### Showcase regression (`tests/unit/mlObjectSelect.test.ts`, hand-traced cottage in `tests/fixtures/sample-photo.jpg`)
 | Pipeline (`ml/bench/objsel_variants.ts`, 7 clicks) | v0 | v1 |
 |---|---|---|
-| Single pass, no refine | 0.110 (review click) | 0.374-0.842 (0.842 review click) |
-| Single pass + edge refine (**v1 default**) | | **0.929-0.938** |
-| Focus passes + edge refine (**v0 default**) | 0.931-0.938 | 0.758-0.938 |
+| Single pass, no refine | 0.110 (review click) | 0.428-0.792 (review click 0.775) |
+| Single pass + edge refine (**v1 default**) | | **0.930-0.934** |
+| Focus passes + edge refine (**v0 default**) | 0.931-0.938 | 0.486-0.939 |
 
 v1 localises small objects in the single 320 px pass, and the tight focus crops (0.5-1.25x the object; its training crops
 never zoom that far) make it worse, so `models.ts` turns focus passes off for v1 (`focusPasses: false`) and keeps them for v0.
@@ -74,9 +75,29 @@ never zoom that far) make it worse, so `models.ts` turns focus passes off for v1
   slower than fp32, so the app prefers fp32 and keeps int8 as the smaller fallback asset.
 
 ## Latency (Select Subject at the app's 1024 px analysis size)
-Step-1200 model, measured while other jobs loaded the 2-vCPU sandbox (load average ~7); final figures follow below.
-* Electron app, `tests/e2e/ml-v1.spec.ts`, 1024x687 analysis: first use 2672 ms (WASM session creation + JIT), warm 592 / 702 ms.
-* Node, same WASM binary (`ml/bench/subject_breakdown.ts`), CPU time per call: model 103 ms, matte (subsample 2) 70 ms, pre/post 45 ms, `selectSubject` total 194 ms.
+Final model (step 2000), 2-vCPU sandbox, onnxruntime-web WASM, 1 thread (the renderer is not cross-origin isolated, so
+WASM threads are off; on 2 shared cores they would not help much anyway).
+
+| Measurement | Result |
+|---|---|
+| Electron app, **Select ▸ Select Subject**, end to end (pixels out of the layer, model, matte, clean-up, selection path), 1264x848 photo analysed at 1024x687 (`tests/e2e/ml-v1.spec.ts`, machine quiet) | first use **1199 ms** (WASM compile + session creation + JIT), warm runs 292 / 408 / 267 / 245 ms, **warm median 280 ms** |
+| Stage breakdown of a warm run in the app | pixels 15 ms, model (resize + network + upsample) 153-180 ms, matte 94-98 ms, clean-up 9-16 ms, path 20-25 ms |
+| Same, while other agents' jobs loaded the machine (load average ~7) | warm 592-702 ms (step-1200 model, same architecture) |
+| Node, same WASM binary (`ml/bench/subject_breakdown.ts`), **CPU time** per call | network 103 ms, matte (subsample 2) 70 ms, input build 26 ms, upsample 19 ms; `selectSubject` total 194 ms |
+| Object Select, one click on the showcase cottage, end to end (`tests/e2e/ml.spec.ts`) | 592 ms (single pass + edge refine) |
+| int8 model in WASM (`subject_breakdown.ts`) | network 169 ms CPU, i.e. slower than fp32 (103 ms): WASM int8 conv kernels are less optimised |
+
+What got it under 500 ms (round 2):
+* `src/core/ml/matte.ts`: the subsampled matte (used above 640 px, i.e. subsample 2 at 1024) now solves the trimap, the
+  local F/B colours, the band alpha and the guided-filter coefficients at half resolution, cropped to the unknown band's
+  bounding box, and only evaluates `a.I + b` per band pixel at full resolution; box means are separable running sums.
+  1024 px matte: 161 -> 52 ms CPU on a synthetic subject (`tests/unit/mlMatte.test.ts` asserts >= 2.5x cheaper than exact).
+* `src/core/ml/tensor.ts` / `maskToPath.ts`: component labelling and boundary tracing on typed arrays (no per-pixel
+  allocations; tracer output identical to the old one on 30 random masks): clean-up 59-73 -> 9-16 ms, path 53-139 -> 20-25 ms.
+
+int8 accuracy: the static-QDQ int8 model (MinMax calibration, 64 training samples) loses accuracy: subject mIoU **0.568**
+vs 0.675 fp32 on the same items. The app never picks it while the fp32 asset is present; a Percentile calibration attempt
+ran out of memory on this sandbox. Better int8 (more calibration data, excluding the decoder head) is open work.
 
 
 ---
