@@ -8,7 +8,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { readPsd, initializeCanvas } from 'ag-psd';
-import { gradientPdf, samplePdf, samplePsd, sampleIdml } from '../fixtures/interop';
+import { gradientPdf, samplePdf, samplePsd, sampleIdml, styledIdml } from '../fixtures/interop';
 import { launch, run, shot, state, type Launched } from './helpers';
 
 let L: Launched | null = null;
@@ -126,6 +126,25 @@ test.describe('interop', () => {
     })()`);
     expect(info).toEqual({ studio: 'layout', pages: 2, masters: 1, chain: 2, text: 'Fish & chips\nSecond paragraph', image: true });
     await shot(page, 'interop-idml-open');
+  });
+
+  test('opens a styled IDML: paragraph / character styles drawn, table as a Layout table', async () => {
+    const idml = await fixture('Styled.idml', styledIdml());
+    L = await launch({ QUVRELO_E2E_OPEN: idml });
+    const { page } = L;
+    await run(page, 'file.open');
+    await expect.poll(() => state<string>(page, 'editor.doc && editor.doc.title')).toBe('Styled');
+    const info = await state<{ text: string; paras: number; spans: number; styles: number; table: { rows: number; cols: number; header: number; first: string; wrap: string } | null }>(page, `(() => {
+      const d = editor.doc; const s = Object.values(d.stories)[0];
+      const t = d.pages[0].nodes.find((n) => n.type === 'table');
+      return { text: s.text, paras: (s.paras || []).filter(Boolean).length, spans: (s.spans || []).length, styles: d.textStyles.paragraph.length,
+        table: t ? { rows: t.rowHeights.length, cols: t.colWidths.length, header: t.headerRows, first: t.cells[0][0].text, wrap: t.wrap && t.wrap.mode } : null };
+    })()`);
+    expect(info).toEqual({ text: 'Year 9 Art\nMix primary colours1\nAfter the table', paras: 3, spans: 3, styles: 3, table: { rows: 3, cols: 2, header: 1, first: 'Colour', wrap: 'jump' } });
+    // the table is a real object in the Layers panel (Layout opens on Pages)
+    await page.getByRole('tab', { name: 'Layers' }).click();
+    await expect(page.locator('.layer-row').getByText('Table', { exact: true }).first()).toBeVisible();
+    await shot(page, 'interop-idml-styled');
   });
 
   test('places a PSD into an open document as one group (undoable)', async () => {

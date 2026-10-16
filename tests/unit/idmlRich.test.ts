@@ -80,8 +80,13 @@ describe('IDML rich text and tables', () => {
     expect(table.type).toBe('table');
     expect(table.headerRows).toBe(1);
     expect(table.w).toBeCloseTo(320 * PT);
-    expect(table.h).toBeCloseTo(56 * PT);
     expect(table.colWidths).toEqual([120 * PT, 200 * PT]);
+    // rows grow to fit their text like InDesign's auto-grow rows: Body 14pt leading + 4pt insets top and bottom
+    table.rowHeights.forEach((h) => expect(h).toBeCloseTo(22 * PT));
+    expect(table.h).toBeCloseTo(66 * PT);
+    // cell text keeps its paragraph style's formatting; cells without an inset get InDesign's 4pt default
+    expect(table.cells[1][0].props).toMatchObject({ padding: 4 * PT, text: { fontSize: 10 * PT, leading: 14 * PT } });
+    expect(table.cells[0][0].props?.padding).toBeUndefined(); // from the Head cell style
     expect(table.cells.map((row) => row.map((c) => c.text))).toEqual([['Colour', 'Mix'], ['Green', 'Blue + yellow'], ['Teal', '']]);
     expect(table.cells[1][1].rowSpan).toBe(2);
     expect(isCovered(table, 2, 1)).toBe(true);

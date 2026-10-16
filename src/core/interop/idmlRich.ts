@@ -56,6 +56,8 @@ export interface RichTable {
   headerRows: number;
   colWidths: number[];
   rowHeights: number[];
+  /** row heights grown to fit each row's text, as InDesign's auto-grow rows do (stored heights can be stale) */
+  fitHeights?: number[];
   cells: RichCell[][];
 }
 export interface RichStory { spans: RichCharSpan[]; paras: (RichParaAttrs | null)[]; tables: RichTable[] }
@@ -186,6 +188,14 @@ function cellProps(a: Attrs, paint: PaintOf): Partial<RichCellProps> {
   return p;
 }
 
+/** The character / paragraph attributes a table cell's text keeps. */
+function cellText(p: RichProps): RichProps {
+  const keys: (keyof RichProps)[] = ['fontFamily', 'fontSize', 'fontWeight', 'italic', 'fill', 'align', 'leading', 'letterSpacing', 'underline', 'strike', 'caps'];
+  const out: RichProps = {};
+  for (const k of keys) if (p[k] !== undefined) (out as Record<string, unknown>)[k] = p[k];
+  return out;
+}
+
 const sameProps = (a: RichProps | undefined, b: RichProps | undefined) => JSON.stringify(a ?? {}) === JSON.stringify(b ?? {});
 
 export interface ParsedRichStory {
@@ -286,6 +296,7 @@ export function parseRichStory(storyRoot: XmlElement, chains: StyleChains, idx: 
     const colWidths = Array.from({ length: nCols }, (_, i) => pt(cols.find((c) => c.attrs.Name === String(i))?.attrs.SingleColumnWidth) ?? 72 * PX_PER_PT);
     const rowHeights = Array.from({ length: nRows }, (_, i) => { const r = rows.find((x) => x.attrs.Name === String(i)); return pt(r?.attrs.SingleRowHeight ?? r?.attrs.MinimumHeight) ?? 18 * PX_PER_PT; });
     const cells: RichCell[][] = Array.from({ length: nRows }, () => Array.from({ length: nCols }, () => ({ text: '' })));
+    const need = rowHeights.map(() => 0);
     for (const c of elements(t, 'Cell')) {
       const [ci, ri] = (c.attrs.Name ?? '').split(':').map(Number);
       if (!(ri >= 0 && ri < nRows && ci >= 0 && ci < nCols)) continue;
@@ -297,8 +308,21 @@ export function parseRichStory(storyRoot: XmlElement, chains: StyleChains, idx: 
       if (cs > 1) cell.colSpan = cs;
       if (c.attrs.AppliedCellStyle && idx.cell.get(c.attrs.AppliedCellStyle)) cell.styleId = idx.cell.get(c.attrs.AppliedCellStyle)!;
       const props = cellProps(c.attrs, paint);
+      // InDesign's default cell inset is 4pt when neither the cell nor its style sets one
+      const named = cell.styleId ? idx.sheet.cell.find((x) => x.id === cell.styleId)?.props : undefined;
+      if (props.padding === undefined && named?.padding === undefined) props.padding = 4 * PX_PER_PT;
+      // the cell's text formatting: its first run, resolved through the paragraph / character style chains
+      const textProps = inner.firstAttrs ? cellText(propsFromAttrs(inner.firstAttrs, paint)) : {};
+      if (Object.keys(textProps).length) props.text = textProps;
       if (Object.keys(props).length) cell.props = props;
       cells[ri][ci] = cell;
+      if (rs === 1) {
+        // height the text needs: one line per paragraph (width wrapping is not estimated) plus the insets
+        const size = textProps.fontSize ?? 12;
+        const line = textProps.leading && textProps.leading > 0 ? textProps.leading : size * 1.25;
+        const pad = props.padding ?? named?.padding ?? 4 * PX_PER_PT;
+        need[ri] = Math.max(need[ri], inner.text.split('\n').length * line + 2 * pad);
+      }
     }
     // fallback on main: one tab-separated paragraph per row
     if (!atParaStart()) emit('\n', null);
@@ -307,7 +331,7 @@ export function parseRichStory(storyRoot: XmlElement, chains: StyleChains, idx: 
       if (r) emit('\n', null);
       emit(row.map((c) => c.text.replace(/\n/g, ' ')).join('\t'), null);
     });
-    tables.push({ start, end: text.length, headerRows: Number(t.attrs.HeaderRowCount ?? 0), colWidths, rowHeights, cells });
+    tables.push({ start, end: text.length, headerRows: Number(t.attrs.HeaderRowCount ?? 0), colWidths, rowHeights, fitHeights: rowHeights.map((h, i) => Math.max(h, need[i])), cells });
     breakAfterTable = true;
   };
 
@@ -348,10 +372,11 @@ export function tablesToNodes(text: string, rich: RichStory): StoryTables {
     const rows = t.cells.length;
     const cols = t.colWidths.length;
     if (!rows || !cols) continue;
+    const heights = t.fitHeights ?? t.rowHeights;
     const w = t.colWidths.reduce((a, b) => a + b, 0);
-    const h = t.rowHeights.reduce((a, b) => a + b, 0);
+    const h = heights.reduce((a, b) => a + b, 0);
     const node = makeTable(rows, cols, {
-      name: 'Table', w, h, colWidths: [...t.colWidths], rowHeights: [...t.rowHeights], headerRows: Math.min(t.headerRows, rows),
+      name: 'Table', w, h, colWidths: [...t.colWidths], rowHeights: [...heights], headerRows: Math.min(t.headerRows, rows),
       cells: t.cells.map((row) => row.map((c) => ({
         text: c.text,
         ...(c.spans?.length ? { spans: c.spans as CharSpan[] } : {}),
