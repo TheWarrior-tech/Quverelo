@@ -224,6 +224,7 @@ reg('select.copy-to-layer', () => {
 export const FILTER_TYPES: AdjustmentType[] = ['blur', 'motion-blur', 'sharpen', 'noise', 'reduce-noise'];
 const FILTER_IDS: Record<string, AdjustmentType> = {
   'filter.gaussian-blur': 'blur', 'filter.motion-blur': 'motion-blur', 'filter.unsharp-mask': 'sharpen', 'filter.add-noise': 'noise', 'filter.reduce-noise': 'reduce-noise',
+  'filter.vignette': 'vignette',
 };
 for (const [id, type] of Object.entries(FILTER_IDS)) {
   reg(id, () => {

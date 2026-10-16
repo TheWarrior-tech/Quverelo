@@ -117,6 +117,8 @@ export function commandIcon(id: string): string | undefined {
     'layer.mask-apply': 'check', 'layer.mask-delete': 'trash', 'layer.mask-to-selection': 'marquee-rect', 'layer.clip': 'clip',
     'select.color-range': 'eyedropper', 'select.magic-wand': 'magic-wand', 'select.feather': 'feather', 'select.refine': 'feather', 'select.save-to-mask': 'mask',
     'filter.gaussian-blur': 'filter', 'filter.motion-blur': 'filter', 'filter.unsharp-mask': 'filter', 'filter.add-noise': 'filter', 'filter.reduce-noise': 'filter',
+    'layer.adjust-levels': 'adjust', 'layer.adjust-curves': 'adjust', 'layer.adjust-hue-saturation': 'adjust', 'layer.adjust-brightness-contrast': 'adjust', 'layer.adjust-exposure': 'adjust', 'layer.adjust-vibrance': 'adjust', 'layer.adjust-color-balance': 'adjust', 'layer.adjust-temperature': 'adjust', 'layer.adjust-black-white': 'adjust', 'layer.adjust-gradient-map': 'adjust', 'layer.adjust-invert': 'adjust', 'layer.adjust-threshold': 'adjust', 'layer.adjust-posterize': 'adjust',
+    'filter.vignette': 'filter',
     'filter.liquify': 'liquify', 'doc.canvas-size': 'crop',
     // every command has an icon, so no row reads as a gap (critique 3 P2-5)
     'doc.clear-guides': 'close', 'view.rulers': 'layout', 'view.snapping': 'magnet', 'view.theme-dark': 'adjust', 'view.theme-light': 'adjust',

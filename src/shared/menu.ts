@@ -156,7 +156,6 @@ export const APP_MENU: MenuSection[] = [
       { id: 'layer.adjust-invert', label: 'Invert', keywords: ['adjustment layer', 'negative'] },
       { id: 'layer.adjust-threshold', label: 'Threshold', keywords: ['adjustment layer', 'black and white', 'bitmap'] },
       { id: 'layer.adjust-posterize', label: 'Posterise', keywords: ['adjustment layer', 'posterize', 'levels'] },
-      { id: 'layer.adjust-vignette', label: 'Vignette', keywords: ['adjustment layer', 'dark corners'] },
     ],
   },
   {
@@ -167,6 +166,7 @@ export const APP_MENU: MenuSection[] = [
       { id: 'filter.unsharp-mask', label: 'Unsharp Mask…', keywords: ['sharpen', 'detail', 'crisp'] },
       { id: 'filter.add-noise', label: 'Add Noise…', keywords: ['grain', 'film'] },
       { id: 'filter.reduce-noise', label: 'Reduce Noise…', keywords: ['denoise', 'smooth', 'grain'] },
+      { id: 'filter.vignette', label: 'Vignette…', keywords: ['dark corners', 'filter'] },
       '-',
       { id: 'filter.liquify', label: 'Liquify', accel: 'CmdOrCtrl+Shift+X', keywords: ['warp', 'push', 'twirl', 'pinch', 'bloat', 'distort'] },
     ],

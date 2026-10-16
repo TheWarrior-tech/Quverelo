@@ -3,10 +3,11 @@ import { allMenuCommands } from '../../src/shared/menu';
 import { STUDIO_TOOLS } from '../../src/renderer/state/editor';
 
 describe('photo studio P0 wiring', () => {
-  it('Object Select sits on the Photo rail right after Freehand Selection', () => {
+  it('Object Select sits on the Photo rail right after the lasso tools (Freehand, Polygonal)', () => {
     const photo = STUDIO_TOOLS.photo;
     expect(photo).toContain('object-select');
-    expect(photo.indexOf('object-select')).toBe(photo.indexOf('lasso') + 1);
+    expect(photo.indexOf('polygon-lasso')).toBe(photo.indexOf('lasso') + 1);
+    expect(photo.indexOf('object-select')).toBe(photo.indexOf('polygon-lasso') + 1);
     expect(STUDIO_TOOLS.vector).not.toContain('object-select');
   });
 
