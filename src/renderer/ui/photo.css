@@ -190,3 +190,6 @@
 .photo-combine + .fhint {
   margin-top: 8px;
 }
+.photo-combine .flabel {
+  color: var(--c-text-2);
+}
