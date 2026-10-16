@@ -10,7 +10,7 @@ export function PanelTabs({ tabs, active, onSelect, label, groupId }: { tabs: Ta
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const idx = Math.max(0, tabs.findIndex((t) => t.id === active));
   return (
-    <div className="panel-tabs" role="tablist" aria-label={label}>
+    <div className="panel-tabs" role="tablist" aria-label={label} data-keep-text-edit>
       {tabs.map((t, i) => (
         <button
           key={t.id}

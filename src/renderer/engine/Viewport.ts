@@ -91,6 +91,16 @@ export class Viewport {
   }
   private lastContainer: Id | null = null;
   private syncingSelection = false;
+
+  /** Drop fabric's active object without clearing the editor selection (entering text editing keeps the node selected). */
+  discardActiveQuietly(): void {
+    this.syncingSelection = true;
+    try {
+      this.canvas.discardActiveObject();
+    } finally {
+      this.syncingSelection = false;
+    }
+  }
   private tool: Tool;
   private toolId = '';
   private unsub: () => void;

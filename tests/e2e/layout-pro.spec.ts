@@ -188,6 +188,100 @@ test.describe('layout: pro typography', () => {
     expect(Math.abs(widths[0] - widths[1])).toBeGreaterThan(1);
     await page.waitForTimeout(300);
     await page.screenshot({ path: path.join(shots, 'opentype.png') });
+    // the OpenType options for the frame, in every theme
+    await ev(page, `editor.select(['tf200'])`);
+    await page.getByRole('tab', { name: 'Design' }).click();
+    await page.locator('.more-type').click();
+    await expect(page.locator('#text-figures')).toHaveValue('lining');
+    await page.locator('#text-figures').scrollIntoViewIfNeeded();
+    await themeShot(page, 'opentype-options');
+  });
+});
+
+test.describe('layout: composition (hyphenation, tabs, keeps, rich cells)', () => {
+  const firstStory = (page: Page, prefix: string) => `Object.values(editor.doc.stories).find((x) => x.text.startsWith(${JSON.stringify(prefix)}))`;
+
+  test('hyphenation and keep options from the inspector', async () => {
+    L = await launch();
+    const { page } = L;
+    await blankLayout(page);
+    await frameWithText(page, 80, 80, 260, 700, 'Typographical considerations extraordinarily influence comprehensibility and hyphenation');
+    await ev(page, 'getViewport().textEdit.select(0, 1000)');
+    await page.getByRole('tab', { name: 'Design' }).click();
+    const hyphens = () => ev<number>(page, `const s = ${firstStory(page, 'Typographical')};
+      return storyFlow(editor.doc, s.id).frames[s.chain[0]].lines.filter((l) => l.runs.some((r) => r.hyphen)).length;`);
+    expect(await hyphens()).toBe(0);
+    await page.getByTestId('para-hyphenate').check();
+    await expect.poll(hyphens).toBeGreaterThan(0);
+    const para = () => ev<Record<string, unknown>>(page, `return ${firstStory(page, 'Typographical')}.paras?.[0]?.props ?? {};`);
+    expect(await para()).toMatchObject({ hyphenate: true });
+    await page.getByLabel('Hyphenation language').selectOption('en-US');
+    await page.getByTestId('para-keep-next').check();
+    await page.getByTestId('para-widows').check();
+    expect(await para()).toMatchObject({ hyphenate: true, language: 'en-US', keepWithNext: true, widows: 2, orphans: 2 });
+    // the text keeps focus for typing after a click in the inspector
+    expect(await page.evaluate(() => document.activeElement?.classList.contains('text-edit-overlay'))).toBe(true);
+    await page.getByTestId('para-hyphenate').scrollIntoViewIfNeeded();
+    await themeShot(page, 'hyphenation-keeps');
+  });
+
+  test('tab stops: Tab key, a right-aligned stop with a dot leader', async () => {
+    L = await launch();
+    const { page } = L;
+    await blankLayout(page);
+    await frameWithText(page, 80, 80, 700, 300, 'Chapter one\t7');
+    const story = await storyOf(page);
+    expect(story.text).toBe('Chapter one\t7'); // the Tab key typed a tab character
+    await page.getByRole('tab', { name: 'Design' }).click();
+    await page.getByRole('button', { name: 'Add tab stop' }).click();
+    await expect(page.getByTestId('tab-stop')).toHaveCount(1);
+    const pos = page.getByLabel('Tab stop 1 position');
+    await pos.fill('400');
+    await pos.press('Enter');
+    await page.getByRole('radio', { name: 'Right tab' }).click();
+    await page.getByLabel('Tab stop 1 leader').selectOption('.');
+    const lay = await ev<{ pad: number; tab: { text: string; x: number; width: number }; last: { x: number; width: number } }>(page, `
+      const s = ${firstStory(page, 'Chapter')};
+      const n = editor.activeContainer.nodes.find((x) => x.id === s.chain[0]);
+      const runs = storyFlow(editor.doc, s.id).frames[n.id].lines[0].runs;
+      const last = runs[runs.length - 1];
+      return { pad: n.padding, tab: runs.find((r) => r.tab), last: { x: last.x, width: last.width } };`);
+    expect(lay.tab.text).toMatch(/^\.+$/);
+    // the "7" ends at the stop (frame inset + 400)
+    expect(Math.abs(lay.last.x + lay.last.width - (lay.pad + 400))).toBeLessThan(0.6);
+    expect(await ev<unknown>(page, `return ${firstStory(page, 'Chapter')}.paras[0].props.tabStops`)).toEqual([{ pos: 400, align: 'right', leader: '.' }]);
+    await page.getByTestId('tab-stops').scrollIntoViewIfNeeded();
+    await themeShot(page, 'tab-stops');
+  });
+
+  test('per-character formatting inside a table cell', async () => {
+    L = await launch();
+    const { page } = L;
+    await blankLayout(page);
+    await run(page, 'table.insert');
+    const id = await state<string>(page, 'editor.ui.selection[0]');
+    const geo = await ev<{ x: number; y: number; rowH: number; colW: number }>(page, `
+      const t = editor.activeContainer.nodes.find((n) => n.id === '${id}');
+      return { x: t.x - t.w / 2, y: t.y - t.h / 2, rowH: t.h / t.rowHeights.length, colW: t.w / t.colWidths.length };`);
+    const p = await docToScreen(page, geo.x + geo.colW / 2, geo.y + geo.rowH * 1.5);
+    await page.mouse.dblclick(p.x, p.y);
+    await expect(page.locator('.text-edit-overlay')).toBeVisible();
+    await page.keyboard.type('Plain bold');
+    // the cell is drawn from its layout while editing (rich), with the inspector's Text section
+    expect(await ev<boolean>(page, 'return getViewport().textEdit.rich')).toBe(true);
+    await ev(page, 'getViewport().textEdit.select(6, 10)');
+    await page.getByRole('tab', { name: 'Design' }).click();
+    await expect(page.locator('[data-section="text"] .section-title')).toContainText('selection');
+    await page.getByLabel('Font style').selectOption('700');
+    const cell = () => state<{ text: string; spans?: unknown[] }>(page, `editor.activeContainer.nodes.find(n => n.id === '${id}').cells[1][0]`);
+    expect((await cell()).spans).toEqual([{ start: 6, end: 10, styleId: null, props: { fontWeight: 700, italic: false } }]);
+    // typing before the bold word keeps it on the same characters
+    await ev(page, 'getViewport().textEdit.select(0, 0)');
+    await page.keyboard.type('Very ');
+    expect(await cell()).toMatchObject({ text: 'Very Plain bold', spans: [{ start: 11, end: 15 }] });
+    // the click on the inspector handed focus back to the cell text
+    expect(await page.evaluate(() => document.activeElement?.classList.contains('text-edit-overlay'))).toBe(true);
+    await themeShot(page, 'table-cell-text');
   });
 });
 

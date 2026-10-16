@@ -180,7 +180,7 @@ export class TextEditOverlay {
     }
     ed.select([id]);
     ed.setUi({ editingTextId: id, tableCell: this.mode === 'cell' && cell ? { nodeId: id, r: cell.r, c: cell.c } : ed.ui.tableCell?.nodeId === id ? ed.ui.tableCell : null });
-    this.vp.canvas.discardActiveObject();
+    this.vp.discardActiveQuietly();
     this.loadValue();
     this.position();
     let start = ta.value.length;

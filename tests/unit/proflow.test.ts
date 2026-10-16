@@ -167,3 +167,17 @@ describe('keep options and widow / orphan control', () => {
     expect(r.filter((l) => l.x >= 30).map((l) => l.text)).toEqual(['Head', 'body']);
   });
 });
+
+describe('style interning', () => {
+  it('tells apart styles that differ only in nested values (fills, tab stops)', async () => {
+    const { internStyle, stableKey } = await import('../../src/core/typography');
+    const a = { ...createStory('', base).style, fill: { type: 'solid' as const, color: '#ff0000' } };
+    const b = { ...a, fill: { type: 'solid' as const, color: '#0000ff' } };
+    expect(internStyle(a)).not.toBe(internStyle(b));
+    expect(internStyle({ ...a })).toBe(internStyle(a));
+    const t1 = { ...a, tabStops: [{ pos: 10, align: 'left' as const }] };
+    const t2 = { ...a, tabStops: [{ pos: 10, align: 'right' as const, leader: '.' }] };
+    expect(internStyle(t1)).not.toBe(internStyle(t2));
+    expect(stableKey({ b: 1, a: { d: [1, { y: 2, x: 1 }], c: undefined } })).toBe('{"a":{"d":[1,{"x":1,"y":2}]},"b":1}');
+  });
+});

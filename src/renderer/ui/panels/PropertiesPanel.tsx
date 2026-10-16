@@ -247,7 +247,7 @@ export function PropertiesPanel() {
         </Field>
       </Section>
 
-      {!multi && (n.type === 'text' || n.type === 'textframe') && <TextSection />}
+      {!multi && (n.type === 'text' || n.type === 'textframe' || (n.type === 'table' && ed.ui.editingTextId === n.id && !!ed.ui.tableCell)) && <TextSection />}
       {!multi && n.type === 'textframe' && ed.ui.studio === 'layout' && <FrameFlowSection node={n} />}
       {!multi && n.type === 'table' && <TableSection node={n} />}
 

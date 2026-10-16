@@ -173,12 +173,23 @@ export interface StyledParagraph {
 }
 
 const styleKeyCache = new WeakMap<object, string>();
+/**
+ * JSON with object keys sorted at every level. (An array replacer for
+ * JSON.stringify would also filter nested keys, so fills, tab stops and other
+ * nested values would all look alike.)
+ */
+export function stableKey(v: unknown): string {
+  if (v === null || typeof v !== 'object') return JSON.stringify(v) ?? 'null';
+  if (Array.isArray(v)) return `[${v.map(stableKey).join(',')}]`;
+  const o = v as Record<string, unknown>;
+  return `{${Object.keys(o).filter((k) => o[k] !== undefined).sort().map((k) => `${JSON.stringify(k)}:${stableKey(o[k])}`).join(',')}}`;
+}
 /** Stable identity for equal resolved styles so measurement caches hit. */
 const interned = new Map<string, TextStyle>();
 export function internStyle(s: TextStyle): TextStyle {
   let key = styleKeyCache.get(s);
   if (!key) {
-    key = JSON.stringify(s, Object.keys(s).sort());
+    key = stableKey(s);
     styleKeyCache.set(s, key);
   }
   const hit = interned.get(key);
