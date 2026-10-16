@@ -13,12 +13,18 @@ export interface BundledModel {
   url: string;
   /** square model input the app runs Select Subject at */
   inputSize: number;
+  /**
+   * Object Select runs the zoomed focus passes (selectSubject.ts, step 2) for this model. v0 needs them: at 320 px a small
+   * object is a click-sized blob. v1 localises small objects in the single pass, and the tight focus crops (0.5-1.25x the
+   * object, never seen in its training crops) make it worse (ml/bench/objsel_variants.ts, ml/MODEL_CARD.md).
+   */
+  focusPasses: boolean;
 }
 
 export const MODEL_PREFERENCE: readonly Omit<BundledModel, 'url'>[] = [
-  { id: 'quvselect-v1', file: 'quvselect_v1.onnx', inputSize: 320 },
-  { id: 'quvselect-v1-int8', file: 'quvselect_v1_int8.onnx', inputSize: 320 },
-  { id: 'quvselect-v0', file: 'quvselect.onnx', inputSize: 320 },
+  { id: 'quvselect-v1', file: 'quvselect_v1.onnx', inputSize: 320, focusPasses: false },
+  { id: 'quvselect-v1-int8', file: 'quvselect_v1_int8.onnx', inputSize: 320, focusPasses: false },
+  { id: 'quvselect-v0', file: 'quvselect.onnx', inputSize: 320, focusPasses: true },
 ];
 
 /** Pick the best available model from a map of path -> url (an import.meta.glob result). */

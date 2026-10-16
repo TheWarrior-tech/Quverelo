@@ -23,6 +23,8 @@ export interface SegmentationBackend {
   readonly name: string;
   /** model input size to run whole-image passes at (default MODEL_SIZE) */
   readonly inputSize?: number;
+  /** whether Object Select should run the zoomed focus passes with this model (default true; see models.ts) */
+  readonly focusPasses?: boolean;
   run(input: Float32Array, size: number): Promise<Float32Array>;
 }
 
@@ -162,7 +164,7 @@ async function clickSegment(backend: SegmentationBackend, img: RgbaImage, clicks
   let prob = await predict(backend, img, clicks, prev, size);
   const coarse = cleanMask(binarizeProb(prob, thr), W, H, clicks);
   // 2. focus
-  const b = opts.focus === false ? null : bboxOf(coarse, W, H, clicks);
+  const b = (opts.focus ?? backend.focusPasses ?? true) === false ? null : bboxOf(coarse, W, H, clicks);
   const crops = b ? focusCrops(b, W, H, clicks) : null;
   if (crops) {
     const fs = opts.focusSize ?? FOCUS_SIZE;

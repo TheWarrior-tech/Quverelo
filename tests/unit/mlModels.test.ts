@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MODEL_PREFERENCE, pickModel } from '../../src/core/ml/models';
-import { selectSubject, type SegmentationBackend } from '../../src/core/ml/selectSubject';
+import { selectObject, selectSubject, type SegmentationBackend } from '../../src/core/ml/selectSubject';
 import { upsampleMatte } from '../../src/core/ml/tensor';
 
 describe('bundled model choice', () => {
@@ -75,5 +75,38 @@ describe('Select Subject with soft matte', () => {
     expect(a[7]).toBe(255);
     expect(a[3]).toBeGreaterThan(0);
     expect(a[3]).toBeLessThan(255);
+  });
+});
+
+describe('per-model focus passes (Object Select)', () => {
+  // small dark square on white; the fake network answers a blob around the click, so the coarse region is small
+  const W = 400, H = 300;
+  const data = new Uint8ClampedArray(W * H * 4).fill(235);
+  for (let y = 140; y < 160; y++) for (let x = 190; x < 210; x++) { const i = (y * W + x) * 4; data[i] = data[i + 1] = data[i + 2] = 30; }
+  const img = { width: W, height: H, data };
+  const fake = (focusPasses?: boolean) => {
+    const sizes: number[] = [];
+    const backend: SegmentationBackend = {
+      name: 'fake', focusPasses,
+      async run(input, size) {
+        sizes.push(size);
+        const pos = input.subarray(3 * size * size, 4 * size * size); // positive click map -> logits
+        return Float32Array.from(pos, (v) => (v > 0.3 ? 4 : -4));
+      },
+    };
+    return { backend, sizes };
+  };
+  it('v1 runs the single coarse pass, v0 adds the four zoomed passes, an explicit option wins', async () => {
+    expect(MODEL_PREFERENCE.find((m) => m.id === 'quvselect-v1')!.focusPasses).toBe(false);
+    expect(MODEL_PREFERENCE.find((m) => m.id === 'quvselect-v0')!.focusPasses).toBe(true);
+    const click = [{ x: 200, y: 150, positive: true }];
+    const a = fake(false); await selectObject(img, click, { backend: a.backend });
+    expect(a.sizes.length).toBe(1);
+    const b = fake(true); await selectObject(img, click, { backend: b.backend });
+    expect(b.sizes.length).toBe(5);
+    const c = fake(undefined); await selectObject(img, click, { backend: c.backend });
+    expect(c.sizes.length).toBe(5); // default stays as before
+    const d = fake(false); await selectObject(img, click, { backend: d.backend, focus: true });
+    expect(d.sizes.length).toBe(5);
   });
 });

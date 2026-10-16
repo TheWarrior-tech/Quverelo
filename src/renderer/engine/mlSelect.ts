@@ -44,6 +44,7 @@ export function getSegmentationBackend(): Promise<SegmentationBackend | null> {
         const backend: SegmentationBackend = {
           name: `${MODEL.id}-onnx-wasm`,
           inputSize: MODEL.inputSize,
+          focusPasses: MODEL.focusPasses,
           async run(input, size) {
             const t = new ort.Tensor('float32', input, [1, 6, size, size]);
             const out = await session.run({ input: t });
