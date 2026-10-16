@@ -31,6 +31,7 @@
     "screenshots": "node scripts/screenshots.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "bench": "npm run build && playwright test -c playwright.bench.config.ts",
     "test:all": "npm run typecheck && npm run audit:contrast && npm test && npm run build && npm run test:e2e"
   },
   "devDependencies": {

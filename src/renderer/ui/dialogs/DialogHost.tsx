@@ -115,7 +115,26 @@ export function Dialog({ title, children, footer, footerStart, size, wide, split
     };
     window.addEventListener('keydown', onKey, true);
     const offEdges = root ? watchScrollRegions(root, SCROLL_REGIONS) : null;
+    // WCAG 2.1.1: a scrolling region with nothing focusable inside (a guide, a shortcut list) must
+    // itself take focus so the keyboard can scroll it. Checked after layout, and again on resize.
+    const makeScrollable = () => {
+      if (!root) return;
+      for (const el of root.querySelectorAll<HTMLElement>(SCROLL_REGIONS)) {
+        const scrolls = el.scrollHeight > el.clientHeight + 1;
+        const hasFocusable = [...el.querySelectorAll<HTMLElement>(FOCUSABLE)].some((x) => x !== el && !x.hasAttribute('disabled') && x.tabIndex !== -1);
+        if (scrolls && !hasFocusable && !el.hasAttribute('tabindex')) {
+          el.tabIndex = 0;
+          el.dataset.scrollFocus = '';
+          if (!el.getAttribute('aria-label') && !el.getAttribute('role')) {
+            el.setAttribute('role', 'region');
+            el.setAttribute('aria-label', root.querySelector('h2')?.textContent ?? 'Content');
+          }
+        }
+      }
+    };
+    const raf = requestAnimationFrame(makeScrollable);
     return () => {
+      cancelAnimationFrame(raf);
       offEdges?.();
       window.removeEventListener('keydown', onKey, true);
       if (prev && document.contains(prev)) prev.focus?.();

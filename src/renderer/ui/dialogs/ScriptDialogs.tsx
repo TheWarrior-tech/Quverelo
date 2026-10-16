@@ -87,7 +87,7 @@ export function ScriptEditorDialog({ id, example }: { id?: string; example?: str
             data-autofocus=""
           />
         </div>
-        <aside className="script-help" aria-label="Scripting reference">
+        <aside className="script-help" aria-label="Scripting reference" tabIndex={0}>
           <h4>Document</h4>
           <ul>
             <li><code>document.page</code>, <code>document.pages</code></li>

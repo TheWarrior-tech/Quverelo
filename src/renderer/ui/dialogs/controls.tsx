@@ -35,6 +35,8 @@ export function Segmented<T extends string | number>({ value, options, onChange,
       options={options.map((o) => ({
         value: o.value,
         title: o.title,
+        // a non-text label (an orientation glyph) takes its name from the tooltip text
+        ariaLabel: typeof o.label === 'string' || o.icon ? undefined : o.title,
         disabled: o.disabled,
         label: o.icon ? (<>{<Icon name={o.icon} size={16} />}{o.label}</>) : o.label,
       }))}

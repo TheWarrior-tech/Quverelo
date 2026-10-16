@@ -60,7 +60,7 @@ test.describe('Welcome and first run', () => {
     await L.app.close();
 
     L = await launch({ QUVRELO_USER_DATA: userData });
-    await expect(L.page.locator('[data-step="create"]')).toHaveAttribute('aria-label', 'Create a document, done');
+    await expect(L.page.locator('[data-step="create"]')).toHaveAccessibleName(/^Create a document, done/);
     await expect(L.page.locator('.cl-count')).toHaveText('1/5');
     await L.page.getByTestId('checklist-dismiss').click();
     await expect(L.page.getByTestId('checklist')).toHaveCount(0);

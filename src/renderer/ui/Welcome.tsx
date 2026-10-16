@@ -56,10 +56,14 @@ const TILE = { w: 136, h: 104 }; // page fits inside the 4:3 tile with breathing
 function TemplateCard({ t }: { t: TemplateInfo }) {
   const doc = useMemo(() => t.build(), [t]);
   return (
-    <button className="tile" onClick={() => newFromTemplate(t.id)} aria-label={`New ${t.name}: ${t.description}, ${t.size}`} data-template={t.id}>
+    <button className="tile" onClick={() => newFromTemplate(t.id)} data-template={t.id}>
       <span className="tile-thumb"><DocThumb doc={doc} box={TILE} /></span>
+      {/* accessible name = "New <name>, <size>: <description>"; the visible words are part of it (WCAG 2.5.3) */}
+      <span className="sr-only">New </span>
       <span className="tile-name">{t.name}</span>
+      <span className="sr-only">, </span>
       <span className="tile-meta">{t.size}</span>
+      <span className="sr-only">: {t.description}</span>
     </button>
   );
 }
@@ -214,9 +218,10 @@ function Checklist({ recent }: { recent: RecentFile[] | null }) {
           const done = ob.done.includes(s);
           return (
             <li key={s}>
-              <button type="button" className={`cl-row${done ? ' done' : ''}`} onClick={() => actions[s].run()} data-step={s} aria-label={`${STEP_LABELS[s]}${done ? ', done' : ''}`}>
+              <button type="button" className={`cl-row${done ? ' done' : ''}`} onClick={() => actions[s].run()} data-step={s}>
                 <span className="cl-check"><Icon name={done ? 'circle-check' : 'circle'} size={16} /></span>
                 <span className="cl-label">{STEP_LABELS[s]}</span>
+                {done && <span className="sr-only">, done</span>}
                 {actions[s].hint && <span className="cl-hint" aria-hidden="true"><Keys combo={actions[s].hint!} /></span>}
                 <span className="cl-go"><Icon name="chevron-right" size={16} /></span>
               </button>

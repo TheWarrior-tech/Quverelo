@@ -123,7 +123,7 @@ function CommandSearch() {
   const accel = accelFor('help.command-palette') ?? 'CmdOrCtrl+K';
   const t = tip('Search commands', 'help.command-palette');
   return (
-    <button type="button" className="topbar-search" aria-label="Search commands" aria-haspopup="dialog" aria-keyshortcuts={t['aria-keyshortcuts']} data-tip={t['data-tip']} data-keys={t['data-keys']} onClick={() => openPalette()}>
+    <button type="button" className="topbar-search" aria-haspopup="dialog" aria-keyshortcuts={t['aria-keyshortcuts']} data-tip={t['data-tip']} data-keys={t['data-keys']} onClick={() => openPalette()}>
       <Icon name="search" />
       <span className="topbar-search-label">Search commands</span>
       <span className="topbar-search-keys" aria-hidden="true"><Keys combo={accel} /></span>

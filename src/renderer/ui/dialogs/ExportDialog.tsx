@@ -254,7 +254,8 @@ export function ExportDialog({ format: initial }: { format: Format }) {
       footer={<><button className="btn" onClick={closeDialog}>Cancel</button><button className="btn primary" disabled={!canGo} onClick={go} data-testid="export-go">{busy ? 'Exporting…' : 'Export…'}</button></>}
     >
       <nav className="dlg-side narrow" role="tablist" aria-label="Format" aria-orientation="vertical">
-        <h3 className="micro">Format</h3>
+        {/* the tablist is named by aria-label; the visible heading is decoration for sighted users */}
+        <h3 className="micro" aria-hidden="true">Format</h3>
         {kinds.map((f) => (
           <button
             key={f.id}
