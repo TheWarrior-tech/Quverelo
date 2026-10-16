@@ -10,6 +10,7 @@ import {
   type RecoveryEntry, type UpdateState, type UserSettings,
 } from '../shared/api';
 import { UpdateService } from './updates/updater';
+import { isRequestAllowed } from '../core/requestFilter';
 
 const E2E = process.env.QUVRELO_E2E === '1';
 
@@ -448,11 +449,12 @@ if (!E2E && !app.requestSingleInstanceLock()) {
       ['clipboard-read', 'clipboard-sanitized-write', 'local-fonts'].includes(permission as string),
     );
     // Offline by design: block every remote request from the renderer.
+    // The Vite dev server (and its HMR websocket) is reachable only in unpackaged dev runs.
+    const filterEnv = { packaged: app.isPackaged, devServerUrl: process.env.VITE_DEV_SERVER_URL };
     session.defaultSession.webRequest.onBeforeRequest((details, cb) => {
-      const u = details.url;
-      const local = u.startsWith('file:') || u.startsWith('data:') || u.startsWith('blob:') || u.startsWith('devtools:') ||
-        (process.env.VITE_DEV_SERVER_URL && u.startsWith(process.env.VITE_DEV_SERVER_URL)) || u.startsWith('ws://localhost');
-      cb({ cancel: !local });
+      const allowed = isRequestAllowed(details.url, filterEnv);
+      if (!allowed && E2E) ((globalThis as { __quvreloBlocked?: string[] }).__quvreloBlocked ??= []).push(details.url);
+      cb({ cancel: !allowed });
     });
     registerIpc();
     buildMenu();
