@@ -20,6 +20,9 @@ const report: Record<string, Violation[]> = {};
 
 async function axeScan(page: Page, label: string, include?: string): Promise<Violation[]> {
   await page.evaluate(AXE); // evaluate is not subject to the app's CSP
+  // Measure the settled UI, not a frame of a dialog's fade-in: mid-animation, axe blends colours with the translucent
+  // dialog and reports contrast that no user sees once it has opened (light theme, 4.49:1 on a 5.2:1 button).
+  await page.evaluate(() => Promise.all(document.getAnimations().filter((a) => a.effect?.getTiming().iterations !== Infinity).map((a) => a.finished.catch(() => undefined))));
   const res = await page.evaluate(async ({ include }) => {
     const axe = (window as unknown as { axe: { run: (ctx: unknown, opts: unknown) => Promise<{ violations: { id: string; impact: string; help: string; nodes: { target: string[] }[] }[] }> } }).axe;
     const ctx = include ? { include: [[include]], exclude: [['.viewport canvas']] } : { exclude: [['.viewport canvas']] };
