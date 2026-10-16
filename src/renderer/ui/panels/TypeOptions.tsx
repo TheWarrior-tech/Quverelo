@@ -6,9 +6,17 @@
  * font does not have is marked, so a student is never left wondering why
  * old-style figures do nothing in Inter.
  */
-import type { FigureSpacing, FigureStyle, TextPosition, TextStyle } from '../../../core/types';
+import type { FigureSpacing, FigureStyle, TabAlign, TabStop, TextLanguage, TextPosition, TextStyle } from '../../../core/types';
+import { HYPHEN_LANGUAGES } from '../../../core/hyphenation';
+import { DEFAULT_TAB_INTERVAL } from '../../../core/textflow';
+import { Segmented } from '../controls/Segmented';
+import { Icon } from '../Icons';
 import { BUNDLED_FEATURES } from '../../../core/otFeatures';
 import { applyCharStyle, applyParagraphStyle, paragraphIndexAt, sheetOf } from '../../../core/typography';
+import { applyCellCharStyle, cellStory } from '../../../core/tables';
+import { updateNode } from '../../../core/commands';
+import { findNode } from '../../../core/document';
+import type { SceneNode } from '../../../core/types';
 import { editor } from '../../state/editor';
 import type { FrameTextTarget } from '../../state/textTarget';
 import { NumberField } from '../controls/NumberField';
@@ -37,12 +45,14 @@ export function fontHas(family: string, feature: string): boolean {
   return !list || list.includes(feature);
 }
 
-/** Paragraph and character style pickers for the frame / selection. */
+/** Paragraph and character style pickers for the frame / selection (character style only inside a table cell). */
 export function StylePickers({ target }: { target: FrameTextTarget }) {
   const ed = useEditor();
   const doc = ed.doc!;
   const sheet = sheetOf(doc);
-  const story = doc.stories[target.storyId];
+  const cellLoc = target.kind === 'cell' && target.cell ? target.cell : null;
+  const table = cellLoc ? findNode(doc, cellLoc.nodeId)?.node : null;
+  const story = cellLoc ? (table?.type === 'table' ? cellStory(table, sheet, cellLoc.r, cellLoc.c) : null) : doc.stories[target.storyId];
   if (!story) return null;
   const pi = paragraphIndexAt(story.text, target.range.start);
   const paraStyle = story.paras?.[pi]?.styleId ?? '';
@@ -53,21 +63,31 @@ export function StylePickers({ target }: { target: FrameTextTarget }) {
       const s = d.stories[target.storyId];
       return { ...d, stories: { ...d.stories, [target.storyId]: applyParagraphStyle(s, target.range.start, target.range.end, id || null) } };
     });
-  const applyChar = (id: string) =>
+  const applyChar = (id: string) => {
+    if (cellLoc) {
+      const { nodeId, r, c } = cellLoc;
+      editor.commit('Apply character style', (d) => updateNode(d, nodeId, (x: SceneNode) => (x.type === 'table' ? applyCellCharStyle(x, r, c, target.range.start, target.range.end, id || null) : x)));
+      return;
+    }
     editor.commit('Apply character style', (d) => {
       const s = d.stories[target.storyId];
       return { ...d, stories: { ...d.stories, [target.storyId]: applyCharStyle(s, target.range.start, target.range.end, id || null) } };
     });
+  };
+  const charPicker = (
+    <select aria-label="Character style" title={target.scope === 'selection' ? 'Character style of the selected text' : 'Select text to apply a character style'} value={charStyle} disabled={target.scope !== 'selection'} onChange={(e) => applyChar(e.target.value)} data-testid="char-style">
+      <option value="">No character style</option>
+      {sheet.character.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+    </select>
+  );
+  if (cellLoc) return <div className="row type-styles" data-keep-text-edit>{charPicker}</div>;
   return (
     <div className="grid2 type-styles" data-keep-text-edit>
       <select aria-label="Paragraph style" title="Paragraph style" value={paraStyle} onChange={(e) => applyPara(e.target.value)} data-testid="para-style">
         <option value="">No paragraph style</option>
         {sheet.paragraph.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
       </select>
-      <select aria-label="Character style" title={target.scope === 'selection' ? 'Character style of the selected text' : 'Select text to apply a character style'} value={charStyle} disabled={target.scope !== 'selection'} onChange={(e) => applyChar(e.target.value)} data-testid="char-style">
-        <option value="">No character style</option>
-        {sheet.character.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-      </select>
+      {charPicker}
     </div>
   );
 }
@@ -95,6 +115,81 @@ export function ParagraphOptions({ style, apply, mixed }: { style: TextStyle; ap
           <input type="checkbox" checked={!!style.alignToGrid} onChange={(e) => apply({ alignToGrid: e.target.checked })} /> Align to baseline grid
         </label>
       </div>
+      <HyphenKeepOptions style={style} apply={apply} />
+      <TabStopsEditor style={style} apply={apply} />
+    </div>
+  );
+}
+
+/** Hyphenation (with its language) and keep options: keep with next, keep lines together, widows and orphans. */
+export function HyphenKeepOptions({ style, apply }: { style: TextStyle; apply: (p: Partial<TextStyle>) => void }) {
+  const wo = (style.widows ?? 0) > 1 || (style.orphans ?? 0) > 1;
+  return (
+    <>
+      <div className="row type-hyphen">
+        <label className="check" title="Break long words at line ends with a hyphen, using dictionary patterns">
+          <input type="checkbox" data-testid="para-hyphenate" checked={!!style.hyphenate} onChange={(e) => apply({ hyphenate: e.target.checked })} /> Hyphenate
+        </label>
+        <select aria-label="Hyphenation language" title="Hyphenation language" value={style.language ?? 'en-GB'} disabled={!style.hyphenate} onChange={(e) => apply({ language: e.target.value as TextLanguage })}>
+          {HYPHEN_LANGUAGES.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
+        </select>
+      </div>
+      <div className="row type-checks type-keeps">
+        <label className="check" title="Keep this paragraph’s last line in the same column as the next paragraph (headings)">
+          <input type="checkbox" data-testid="para-keep-next" checked={!!style.keepWithNext} onChange={(e) => apply({ keepWithNext: e.target.checked })} /> Keep with next
+        </label>
+        <label className="check" title="Never split this paragraph across columns or frames">
+          <input type="checkbox" data-testid="para-keep-together" checked={!!style.keepTogether} onChange={(e) => apply({ keepTogether: e.target.checked })} /> Keep lines together
+        </label>
+        <label className="check" title="At least two lines of a paragraph at the foot of a column and at the top of the next">
+          <input type="checkbox" data-testid="para-widows" checked={wo} onChange={(e) => apply({ widows: e.target.checked ? 2 : 0, orphans: e.target.checked ? 2 : 0 })} /> Widow and orphan control
+        </label>
+      </div>
+    </>
+  );
+}
+
+const TAB_ALIGN: { value: TabAlign; label: string }[] = [
+  { value: 'left', label: 'Left tab' },
+  { value: 'center', label: 'Centre tab' },
+  { value: 'right', label: 'Right tab' },
+  { value: 'decimal', label: 'Decimal tab (aligns on the point)' },
+];
+const LEADERS: { value: string; label: string }[] = [
+  { value: '', label: 'No leader' },
+  { value: '.', label: 'Dots  . . . .' },
+  { value: '-', label: 'Dashes  - - - -' },
+  { value: '_', label: 'Line  ____' },
+];
+
+/** Tab stops of the paragraph: position, alignment and leader; default stops every ½ inch after the last. */
+export function TabStopsEditor({ style, apply }: { style: TextStyle; apply: (p: Partial<TextStyle>) => void }) {
+  const stops = [...(style.tabStops ?? [])].sort((a, b) => a.pos - b.pos);
+  const set = (next: TabStop[]) => apply({ tabStops: [...next].sort((a, b) => a.pos - b.pos) });
+  const update = (i: number, patch: Partial<TabStop>) => set(stops.map((s, k) => (k === i ? { ...s, ...patch } : s)));
+  const add = () => set([...stops, { pos: (stops.length ? stops[stops.length - 1].pos : 0) + DEFAULT_TAB_INTERVAL * 2, align: 'left' }]);
+  return (
+    <div className="tab-stops" data-testid="tab-stops">
+      <div className="sub-label tab-stops-head">
+        <span>Tab stops</span>
+        <button type="button" className="icon-btn sm" aria-label="Add tab stop" data-tip="Add tab stop" onClick={add}><Icon name="plus" size={16} /></button>
+      </div>
+      {!stops.length && <p className="hint tab-stops-empty">Default stops every 12.7 mm. Press Tab in the text to move to the next one.</p>}
+      {stops.map((st, i) => (
+        <div className="tab-stop" key={i} data-testid="tab-stop">
+          <NumberField label="At" ariaLabel={`Tab stop ${i + 1} position`} unit="pt" digits={1} min={0} max={5000} value={st.pos} onCommit={(v) => update(i, { pos: v })} />
+          <Segmented
+            ariaLabel={`Tab stop ${i + 1} alignment`}
+            value={st.align}
+            onChange={(a) => update(i, { align: a })}
+            options={TAB_ALIGN.map((a) => ({ value: a.value, ariaLabel: a.label, label: <Icon name={`tab-${a.value}`} size={16} /> }))}
+          />
+          <select aria-label={`Tab stop ${i + 1} leader`} value={st.leader ?? ''} onChange={(e) => update(i, { leader: e.target.value || undefined })}>
+            {LEADERS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
+          </select>
+          <button type="button" className="icon-btn sm" aria-label={`Remove tab stop ${i + 1}`} data-tip="Remove tab stop" onClick={() => set(stops.filter((_, k) => k !== i))}><Icon name="trash" size={16} /></button>
+        </div>
+      ))}
     </div>
   );
 }

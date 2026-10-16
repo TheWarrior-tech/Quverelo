@@ -1,10 +1,10 @@
 /**
  * In-place text editing.
  *
- * - Artistic text and table cells: a transparent textarea is laid exactly over
- *   the text using the node's screen matrix and shows the text itself (one
- *   style), so editing is WYSIWYG at any zoom or rotation.
- * - Text frames (Layout): the story can mix paragraph and character styles, so
+ * - Artistic text: a transparent textarea is laid exactly over the text using
+ *   the node's screen matrix and shows the text itself (one style), so editing
+ *   is WYSIWYG at any zoom or rotation.
+ * - Text frames and table cells (Layout): text can mix character styles, so
  *   the canvas keeps drawing the real layout and the textarea is an invisible
  *   input sink holding the whole story. The caret and selection are drawn on
  *   the viewport overlay from the flow layout; clicks, drags and Up/Down/Home/
@@ -15,7 +15,7 @@ import { findNode, getContainer } from '../../core/document';
 import { removeNodes, setStoryText, updateNode } from '../../core/commands';
 import { caretX, indexAtX, lineHeightPx, type LaidOutLine } from '../../core/textflow';
 import { applyCharProps, sheetOf, styleAt } from '../../core/typography';
-import { cellRect, cellTextStyle, resolveCell, setCellText } from '../../core/tables';
+import { applyCellCharProps, cellRect, cellStory, cellTextStyle, layoutCell, resolveCell, setCellText } from '../../core/tables';
 import { composeTransform, invert, multiply, type Matrix } from '../../core/geometry';
 import type { Id, Paint, SceneNode, Story, TextStyle } from '../../core/types';
 import { artisticTextSize, cssFont, measureText, storyFlow } from './draw';
@@ -99,9 +99,13 @@ export class TextEditOverlay {
     return !!this.ta;
   }
 
-  /** Rich (layout) editing: the canvas keeps drawing the frame. */
+  /** Rich (layout) editing: the canvas keeps drawing the frame / cell and the caret comes from the layout. */
   get rich(): boolean {
-    return !!this.ta && this.mode === 'frame';
+    return !!this.ta && this.isRich();
+  }
+
+  private isRich(): boolean {
+    return this.mode === 'frame' || this.mode === 'cell';
   }
 
   get editingCell(): { r: number; c: number } | null {
@@ -121,7 +125,7 @@ export class TextEditOverlay {
     this.mode = loc.node.type === 'textframe' ? 'frame' : loc.node.type === 'table' ? 'cell' : 'text';
     this.cell = cell ?? null;
     const ta = this.ta ?? document.createElement('textarea');
-    ta.className = `text-edit-overlay${this.mode === 'frame' ? ' rich' : ''}`;
+    ta.className = `text-edit-overlay${this.isRich() ? ' rich' : ''}`;
     ta.spellcheck = true;
     ta.setAttribute('aria-label', this.mode === 'cell' ? 'Edit table cell' : 'Edit text');
     if (!this.ta) {
@@ -142,9 +146,9 @@ export class TextEditOverlay {
           /* not captured */
         }
       });
-      ta.addEventListener('dblclick', (e) => this.mode === 'frame' && this.selectWordAt(e));
+      ta.addEventListener('dblclick', (e) => this.isRich() && this.selectWordAt(e));
       ta.addEventListener('click', (e) => {
-        if (this.mode !== 'frame' || e.detail < 3 || !this.ta) return;
+        if (!this.isRich() || e.detail < 3 || !this.ta) return;
         // triple click: the paragraph
         const p = this.scenePoint(e);
         const h = this.hitScene(p.x, p.y);
@@ -156,8 +160,11 @@ export class TextEditOverlay {
         this.ta.setSelectionRange(a, b);
         this.selectionChanged();
       });
-      ta.addEventListener('blur', () => {
-        // allow toolbar interactions (font pickers, styles panel) to keep the session alive briefly
+      ta.addEventListener('blur', (e) => {
+        // focus moving to formatting controls (font pickers, styles panel) keeps the session;
+        // onFocusOut follows focus from there (a control re-rendered away leaves focus on <body>)
+        const to = e.relatedTarget as HTMLElement | null;
+        if (to?.closest?.('[data-keep-text-edit]')) return;
         window.setTimeout(() => {
           if (this.ta && document.activeElement !== this.ta && !document.activeElement?.closest('[data-keep-text-edit]')) this.end();
         }, 120);
@@ -177,7 +184,7 @@ export class TextEditOverlay {
     this.loadValue();
     this.position();
     let start = ta.value.length;
-    if (this.mode === 'frame' && at) {
+    if (this.isRich() && at) {
       const h = this.hitScene(at.x, at.y);
       if (h) start = h.index;
     }
@@ -242,7 +249,21 @@ export class TextEditOverlay {
       this.followCaret();
     } else if (n.type === 'table' && this.cell) {
       const { r, c } = this.cell;
-      ed.commit('Type in cell', (d) => updateNode(d, n.id, (x: SceneNode) => (x.type === 'table' ? setCellText(x, r, c, value) : x)), `cell:${n.id}:${r}:${c}`);
+      const before = n.cells[r]?.[c]?.text ?? '';
+      const pending = this.pendingProps;
+      const grew = value.length > before.length;
+      ed.commit('Type in cell', (d) => updateNode(d, n.id, (x: SceneNode) => {
+        if (x.type !== 'table') return x;
+        let t = setCellText(x, r, c, value);
+        if (pending && grew) {
+          const end = this.ta?.selectionEnd ?? value.length;
+          t = applyCellCharProps(t, r, c, Math.max(0, end - (value.length - before.length)), end, pending);
+        }
+        return t;
+      }), `cell:${n.id}:${r}:${c}`);
+      if (pending && grew) this.pendingProps = null;
+      this.goalX = null;
+      this.followCaret();
     }
     this.position();
     this.selectionChanged();
@@ -257,8 +278,8 @@ export class TextEditOverlay {
       return;
     }
     // the story may have changed underneath (undo, styles panel): keep the textarea in step
-    if (this.mode === 'frame') {
-      const s = this.story();
+    if (this.isRich()) {
+      const s = this.richStory();
       if (s && this.ta.value !== s.text && !this.composing) {
         const a = Math.min(this.ta.selectionStart, s.text.length);
         const b = Math.min(this.ta.selectionEnd, s.text.length);
@@ -317,7 +338,7 @@ export class TextEditOverlay {
     ta.style.fontKerning = style.kerning === false ? 'none' : 'normal';
     ta.style.fontVariantCaps = style.caps ?? 'normal';
     ta.style.textDecoration = style.underline ? 'underline' : 'none';
-    if (this.mode === 'frame') {
+    if (this.isRich()) {
       ta.style.color = 'transparent';
       ta.style.caretColor = 'transparent';
     } else {
@@ -338,6 +359,7 @@ export class TextEditOverlay {
   private frames(): { frame: FrameNode; m: Matrix; inView: boolean }[] {
     const ed = this.vp.editor;
     const doc = ed.doc;
+    if (this.mode === 'cell') return this.cellFrame();
     const story = this.story();
     if (!doc || !story) return [];
     const active = ed.ui.activeContainerId;
@@ -354,7 +376,37 @@ export class TextEditOverlay {
     return out;
   }
 
+  /** The edited cell as a one-frame "chain" (cell-local origin = its top-left corner). */
+  private cellFrame(): { frame: FrameNode; m: Matrix; inView: boolean }[] {
+    const doc = this.vp.editor.doc;
+    if (!doc || !this.cell || !this.nodeId) return [];
+    const loc = findNode(doc, this.nodeId);
+    if (!loc || loc.node.type !== 'table') return [];
+    const t = loc.node;
+    const rc = cellRect(t, this.cell.r, this.cell.c);
+    const props = resolveCell(t, sheetOf(doc), this.cell.r, this.cell.c);
+    let m: Matrix = [1, 0, 0, 1, 0, 0];
+    for (const g of loc.ancestors) m = multiply(m, composeTransform(g));
+    m = multiply(m, composeTransform(t));
+    m = multiply(m, [1, 0, 0, 1, -t.w / 2 + rc.x, -t.h / 2 + rc.y]);
+    const frame = { id: 'cell', type: 'textframe', w: rc.w, h: rc.h, padding: props.padding } as unknown as FrameNode;
+    return [{ frame, m, inView: loc.container.id === this.vp.editor.ui.activeContainerId }];
+  }
+
+  /** The text being edited richly: the frame's story, or the cell's text as a story. */
+  private richStory(): Story | null {
+    if (this.mode === 'frame') return this.story();
+    const n = this.node();
+    if (this.mode !== 'cell' || !n || n.type !== 'table' || !this.cell || !n.cells[this.cell.r]?.[this.cell.c]) return null;
+    return cellStory(n, sheetOf(this.vp.editor.doc!), this.cell.r, this.cell.c);
+  }
+
   private flow() {
+    if (this.mode === 'cell') {
+      const n = this.node();
+      if (!n || n.type !== 'table' || !this.cell || !n.cells[this.cell.r]?.[this.cell.c]) return null;
+      return layoutCell(n, sheetOf(this.vp.editor.doc!), this.cell.r, this.cell.c, measureText).flow;
+    }
     const s = this.story();
     const doc = this.vp.editor.doc;
     if (!s || !doc) return null;
@@ -426,7 +478,7 @@ export class TextEditOverlay {
   }
 
   private onPointerDown(e: PointerEvent): void {
-    if (this.mode !== 'frame' || !this.ta) return;
+    if (!this.isRich() || !this.ta) return;
     if (e.button !== 0) return;
     e.preventDefault();
     this.ta.focus();
@@ -446,7 +498,7 @@ export class TextEditOverlay {
   }
 
   private onPointerMove(e: PointerEvent): void {
-    if (this.mode !== 'frame' || this.dragAnchor === null || !this.ta || !(e.buttons & 1)) return;
+    if (!this.isRich() || this.dragAnchor === null || !this.ta || !(e.buttons & 1)) return;
     const p = this.scenePoint(e);
     const h = this.hitScene(p.x, p.y);
     if (h) this.setRange(this.dragAnchor, h.index);
@@ -494,7 +546,13 @@ export class TextEditOverlay {
       this.moveCell(e.shiftKey ? -1 : 1);
       return;
     }
-    if (this.mode !== 'frame' || !this.ta) return;
+    if (this.mode === 'frame' && e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+      // a tab character moves the text to the next tab stop (Esc leaves the frame)
+      e.preventDefault();
+      this.insert('\t');
+      return;
+    }
+    if (!this.isRich() || !this.ta) return;
     const ta = this.ta;
     const focus = ta.selectionDirection === 'backward' ? ta.selectionStart : ta.selectionEnd;
     const anchor = ta.selectionDirection === 'backward' ? ta.selectionEnd : ta.selectionStart;
@@ -558,8 +616,8 @@ export class TextEditOverlay {
 
   /** Selection (story indices) changed: publish it for the inspector and redraw the caret. */
   private selectionChanged(): void {
-    if (!this.ta || this.mode !== 'frame') return;
-    const s = this.story();
+    if (!this.ta || !this.isRich()) return;
+    const s = this.richStory();
     if (!s) return;
     const start = this.ta.selectionStart;
     const end = this.ta.selectionEnd;
@@ -575,11 +633,11 @@ export class TextEditOverlay {
 
   /** Keep the (invisible) textarea's caret near the drawn caret so IME popups appear in the right place. */
   private followCaret(): void {
-    if (this.mode !== 'frame' || !this.ta) return;
+    if (!this.isRich() || !this.ta) return;
     const loc = this.locate(this.ta.selectionEnd);
     if (!loc) return;
     const doc = this.vp.editor.doc!;
-    const story = this.story();
+    const story = this.richStory();
     if (!story) return;
     const st = styleAt(story, sheetOf(doc), Math.max(0, this.ta.selectionEnd - 1));
     this.ta.style.fontSize = `${st.fontSize}px`;
@@ -587,7 +645,7 @@ export class TextEditOverlay {
 
   /** Caret / selection chrome on the viewport overlay (scene-space context). */
   drawChrome(ctx: CanvasRenderingContext2D, px: number): void {
-    if (this.mode !== 'frame' || !this.ta) return;
+    if (!this.isRich() || !this.ta) return;
     const flow = this.flow();
     if (!flow) return;
     const a = this.ta.selectionStart;
@@ -599,12 +657,14 @@ export class TextEditOverlay {
       const lay = flow.frames[f.frame.id];
       ctx.save();
       ctx.transform(f.m[0], f.m[1], f.m[2], f.m[3], f.m[4], f.m[5]);
-      // frame outline while editing
-      ctx.strokeStyle = 'rgba(47,184,166,0.9)';
-      ctx.lineWidth = px;
-      ctx.setLineDash([4 * px, 3 * px]);
-      ctx.strokeRect(0, 0, f.frame.w, f.frame.h);
-      ctx.setLineDash([]);
+      // frame outline while editing (a cell already has its selection outline)
+      if (this.mode === 'frame') {
+        ctx.strokeStyle = 'rgba(47,184,166,0.9)';
+        ctx.lineWidth = px;
+        ctx.setLineDash([4 * px, 3 * px]);
+        ctx.strokeRect(0, 0, f.frame.w, f.frame.h);
+        ctx.setLineDash([]);
+      }
       if (lay && a !== b) {
         ctx.fillStyle = 'rgba(47,184,166,0.28)';
         for (const l of lay.lines) {
@@ -632,7 +692,7 @@ export class TextEditOverlay {
         // empty story: caret at the first frame's content origin
         const f = frames.find((x) => x.inView);
         if (f) {
-          const story = this.story();
+          const story = this.richStory();
           const st = story ? story.style : null;
           ctx.save();
           ctx.transform(f.m[0], f.m[1], f.m[2], f.m[3], f.m[4], f.m[5]);
@@ -649,7 +709,7 @@ export class TextEditOverlay {
   private startBlink(): void {
     if (this.blinkTimer !== null) return;
     this.blinkTimer = window.setInterval(() => {
-      if (!this.ta || this.mode !== 'frame') return;
+      if (!this.ta || !this.isRich()) return;
       if (this.ta.selectionStart !== this.ta.selectionEnd) return;
       if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
         if (!this.blinkOn) {
@@ -665,8 +725,8 @@ export class TextEditOverlay {
 
   /** Current selection in story indices while editing a frame (null otherwise). */
   selection(): { storyId: Id; start: number; end: number } | null {
-    const s = this.story();
-    if (!s || !this.ta || this.mode !== 'frame') return null;
+    const s = this.richStory();
+    if (!s || !this.ta || !this.isRich()) return null;
     return { storyId: s.id, start: this.ta.selectionStart, end: this.ta.selectionEnd };
   }
 

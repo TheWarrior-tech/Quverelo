@@ -13,12 +13,12 @@ import {
   addCellStyle, addCharacterStyle, addParagraphStyle, defaultLayoutStyles, applyCharStyle, applyParagraphStyle, deleteTextStyle, pickChar, resolveParagraphStyle,
   sheetOf, styleFromText, styleUsage, updateTextStyle,
 } from '../../../core/typography';
-import { cellsInRange, setCellStyle } from '../../../core/tables';
+import { applyCellCharStyle, cellsInRange, setCellStyle } from '../../../core/tables';
 import { findNode, solid } from '../../../core/document';
 import { updateNode } from '../../../core/commands';
 import { editor } from '../../state/editor';
 import { toast } from '../../state/bus';
-import { frameTextTarget } from '../../state/textTarget';
+import { cellTextTarget, frameTextTarget } from '../../state/textTarget';
 import { useEditor } from '../hooks';
 import { Icon } from '../Icons';
 import { Section } from '../controls/Panel';
@@ -26,6 +26,7 @@ import { NumberField } from '../controls/NumberField';
 import { FontPicker } from '../controls/FontPicker';
 import { PaintRow } from '../color/PaintRow';
 import { primaryFamily } from '../fonts';
+import { HyphenKeepOptions } from './TypeOptions';
 
 type Kind = 'paragraph' | 'character' | 'cell';
 
@@ -35,7 +36,10 @@ function currentFrameTarget() {
   if (!doc) return null;
   const id = editor.ui.editingTextId ?? editor.ui.selection[0];
   const n = id ? findNode(doc, id)?.node : null;
-  return n?.type === 'textframe' ? frameTextTarget(doc, n.storyId) : null;
+  if (n?.type === 'textframe') return frameTextTarget(doc, n.storyId);
+  const tc = editor.ui.tableCell;
+  if (n?.type === 'table' && editor.ui.editingTextId === n.id && tc?.nodeId === n.id) return cellTextTarget(doc, n, tc.r, tc.c);
+  return null;
 }
 
 function currentCells(): { nodeId: Id; cells: { r: number; c: number }[] } | null {
@@ -59,6 +63,12 @@ function applyStyle(kind: Kind, id: Id | null) {
   const t = currentFrameTarget();
   if (!t) return toast('Select a text frame, or click into its text, to apply a style');
   if (kind === 'character' && t.scope === 'caret') return toast('Select some text to apply a character style');
+  if (t.kind === 'cell' && t.cell) {
+    if (kind !== 'character') return toast('Table cells take cell styles; paragraph styles are for text frames');
+    const { nodeId, r, c } = t.cell;
+    editor.commit('Apply character style', (d) => updateNode(d, nodeId, (n) => (n.type === 'table' ? applyCellCharStyle(n, r, c, t.range.start, t.range.end, id) : n)));
+    return;
+  }
   editor.commit(kind === 'paragraph' ? 'Apply paragraph style' : 'Apply character style', (d) => {
     const s = d.stories[t.storyId];
     const next = kind === 'paragraph' ? applyParagraphStyle(s, t.range.start, t.range.end, id) : applyCharStyle(s, t.range.start, t.range.end, id);
@@ -126,7 +136,7 @@ export function StylesPanel() {
 
   const empty = !sheet.paragraph.length && !sheet.character.length && !sheet.cell.length;
   return (
-    <div className="styles-panel">
+    <div className="styles-panel" data-keep-text-edit>
       {empty && (
         <div className="row starter-styles">
           <button type="button" className="btn sm" data-testid="starter-styles" onClick={() => editor.commit('Add starter styles', (d) => ({ ...d, textStyles: defaultLayoutStyles() }))}>Add starter styles</button>
@@ -232,6 +242,7 @@ function StyleEditor({ kind, id, onClose }: { kind: Kind; id: Id; onClose: () =>
           <div className="row">
             <label className="check"><input type="checkbox" checked={!!eff.alignToGrid} onChange={(e) => set({ alignToGrid: e.target.checked })} /> Align to baseline grid</label>
           </div>
+          <HyphenKeepOptions style={eff as TextStyle} apply={set} />
         </>
       )}
       <div className="row insp-row">

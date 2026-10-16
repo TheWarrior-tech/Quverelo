@@ -100,6 +100,37 @@
   flex-wrap: wrap;
   gap: 4px 12px;
 }
+.type-hyphen {
+  gap: 8px;
+  align-items: center;
+}
+.type-hyphen select {
+  flex: 1;
+  min-width: 0;
+}
+.tab-stops {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tab-stops-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 4px 0 0;
+}
+.tab-stops-empty {
+  margin: 0;
+}
+.tab-stop {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px;
+  align-items: center;
+}
+.tab-stop select {
+  min-width: 0;
+}
 
 /* ---------- Flow / tables / wrap ---------- */
 .flow-status {

@@ -5,8 +5,9 @@
  */
 import { newId } from './ids';
 import { defaultTextStyle, solid } from './document';
-import { flowStory, type FlowResult, type MeasureFn } from './textflow';
-import type { CellProps, Id, Paint, TableCell, TableNode, TextStyle, TextStyleSheet } from './types';
+import { flowRichStory, type FlowResult, type MeasureFn } from './textflow';
+import { applyCharProps, applyCharStyle, clearCharFormatting, normaliseSpans, replaceStoryText } from './typography';
+import type { CellProps, CharSpan, Id, Paint, Story, TableCell, TableNode, TextStyle, TextStyleSheet } from './types';
 
 export const DEFAULT_CELL: CellProps = {
   fill: { type: 'none' },
@@ -110,12 +111,51 @@ export function cellTextStyle(p: CellProps): TextStyle {
   return { ...TABLE_TEXT_BASE, ...p.text };
 }
 
+/** Id used for a cell's text where a story id is expected (editor selection, styles). */
+export function cellStoryId(tableId: Id, r: number, c: number): Id {
+  return `cell:${tableId}:${r}:${c}`;
+}
+
+/** A cell's text as a story (base style = the resolved cell text style; per-character spans). */
+export function cellStory(t: TableNode, sheet: TextStyleSheet, r: number, c: number): Story {
+  const cell = t.cells[r][c];
+  const story: Story = { id: cellStoryId(t.id, r, c), text: cell.text, style: cellTextStyle(resolveCell(t, sheet, r, c)), chain: [] };
+  if (cell.spans?.length) story.spans = cell.spans;
+  return story;
+}
+
+function withCellStory(t: TableNode, r: number, c: number, fn: (s: Story) => Story): TableNode {
+  return mapCell(t, r, c, (cell) => {
+    const st = fn({ id: '_', text: cell.text, style: TABLE_TEXT_BASE, chain: [], spans: cell.spans });
+    const next: TableCell = { ...cell, text: st.text };
+    const spans = st.spans?.length ? normaliseSpans(st.spans) : [];
+    if (spans.length) next.spans = spans;
+    else delete next.spans;
+    return next;
+  });
+}
+
+/** Per-character formatting inside a cell (bold a word, superscript, small caps…). */
+export function applyCellCharProps(t: TableNode, r: number, c: number, start: number, end: number, props: Partial<TextStyle>): TableNode {
+  return withCellStory(t, r, c, (s) => applyCharProps(s, start, end, props));
+}
+
+/** A character style on a range of a cell's text. */
+export function applyCellCharStyle(t: TableNode, r: number, c: number, start: number, end: number, styleId: Id | null): TableNode {
+  return withCellStory(t, r, c, (s) => applyCharStyle(s, start, end, styleId));
+}
+
+export function clearCellCharFormatting(t: TableNode, r: number, c: number, start: number, end: number): TableNode {
+  return withCellStory(t, r, c, (s) => clearCharFormatting(s, start, end));
+}
+
 /** Lay out a cell's text inside its padded rectangle. */
 export function layoutCell(t: TableNode, sheet: TextStyleSheet, r: number, c: number, measure: MeasureFn): { flow: FlowResult; style: TextStyle; props: CellProps; rect: { x: number; y: number; w: number; h: number } } {
   const rect = cellRect(t, r, c);
   const props = resolveCell(t, sheet, r, c);
   const style = cellTextStyle(props);
-  const flow = flowStory(t.cells[r][c].text, style, [{ id: 'cell', w: rect.w, h: rect.h, padding: props.padding, columns: 1, columnGap: 0, vAlign: props.vAlign }], measure);
+  const story: Story = { id: '_', text: t.cells[r][c].text, style, chain: [], spans: t.cells[r][c].spans };
+  const flow = flowRichStory(story, sheet, [{ id: 'cell', w: rect.w, h: rect.h, padding: props.padding, columns: 1, columnGap: 0, vAlign: props.vAlign }], measure);
   return { flow, style, props, rect };
 }
 
@@ -126,8 +166,10 @@ function mapCell(t: TableNode, r: number, c: number, fn: (cell: TableCell) => Ta
   return { ...t, cells: t.cells.map((row, ri) => (ri === r ? row.map((cell, ci) => (ci === c ? fn(cell) : cell)) : row)) };
 }
 
+/** New cell text; character formatting stays attached to the right characters. */
 export function setCellText(t: TableNode, r: number, c: number, text: string): TableNode {
-  return mapCell(t, r, c, (cell) => ({ ...cell, text }));
+  if (!t.cells[r]?.[c]?.spans?.length) return mapCell(t, r, c, (cell) => ({ ...cell, text }));
+  return withCellStory(t, r, c, (s) => replaceStoryText(s, text));
 }
 
 /** Cells in a rectangular range (anchors only). */
@@ -184,10 +226,24 @@ export function mergeCells(t: TableNode, r0: number, c0: number, r1: number, c1:
   }
   if (ra === rb && ca === cb) return t;
   const texts: string[] = [];
-  for (const { r, c } of cellsInRange(t, ra, ca, rb, cb)) if (t.cells[r][c].text) texts.push(t.cells[r][c].text);
+  const spans: CharSpan[] = [];
+  let at = 0;
+  for (const { r, c } of cellsInRange(t, ra, ca, rb, cb)) {
+    const cl = t.cells[r][c];
+    if (!cl.text) continue;
+    if (texts.length) at += 1; // the paragraph break between merged texts
+    for (const sp of cl.spans ?? []) spans.push({ ...sp, start: sp.start + at, end: sp.end + at });
+    texts.push(cl.text);
+    at += cl.text.length;
+  }
   const cells = t.cells.map((row, r) => row.map((cell, c) => {
     if (r < ra || r > rb || c < ca || c > cb) return cell;
-    if (r === ra && c === ca) return { ...cell, text: texts.join('\n'), rowSpan: rb - ra + 1, colSpan: cb - ca + 1 };
+    if (r === ra && c === ca) {
+      const merged: TableCell = { ...cell, text: texts.join('\n'), rowSpan: rb - ra + 1, colSpan: cb - ca + 1 };
+      if (spans.length) merged.spans = normaliseSpans(spans);
+      else delete merged.spans;
+      return merged;
+    }
     return { text: '' };
   }));
   return { ...t, cells };
@@ -287,7 +343,7 @@ export function fitRowsToContent(t: TableNode, sheet: TextStyleSheet, measure: M
       const props = resolveCell(t, sheet, r, c);
       const style = cellTextStyle(props);
       const rect = cellRect(t, r, c);
-      const f = flowStory(t.cells[r][c].text, style, [{ id: 'x', w: rect.w, h: 100000, padding: props.padding, columns: 1, columnGap: 0 }], measure);
+      const f = flowRichStory({ id: '_', text: t.cells[r][c].text, style, chain: [], spans: t.cells[r][c].spans }, sheet, [{ id: 'x', w: rect.w, h: 100000, padding: props.padding, columns: 1, columnGap: 0 }], measure);
       const lines = f.frames.x.lines;
       const last = lines[lines.length - 1];
       const h = last ? last.y + (last.height ?? style.fontSize * style.lineHeight) + props.padding : 0;

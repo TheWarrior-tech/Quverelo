@@ -19,6 +19,7 @@ import type {
 /** Keys that only make sense per paragraph (ignored in character styles / spans). */
 export const PARAGRAPH_KEYS = [
   'align', 'lineHeight', 'leading', 'spaceBefore', 'spaceAfter', 'firstIndent', 'leftIndent', 'rightIndent', 'alignToGrid',
+  'hyphenate', 'language', 'tabStops', 'keepWithNext', 'keepTogether', 'orphans', 'widows',
 ] as const satisfies readonly (keyof TextStyle)[];
 
 /** Character attributes. */
@@ -533,6 +534,8 @@ export function deleteTextStyle(doc: QuvreloDocument, kind: 'paragraph' | 'chara
     stories[sid] = next;
   }
   let out: QuvreloDocument = { ...doc, stories };
+  // character formatting inside table cells
+  if (kind === 'character') out = mapTables(out, (cell) => (cell.spans?.some((s) => s.styleId === id) ? { ...cell, spans: cell.spans.map((s) => (s.styleId === id ? { ...s, styleId: victim.basedOn, props: { ...own, ...(s.props ?? {}) } } : s)) } : cell));
   out = withSheet(out, (s) =>
     kind === 'paragraph'
       ? { ...s, paragraph: s.paragraph.filter((x) => x.id !== id).map((x) => ({ ...x, basedOn: x.basedOn === id ? victim.basedOn : x.basedOn, nextStyle: x.nextStyle === id ? null : x.nextStyle })) }
@@ -551,16 +554,19 @@ function mapTables(doc: QuvreloDocument, fn: (c: import('./types').TableCell) =>
 /** Count of paragraphs / runs / cells using a style (shown in the styles panel). */
 export function styleUsage(doc: QuvreloDocument, kind: 'paragraph' | 'character' | 'cell', id: Id): number {
   let n = 0;
-  if (kind === 'cell') {
+  if (kind === 'cell' || kind === 'character') {
     const visit = (nodes: import('./types').SceneNode[]) => {
       for (const x of nodes) {
-        if (x.type === 'table') for (const r of x.cells) for (const c of r) if (c.styleId === id) n++;
+        if (x.type === 'table') for (const r of x.cells) for (const c of r) {
+          if (kind === 'cell' && c.styleId === id) n++;
+          if (kind === 'character') n += (c.spans ?? []).filter((s) => s.styleId === id).length;
+        }
         if (x.type === 'group') visit(x.children);
       }
     };
     doc.pages.forEach((p) => visit(p.nodes));
     doc.masters.forEach((p) => visit(p.nodes));
-    return n;
+    if (kind === 'cell') return n;
   }
   for (const st of Object.values(doc.stories)) {
     if (kind === 'paragraph') n += (st.paras ?? []).filter((a) => a?.styleId === id).length;
@@ -585,8 +591,8 @@ function uniqueName(existing: string[], base: string): string {
 
 /** The starter styles a new layout document gets (Body, Heading 1/2, Caption; Emphasis, Strong). */
 export function defaultLayoutStyles(): TextStyleSheet {
-  const body: ParagraphStyleDef = { id: newId('ps'), name: 'Body', basedOn: null, props: { fontFamily: 'EB Garamond, Georgia, serif', fontSize: 14, lineHeight: 1.35, spaceAfter: 8, figures: 'oldstyle' }, nextStyle: null };
-  const h1: ParagraphStyleDef = { id: newId('ps'), name: 'Heading 1', basedOn: body.id, props: { fontFamily: 'Inter, sans-serif', fontSize: 28, fontWeight: 700, lineHeight: 1.15, spaceBefore: 12, spaceAfter: 10, figures: 'lining', letterSpacing: -10 }, nextStyle: body.id };
+  const body: ParagraphStyleDef = { id: newId('ps'), name: 'Body', basedOn: null, props: { fontFamily: 'EB Garamond, Georgia, serif', fontSize: 14, lineHeight: 1.35, spaceAfter: 8, figures: 'oldstyle', widows: 2, orphans: 2 }, nextStyle: null };
+  const h1: ParagraphStyleDef = { id: newId('ps'), name: 'Heading 1', basedOn: body.id, props: { fontFamily: 'Inter, sans-serif', fontSize: 28, fontWeight: 700, lineHeight: 1.15, spaceBefore: 12, spaceAfter: 10, figures: 'lining', letterSpacing: -10, keepWithNext: true }, nextStyle: body.id };
   const h2: ParagraphStyleDef = { id: newId('ps'), name: 'Heading 2', basedOn: h1.id, props: { fontSize: 20, spaceBefore: 10, spaceAfter: 6 }, nextStyle: body.id };
   const caption: ParagraphStyleDef = { id: newId('ps'), name: 'Caption', basedOn: body.id, props: { fontSize: 11, italic: true, spaceAfter: 4 }, nextStyle: null };
   const em: CharacterStyleDef = { id: newId('cs'), name: 'Emphasis', basedOn: null, props: { italic: true } };

@@ -544,7 +544,7 @@ function drawTable(ctx: CanvasRenderingContext2D, n: Extract<SceneNode, { type: 
   // text (clipped per cell)
   for (const { r, c, lay } of cells) {
     const box = { x: ox + lay.rect.x, y: oy + lay.rect.y, w: lay.rect.w, h: lay.rect.h };
-    const editing = env.hiddenNodeId === n.id && env.tableCell?.nodeId === n.id && env.tableCell.r === r && env.tableCell.c === c;
+    const editing = !env.richEdit && env.hiddenNodeId === n.id && env.tableCell?.nodeId === n.id && env.tableCell.r === r && env.tableCell.c === c;
     if (!editing) {
       ctx.save();
       ctx.beginPath();

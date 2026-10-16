@@ -90,7 +90,7 @@ export function TextSection() {
           options={ALIGN.map((a) => ({ value: a.value, ariaLabel: a.label, label: <Icon name={`text-${a.value}`} size={16} /> }))}
         />
       </div>
-      {frame && <ParagraphOptions style={s} apply={apply} mixed={mixed} />}
+      {frame?.kind === 'frame' && <ParagraphOptions style={s} apply={apply} mixed={mixed} />}
       <div className="row" data-keep-text-edit>
         <button type="button" className="btn sm ghost more-type" aria-expanded={more} aria-controls="more-type-options" onClick={() => setMore(!more)}>
           <Icon name={more ? 'chevron-down' : 'chevron-right'} size={16} /> More type options

@@ -268,3 +268,21 @@ describe('PDF shaping: kerning and small caps as real text', () => {
     expect(ops[0]).toContain(` ${+(size * 0.7).toFixed(3)} Tf`);
   });
 });
+
+describe('PDF: tables with per-character formatting, tabs and hyphens', () => {
+  it('writes a bold word inside a cell as text in the bold face', async () => {
+    const { makeTable, setCellText, applyCellCharProps } = await import('../../src/core/tables');
+    let d = createDocument({ settings: { width: 400, height: 300, background: '#ffffff', dpi: 96 } });
+    let t = setCellText(makeTable(1, 2, { w: 300, h: 40, x: 200, y: 100 }), 0, 0, 'Plain bold');
+    t = setCellText(applyCellCharProps(t, 0, 0, 6, 10, { fontWeight: 700 }), 0, 1, 'x');
+    t = { ...t, cells: t.cells.map((row) => row.map((c) => ({ ...c, props: { text: { fontFamily: 'Inter' } } }))) };
+    d = addNodes(d, d.pages[0].id, [t]);
+    const out: SceneNode[] = [];
+    const { bytes, report } = await exportVectorPdf(d, { pages: [0], includeBleed: false, cropMarks: false, fallbackDpi: 150 }, hooks(d, out));
+    expect(report.rasterised).toEqual([]);
+    const { pdf } = await contents(bytes);
+    const raw = Buffer.from(await pdf.save({ useObjectStreams: false })).toString('latin1');
+    const fonts = new Set([...raw.matchAll(/\/FontName \/([A-Za-z0-9-]+)-\d+/g)].map((x) => x[1]));
+    expect(fonts).toEqual(new Set(['Inter-Regular', 'Inter-Bold']));
+  });
+});

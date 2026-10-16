@@ -144,6 +144,13 @@ const paths: Record<string, ReactElement> = {
   'baseline-grid': P('M3.5 4.5h13M3.5 8.2h13M3.5 11.8h13M3.5 15.5h13'),
   preflight: <>{R(4.5, 3, 11, 14, 1.5)}{P('M7.5 10.2l1.8 1.8 3.4-3.6')}</>,
   field: P('M8 4l-1.5 12M13.5 4L12 16M4.5 8h11.5M4 12h11.5'),
+  // tab stops (ruler markers as in InDesign / Word): stem with its foot showing the alignment
+  'tab-left': P('M7 4.5v9h6M3.5 16.5h13'),
+  'tab-center': P('M10 4.5v9M6.5 13.5h7M3.5 16.5h13'),
+  'tab-right': P('M13 4.5v9H7M3.5 16.5h13'),
+  'tab-decimal': <>{P('M8.5 4.5v9M5 13.5h7M3.5 16.5h13')}<circle cx="13.5" cy="10" r="1" /></>,
+  // hyphenation: a word broken at the line end
+  hyphenate: P('M3.5 6h9M3.5 10h6M11 10h2.5M3.5 14h13'),
 };
 
 /** True when the set has a glyph called `name` (unknown names fall back to a square). */

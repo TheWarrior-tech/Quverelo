@@ -174,6 +174,30 @@ export interface TextStyle {
   rightIndent?: number;
   /** paragraph: snap baselines to the document baseline grid */
   alignToGrid?: boolean;
+  /** paragraph: hyphenate words at line ends (Liang / TeX patterns), default off */
+  hyphenate?: boolean;
+  /** paragraph: language for hyphenation, default en-GB */
+  language?: TextLanguage;
+  /** paragraph: tab stops (px from the column's left edge, ascending); past the last, default stops every 48px (½ in) */
+  tabStops?: TabStop[];
+  /** paragraph: keep the last line in the same column / frame as the next paragraph's first line */
+  keepWithNext?: boolean;
+  /** paragraph: never split the paragraph across columns / frames */
+  keepTogether?: boolean;
+  /** paragraph: fewest lines left at the foot of a column when a paragraph breaks (orphans), 0/1 = off */
+  orphans?: number;
+  /** paragraph: fewest lines carried to the top of the next column (widows), 0/1 = off */
+  widows?: number;
+}
+
+export type TextLanguage = 'en-GB' | 'en-US';
+export type TabAlign = 'left' | 'center' | 'right' | 'decimal';
+export interface TabStop {
+  /** px from the left edge of the column (inside the frame inset) */
+  pos: number;
+  align: TabAlign;
+  /** characters repeated to fill the tab space ('' or absent = none), e.g. '.' or '. ' */
+  leader?: string;
 }
 
 export type FigureStyle = 'default' | 'lining' | 'oldstyle';
@@ -318,6 +342,8 @@ export interface CellProps {
 
 export interface TableCell {
   text: string;
+  /** character formatting inside the cell (same model as Story.spans) */
+  spans?: CharSpan[];
   /** merged cells: the top-left cell carries the span, covered cells are hidden */
   rowSpan?: number;
   colSpan?: number;
