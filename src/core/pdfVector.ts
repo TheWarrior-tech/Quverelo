@@ -19,7 +19,7 @@
  * Pure apart from pdf-lib: everything that needs a canvas or font files comes in
  * through `VectorPdfHooks`, so it runs (and is tested) in Node.
  */
-import { PDFDict, PDFDocument, PDFName, PDFString, type PDFFont, type PDFImage, type PDFRef } from 'pdf-lib';
+import { PDFDict, PDFDocument, PDFName, PDFString, type PDFFont, type PDFRef } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import { composeTransform, type Matrix } from './geometry';
 import { nodeToPath } from './document';
@@ -28,6 +28,7 @@ import { baselineOffset, imageFrameContentRect } from './svg';
 import { firstFamily } from './pdfFonts';
 import { docPxPerInch, pdfPtPerPx } from './units';
 import type { BlendMode, Id, Paint, PathCommand, QuvreloDocument, SceneNode, Stroke, TextStyle } from './types';
+import { applyPdfx, setHeaderVersion, type PdfxOutput } from './colour/pdfx';
 
 export interface PdfFontFace {
   /** cache key: the same face is embedded once */
@@ -47,6 +48,38 @@ export interface PdfRasterData extends PdfImageData {
   box: { x: number; y: number; w: number; h: number };
 }
 
+/** Pixels with straight alpha; 16-bit photos come as Uint16Array. */
+export interface RgbaImage {
+  data: Uint8Array | Uint8ClampedArray | Uint16Array;
+  width: number;
+  height: number;
+}
+
+/** Hooks a CMYK (print) export needs: pixels instead of encoded PNG/JPEG, and what X-1a flattening needs. */
+export interface PdfPixelHooks {
+  raster: (node: Extract<SceneNode, { type: 'raster' }>) => Promise<RgbaImage | null>;
+  asset: (assetId: Id) => Promise<RgbaImage | null>;
+  rasterise: (node: SceneNode, pxPerUnit: number) => Promise<(RgbaImage & { box: Box }) | null>;
+  /**
+   * The page as the canvas draws it (background, then the first `count` objects
+   * of [master objects…, page objects…]) cropped to `box` (page px) at `pxPerUnit`,
+   * opaque on paper white. PDF/X-1a uses it to flatten transparency.
+   */
+  composite: (pageIndex: number, count: number, box: Box, pxPerUnit: number) => Promise<RgbaImage | null>;
+  /** the node's drawn bounds in its local space */
+  bounds: (node: SceneNode) => Box;
+}
+
+/** CMYK output: how document colours become press colours. */
+export interface PdfColourOutput {
+  /** a document RGB colour (0..1) as device CMYK (0..1) */
+  cmyk: (rgb: [number, number, number]) => [number, number, number, number];
+  /** RGBA pixels as CMYK bytes (4 per pixel) */
+  image: (img: RgbaImage) => Uint8Array;
+  /** write a PDF/X file (OutputIntent, metadata, X-1a flattening) */
+  pdfx?: PdfxOutput;
+}
+
 export interface VectorPdfHooks {
   measure: MeasureFn;
   /** artistic text block size (same metrics as the canvas) */
@@ -61,6 +94,8 @@ export interface VectorPdfHooks {
   assetImage: (assetId: Id) => Promise<PdfImageData | null>;
   /** the node's content (local space, no transform/opacity) drawn by the canvas renderer */
   rasterise: (node: SceneNode, pxPerUnit: number) => Promise<PdfRasterData | null>;
+  /** needed when `opts.colour` is set */
+  pixels?: PdfPixelHooks;
 }
 
 export interface VectorPdfOptions {
@@ -70,6 +105,8 @@ export interface VectorPdfOptions {
   /** resolution for objects that have to be placed as images */
   fallbackDpi: number;
   title?: string;
+  /** convert to CMYK (and optionally write PDF/X); absent = RGB as before */
+  colour?: PdfColourOutput;
 }
 
 export interface VectorPdfReport {
@@ -79,6 +116,10 @@ export interface VectorPdfReport {
   images: number;
   /** objects drawn as images, with why */
   rasterised: { name: string; reason: string }[];
+  /** PDF/X-1a: objects flattened with what lies under them into one CMYK image (transparency) */
+  flattened: { name: string; reason: string }[];
+  /** spot colours written as Separation colour spaces */
+  spots: string[];
 }
 
 const MARK_PX = 24;
@@ -182,7 +223,7 @@ const BLEND_PDF: Record<BlendMode, string> = {
   difference: 'Difference', exclusion: 'Exclusion', hue: 'Hue', saturation: 'Saturation', color: 'Color', luminosity: 'Luminosity',
 };
 
-type Box = { x: number; y: number; w: number; h: number };
+export type Box = { x: number; y: number; w: number; h: number };
 
 /** Gradient geometry in the node's local space, matching the canvas renderer. */
 export function gradientCoords(p: Extract<Paint, { type: 'linear' | 'radial' }>, box: Box): number[] {
@@ -235,32 +276,68 @@ interface Gfx {
 
 class PageWriter {
   ops: string[] = [];
-  constructor(private w: Writer, readonly res: PDFDict) {}
+  constructor(readonly w: Writer, readonly res: PDFDict) {}
 
   push(s: string) {
     this.ops.push(s);
   }
 
-  private resKey(kind: 'ExtGState' | 'Shading' | 'XObject' | 'Font', prefix: string, ref: PDFRef): string {
+  private resKey(kind: 'ExtGState' | 'Shading' | 'XObject' | 'Font' | 'ColorSpace', prefix: string, ref: PDFRef): string {
     let sub = this.res.lookupMaybe(PDFName.of(kind), PDFDict);
     if (!sub) {
       sub = this.w.pdf.context.obj({}) as PDFDict;
       this.res.set(PDFName.of(kind), sub);
     }
     for (const [k, v] of sub.entries()) if (v === ref) return k.asString();
-    let i = sub.entries().length + 1;
-    while (sub.has(PDFName.of(`${prefix}${i}`))) i++;
-    const name = PDFName.of(`${prefix}${i}`);
+    // names are unique across the whole file, so a probe's resources can be merged into the page
+    let name: PDFName;
+    do name = PDFName.of(`${prefix}${++this.w.resCounter}`);
+    while (sub.has(name));
     sub.set(name, ref);
     return name.asString();
   }
 
   gs(g: Gfx) {
+    const opaque = g.alpha >= 1 && g.blend === 'normal';
+    if (!opaque) this.w.transparency = true;
+    // print output writes no ExtGState for plain opaque painting (PDF/X-1a allows none other)
+    if (opaque && this.w.opts.colour) return;
     const ref = this.w.extGState(g.alpha, g.blend);
     if (ref) this.push(`${this.resKey('ExtGState', 'GS', ref)} gs`);
   }
+  colorSpace(ref: PDFRef) {
+    return this.resKey('ColorSpace', 'CS', ref);
+  }
+  /** Set the fill or stroke colour: a spot as its Separation, CMYK on print output, else RGB. */
+  color(c: Rgba, paint: Paint | null, stroke: boolean) {
+    const sp = paint && paint.type === 'solid' && paint.spot && paint.cmyk ? paint : null;
+    if (sp) {
+      const name = this.colorSpace(this.w.separation(sp.spot!, sp.cmyk!));
+      this.push(stroke ? `${name} CS 1 SCN` : `${name} cs 1 scn`);
+      return;
+    }
+    if (this.w.opts.colour) {
+      const k = paint && paint.type === 'solid' && paint.cmyk ? paint.cmyk : this.w.toCmyk(c);
+      this.push(`${k.map(fmt).join(' ')} ${stroke ? 'K' : 'k'}`);
+      return;
+    }
+    this.push(colorOp(c, stroke));
+  }
   shading(ref: PDFRef) {
     return this.resKey('Shading', 'Sh', ref);
+  }
+  /** merge a probe's resources into this page's */
+  adopt(other: PDFDict) {
+    for (const [kind, sub] of other.entries()) {
+      const src = other.context.lookup(sub);
+      if (!(src instanceof PDFDict)) continue;
+      let dst = this.res.lookupMaybe(kind, PDFDict);
+      if (!dst) {
+        dst = this.w.pdf.context.obj({}) as PDFDict;
+        this.res.set(kind, dst);
+      }
+      for (const [k, v] of src.entries()) dst.set(k, v);
+    }
   }
   xobject(ref: PDFRef) {
     return this.resKey('XObject', 'Im', ref);
@@ -270,10 +347,24 @@ class PageWriter {
   }
 }
 
+/** An embedded image XObject. */
+interface PdfImg {
+  ref: PDFRef;
+  width: number;
+  height: number;
+  /** has a soft mask (transparency) */
+  alpha: boolean;
+}
+
 class Writer {
-  report: VectorPdfReport = { pages: 0, vectorObjects: 0, textObjects: 0, images: 0, rasterised: [] };
+  report: VectorPdfReport = { pages: 0, vectorObjects: 0, textObjects: 0, images: 0, rasterised: [], flattened: [], spots: [] };
+  /** something since the last reset needs transparency (alpha, blend, soft mask) */
+  transparency = false;
+  resCounter = 0;
   private gsCache = new Map<string, PDFRef>();
-  private imageCache = new Map<string, PDFImage | null>();
+  private imageCache = new Map<string, PdfImg | null>();
+  private cmykCache = new Map<string, [number, number, number, number]>();
+  private sepCache = new Map<string, PDFRef>();
   private fontCache = new Map<string, Promise<PDFFont | null>>();
   constructor(public pdf: PDFDocument, public doc: QuvreloDocument, public hooks: VectorPdfHooks, public opts: VectorPdfOptions) {}
 
@@ -288,16 +379,79 @@ class Writer {
     return ref;
   }
 
-  async image(key: string, load: () => Promise<PdfImageData | null>): Promise<PDFImage | null> {
+  async image(key: string, load: () => Promise<PdfImageData | null>): Promise<PdfImg | null> {
     if (this.imageCache.has(key)) return this.imageCache.get(key)!;
     const data = await load();
-    let img: PDFImage | null = null;
+    let img: PdfImg | null = null;
     if (data) {
-      img = data.mime === 'image/jpeg' ? await this.pdf.embedJpg(data.bytes) : await this.pdf.embedPng(data.bytes);
+      const e = data.mime === 'image/jpeg' ? await this.pdf.embedJpg(data.bytes) : await this.pdf.embedPng(data.bytes);
+      img = { ref: e.ref, width: e.width, height: e.height, alpha: data.mime === 'image/png' };
       this.report.images++;
     }
     this.imageCache.set(key, img);
     return img;
+  }
+
+  /** Print output: convert pixels to CMYK and embed them (Flate), alpha as a soft mask unless `opaque`. */
+  async cmykImage(key: string, load: () => Promise<RgbaImage | null>, opaque = false): Promise<PdfImg | null> {
+    if (this.imageCache.has(key)) return this.imageCache.get(key)!;
+    const px = await load();
+    const img = px ? this.embedCmyk(px, opaque) : null;
+    this.imageCache.set(key, img);
+    return img;
+  }
+
+  embedCmyk(px: RgbaImage, opaque = false): PdfImg {
+    const ctx = this.pdf.context;
+    const n = px.width * px.height;
+    const sixteen = px.data instanceof Uint16Array;
+    const max = sixteen ? 65535 : 255;
+    let alpha: Uint8Array | null = null;
+    if (!opaque) {
+      for (let i = 0; i < n; i++) {
+        if (px.data[i * 4 + 3] < max) {
+          alpha = new Uint8Array(n);
+          for (let j = 0; j < n; j++) alpha[j] = sixteen ? px.data[j * 4 + 3] >> 8 : px.data[j * 4 + 3];
+          break;
+        }
+      }
+    }
+    const cmyk = this.opts.colour!.image(px);
+    const dict: Record<string, unknown> = {
+      Type: 'XObject', Subtype: 'Image', Width: px.width, Height: px.height, ColorSpace: 'DeviceCMYK', BitsPerComponent: 8,
+    };
+    if (alpha) {
+      const mask = ctx.flateStream(alpha, { Type: 'XObject', Subtype: 'Image', Width: px.width, Height: px.height, ColorSpace: 'DeviceGray', BitsPerComponent: 8 });
+      dict.SMask = ctx.register(mask);
+      this.transparency = true;
+    }
+    const ref = ctx.register(ctx.flateStream(cmyk, dict as never));
+    this.report.images++;
+    return { ref, width: px.width, height: px.height, alpha: !!alpha };
+  }
+
+  /** document colour → CMYK, cached per colour */
+  toCmyk(c: Rgba): [number, number, number, number] {
+    const key = `${c.r},${c.g},${c.b}`;
+    let v = this.cmykCache.get(key);
+    if (!v) {
+      v = this.opts.colour!.cmyk([c.r, c.g, c.b]).map((x) => Math.round(x * 10000) / 10000) as [number, number, number, number];
+      this.cmykCache.set(key, v);
+    }
+    return v;
+  }
+
+  /** a spot colour's Separation colour space (one per ink name) */
+  separation(name: string, cmyk: [number, number, number, number]): PDFRef {
+    let ref = this.sepCache.get(name);
+    if (!ref) {
+      const ctx = this.pdf.context;
+      const fn = ctx.obj({ FunctionType: 2, Domain: [0, 1], C0: [0, 0, 0, 0], C1: cmyk.map((v) => Math.round(v * 10000) / 10000), N: 1 });
+      ref = ctx.register(ctx.obj([PDFName.of('Separation'), PDFName.of(name), PDFName.of('DeviceCMYK'), ctx.register(fn)]));
+      this.sepCache.set(name, ref);
+      this.report.spots.push(name);
+    }
+    return ref;
   }
 
   font(face: PdfFontFace): Promise<PDFFont | null> {
@@ -311,9 +465,10 @@ class Writer {
 
   shadingFor(p: Extract<Paint, { type: 'linear' | 'radial' }>, box: Box): PDFRef {
     const ctx = this.pdf.context;
+    const cmyk = !!this.opts.colour;
     const stops = [...p.stops].sort((a, b) => a.offset - b.offset).map((s) => {
       const c = parseCssColor(s.color)!;
-      return { o: Math.min(1, Math.max(0, s.offset)), c: [c.r, c.g, c.b] };
+      return { o: Math.min(1, Math.max(0, s.offset)), c: cmyk ? this.toCmyk(c) : [c.r, c.g, c.b] };
     });
     // pad to the ends, like canvas gradients
     if (stops[0].o > 0) stops.unshift({ o: 0, c: stops[0].c });
@@ -332,7 +487,7 @@ class Writer {
     const coords = gradientCoords(p, box);
     return ctx.register(ctx.obj({
       ShadingType: p.type === 'linear' ? 2 : 3,
-      ColorSpace: 'DeviceRGB',
+      ColorSpace: cmyk ? 'DeviceCMYK' : 'DeviceRGB',
       Coords: coords,
       Function: fn,
       Extend: [true, true],
@@ -356,7 +511,7 @@ function fillPath(pw: PageWriter, w: Writer, path: string, p: Paint, box: Box, g
     if (c.a <= 0) return;
     pw.push('q');
     pw.gs({ alpha: g.alpha * c.a, blend: g.blend });
-    pw.push(colorOp(c, false));
+    pw.color(c, p, false);
     pw.push(path);
     pw.push(evenOdd ? 'f*' : 'f');
     pw.push('Q');
@@ -376,7 +531,7 @@ function strokePath(pw: PageWriter, path: string, s: Stroke, g: Gfx) {
   if (c.a <= 0) return;
   pw.push('q');
   pw.gs({ alpha: g.alpha * c.a, blend: g.blend });
-  pw.push(colorOp(c, true));
+  pw.color(c, s.paint, true);
   pw.push(`${fmt(s.width)} w ${s.cap === 'round' ? 1 : s.cap === 'square' ? 2 : 0} J ${s.join === 'round' ? 1 : s.join === 'bevel' ? 2 : 0} j 10 M`);
   pw.push(`[${s.dash.map(fmt).join(' ')}] 0 d`);
   pw.push(path);
@@ -450,7 +605,7 @@ async function writeText(
   const pass = (mode: 0 | 1, c: Rgba) => {
     pw.push('q');
     pw.gs({ alpha: g.alpha * c.a, blend: g.blend });
-    pw.push(colorOp(c, mode === 1));
+    pw.color(c, mode === 1 ? stroke!.paint : style.fill, mode === 1);
     if (mode === 1) pw.push(`${fmt(stroke!.width)} w ${stroke!.join === 'round' ? 1 : stroke!.join === 'bevel' ? 2 : 0} j 10 M`);
     pw.push('BT');
     pw.push(`${fontName} ${fmt(style.fontSize)} Tf ${fmt(tracking)} Tc ${mode} Tr`);
@@ -471,7 +626,7 @@ async function writeText(
       const t = Math.max(1, style.fontSize / 16);
       pw.push('q');
       pw.gs({ alpha: g.alpha * fill.a, blend: g.blend });
-      pw.push(colorOp(fill, false));
+      pw.color(fill, style.fill, false);
       for (const r of runs) if (r.underlineW > 0) pw.push(`${fmt(r.x)} ${fmt(r.y + style.fontSize * 0.12)} ${fmt(r.underlineW)} ${fmt(t)} re f`);
       pw.push('Q');
     }
@@ -482,11 +637,21 @@ async function writeText(
 /** Place the canvas rendering of a node's content (local space) as an image. */
 async function writeRasterised(pw: PageWriter, w: Writer, n: SceneNode, g: Gfx, reason: string): Promise<void> {
   const ppu = w.opts.fallbackDpi / docPxPerInch(w.doc.settings);
-  const r = await w.hooks.rasterise(n, ppu);
   w.report.rasterised.push({ name: n.name || n.type, reason });
-  if (!r) return;
-  const img = await w.image(`fallback:${n.id}:${w.report.rasterised.length}`, async () => r);
-  if (!img) return;
+  // the image has see-through edges around the object
+  w.transparency = true;
+  let r: { box: Box } | null;
+  let img: PdfImg | null;
+  if (w.opts.colour) {
+    const px = await w.hooks.pixels!.rasterise(n, ppu);
+    r = px;
+    img = px ? await w.cmykImage(`fallback:${n.id}:${w.report.rasterised.length}`, async () => px) : null;
+  } else {
+    const data = await w.hooks.rasterise(n, ppu);
+    r = data;
+    img = data ? await w.image(`fallback:${n.id}:${w.report.rasterised.length}`, async () => data) : null;
+  }
+  if (!r || !img) return;
   pw.push('q');
   pw.gs(g);
   pw.push(`${fmt(r.box.w)} 0 0 ${fmt(-r.box.h)} ${fmt(r.box.x)} ${fmt(r.box.y + r.box.h)} cm`);
@@ -494,7 +659,8 @@ async function writeRasterised(pw: PageWriter, w: Writer, n: SceneNode, g: Gfx, 
   pw.push('Q');
 }
 
-async function writeImageAt(pw: PageWriter, img: PDFImage, b: Box, g: Gfx) {
+async function writeImageAt(pw: PageWriter, img: PdfImg, b: Box, g: Gfx) {
+  if (img.alpha) pw.w.transparency = true;
   pw.push('q');
   pw.gs(g);
   pw.push(`${fmt(b.w)} 0 0 ${fmt(-b.h)} ${fmt(b.x)} ${fmt(b.y + b.h)} cm`);
@@ -594,7 +760,9 @@ async function writeContent(pw: PageWriter, w: Writer, n: SceneNode, g: Gfx): Pr
       const meta = n.assetId ? w.doc.assets[n.assetId] : null;
       if (n.assetId && meta) {
         const id = n.assetId;
-        const img = await w.image(`asset:${id}`, () => w.hooks.assetImage(id));
+        const img = w.opts.colour
+          ? await w.cmykImage(`asset:${id}`, () => w.hooks.pixels!.asset(id))
+          : await w.image(`asset:${id}`, () => w.hooks.assetImage(id));
         if (img) await writeImageAt(pw, img, imageFrameContentRect(n, meta.width || img.width, meta.height || img.height), g);
       }
       pw.push('Q');
@@ -604,7 +772,9 @@ async function writeContent(pw: PageWriter, w: Writer, n: SceneNode, g: Gfx): Pr
     }
     case 'raster': {
       const key = `raster:${n.assetId}:${JSON.stringify(n.adjustments.filter((a) => a.enabled))}`;
-      const img = await w.image(key, () => w.hooks.rasterPixels(n));
+      const img = w.opts.colour
+        ? await w.cmykImage(key, () => w.hooks.pixels!.raster(n))
+        : await w.image(key, () => w.hooks.rasterPixels(n));
       if (img) await writeImageAt(pw, img, { x: -n.w / 2, y: -n.h / 2, w: n.w, h: n.h }, g);
       return;
     }
@@ -618,6 +788,8 @@ async function writeContent(pw: PageWriter, w: Writer, n: SceneNode, g: Gfx): Pr
 export async function exportVectorPdf(
   doc: QuvreloDocument, opts: VectorPdfOptions, hooks: VectorPdfHooks,
 ): Promise<{ bytes: Uint8Array; report: VectorPdfReport }> {
+  if (opts.colour && !hooks.pixels) throw new Error('CMYK export needs pixel hooks');
+  const pdfx = opts.colour?.pdfx;
   const pdf = await PDFDocument.create();
   pdf.registerFontkit(fontkit);
   pdf.setTitle(opts.title ?? doc.title);
@@ -652,16 +824,52 @@ export async function exportVectorPdf(
       const c = parseCssColor(background);
       if (c && c.a > 0) {
         pw.push('q');
-        if (c.a < 1) pw.gs({ alpha: c.a, blend: 'normal' });
-        pw.push(colorOp(c, false));
+        // X-1a has no transparency: a see-through page colour is printed solid
+        if (c.a < 1 && pdfx?.standard !== 'x1a') pw.gs({ alpha: c.a, blend: 'normal' });
+        pw.color(c, null, false);
         pw.push(`${rectPathOps({ x: -bleed, y: -bleed, w: wPx, h: hPx })} f`);
         pw.push('Q');
       }
     }
     const master = page.masterId ? doc.masters.find((m) => m.id === page.masterId) : null;
-    if (master) for (const n of master.nodes) await writeNode(pw, w, n, base);
-    for (const n of page.nodes) await writeNode(pw, w, n, base);
+    const items = [...(master?.nodes ?? []), ...page.nodes];
+    w.transparency = false;
+    if (pdfx?.standard === 'x1a') {
+      // PDF/X-1a allows no transparency: write each top-level object into a probe; if it
+      // needs transparency, place the page as drawn up to and including it (over its area) instead
+      for (const [k, n] of items.entries()) {
+        if (!n.visible) continue;
+        const probeRes = pdf.context.obj({}) as PDFDict;
+        const probe = new PageWriter(w, probeRes);
+        w.transparency = false;
+        await writeNode(probe, w, n, base);
+        if (!w.transparency) {
+          pw.adopt(probeRes);
+          for (const op of probe.ops) pw.push(op);
+          continue;
+        }
+        const box = pageBox(n, hooks.pixels!.bounds(n), { x: -bleed, y: -bleed, w: wPx, h: hPx });
+        if (!box) continue;
+        const ppu = opts.fallbackDpi / docPxPerInch(doc.settings);
+        const px = await hooks.pixels!.composite(i, k + 1, box, ppu);
+        if (px) {
+          const img = w.embedCmyk(px, true);
+          pw.push('q');
+          pw.push(`${fmt(box.w)} 0 0 ${fmt(-box.h)} ${fmt(box.x)} ${fmt(box.y + box.h)} cm`);
+          pw.push(`${pw.xobject(img.ref)} Do`);
+          pw.push('Q');
+        }
+        w.report.flattened.push({ name: n.name || n.type, reason: transparencyReason(n) });
+      }
+      w.transparency = false;
+    } else {
+      for (const n of items) await writeNode(pw, w, n, base);
+    }
     pw.push('Q');
+    if (pdfx?.standard === 'x4' && w.transparency) {
+      // blend in the press's colour space
+      p.node.set(PDFName.of('Group'), pdf.context.obj({ Type: 'Group', S: 'Transparency', CS: 'DeviceCMYK', I: false, K: false }));
+    }
     // page boxes so print shops find trim and bleed
     const trim = [(mark + bleed) * PT_PER_PX, (mark + bleed) * PT_PER_PX, (mark + bleed + width) * PT_PER_PX, (mark + bleed + height) * PT_PER_PX];
     p.node.set(PDFName.of('TrimBox'), pdf.context.obj(trim));
@@ -670,7 +878,7 @@ export async function exportVectorPdf(
       const [x0, y0, x1, y1] = trim;
       const off = (bleed + 4 * pxScale) * PT_PER_PX;
       const len = 14;
-      pw.push('q 0 0 0 RG 0.3 w 0 J [] 0 d');
+      pw.push(`q ${opts.colour ? '0 0 0 1 K' : '0 0 0 RG'} 0.3 w 0 J [] 0 d`);
       for (const [x, sx] of [[x0, -1], [x1, 1]] as const) {
         for (const [y, sy] of [[y0, -1], [y1, 1]] as const) {
           pw.push(`${fmt(x + sx * off)} ${fmt(y)} m ${fmt(x + sx * (off + len))} ${fmt(y)} l S`);
@@ -684,7 +892,44 @@ export async function exportVectorPdf(
     w.report.pages++;
   }
   pdf.catalog.set(PDFName.of('Lang'), PDFString.of('en'));
-  const bytes = await pdf.save();
+  if (pdfx) {
+    applyPdfx(pdf, { ...pdfx, title: opts.title ?? doc.title ?? 'Untitled', creator: 'Quvrelo', producer: 'Quvrelo (pdf-lib)', date: now });
+  }
+  const bytes = await pdf.save(pdfx ? { useObjectStreams: false } : undefined);
+  if (pdfx) setHeaderVersion(bytes, pdfx.standard);
   return { bytes, report: w.report };
+}
+
+/** A top-level object's drawn area on the page (page px), clipped to the page with bleed, in whole pixels. */
+function pageBox(n: SceneNode, local: Box, page: Box): Box | null {
+  const m = composeTransform(n);
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const [px, py] of [[local.x, local.y], [local.x + local.w, local.y], [local.x, local.y + local.h], [local.x + local.w, local.y + local.h]]) {
+    const X = m[0] * px + m[2] * py + m[4];
+    const Y = m[1] * px + m[3] * py + m[5];
+    x0 = Math.min(x0, X); y0 = Math.min(y0, Y); x1 = Math.max(x1, X); y1 = Math.max(y1, Y);
+  }
+  // a pixel of margin for anti-aliased edges
+  x0 = Math.max(page.x, Math.floor(x0 - 1));
+  y0 = Math.max(page.y, Math.floor(y0 - 1));
+  x1 = Math.min(page.x + page.w, Math.ceil(x1 + 1));
+  y1 = Math.min(page.y + page.h, Math.ceil(y1 + 1));
+  return x1 > x0 && y1 > y0 ? { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } : null;
+}
+
+/** Why an object had to be flattened (for the export note). */
+function transparencyReason(n: SceneNode): string {
+  const walk = (x: SceneNode): string | null => {
+    if (x.opacity < 1) return 'opacity';
+    if (x.blend !== 'normal') return `${x.blend} blend`;
+    if (x.type === 'group') {
+      for (const c of x.children) {
+        const r = walk(c);
+        if (r) return r;
+      }
+    }
+    return null;
+  };
+  return walk(n) ?? 'see-through colour or image';
 }
 

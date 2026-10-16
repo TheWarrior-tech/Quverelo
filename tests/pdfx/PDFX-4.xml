@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<profile xmlns="http://www.verapdf.org/ValidationProfile" flavour="NO_FLAVOUR">
+    <details creator="Quvrelo" created="2026-10-16T00:00:00Z">
+        <name>Quvrelo PDF/X-4 checks</name>
+        <description>Machine-checkable requirements of ISO 15930-7 written as veraPDF rules by the Quvrelo project. veraPDF ships no PDF/X profiles; this is not an ISO-certified validator.</description>
+    </details>
+    <hash></hash>
+    <rules>
+        <rule object="CosDocument">
+            <id specification="ISO_32000_1_7" clause="x4.file" testNumber="1"/>
+            <description>ISO 15930-7: PDF/X-4 files are PDF 1.6 or lower</description>
+            <test>/^%PDF-1\.[0-6]$/.test(header)</test>
+            <error>
+                <message>Header is newer than PDF 1.6</message>
+                <arguments/>
+            </error>
+            <references/>
+        </rule>
+        <rule object="PDDocument">
+            <id specification="ISO_32000_1_7" clause="x4.xmp" testNumber="2"/>
+            <description>ISO 15930-7: the document shall have XMP metadata</description>
+            <test>containsMetadata == true</test>
+            <error>
+                <message>No document XMP metadata</message>
+                <arguments/>
+            </error>
+            <references/>
+        </rule>
+        <rule object="CosInfo">
+            <id specification="ISO_32000_1_7" clause="x4.xmp" testNumber="3"/>
+            <description>ISO 15930-7: Info dates and title shall match the XMP</description>
+            <test>doCreationDatesMatch == true &amp;&amp; doModDatesMatch == true &amp;&amp; (Title == null || Title == XMPTitle)</test>
+            <error>
+                <message>Info and XMP disagree</message>
+                <arguments/>
+            </error>
+            <references/>
+        </rule>
+        <rule object="CosBM">
+            <id specification="ISO_32000_1_7" clause="x4.transparency" testNumber="1"/>
+            <description>ISO 15930-7: only standard blend modes</description>
+            <test>internalRepresentation == &#x27;Normal&#x27; || internalRepresentation == &#x27;Compatible&#x27; || internalRepresentation == &#x27;Multiply&#x27; || internalRepresentation == &#x27;Screen&#x27; || internalRepresentation == &#x27;Overlay&#x27; || internalRepresentation == &#x27;Darken&#x27; || internalRepresentation == &#x27;Lighten&#x27; || internalRepresentation == &#x27;ColorDodge&#x27; || internalRepresentation == &#x27;ColorBurn&#x27; || internalRepresentation == &#x27;HardLight&#x27; || internalRepresentation == &#x27;SoftLight&#x27; || internalRepresentation == &#x27;Difference&#x27; || internalRepresentation == &#x27;Exclusion&#x27; || internalRepresentation == &#x27;Hue&#x27; || internalRepresentation == &#x27;Saturation&#x27; || internalRepresentation == &#x27;Color&#x27; || internalRepresentation == &#x27;Luminosity&#x27;</test>
+            <error>
+                <message>Unknown blend mode</message>
+                <arguments/>
+            </error>
+            <references/>
+        </rule>
+        <rule object="PDPage">
+            <id specification="ISO_32000_1_7" clause="x4.transparency" testNumber="2"/>
+            <description>Quvrelo check: a page with transparency declares its blending colour space</description>
+            <test>containsTransparency == false || containsGroupCS == true</test>
+            <error>
+                <message>Transparent page without a group colour space</message>
+                <arguments/>
+            </error>
+            <references/>
+        </rule>
+        <rule object="CosDocument">
+            <id specification="ISO_32000_1_7" clause="x.file" testNumber="2"/>
+            <description>ISO 15930: the file shall have a file identifier (ID in the trailer)</description>
+            <test>lastID != null &amp;&amp; lastID.length() &gt; 0</test>
+            <error>
+                <message>Trailer has no ID</message>
+                <arguments/>
+            </error>
+            <references/>
+        </rule>
+        <rule object="CosTrailer">
+            <id specification="ISO_32000_1_7" clause="x.file" testNumber="3"/>
+            <description>ISO 15930: the file shall not be encrypted</description>
+            <test>isEncrypted != true</test>
+            <error>
+                <message>File is encrypted</message>
+                <arguments/>
+            </error>
+            <references/>
+        </rule>
+        <rule object="CosInfo">
+            <id specification="ISO_32000_1_7" clause="x.info" testNumber="1"/>
+            <description>ISO 15930: the Info dictionary shall contain GTS_PDFXVersion</description>
+            <test>/(^|&amp;)GTS_PDFXVersion(&amp;|$)/.test(keysString)</test>
+            <error>
+                <message>Info has no GTS_PDFXVersion</message>
+                <arguments/>
+            </error>
+            <references/>
+        </rule>
+        <rule object="CosInfo">
+            <id specification="ISO_32000_1_7" clause="x.info" testNumber="2"/>
+            <description>ISO 15930: the Info dictionary shall contain Trapped (True or False)</description>
+            <test>/(^|&amp;)Trapped(&amp;|$)/.test(keysString)</test>
+            <error>
+                <message>Info has no Trapped key</message>
+                <arguments/>
+            </error>
+            <references/>
+        </rule>
+        <rule object="CosInfo">
+            <id specification="ISO_32000_1_7" clause="x.info" testNumber="3"/>
+            <description>ISO 15930: Title, CreationDate and ModDate shall be present</description>
+            <test>Title != null &amp;&amp; CreationDate != null &amp;&amp; ModDate != null</test>
+            <error>
+                <message>Info misses Title, CreationDate or ModDate</message>
+                <arguments/>
+            </error>
+            <references/>
+        </rule>
+        <rule object="PDOutputIntent">
+            <id specification="ISO_32000_1_7" clause="x.oi" testNumber="1"/>
+            <description>ISO 15930: a GTS_PDFX OutputIntent shall have an OutputConditionIdentifier and embed its DestOutputProfile</description>
+            <test>S != &#x27;GTS_PDFX&#x27; || (OutputConditionIdentifier != null &amp;&amp; destOutputProfileIndirect != null)</test>
+            <error>
+                <message>PDF/X OutputIntent lacks the identifier or the embedded profile</message>
+                <arguments/>
+            </error>
+            <references/>
+        </rule>
+        <rule object="ICCOutputProfile">
+            <id specification="ISO_32000_1_7" clause="x.oi" testNumber="2"/>
+            <description>ISO 15930: the output profile shall be a valid CMYK output (prtr) profile of version 4 or lower</description>
+            <test>deviceClass == &#x27;prtr&#x27; &amp;&amp; colorSpace == &#x27;CMYK&#x27; &amp;&amp; version &lt; 5.0 &amp;&amp; isValid == true</test>
+            <error>
+                <message>OutputIntent profile is not a valid CMYK output profile</message>
+                <arguments/>
+            </error>
+            <references/>
+        </rule>
+        <rule object="PDDeviceRGB">
+            <id specification="ISO_32000_1_7" clause="x.colour" testNumber="1"/>
+            <description>ISO 15930: DeviceRGB shall not be used with a CMYK output intent</description>
+            <test>false</test>
+            <error>
+                <message>DeviceRGB colour used</message>
+                <arguments/>
+            </error>
+            <references/>
+        </rule>
+        <rule object="PDSeparation">
+            <id specification="ISO_32000_1_7" clause="x.colour" testNumber="2"/>
+            <description>Spot colours with one name shall use one alternate and tint transform</description>
+            <test>areTintAndAlternateConsistent == true</test>
+            <error>
+                <message>Inconsistent spot colour</message>
+                <arguments/>
+            </error>
+            <references/>
+        </rule>
+        <rule object="PDExtGState">
+            <id specification="ISO_32000_1_7" clause="x.gs" testNumber="1"/>
+            <description>ISO 15930: transfer functions (TR, TR2) shall not be used</description>
+            <test>containsTR == false &amp;&amp; (containsTR2 == false || TR2NameValue == &#x27;Default&#x27;)</test>
+            <error>
+                <message>Transfer function used</message>
+                <arguments/>
+            </error>
+            <references/>
+        </rule>
+        <rule object="PDFont">
+            <id specification="ISO_32000_1_7" clause="x.font" testNumber="1"/>
+            <description>ISO 15930: all fonts shall be embedded</description>
+            <test>Subtype == &#x27;Type3&#x27; || Subtype == &#x27;Type0&#x27; || containsFontFile == true</test>
+            <error>
+                <message>Font is not embedded</message>
+                <arguments/>
+            </error>
+            <references/>
+        </rule>
+        <rule object="PDXObject">
+            <id specification="ISO_32000_1_7" clause="x.xobj" testNumber="1"/>
+            <description>ISO 15930: PostScript XObjects shall not be used</description>
+            <test>Subtype != &#x27;PS&#x27;</test>
+            <error>
+                <message>PostScript XObject</message>
+                <arguments/>
+            </error>
+            <references/>
+        </rule>
+        <rule object="PDXForm">
+            <id specification="ISO_32000_1_7" clause="x.xobj" testNumber="2"/>
+            <description>ISO 15930: no OPI and no reference XObjects</description>
+            <test>containsOPI == false &amp;&amp; containsRef == false</test>
+            <error>
+                <message>Form XObject with OPI or reference</message>
+                <arguments/>
+            </error>
+            <references/>
+        </rule>
+        <rule object="PDXImage">
+            <id specification="ISO_32000_1_7" clause="x.xobj" testNumber="3"/>
+            <description>ISO 15930: no OPI or alternate images</description>
+            <test>containsOPI == false &amp;&amp; containsAlternates == false</test>
+            <error>
+                <message>Image with OPI or alternates</message>
+                <arguments/>
+            </error>
+            <references/>
+        </rule>
+        <rule object="XMPPackage">
+            <id specification="ISO_32000_1_7" clause="x.xmp" testNumber="1"/>
+            <description>XMP metadata shall be well-formed</description>
+            <test>isSerializationValid == true</test>
+            <error>
+                <message>XMP is not well-formed</message>
+                <arguments/>
+            </error>
+            <references/>
+        </rule>
+        <rule object="PDOutputIntent">
+            <id specification="ISO_32000_1_7" clause="x.oi" testNumber="4"/>
+            <description>ISO 15930: the output intent shall be of subtype GTS_PDFX</description>
+            <test>S == 'GTS_PDFX'</test>
+            <error>
+                <message>OutputIntent is not GTS_PDFX</message>
+                <arguments/>
+            </error>
+            <references/>
+        </rule>
+        <rule object="PDPage">
+            <id specification="ISO_32000_1_7" clause="x.page" testNumber="1"/>
+            <description>ISO 15930: every page shall have a TrimBox or an ArtBox</description>
+            <test>/(^|&amp;)(TrimBox|ArtBox)(&amp;|$)/.test(entries)</test>
+            <error>
+                <message>Page has neither TrimBox nor ArtBox</message>
+                <arguments/>
+            </error>
+            <references/>
+        </rule>
+    </rules>
+    <variables/>
+</profile>

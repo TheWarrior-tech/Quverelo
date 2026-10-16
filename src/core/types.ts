@@ -1,4 +1,5 @@
 import type { CurvesData } from './curves';
+import type { DocColour } from './colour/profiles';
 /**
  * Quvrelo document model.
  *
@@ -43,7 +44,15 @@ export interface GradientStop {
 
 export type Paint =
   | { type: 'none' }
-  | { type: 'solid'; color: string }
+  | {
+      type: 'solid';
+      /** css colour in the document's RGB space (what the canvas draws) */
+      color: string;
+      /** exact CMYK (0..1) when the colour was picked in CMYK or from a CMYK/spot swatch; PDF output writes it as is */
+      cmyk?: [number, number, number, number];
+      /** spot (named ink) colour: written as a PDF Separation with `cmyk` as its alternate */
+      spot?: string;
+    }
   | { type: 'linear'; stops: GradientStop[]; angle: number }
   | { type: 'radial'; stops: GradientStop[] };
 
@@ -280,7 +289,12 @@ export type Unit = 'px' | 'mm' | 'cm' | 'in' | 'pt';
 export interface Swatch {
   id: Id;
   name: string;
+  /** css colour in the document's RGB space (the on-screen preview) */
   color: string;
+  /** a CMYK swatch (0..1): kept exactly and written as CMYK to print PDFs */
+  cmyk?: [number, number, number, number];
+  /** a spot colour (named ink, such as a Pantone mix the printer stocks); needs `cmyk` as its process alternate */
+  spot?: boolean;
 }
 
 export interface AssetRef {
@@ -304,6 +318,8 @@ export interface DocumentSettings {
   facingPages: boolean;
   columns: number;
   columnGutter: number;
+  /** colour management (absent = RGB, sRGB, 8-bit; see core/colour/profiles.ts) */
+  colour?: DocColour;
 }
 
 export interface QuvreloDocument {
