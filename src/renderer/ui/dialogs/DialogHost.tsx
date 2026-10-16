@@ -7,6 +7,7 @@ import { ExportDialog } from './ExportDialog';
 import { DocumentSetupDialog, ResizeDialog } from './DocumentDialogs';
 import { AboutDialog, GuideDialog, PreferencesDialog, ShortcutsDialog } from './AppDialogs';
 import { AssignmentDialog, HandInDialog } from './AssignmentDialogs';
+import { SwatchDialog } from './SwatchDialog';
 import { UpdatesDialog } from './UpdatesDialog';
 import { watchScrollRegions } from '../controls/Panel';
 import './dialogs.css';
@@ -224,6 +225,7 @@ export function DialogHost() {
     case 'assignment': return <AssignmentDialog key={k} />;
     case 'hand-in': return <HandInDialog key={k} />;
     case 'updates': return <UpdatesDialog key={k} />;
+    case 'swatch': return <SwatchDialog key={k} kind={p.kind as 'cmyk' | 'spot' | undefined} />;
     case 'confirm': return <ConfirmDialog key={k} title={String(p.title)} message={String(p.message)} actions={p.actions as ConfirmAction[]} />;
     default: return null;
   }

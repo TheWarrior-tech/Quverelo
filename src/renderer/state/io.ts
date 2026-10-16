@@ -9,6 +9,7 @@ import { canvasToBytes, createCanvas, ctx2d } from '../engine/assets';
 import { exportImagePdf, exportPdf, exportRaster, exportSelectionRaster, exportSvg, renderPageCanvas } from '../engine/export';
 import { importSvg } from '../engine/svgImport';
 import { defaultExportFormat, pagesStillValid, type ExportFormat } from '../../core/exportDefaults';
+import { docColour, type CmykProfileId } from '../../core/colour/profiles';
 import { editor } from './editor';
 import { openDialog, toast } from './bus';
 import { markStep } from './onboarding';
@@ -297,8 +298,13 @@ export interface ExportRequest {
   transparent: boolean;
   includeBleed: boolean;
   cropMarks: boolean;
-  /** PDF only: 'vector' (default) keeps shapes and text as vectors; 'image' makes one picture per page */
-  pdfKind?: 'vector' | 'image';
+  /**
+   * PDF only: 'vector' (default) keeps shapes and text as vectors; 'image' makes one picture per page;
+   * 'x4' / 'x1a' are print-ready PDF/X-4 and PDF/X-1a:2003 (vector, CMYK for `cmykProfile`)
+   */
+  pdfKind?: 'vector' | 'image' | 'x4' | 'x1a';
+  /** PDF/X: the press to convert to (defaults to the document's CMYK profile) */
+  cmykProfile?: CmykProfileId;
   /** PNG/JPEG only: export just these objects, cropped to their bounds */
   selection?: string[];
   /** file name offered in the save dialog (without extension); defaults to the document title */
@@ -329,10 +335,15 @@ export async function runExportFiles(req: ExportRequest, targets: (string | null
     if (req.pdfKind === 'image') {
       data = await exportImagePdf(doc, editor.assets, { dpi: req.dpi, includeBleed: req.includeBleed, cropMarks: req.cropMarks, quality: req.quality, pages: req.pages });
     } else {
-      const out = await exportPdf(doc, editor.assets, { pages: req.pages, includeBleed: req.includeBleed, cropMarks: req.cropMarks, quality: req.quality, fallbackDpi: Math.max(150, req.dpi) });
+      const standard = req.pdfKind === 'x4' || req.pdfKind === 'x1a' ? req.pdfKind : null;
+      const print = standard ? { standard, cmykProfile: req.cmykProfile ?? docColour(doc.settings).cmykProfile } : undefined;
+      // print PDFs place fallback images at 300 dpi at least
+      const out = await exportPdf(doc, editor.assets, { pages: req.pages, includeBleed: req.includeBleed, cropMarks: req.cropMarks, quality: req.quality, fallbackDpi: Math.max(standard ? 300 : 150, req.dpi), print });
       data = out.bytes;
       const r = out.report.rasterised;
-      if (r.length) lastPdfNote = r.length === 1 ? `“${r[0].name}” was placed as an image: ${r[0].reason}` : `${r.length} objects were placed as images (${r[0].reason}…)`;
+      const f = out.report.flattened;
+      if (f.length) lastPdfNote = f.length === 1 ? `PDF/X-1a has no transparency, so “${f[0].name}” (${f[0].reason}) was flattened into an image with what lies under it` : `PDF/X-1a has no transparency, so ${f.length} objects were flattened into images (${f[0].reason}…)`;
+      else if (r.length) lastPdfNote = r.length === 1 ? `“${r[0].name}” was placed as an image: ${r[0].reason}` : `${r.length} objects were placed as images (${r[0].reason}…)`;
     }
     const p = await window.quvrelo.saveFile({ path: targets[0] ?? null, data, defaultName: `${title}.pdf`, filters: [{ name: 'PDF', extensions: ['pdf'] }], title: 'Export PDF' });
     if (!p) return null;

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { StudioKind, Unit } from '../../core/types';
 import { UNITS, formatSize } from '../../core/units';
 import { pathBounds } from '../../core/path';
+import { colourSummary, docColour, PROFILES } from '../../core/colour/profiles';
 import { editor, STUDIO_TOOLS } from '../state/editor';
 import { STUDIO_RAIL, groupOf, isGroup, toolKeyIn } from '../state/toolGroups';
 import { RailGroup, TOOL_HINTS, toolParts } from './ToolFlyout';
@@ -405,6 +406,43 @@ export function setDocumentUnit(u: Unit): void {
   editor.commit('Units', (d) => ({ ...d, settings: { ...d.settings, unit: u } }), 'units');
 }
 
+/** Document colour space, and the soft-proof switch (always on for CMYK documents). */
+function ColourStatus() {
+  const ed = useEditor();
+  const doc = ed.doc!;
+  const col = docColour(doc.settings);
+  const cmyk = col.mode === 'cmyk';
+  const proof = cmyk || ed.ui.softProof;
+  const press = PROFILES[col.cmykProfile].short;
+  return (
+    <>
+      <button
+        type="button"
+        className={`btn ghost snap-toggle proof-toggle${proof ? ' on' : ''}`}
+        aria-pressed={proof}
+        data-testid="proof-toggle"
+        {...tip(cmyk ? `Press proof · ${PROFILES[col.cmykProfile].name} (CMYK document)` : `Soft proof · ${PROFILES[col.cmykProfile].name}`, 'view.soft-proof')}
+        aria-label={`Soft proof, document colour ${colourSummary(col)}`}
+        onClick={() => runCommand('view.soft-proof')}
+      >
+        <Icon name="proof" /> <span data-testid="status-colour">{cmyk ? colourSummary(col) : proof ? `Proof · ${press}` : colourSummary(col)}</span>
+      </button>
+      <button
+        type="button"
+        className={`btn ghost snap-toggle gamut-toggle icon-only${ed.ui.gamutWarning ? ' on' : ''}`}
+        aria-pressed={ed.ui.gamutWarning}
+        data-testid="gamut-toggle"
+        {...tip('Gamut warning: grey out colours the press can’t print', 'view.gamut-warning')}
+        aria-label="Gamut warning"
+        onClick={() => runCommand('view.gamut-warning')}
+      >
+        <Icon name="gamut" />
+      </button>
+      <span className="sep" aria-hidden="true" />
+    </>
+  );
+}
+
 function StatusBar() {
   const ed = useEditor();
   const doc = ed.doc!;
@@ -437,6 +475,7 @@ function StatusBar() {
       <button className="btn ghost zoom-value" onClick={() => runCommand('view.zoom-fit')} {...tip('Zoom to fit', 'view.zoom-fit')} aria-label={`Zoom ${zoom}%, fit to window`}><span className="num">{zoom}%</span></button>
       <button className="icon-btn sm" {...tip('Zoom in', 'view.zoom-in')} onClick={() => runCommand('view.zoom-in')}><Icon name="plus" /></button>
       <span className="sep" aria-hidden="true" />
+      <ColourStatus />
       <button type="button" className={`btn ghost snap-toggle${ed.settings.snapping ? ' on' : ''}`} aria-pressed={ed.settings.snapping} {...tip('Snapping', 'view.snapping')} aria-label="Snap" onClick={() => runCommand('view.snapping')}>
         <Icon name="magnet" /> Snap
       </button>

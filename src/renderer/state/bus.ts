@@ -1,7 +1,7 @@
 /** Tiny UI event bus: lets commands open dialogs and show toasts without importing React. */
 export type DialogName =
   | 'new' | 'export' | 'document-setup' | 'resize' | 'preferences' | 'shortcuts' | 'guide' | 'about'
-  | 'assignment' | 'hand-in' | 'confirm' | 'updates';
+  | 'assignment' | 'hand-in' | 'confirm' | 'updates' | 'swatch';
 
 export interface Toast {
   id: number;

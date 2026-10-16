@@ -12,9 +12,8 @@ export function profileFile(id: ProfileId): Uint8Array {
 
 export function testEngine(): Promise<ColourEngine> {
   engine ??= ColourEngine.create({
-    wasmBinary: new Uint8Array(readFileSync('src/vendor/lcms/lcms.wasm')),
     profile: profileFile,
-    instantiate,
+    instantiate: () => instantiate({ wasmBinary: new Uint8Array(readFileSync('src/vendor/lcms/lcms.wasm')) }),
   });
   return engine;
 }

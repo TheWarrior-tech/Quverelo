@@ -47,8 +47,8 @@ export class ColourEngine {
   constructor(private lcms: LcmsModule, private bytes: (id: ProfileId) => Uint8Array) {}
 
   /** Load the wasm and the profiles. `profile` returns a bundled profile's bytes. */
-  static async create(opts: { wasmBinary: Uint8Array; profile: (id: ProfileId) => Promise<Uint8Array> | Uint8Array; instantiate: (o: { wasmBinary: Uint8Array }) => Promise<LcmsModule> }): Promise<ColourEngine> {
-    const lcms = await opts.instantiate({ wasmBinary: opts.wasmBinary });
+  static async create(opts: { profile: (id: ProfileId) => Promise<Uint8Array> | Uint8Array; instantiate: () => Promise<LcmsModule> }): Promise<ColourEngine> {
+    const lcms = await opts.instantiate();
     const loaded = new Map<ProfileId, Uint8Array>();
     for (const id of Object.keys(PROFILES) as ProfileId[]) loaded.set(id, await opts.profile(id));
     return new ColourEngine(lcms, (id) => loaded.get(id)!);

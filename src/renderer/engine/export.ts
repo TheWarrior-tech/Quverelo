@@ -3,7 +3,10 @@ import { PDFDocument, PDFName, PDFString } from 'pdf-lib';
 import { pageToSvg } from '../../core/svg';
 import { findNode, nodeMatrix, worldMatrix } from '../../core/document';
 import { multiply, type Matrix } from '../../core/geometry';
-import { exportVectorPdf, type PdfImageData, type VectorPdfReport } from '../../core/pdfVector';
+import { exportVectorPdf, type PdfColourOutput, type PdfImageData, type PdfPixelHooks, type RgbaImage, type VectorPdfReport } from '../../core/pdfVector';
+import { docColour, PROFILES, type CmykProfileId } from '../../core/colour/profiles';
+import type { PdfxStandard } from '../../core/colour/pdfx';
+import { loadColourEngine } from './colour';
 import { bundledFaceFor } from '../../core/pdfFonts';
 import type { Id, QuvreloDocument, SceneNode } from '../../core/types';
 import { docPxPerInch, pdfPtPerPx } from '../../core/units';
@@ -212,6 +215,80 @@ export interface VectorPdfExportOptions {
   quality: number;
   /** resolution for the few objects PDF can't draw as vectors */
   fallbackDpi: number;
+  /** print output: CMYK for this press, optionally as PDF/X (absent = RGB) */
+  print?: { cmykProfile: CmykProfileId; standard: PdfxStandard | null };
+}
+
+function canvasRgba(c: HTMLCanvasElement): RgbaImage {
+  const d = c.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, c.width, c.height);
+  return { data: d.data, width: d.width, height: d.height };
+}
+
+/** Pixels for CMYK output: what the canvas renderer draws, read back as RGBA. */
+function pixelHooks(doc: QuvreloDocument, assets: AssetStore): PdfPixelHooks {
+  const env = (zoom: number) => ({ doc, assets, editor: false, preview: false, zoom });
+  return {
+    raster: async (n) => {
+      const c = assets.rendered(n.assetId, n.adjustments, false);
+      return c ? canvasRgba(c) : null;
+    },
+    asset: async (id) => {
+      const c = assets.get(id);
+      return c ? canvasRgba(c) : null;
+    },
+    rasterise: async (n, ppu) => {
+      const b = renderLocalBounds(n);
+      const sw = 'stroke' in n && n.stroke.width > 0 ? n.stroke.width : 0;
+      const pad = sw / 2 + 2;
+      const box = { x: b.x - pad, y: b.y - pad, w: b.w + 2 * pad, h: b.h + 2 * pad };
+      const k = Math.min(ppu, 8000 / Math.max(box.w, box.h, 1));
+      const c = createCanvas(Math.max(1, Math.ceil(box.w * k)), Math.max(1, Math.ceil(box.h * k)));
+      const ctx = ctx2d(c);
+      ctx.scale(k, k);
+      ctx.translate(-box.x, -box.y);
+      drawNodeContent(ctx, n, env(k));
+      return { ...canvasRgba(c), box };
+    },
+    composite: async (pageIndex, count, box, ppu) => {
+      const page = doc.pages[pageIndex];
+      if (!page) return null;
+      const master = page.masterId ? doc.masters.find((m) => m.id === page.masterId) : null;
+      const nodes = [...(master?.nodes ?? []), ...page.nodes].slice(0, count);
+      const k = Math.min(ppu, 8000 / Math.max(box.w, box.h, 1));
+      const c = createCanvas(Math.max(1, Math.round(box.w * k)), Math.max(1, Math.round(box.h * k)));
+      const ctx = ctx2d(c);
+      // paper white under everything (PDF/X-1a pages are opaque)
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, c.width, c.height);
+      ctx.scale(c.width / box.w, c.height / box.h);
+      ctx.translate(-box.x, -box.y);
+      const flat: QuvreloDocument = { ...doc, pages: doc.pages.map((p, i) => (i === pageIndex ? { ...p, masterId: null, nodes } : p)) };
+      drawPage(ctx, flat, pageIndex, env(k), true);
+      return canvasRgba(c);
+    },
+    bounds: (n) => {
+      const b = renderLocalBounds(n);
+      const sw = 'stroke' in n && n.stroke.width > 0 ? n.stroke.width : 0;
+      const pad = sw / 2 + 1;
+      return { x: b.x - pad, y: b.y - pad, w: b.w + 2 * pad, h: b.h + 2 * pad };
+    },
+  };
+}
+
+/** How document colours become the press's CMYK (lcms2, the document's RGB profile and intent). */
+export async function printColour(doc: QuvreloDocument, cmykProfile: CmykProfileId, standard: PdfxStandard | null): Promise<PdfColourOutput> {
+  const e = await loadColourEngine();
+  const c = docColour(doc.settings);
+  // vector colours: relative colorimetric keeps in-gamut colours exact; photos use the document intent
+  const vec = { intent: 'relative' as const, bpc: true };
+  const img = { intent: c.intent };
+  return {
+    cmyk: (rgb) => e.rgbToCmyk(rgb, c.rgbProfile, cmykProfile, vec),
+    image: (px) => (px.data instanceof Uint16Array
+      ? e.rgba16ToCmyk(px.data, px.width * px.height, c.rgbProfile, cmykProfile, img)
+      : e.rgbaToCmyk(px.data, px.width * px.height, c.rgbProfile, cmykProfile, img)),
+    pdfx: standard ? { standard, profile: e.profileBytes(cmykProfile), condition: PROFILES[cmykProfile].pdfx! } : undefined,
+  };
 }
 
 function isOpaque(c: HTMLCanvasElement): boolean {
@@ -241,7 +318,9 @@ function loadFont(key: string): Promise<Uint8Array | null> {
 
 /** Shapes and text as PDF vectors with embedded fonts; photos at their own resolution. */
 export async function exportPdf(doc: QuvreloDocument, assets: AssetStore, o: VectorPdfExportOptions): Promise<{ bytes: Uint8Array; report: VectorPdfReport }> {
-  return exportVectorPdf(doc, { pages: o.pages, includeBleed: o.includeBleed, cropMarks: o.cropMarks, fallbackDpi: o.fallbackDpi }, {
+  const colour = o.print ? await printColour(doc, o.print.cmykProfile, o.print.standard) : undefined;
+  return exportVectorPdf(doc, { pages: o.pages, includeBleed: o.includeBleed, cropMarks: o.cropMarks, fallbackDpi: o.fallbackDpi, colour }, {
+    pixels: colour ? pixelHooks(doc, assets) : undefined,
     measure: measureText,
     textSize: artisticTextSize,
     flow: (id) => storyFlow(doc, id),

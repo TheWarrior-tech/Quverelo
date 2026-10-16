@@ -112,7 +112,7 @@ export function commandIcon(id: string): string | undefined {
     'help.guide': 'help', 'help.about': 'help',
     // every command has an icon, so no row reads as a gap (critique 3 P2-5)
     'doc.clear-guides': 'close', 'view.rulers': 'layout', 'view.snapping': 'magnet', 'view.theme-dark': 'adjust', 'view.theme-light': 'adjust',
-    'view.theme-contrast': 'adjust', 'view.ui-bigger': 'plus', 'view.ui-smaller': 'minus', 'view.ui-reset': 'undo', 'view.devtools': 'settings',
+    'view.theme-contrast': 'adjust', 'doc.new-swatch': 'swatch', 'view.soft-proof': 'proof', 'view.gamut-warning': 'gamut', 'view.ui-bigger': 'plus', 'view.ui-smaller': 'minus', 'view.ui-reset': 'undo', 'view.devtools': 'settings',
   };
   if (direct[id]) return direct[id];
   if (id === 'file.export' || id.startsWith('file.export-')) return 'export';

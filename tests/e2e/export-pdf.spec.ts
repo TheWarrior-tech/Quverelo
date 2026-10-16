@@ -53,7 +53,8 @@ test.describe('export', () => {
     await expect(page.locator('[data-format="pdf-image"]')).toContainText('Image PDF');
     await expect(dlg).not.toContainText('Print-ready');
     await expect(dlg).not.toContainText('rasterised');
-    await expect(dlg).not.toContainText('PDF/X-');
+    // the plain PDF is not labelled print-ready; PDF/X-4 and PDF/X-1a are their own entries (colour.spec.ts)
+    await expect(dlg.locator('.ex-form')).not.toContainText('PDF/X-');
     await expect(dlg.getByText('Image resolution')).toHaveCount(0);
     // the newsletter is A4: page size in mm
     await expect(page.getByTestId('export-dims')).toContainText('mm');

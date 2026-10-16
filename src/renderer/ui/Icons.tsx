@@ -120,6 +120,10 @@ const paths: Record<string, ReactElement> = {
   search: <><circle cx="8.5" cy="8.5" r="5" />{P('M12.3 12.3l4.2 4.2')}</>,
   // empty/drop states: a file arriving into a tray
   drop: P('M10 3.5v8M6.8 8.3l3.2 3.2 3.2-3.2M3.5 12v3.5a1 1 0 001 1h11a1 1 0 001-1V12'),
+  // colour management: an ink drop (soft proof) and a warning triangle (gamut warning)
+  proof: P('M10 3.2c2.9 3.6 5 6.3 5 8.8a5 5 0 01-10 0c0-2.5 2.1-5.2 5-8.8z'),
+  gamut: <>{P('M10 3.5l7.2 12.5H2.8z')}{P('M10 8.3v3.6')}<path d="M10 14.1h.01" strokeWidth={2} /></>,
+  swatch: <>{R(3.5, 3.5, 13, 13, 2)}{P('M3.5 10h13M10 3.5v13')}</>,
   'circle-check': <><circle cx="10" cy="10" r="7" />{P('M7 10.3l2.1 2.1 4-4.3')}</>,
   circle: <circle cx="10" cy="10" r="7" />,
   // overflow / options menu: three dots (round caps on zero-length strokes)

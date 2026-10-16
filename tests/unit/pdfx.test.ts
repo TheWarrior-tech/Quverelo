@@ -169,7 +169,7 @@ describe('PDF/X', () => {
       const oi = pdf.catalog.lookup(PDFName.of('OutputIntents'), PDFArray).lookup(0, PDFDict);
       expect(oi.get(PDFName.of('S'))).toEqual(PDFName.of('GTS_PDFX'));
       expect((oi.lookup(PDFName.of('OutputConditionIdentifier'), PDFString)).decodeText()).toBe('FOGRA39');
-      const icc = oi.lookup(PDFName.of('DestOutputProfile'), PDFRawStream);
+      const icc = oi.lookup(PDFName.of('DestOutputProfile')) as PDFRawStream;
       expect(icc.dict.get(PDFName.of('N'))?.toString()).toBe('4');
       const iccBytes = inflateSync(Buffer.from(icc.contents));
       expect(iccBytes.subarray(12, 20).toString('latin1')).toBe('prtrCMYK');
@@ -180,7 +180,7 @@ describe('PDF/X', () => {
       const title = info.lookup(PDFName.of('Title')) as PDFString | PDFHexString;
       expect(title.decodeText()).toBe('Print test');
       // XMP agrees with Info
-      const meta = pdf.catalog.lookup(PDFName.of('Metadata'), PDFRawStream);
+      const meta = pdf.catalog.lookup(PDFName.of('Metadata')) as PDFRawStream;
       const xmp = Buffer.from(meta.contents).toString('utf8');
       expect(xmp).toContain(`<pdfxid:GTS_PDFXVersion>${PDFX_VERSION[standard]}</pdfxid:GTS_PDFXVersion>`);
       const cd = (info.lookup(PDFName.of('CreationDate'), PDFString)).decodeText();

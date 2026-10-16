@@ -2019,3 +2019,8 @@ kbd {
   border-bottom-width: 1px;
   color: #fff;
 }
+
+/* colour status: soft-proof switch shows the document colour space; gamut warning is icon-only */
+.statusbar .snap-toggle.icon-only {
+  padding: 0 4px;
+}
