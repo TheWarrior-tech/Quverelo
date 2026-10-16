@@ -8,7 +8,7 @@ Output in ml/data/packed_v1/ (gitignored, ~1 GB):
 Held-out test = Open Images *validation* images with sha1(ImageID) % 100 < 7 (the same rule as v0, so the
 v0 test images are a subset of the v1 test images). Every Open Images *test*-split image is used for training.
 
-    python ml/scripts/build_dataset_v1.py --size 320 [--workers 2]
+    python ml/scripts/build_dataset_v1.py --size 320 [--workers 2]     # resumable (2,000-image parts); re-run after a reset
 """
 import argparse, csv, hashlib, io, json, os, time, zipfile
 from multiprocessing import Pool
@@ -87,24 +87,43 @@ def main():
         jobs += [(source, i, per[i]) for i in ids]
     print(len(jobs), "images", flush=True)
     OUTD = a.out
-    os.makedirs(OUTD, exist_ok=True)
     S = a.size
-    fi = open(os.path.join(OUTD, f"images_{S}.bin"), "wb")
-    fm = open(os.path.join(OUTD, f"masks_{S}.bin"), "wb")
-    ioff, moff, index, row = [0], [0], [], 0
+    parts = os.path.join(OUTD, f"parts_{S}")
+    os.makedirs(parts, exist_ok=True)
+    CH = 2000  # resumable: each chunk of CH images is written as its own part, finished parts are skipped
+    chunks = [jobs[i:i + CH] for i in range(0, len(jobs), CH)]
     with Pool(a.workers) as pool:
-        for n, r in enumerate(pool.imap(_one, jobs, chunksize=16)):
-            if r is None:
+        for c, chunk in enumerate(chunks):
+            done = os.path.join(parts, f"{c:03d}.json")
+            if os.path.exists(done):
                 continue
-            source, iid, jb, ms, labs = r
-            fi.write(jb); ioff.append(ioff[-1] + len(jb))
-            for mb in ms:
-                fm.write(mb); moff.append(moff[-1] + len(mb))
-            index.append({"id": iid, "source": source, "split": split_of(iid, source), "m0": row, "m1": row + len(ms), "labels": labs})
-            row += len(ms)
-            if n % 2000 == 0:
-                print(n, round(time.time() - t0), "s", flush=True)
-    fi.close(); fm.close()
+            fi = open(os.path.join(parts, f"{c:03d}.img"), "wb"); fm = open(os.path.join(parts, f"{c:03d}.msk"), "wb")
+            ent = []
+            for r in pool.imap(_one, chunk, chunksize=16):
+                if r is None:
+                    continue
+                source, iid, jb, ms, labs = r
+                fi.write(jb)
+                for mb in ms:
+                    fm.write(mb)
+                ent.append({"id": iid, "source": source, "split": split_of(iid, source), "labels": labs,
+                            "ilen": len(jb), "mlen": [len(mb) for mb in ms]})
+            fi.close(); fm.close()
+            json.dump(ent, open(done + ".tmp", "w")); os.replace(done + ".tmp", done)
+            print(f"chunk {c + 1}/{len(chunks)} {round(time.time() - t0)} s", flush=True)
+    # consolidate
+    ioff, moff, index, row = [0], [0], [], 0
+    with open(os.path.join(OUTD, f"images_{S}.bin"), "wb") as fi, open(os.path.join(OUTD, f"masks_{S}.bin"), "wb") as fm:
+        for c in range(len(chunks)):
+            fi.write(open(os.path.join(parts, f"{c:03d}.img"), "rb").read())
+            fm.write(open(os.path.join(parts, f"{c:03d}.msk"), "rb").read())
+            for e in json.load(open(os.path.join(parts, f"{c:03d}.json"))):
+                ioff.append(ioff[-1] + e.pop("ilen"))
+                ml = e.pop("mlen")
+                for n in ml:
+                    moff.append(moff[-1] + n)
+                e["m0"], e["m1"] = row, row + len(ml); row += len(ml)
+                index.append(e)
     np.save(os.path.join(OUTD, f"images_{S}_off.npy"), np.array(ioff, np.int64))
     np.save(os.path.join(OUTD, f"masks_{S}_off.npy"), np.array(moff, np.int64))
     json.dump(index, open(os.path.join(OUTD, f"index_{S}.json"), "w"))

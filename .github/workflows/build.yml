@@ -31,6 +31,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Fetch QuvSelect v1 models (release asset, sha256-checked; falls back to v0 if absent)
+        run: node scripts/fetch-ml-models.mjs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
@@ -83,6 +87,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Fetch QuvSelect v1 models (release asset, sha256-checked; falls back to v0 if absent)
+        run: node scripts/fetch-ml-models.mjs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm run build
       - name: Linux packaging tools (rpm)
         if: matrix.name == 'Linux'
@@ -165,6 +173,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Fetch QuvSelect v1 models (release asset, sha256-checked; falls back to v0 if absent)
+        run: node scripts/fetch-ml-models.mjs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm run build
       - name: Unpacked Linux app (input to the Flatpak manifest)
         run: npx electron-builder --linux dir --x64 --publish never

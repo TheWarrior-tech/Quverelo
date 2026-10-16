@@ -11,3 +11,5 @@ __pycache__/
 models/quvselect_v1*.onnx
 models/*.pre.onnx
 models/*.part
+.venv/
+.hf/
