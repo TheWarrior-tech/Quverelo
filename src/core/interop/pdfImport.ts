@@ -26,8 +26,10 @@ import { composeTransform, decompose, invert, multiply, type Matrix } from '../g
 import { newId } from '../ids';
 import { centrePath, transformPath } from '../path';
 import { lineHeightPx } from '../textflow';
-import type { PathCommand, SceneNode, Stroke, BlendMode } from '../types';
-import { cmykToHex, grayHex, rgbHex } from './color';
+import type { PathCommand, SceneNode, Stroke, BlendMode, Paint } from '../types';
+import { cmykToHex, grayHex, labToHex, rgbHex } from './color';
+import { evalFn, parsePs, type PdfFn } from './pdfFunction';
+import { rgbaHex, sampleStops, shadeToPaint, type Rgba, type Shade } from './pdfShading';
 import { fontFromPostScript } from './psd';
 import { emptyResult, summariseWarnings, type ImportResult } from './types';
 
@@ -234,6 +236,14 @@ interface GState {
   join: Stroke['join'];
   dash: number[];
   clip: PathCommand[] | null;
+  /** current colour spaces (for sc/scn) */
+  fillCs: ColourSpace;
+  strokeCs: ColourSpace;
+  /** a shading pattern selected as the fill / stroke colour (page px = ap(m, x, y)) */
+  fillShade: { sh: PDFDict; m: Matrix } | null;
+  strokeShade: { sh: PDFDict; m: Matrix } | null;
+  /** soft (opacity) mask from the ExtGState: a shape, a gradient over a shape, and/or a constant factor */
+  softMask: SoftMask | null;
   // text state
   font: FontInfo | null;
   fontSize: number;
@@ -255,6 +265,18 @@ const cat = (a: Matrix, b: Matrix): Matrix => multiply(b, a);
 const ap = (m: Matrix, x: number, y: number): [number, number] => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
 
 interface Layer { name: string; visible: boolean; nodes: SceneNode[] }
+
+/** A resolved colour space: component count and conversion to sRGB. */
+interface ColourSpace { name: string; n: number; rgba(c: number[]): Rgba; pattern?: boolean }
+
+interface SoftMask { path: PathCommand[] | null; shade: Shade | null; alpha: number }
+
+const hexRgba = (h: string): Rgba => ({ r: parseInt(h.slice(1, 3), 16) / 255, g: parseInt(h.slice(3, 5), 16) / 255, b: parseInt(h.slice(5, 7), 16) / 255, a: h.length >= 9 ? parseInt(h.slice(7, 9), 16) / 255 : 1 });
+const DEVICE_GRAY: ColourSpace = { name: 'DeviceGray', n: 1, rgba: (c) => ({ r: c[0] ?? 0, g: c[0] ?? 0, b: c[0] ?? 0, a: 1 }) };
+const DEVICE_RGB: ColourSpace = { name: 'DeviceRGB', n: 3, rgba: (c) => ({ r: c[0] ?? 0, g: c[1] ?? 0, b: c[2] ?? 0, a: 1 }) };
+const DEVICE_CMYK: ColourSpace = { name: 'DeviceCMYK', n: 4, rgba: (c) => hexRgba(cmykToHex(c[0] ?? 0, c[1] ?? 0, c[2] ?? 0, c[3] ?? 0)) };
+const deviceFor = (n: number) => (n === 1 ? DEVICE_GRAY : n === 4 ? DEVICE_CMYK : DEVICE_RGB);
+const withAlpha = (hex: string, a: number) => (a >= 0.999 ? hex : rgbaHex({ ...hexRgba(hex), a }));
 
 class Interpreter {
   warnings: string[] = [];
@@ -353,9 +375,9 @@ class Interpreter {
     return { text, codes };
   }
 
-  private colour(ops: Tok[], warnPattern: () => void): string | null {
+  /** Device colour operators (g/rg/k): component count decides the space. */
+  private colour(ops: Tok[]): string | null {
     const nums = ops.filter((o): o is { t: 'num'; v: number } => o.t === 'num').map((o) => o.v);
-    if (ops.some((o) => o.t === 'name')) { warnPattern(); return '#808080'; }
     if (nums.length === 1) return grayHex(nums[0]);
     if (nums.length === 3) return rgbHex(nums[0] * 255, nums[1] * 255, nums[2] * 255);
     if (nums.length === 4) return cmykToHex(nums[0], nums[1], nums[2], nums[3]);
@@ -364,6 +386,140 @@ class Interpreter {
 
   private warn(w: string) {
     this.warnings.push(w);
+  }
+
+  private numbers(o: PDFObject | undefined): number[] {
+    const a = this.lookup(o, PDFArray);
+    return a ? a.asArray().map((x) => this.num(x) ?? 0) : [];
+  }
+
+  /** PDF function object → evaluable description (null if unreadable). */
+  fn(o: PDFObject | undefined, depth = 0): PdfFn | null {
+    const v = this.lookup(o);
+    if (!v || depth > 8) return null;
+    if (v instanceof PDFArray) {
+      const fns = v.asArray().map((x) => this.fn(x, depth + 1));
+      return fns.every((f): f is PdfFn => !!f) ? { type: 'array', fns } : null;
+    }
+    const d = v instanceof PDFStream ? v.dict : v instanceof PDFDict ? v : null;
+    if (!d) return null;
+    const type = this.num(d.get(PDFName.of('FunctionType')));
+    const domain = this.numbers(d.get(PDFName.of('Domain')));
+    const range = this.numbers(d.get(PDFName.of('Range')));
+    try {
+      if (type === 2) {
+        const c0 = this.numbers(d.get(PDFName.of('C0')));
+        const c1 = this.numbers(d.get(PDFName.of('C1')));
+        return { type: 2, domain, c0: c0.length ? c0 : [0], c1: c1.length ? c1 : [1], n: this.num(d.get(PDFName.of('N'))) ?? 1 };
+      }
+      if (type === 3) {
+        const fns = this.lookup(d.get(PDFName.of('Functions')), PDFArray)?.asArray().map((x) => this.fn(x, depth + 1)) ?? [];
+        if (!fns.length || fns.some((f) => !f)) return null;
+        return { type: 3, domain, fns: fns as PdfFn[], bounds: this.numbers(d.get(PDFName.of('Bounds'))), encode: this.numbers(d.get(PDFName.of('Encode'))) };
+      }
+      if (type === 0 && v instanceof PDFStream) {
+        return { type: 0, domain, range, size: this.numbers(d.get(PDFName.of('Size'))), bps: this.num(d.get(PDFName.of('BitsPerSample'))) ?? 8, encode: this.numbers(d.get(PDFName.of('Encode'))), decode: this.numbers(d.get(PDFName.of('Decode'))), samples: this.streamBytes(v) };
+      }
+      if (type === 4 && v instanceof PDFStream) {
+        const b = this.streamBytes(v);
+        return { type: 4, domain, range, program: parsePs(latin1(b, 0, b.length)) };
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+
+  /** A colour space by name (device or a /ColorSpace resource) or array. */
+  colourSpace(o: PDFObject | string | undefined, resources: PDFDict | undefined, depth = 0): ColourSpace {
+    if (depth > 6) return DEVICE_GRAY;
+    let v: PDFObject | undefined;
+    if (typeof o === 'string') {
+      if (o === 'DeviceGray' || o === 'G' || o === 'CalGray') return DEVICE_GRAY;
+      if (o === 'DeviceRGB' || o === 'RGB' || o === 'CalRGB') return DEVICE_RGB;
+      if (o === 'DeviceCMYK' || o === 'CMYK') return DEVICE_CMYK;
+      if (o === 'Pattern') return { name: 'Pattern', n: 0, rgba: () => ({ r: 0.5, g: 0.5, b: 0.5, a: 1 }), pattern: true };
+      v = this.dictGet(resources, 'ColorSpace', PDFDict)?.get(PDFName.of(o));
+      if (!v) return DEVICE_GRAY;
+    } else v = o;
+    const cs = this.lookup(v);
+    if (cs instanceof PDFName) return this.colourSpace(cs.asString().slice(1), resources, depth + 1);
+    if (!(cs instanceof PDFArray)) return DEVICE_GRAY;
+    const kind = this.lookup(cs.get(0), PDFName)?.asString().slice(1) ?? '';
+    switch (kind) {
+      case 'ICCBased': {
+        const st = this.lookup(cs.get(1), PDFStream);
+        const n = this.num(st?.dict.get(PDFName.of('N'))) ?? 3;
+        return { ...deviceFor(n), name: 'ICCBased' };
+      }
+      case 'CalGray': return DEVICE_GRAY;
+      case 'CalRGB': return DEVICE_RGB;
+      case 'Lab': return { name: 'Lab', n: 3, rgba: (c) => hexRgba(labToHex(c[0] ?? 0, c[1] ?? 0, c[2] ?? 0)) };
+      case 'Separation': case 'DeviceN': {
+        const n = kind === 'Separation' ? 1 : (this.lookup(cs.get(1), PDFArray)?.size() ?? 1);
+        const alt = this.colourSpace(cs.get(2), resources, depth + 1);
+        const f = this.fn(cs.get(3));
+        if (!f) return { name: kind, n, rgba: (c) => ({ r: 1 - (c[0] ?? 0), g: 1 - (c[0] ?? 0), b: 1 - (c[0] ?? 0), a: 1 }) };
+        return { name: kind, n, rgba: (c) => alt.rgba(evalFn(f, c)) };
+      }
+      case 'Indexed': {
+        const base = this.colourSpace(cs.get(1), resources, depth + 1);
+        const look = this.lookup(cs.get(3));
+        let table: Uint8Array = new Uint8Array();
+        if (look instanceof PDFStream) table = this.streamBytes(look);
+        else if (look instanceof PDFString || look instanceof PDFHexString) table = look.asBytes();
+        return { name: 'Indexed', n: 1, rgba: (c) => { const i = Math.round(c[0] ?? 0) * base.n; return base.rgba(Array.from(table.subarray(i, i + base.n), (x) => x / 255)); } };
+      }
+      case 'Pattern': return { name: 'Pattern', n: 0, rgba: () => ({ r: 0.5, g: 0.5, b: 0.5, a: 1 }), pattern: true };
+      default: return deviceFor(cs.size() === 1 ? 1 : 3);
+    }
+  }
+
+  /** Shading dictionary + its space → page px, as a Shade (axial and radial; others null). */
+  shade(o: PDFObject | undefined, m: Matrix, resources: PDFDict | undefined): Shade | null {
+    const v = this.lookup(o);
+    const d = v instanceof PDFStream ? v.dict : v instanceof PDFDict ? v : null;
+    if (!d) return null;
+    const type = this.num(d.get(PDFName.of('ShadingType')));
+    if (type !== 2 && type !== 3) return null;
+    const cs = this.colourSpace(d.get(PDFName.of('ColorSpace')), resources);
+    const f = this.fn(d.get(PDFName.of('Function')));
+    if (!f) return null;
+    const coords = this.numbers(d.get(PDFName.of('Coords')));
+    const dom = this.numbers(d.get(PDFName.of('Domain')));
+    const t0 = dom[0] ?? 0, t1 = dom[1] ?? 1;
+    const colour = (t: number) => cs.rgba(evalFn(f, [t0 + t * (t1 - t0)]));
+    // breakpoints of stitching functions; curved segments (N ≠ 1, sampled, calculator) get extra samples
+    const bps: number[] = [];
+    let curved = false;
+    const scan = (g: PdfFn, lo: number, hi: number) => {
+      if (g.type === 'array') { g.fns.forEach((x) => scan(x, lo, hi)); return; }
+      if (g.type === 3) {
+        const d0 = g.domain[0] ?? 0, d1 = g.domain[1] ?? 1;
+        const at = (x: number) => lo + ((x - d0) / (d1 - d0 || 1)) * (hi - lo);
+        const edges = [d0, ...g.bounds, d1];
+        g.fns.forEach((h, k) => { bps.push(at(edges[k])); scan(h, at(edges[k]), at(edges[k + 1])); });
+        return;
+      }
+      if (g.type !== 2 || g.n !== 1) curved = true;
+    };
+    scan(f, 0, 1);
+    if (cs.name === 'Separation' || cs.name === 'DeviceN' || cs.name === 'Lab' || cs.name === 'Indexed') curved = true;
+    const stops = sampleStops(colour, bps, curved);
+    const scale = Math.sqrt(Math.abs(m[0] * m[3] - m[1] * m[2]));
+    if (type === 2) return { kind: 'axial', a: ap(m, coords[0], coords[1]), b: ap(m, coords[2], coords[3]), r0: 0, r1: 0, stops };
+    return { kind: 'radial', a: ap(m, coords[0], coords[1]), b: ap(m, coords[3], coords[4]), r0: (coords[2] ?? 0) * scale, r1: (coords[5] ?? 0) * scale, stops };
+  }
+
+  /** Shades of the gradient-filled nodes made in this import (soft masks read them back). */
+  private shadeOf = new WeakMap<SceneNode, Shade>();
+
+  /** Gradient paint for a shade on a world-space path; warns once about approximations. */
+  private shadePaint(sh: Shade, d: PathCommand[], opts: { opacity?: number; maskColour?: Rgba } = {}): Paint {
+    const b = pathBox(d);
+    const r = shadeToPaint(sh, b, opts);
+    if (r.offCentre) this.warn('Off-centre radial gradients were centred on their shape');
+    return r.paint;
   }
 
   run(content: Uint8Array, resources: PDFDict | undefined, initial: GState, target: SceneNode[], depth = 0): void {
@@ -385,6 +541,55 @@ class Interpreter {
     let tgt = target;
 
     const pt = (x: number, y: number) => ap(gs.ctm, x, y);
+    // patterns are positioned in the default space of the content stream that uses them
+    const patternBase = initial.ctm;
+    const setPattern = (stroke: boolean) => {
+      const last = operands[operands.length - 1];
+      const nm = last?.t === 'name' ? last.v : '';
+      const po = this.dictGet(resources, 'Pattern', PDFDict)?.get(PDFName.of(nm));
+      const pv = this.lookup(po);
+      const pd = pv instanceof PDFStream ? pv.dict : pv instanceof PDFDict ? pv : undefined;
+      const ptype = this.num(pd?.get(PDFName.of('PatternType')));
+      let ref: { sh: PDFDict; m: Matrix } | null = null;
+      let rep = '#808080';
+      if (pd && ptype === 2) {
+        const shObj = this.lookup(pd.get(PDFName.of('Shading')));
+        const sh = shObj instanceof PDFStream ? shObj.dict : shObj instanceof PDFDict ? shObj : null;
+        const pm = this.numbers(pd.get(PDFName.of('Matrix')));
+        const m = cat(pm.length === 6 ? (pm as Matrix) : [1, 0, 0, 1, 0, 0], patternBase);
+        const shade = sh ? this.shade(sh, m, resources) : null;
+        if (sh && shade) {
+          ref = { sh, m };
+          rep = rgbaHex({ ...shade.stops[Math.floor(shade.stops.length / 2)].c, a: 1 });
+        } else this.warn('Mesh and function gradients were imported as flat grey');
+      } else this.warn(stroke ? 'Pattern strokes were imported as flat grey' : 'Pattern fills were imported as flat grey');
+      if (stroke) { gs.stroke = rep; gs.strokeShade = ref; } else { gs.fill = rep; gs.fillShade = ref; }
+    };
+    const setComps = (stroke: boolean) => {
+      const nums = operands.filter((o): o is { t: 'num'; v: number } => o.t === 'num').map((o) => o.v);
+      const cs = stroke ? gs.strokeCs : gs.fillCs;
+      if (cs.pattern || operands[operands.length - 1]?.t === 'name') { setPattern(stroke); return; }
+      const hex = rgbaHex({ ...cs.rgba(nums), a: 1 });
+      if (stroke) { gs.stroke = hex; gs.strokeShade = null; } else { gs.fill = hex; gs.fillShade = null; }
+    };
+    /** Apply the clip and soft mask in force to a finished node. */
+    const finish = (node: SceneNode, g: GState): SceneNode => {
+      let n = node;
+      const sm = g.softMask;
+      if (sm) {
+        if (sm.alpha < 0.999) n = { ...n, opacity: n.opacity * sm.alpha };
+        if (sm.shade) {
+          const fill = (n as { fill?: Paint }).fill;
+          if (n.type === 'path' && fill?.type === 'solid') {
+            const world = transformPath(n.d, composeTransform(n));
+            n = { ...n, fill: this.shadePaint(sm.shade, world, { maskColour: hexRgba(fill.color.length >= 7 ? fill.color : '#000000') }) } as SceneNode;
+          } else this.warn('Opacity masks with a gradient were applied as a shape only to gradients, images and text');
+        }
+        if (sm.path && !g.clip) return this.clipped(n, sm.path);
+        if (sm.path && g.clip) this.warn('An object with both a clipping path and an opacity mask kept the clipping path');
+      }
+      return this.clipped(n, g.clip);
+    };
     const flushText = () => {
       if (!textRun || !textRun.text.trim()) { textRun = null; return; }
       const r = textRun;
@@ -406,7 +611,7 @@ class Interpreter {
       const cx = r.x + Math.cos(rad) * width / 2 + Math.sin(rad) * toCentre;
       const cy = r.y + Math.sin(rad) * width / 2 - Math.cos(rad) * toCentre;
       const node = make.text({ name: r.text.trim().slice(0, 32), text: r.text.trimEnd(), x: cx, y: cy, rotation: r.angle, style, opacity: r.gs.fillAlpha, blend: r.gs.blend });
-      tgt.push(this.clipped(node, r.gs.clip));
+      tgt.push(finish(node, r.gs));
     };
 
     const showText = (s: string, rsrc: PDFDict | undefined) => {
@@ -446,17 +651,27 @@ class Interpreter {
         const st: Stroke = stroke && gs.stroke
           ? { ...makeStroke(gs.stroke, Math.max(0.01, (gs.lineWidth || 1 / scale) * scale)), cap: gs.cap, join: gs.join, dash: gs.dash.map((d) => d * scale) }
           : makeStroke();
+        // one opacity for the object when fill and stroke agree; otherwise each paint carries its own alpha
         const sameAlpha = !stroke || !fill || Math.abs(gs.fillAlpha - gs.strokeAlpha) < 0.01;
+        const fa = sameAlpha ? 1 : gs.fillAlpha, sa = sameAlpha ? 1 : gs.strokeAlpha;
+        let fillPaint: Paint = fill && gs.fill ? solid(withAlpha(gs.fill, fa)) : NO_PAINT;
+        const fillShade = fill && gs.fillShade ? this.shade(gs.fillShade.sh, gs.fillShade.m, resources) : null;
+        if (fillShade) fillPaint = this.shadePaint(fillShade, path, { opacity: fa });
+        if (st.paint.type === 'solid' && sa < 1) st.paint = solid(withAlpha(st.paint.color, sa));
+        if (stroke && gs.strokeShade) {
+          const sh = this.shade(gs.strokeShade.sh, gs.strokeShade.m, resources);
+          if (sh) st.paint = this.shadePaint(sh, path, { opacity: sa });
+        }
         const node = make.path({
           ...nodeFromWorld(path),
           name: fill && stroke ? 'Path' : fill ? 'Shape' : 'Line',
-          fill: fill && gs.fill ? solid(gs.fill) : NO_PAINT,
+          fill: fillPaint,
           stroke: st,
-          opacity: fill ? gs.fillAlpha : gs.strokeAlpha,
+          opacity: sameAlpha ? (fill ? gs.fillAlpha : gs.strokeAlpha) : 1,
           blend: gs.blend,
         });
-        if (!sameAlpha) this.warn('Different fill and stroke opacity was merged');
-        tgt.push(this.clipped(node, gs.clip));
+        if (fillShade) this.shadeOf.set(node, fillShade);
+        tgt.push(finish(node, gs));
       }
       path = [];
     };
@@ -473,12 +688,17 @@ class Interpreter {
         case 'J': gs.cap = (['butt', 'round', 'square'] as const)[n(0)] ?? 'butt'; break;
         case 'j': gs.join = (['miter', 'round', 'bevel'] as const)[n(0)] ?? 'miter'; break;
         case 'd': { const a = operands[0]; gs.dash = a?.t === 'arr' ? a.v.map((x) => (x.t === 'num' ? x.v : 0)) : []; break; }
-        case 'g': case 'rg': case 'k': gs.fill = this.colour(operands, () => {}); break;
-        case 'G': case 'RG': case 'K': gs.stroke = this.colour(operands, () => {}); break;
-        case 'sc': case 'scn': gs.fill = this.colour(operands, () => this.warn('Gradient and pattern fills were imported as flat grey')); break;
-        case 'SC': case 'SCN': gs.stroke = this.colour(operands, () => this.warn('Gradient and pattern strokes were imported as flat grey')); break;
-        case 'cs': gs.fill = '#000000'; break;
-        case 'CS': gs.stroke = '#000000'; break;
+        case 'g': case 'rg': case 'k': gs.fill = this.colour(operands); gs.fillCs = deviceFor(operands.length); gs.fillShade = null; break;
+        case 'G': case 'RG': case 'K': gs.stroke = this.colour(operands); gs.strokeCs = deviceFor(operands.length); gs.strokeShade = null; break;
+        case 'sc': case 'scn': setComps(false); break;
+        case 'SC': case 'SCN': setComps(true); break;
+        case 'cs': case 'CS': {
+          const cs = this.colourSpace(operands[0]?.t === 'name' ? operands[0].v : 'DeviceGray', resources);
+          // initial colour of a space: black (0 components; 1 for Separation/DeviceN = full tint; CMYK K=1)
+          const init = cs.pattern ? null : rgbaHex({ ...cs.rgba(cs.name === 'DeviceCMYK' || cs.n === 4 ? [0, 0, 0, 1] : cs.name === 'Separation' || cs.name === 'DeviceN' ? Array(cs.n).fill(1) : Array(cs.n).fill(0)), a: 1 });
+          if (op === 'cs') { gs.fillCs = cs; gs.fill = init ?? gs.fill; gs.fillShade = null; } else { gs.strokeCs = cs; gs.stroke = init ?? gs.stroke; gs.strokeShade = null; }
+          break;
+        }
         case 'gs': {
           const nm = operands[0]?.t === 'name' ? operands[0].v : '';
           const eg = this.dictGet(this.dictGet(resources, 'ExtGState', PDFDict), nm, PDFDict);
@@ -492,7 +712,8 @@ class Interpreter {
             if (bm instanceof PDFArray) bm = this.lookup(bm.get(0));
             if (bm instanceof PDFName) gs.blend = BLENDS[bm.asString().slice(1)] ?? 'normal';
             const sm = this.lookup(eg.get(PDFName.of('SMask')));
-            if (sm instanceof PDFDict) this.warn('Soft (opacity) masks were not imported');
+            if (sm instanceof PDFName) gs.softMask = null; // /None
+            else if (sm instanceof PDFDict) gs.softMask = this.softMask(sm, gs, depth);
           }
           break;
         }
@@ -516,7 +737,27 @@ class Interpreter {
         case 'b': case 'b*': paint(true, true, true); break;
         case 'n': paint(false, false, false); break;
         case 'W': case 'W*': pendingClip = true; break;
-        case 'sh': this.warn('Gradients (shadings) were not imported'); break;
+        case 'sh': {
+          // paint a shading over the current clip: Illustrator's gradient fills are "clip, then sh"
+          const nm = operands[0]?.t === 'name' ? operands[0].v : '';
+          const shObj = this.dictGet(resources, 'Shading', PDFDict)?.get(PDFName.of(nm));
+          const sh = this.shade(shObj, gs.ctm, resources);
+          if (!sh) { this.warn('Mesh and function gradients were not imported'); break; }
+          let region = gs.clip;
+          if (!region) {
+            const bb = this.numbers((this.lookup(shObj) instanceof PDFStream ? (this.lookup(shObj) as PDFStream).dict : this.lookup(shObj, PDFDict))?.get(PDFName.of('BBox')));
+            if (bb.length === 4) {
+              const c = [pt(bb[0], bb[1]), pt(bb[2], bb[1]), pt(bb[2], bb[3]), pt(bb[0], bb[3])];
+              region = [['M', c[0][0], c[0][1]], ['L', c[1][0], c[1][1]], ['L', c[2][0], c[2][1]], ['L', c[3][0], c[3][1]], ['Z']];
+            }
+          }
+          if (!region) { this.warn('A gradient that fills the whole page was not imported'); break; }
+          const node = make.path({ ...nodeFromWorld(region), name: 'Gradient', fill: this.shadePaint(sh, region, { opacity: 1 }), stroke: makeStroke(), opacity: gs.fillAlpha, blend: gs.blend });
+          this.shadeOf.set(node, sh);
+          // the clip is the shape itself; only an opacity mask still applies
+          tgt.push(finish(node, { ...gs, clip: null }));
+          break;
+        }
         case 'BT': tm = [1, 0, 0, 1, 0, 0]; tlm = tm; break;
         case 'ET': flushText(); break;
         case 'Tf': {
@@ -563,7 +804,7 @@ class Interpreter {
             }
           } else if (sub === '/Image') {
             const node = this.image(xo, gs.ctm, nm);
-            if (node) tgt.push(this.clipped({ ...node, opacity: gs.fillAlpha, blend: gs.blend }, gs.clip));
+            if (node) tgt.push(finish({ ...node, opacity: gs.fillAlpha, blend: gs.blend }, gs));
           }
           break;
         }
@@ -607,6 +848,49 @@ class Interpreter {
       tgt = top.target;
       if (top.layer && top.layer.nodes.length) tgt.push(groupOf(top.layer.nodes, top.layer.name, top.layer.visible));
     }
+  }
+
+  /**
+   * Soft mask (ExtGState /SMask): run its group and keep what the model can
+   * hold — the masking shapes as a vector mask, a single gradient's luminosity
+   * as alpha on solid fills, a uniform grey as opacity.
+   */
+  private softMask(sm: PDFDict, gs: GState, depth: number): SoftMask | null {
+    const g = this.lookup(sm.get(PDFName.of('G')), PDFStream);
+    if (!g) return null;
+    const luminosity = this.lookup(sm.get(PDFName.of('S')), PDFName)?.asString() !== '/Alpha';
+    const mArr = this.numbers(g.dict.get(PDFName.of('Matrix')));
+    const m: Matrix = mArr.length === 6 ? (mArr as Matrix) : [1, 0, 0, 1, 0, 0];
+    const nodes: SceneNode[] = [];
+    try {
+      this.run(this.streamBytes(g), this.dictGet(g.dict, 'Resources', PDFDict), { ...initialState(cat(m, gs.ctm)), softMask: null }, nodes, depth + 1);
+    } catch {
+      this.warn('An opacity mask could not be read');
+      return null;
+    }
+    const leaves: SceneNode[] = [];
+    const flat = (ns: SceneNode[]) => { for (const n of ns) { if (n.type === 'group') flat(n.children.map((c) => ({ ...c, x: c.x + n.x, y: c.y + n.y }))); else leaves.push(n); } };
+    flat(nodes);
+    if (!leaves.length) return { path: [], shade: null, alpha: 0 };
+    if (leaves.some((n) => n.type !== 'path')) {
+      this.warn('Opacity masks made of images or text were not imported');
+      return null;
+    }
+    const paths = leaves as Extract<SceneNode, { type: 'path' }>[];
+    const world = paths.flatMap((n) => transformPath(n.d, composeTransform(n)));
+    const shades = paths.map((n) => this.shadeOf.get(n)).filter((x): x is Shade => !!x);
+    if (shades.length === 1 && paths.length === 1) {
+      return { path: world, shade: luminosity ? shades[0] : null, alpha: luminosity ? 1 : paths[0].opacity };
+    }
+    // solid shapes: the mask is their outline, at their grey level (all the same) or full
+    const levels = paths.map((n) => {
+      if (n.fill.type !== 'solid') return 1;
+      const c = hexRgba(n.fill.color.slice(0, 7));
+      return (luminosity ? 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b : 1) * n.opacity;
+    });
+    const same = levels.every((l) => Math.abs(l - levels[0]) < 0.02);
+    if (!same) this.warn('Opacity masks with several grey levels were imported as one shape');
+    return { path: world, shade: null, alpha: same ? levels[0] : 1 };
   }
 
   private clipped(node: SceneNode, clip: PathCommand[] | null): SceneNode {
@@ -668,6 +952,15 @@ class Interpreter {
   }
 }
 
+function pathBox(d: PathCommand[]): { x: number; y: number; w: number; h: number } {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const c of d) for (let i = 1; i + 1 < c.length; i += 2) {
+    const x = c[i] as number, y = c[i + 1] as number;
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  return Number.isFinite(x0) ? { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } : { x: 0, y: 0, w: 0, h: 0 };
+}
+
 function nodeFromWorld(d: PathCommand[]) {
   const c = centrePath(d);
   return { d: c.d, x: c.cx, y: c.cy, closed: d.some((x) => x[0] === 'Z') };
@@ -683,6 +976,7 @@ function groupOf(nodes: SceneNode[], name: string, visible: boolean): SceneNode 
 function initialState(ctm: Matrix): GState {
   return {
     ctm, fill: '#000000', stroke: '#000000', fillAlpha: 1, strokeAlpha: 1, blend: 'normal', lineWidth: 1, cap: 'butt', join: 'miter', dash: [], clip: null,
+    fillCs: DEVICE_GRAY, strokeCs: DEVICE_GRAY, fillShade: null, strokeShade: null, softMask: null,
     font: null, fontSize: 12, charSpace: 0, wordSpace: 0, hScale: 1, leading: 0, rise: 0,
   };
 }
@@ -704,6 +998,19 @@ function pageContent(interp: Interpreter, page: PDFPage): Uint8Array {
   let o = 0;
   for (const p of parts) { out.set(p, o); o += p.length; out[o++] = 10; }
   return out;
+}
+
+const rotationOf = (p: PDFPage) => ((((p.getRotation().angle ?? 0) % 360) + 360) % 360);
+const isQuarterTurn = (p: PDFPage) => rotationOf(p) === 90 || rotationOf(p) === 270;
+
+/** Page /Rotate (clockwise) as a matrix on unrotated page px (w × h), landing in the shown page's px. */
+function rotation(p: PDFPage, w: number, h: number): Matrix {
+  switch (rotationOf(p)) {
+    case 90: return [0, 1, -1, 0, h, 0];
+    case 180: return [-1, 0, 0, -1, w, h];
+    case 270: return [0, -1, 1, 0, 0, w];
+    default: return [1, 0, 0, 1, 0, 0];
+  }
 }
 
 export function isPostScriptOnlyAi(bytes: Uint8Array): boolean {
@@ -732,7 +1039,9 @@ export async function importPdfVectors(bytes: Uint8Array, title: string, opts: {
     const b = p.getCropBox();
     return b.width > 0 && b.height > 0 ? b : p.getMediaBox();
   };
-  const b0 = box(first);
+  // a /Rotate 90 or 270 page shows landscape: swap its size
+  const shown = (p: PDFPage) => { const b = box(p); return isQuarterTurn(p) ? { width: b.height, height: b.width } : { width: b.width, height: b.height }; };
+  const b0 = shown(first);
   const doc = createDocument({
     title, studio: which.length > 1 ? 'layout' : 'vector', pages: which.length,
     settings: { width: Math.round(b0.width * PX_PER_PT * 100) / 100, height: Math.round(b0.height * PX_PER_PT * 100) / 100, background: '#ffffff', dpi: 300, unit: 'pt' },
@@ -742,16 +1051,14 @@ export async function importPdfVectors(bytes: Uint8Array, title: string, opts: {
   const docPages = out.doc.pages.map((p, k) => {
     const page = pages[which[k]];
     const b = box(page);
-    const rot = page.getRotation().angle % 360;
-    if (rot) interp.warnings.push('Rotated pages were imported unrotated');
     const k2 = PX_PER_PT;
-    const base: Matrix = [k2, 0, 0, -k2, -b.x * k2, (b.y + b.height) * k2];
+    const base: Matrix = cat([k2, 0, 0, -k2, -b.x * k2, (b.y + b.height) * k2], rotation(page, b.width * k2, b.height * k2));
     const nodes: SceneNode[] = [];
     interp.run(pageContent(interp, page), page.node.Resources(), initialState(base), nodes);
     return { ...p, name: which.length > 1 ? `Page ${which[k] + 1}` : p.name, nodes };
   });
   out.doc = { ...out.doc, pages: docPages };
-  const sizes = new Set(which.map((i) => `${Math.round(box(pages[i]).width)}x${Math.round(box(pages[i]).height)}`));
+  const sizes = new Set(which.map((i) => `${Math.round(shown(pages[i]).width)}x${Math.round(shown(pages[i]).height)}`));
   if (sizes.size > 1) interp.warnings.push('Pages (artboards) of different sizes were imported at the size of the first');
   if (pdf.catalog.lookup(PDFName.of('PieceInfo')) || first.node.lookup(PDFName.of('PieceInfo'))) {
     interp.warnings.push('Illustrator-only data (effects, symbols, live text options) is read from the PDF copy');

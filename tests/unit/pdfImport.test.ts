@@ -45,14 +45,16 @@ describe('PDF / Illustrator vector import', () => {
     expect(doc.settings.height).toBeCloseTo(100 * PX_PER_PT);
     const all = flat(doc.pages[0].nodes);
 
-    const rect = all.find((n) => n.type === 'path' && (n as PathNode).fill.type === 'solid' && ((n as PathNode).fill as { color: string }).color === '#ff0000') as PathNode;
+    const rect = all.find((n) => n.type === 'path' && (n as PathNode).fill.type === 'solid' && ((n as PathNode).fill as { color: string }).color.startsWith('#ff0000')) as PathNode;
     expect(rect).toBeTruthy();
     // pdf rect x 10..60, y 10..40 (bottom-up) -> px centre (35, 75) * 4/3
     expect(rect.x).toBeCloseTo(35 * PX_PER_PT, 1);
     expect(rect.y).toBeCloseTo((100 - 25) * PX_PER_PT, 1);
     expect(rect.stroke.width).toBeCloseTo(2 * PX_PER_PT, 2);
     expect(rect.stroke.paint).toEqual({ type: 'solid', color: '#000000' });
-    expect(rect.opacity).toBeCloseTo(0.5);
+    // pdf-lib sets fill opacity (ca 0.5) but leaves the border opaque: each paint keeps its own alpha
+    expect((rect.fill as { color: string }).color).toBe('#ff000080');
+    expect(rect.opacity).toBe(1);
     expect(rect.closed).toBe(true);
 
     const tri = all.find((n) => n.type === 'path' && ((n as PathNode).fill as { color?: string }).color === '#0000ff') as PathNode;

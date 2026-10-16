@@ -25,6 +25,7 @@ import type { Id, MasterPage, Page, Paint, PathCommand, SceneNode, Stroke, Story
 import { cmykToHex, labToHex, rgbHex } from './color';
 import { emptyResult, summariseWarnings, type ImportResult } from './types';
 import { child, elements, findAll, parseXml, textOf, type XmlElement } from './xml';
+import { buildStyleSheet, MODEL_HAS_RICH_TEXT, MODEL_HAS_TABLES, parseRichStory, type RichStory, type RichStyleSheet, type SheetIndex } from './idmlRich';
 
 export const PX_PER_PT = 96 / 72;
 
@@ -193,46 +194,13 @@ export function resolveTextStyle(a: StyleAttrs, colours: Colours): TextStyle {
   });
 }
 
-interface ParsedStory { text: string; style: TextStyle; mixed: boolean; paragraphStyles: string[] }
+interface ParsedStory { text: string; style: TextStyle; mixed: boolean; paragraphStyles: string[]; rich: RichStory }
 
-export function parseStory(storyRoot: XmlElement, styles: Styles, colours: Colours): ParsedStory {
-  const story = findAll(storyRoot, 'Story')[0] ?? storyRoot;
-  let text = '';
-  let first: StyleAttrs | null = null;
-  const signatures = new Set<string>();
-  const paraNames = new Set<string>();
-  const visitCsr = (csr: XmlElement, pAttrs: StyleAttrs) => {
-    const attrs = { ...pAttrs, ...styles.character(csr.attrs.AppliedCharacterStyle), ...styleAttrs(csr) };
-    delete attrs.Self;
-    for (const c of csr.children) {
-      if (typeof c === 'string') continue;
-      if (c.name === 'Content') {
-        const t = textOf(c).replace(/\u2028/g, '\n').replace(/\uFEFF/g, '');
-        if (t) {
-          if (!first) first = attrs;
-          signatures.add(JSON.stringify([attrs.PointSize, attrs.FontStyle, attrs.AppliedFont, attrs.FillColor, attrs.Justification, attrs.Leading, attrs.Tracking]));
-        }
-        text += t;
-      } else if (c.name === 'Br') text += '\n';
-      else if (c.name === 'Tab') text += '\t';
-      else if (c.name === 'HyperlinkTextSource' || c.name === 'XMLElement' || c.name === 'Change') visitCsr({ ...c, attrs: {} }, attrs);
-    }
-  };
-  const visitPsr = (psr: XmlElement) => {
-    paraNames.add((psr.attrs.AppliedParagraphStyle ?? '').replace(/^ParagraphStyle\//, '').replace(/^\$ID\//, ''));
-    const pAttrs = { ...styles.paragraph(psr.attrs.AppliedParagraphStyle), ...styleAttrs(psr) };
-    delete pAttrs.Self;
-    for (const c of elements(psr)) {
-      if (c.name === 'CharacterStyleRange') visitCsr(c, pAttrs);
-      else if (c.name === 'Br') text += '\n';
-      else if (c.name === 'XMLElement' || c.name === 'Change') visitPsr({ ...c, attrs: psr.attrs });
-    }
-  };
-  for (const c of elements(story)) {
-    if (c.name === 'ParagraphStyleRange') visitPsr(c);
-    else if (c.name === 'XMLElement') for (const p of findAll(c, 'ParagraphStyleRange')) visitPsr(p);
-  }
-  return { text: text.replace(/\n$/, ''), style: resolveTextStyle(first ?? {}, colours), mixed: signatures.size > 1, paragraphStyles: [...paraNames].filter(Boolean) };
+export function parseStory(storyRoot: XmlElement, styles: Styles, colours: Colours, sheet?: SheetIndex): ParsedStory {
+  const paint = colours.paint.bind(colours);
+  const idx = sheet ?? buildStyleSheet(null, paint);
+  const r = parseRichStory(storyRoot, styles, idx, paint);
+  return { text: r.text, style: resolveTextStyle(r.firstAttrs ?? {}, colours), mixed: r.signatures > 1, paragraphStyles: r.paragraphStyleNames, rich: r.rich };
 }
 
 // ---------------------------------------------------------------------------
@@ -360,7 +328,7 @@ function convertItem(e: XmlElement, parent: Matrix, ctx: Ctx): SceneNode | null 
       return make.path({ ...base, d: c.d, x: c.cx, y: c.cy, closed: g.closed, ...st });
     }
     default:
-      if (['Button', 'MultiStateObject', 'FormField', 'Table'].includes(e.name)) ctx.warn(`${e.name} items were not imported`);
+      if (['Button', 'MultiStateObject', 'FormField'].includes(e.name)) ctx.warn(`${e.name} items were not imported`);
       return null;
   }
 }
@@ -401,7 +369,12 @@ function convertSpread(spread: XmlElement, ctx: Ctx): PageBox[] {
 // ---------------------------------------------------------------------------
 // Entry point
 
-export async function importIdml(bytes: Uint8Array, title: string, resolveLink?: LinkResolver): Promise<ImportResult> {
+/** IDML import result plus the rich text mapping (styles, per-range formatting, tables) for the Layout model. */
+export interface IdmlImportResult extends ImportResult {
+  rich?: { sheet: RichStyleSheet; stories: Record<Id, RichStory> };
+}
+
+export async function importIdml(bytes: Uint8Array, title: string, resolveLink?: LinkResolver): Promise<IdmlImportResult> {
   const zip = await JSZip.loadAsync(bytes);
   const mimetype = await zip.file('mimetype')?.async('string');
   if (mimetype && !mimetype.includes('indesign-idml')) throw new Error('This is not an InDesign IDML package');
@@ -418,6 +391,7 @@ export async function importIdml(bytes: Uint8Array, title: string, resolveLink?:
   const prefs = await read(refs('idPkg:Preferences')[0] ?? 'Resources/Preferences.xml');
   const colours = new Colours(graphic);
   const styles = new Styles(stylesXml);
+  const sheet = buildStyleSheet(stylesXml, colours.paint.bind(colours));
   const warnings: string[] = [];
 
   const docPref = prefs ? findAll(prefs, 'DocumentPreference')[0] : undefined;
@@ -477,16 +451,21 @@ export async function importIdml(bytes: Uint8Array, title: string, resolveLink?:
 
   // stories & threading
   const stories: Record<Id, Story> = {};
+  const richStories: Record<Id, RichStory> = {};
   for (const src of refs('idPkg:Story')) {
     const x = await read(src);
     const st = x && findAll(x, 'Story')[0];
     if (!st) continue;
     const frames = [...ctx.frames.entries()].filter(([, f]) => f.story === st.attrs.Self);
     if (!frames.length) continue;
-    const parsed = parseStory(x!, styles, colours);
-    if (parsed.mixed) warnings.push('Stories with several paragraph/character styles use their first style throughout');
+    const parsed = parseStory(x!, styles, colours, sheet);
+    if (parsed.mixed && !MODEL_HAS_RICH_TEXT) warnings.push('Text with several paragraph or character styles is shown in its first style for now (the styles and where they apply were kept)');
+    if (parsed.rich.tables.length && !MODEL_HAS_TABLES) warnings.push('Tables were imported as tab-separated text');
     const story = createStory(parsed.text, {});
     story.style = parsed.style;
+    // Layout text model fields (Story.spans / Story.paras); see idmlRich.ts
+    Object.assign(story, { spans: parsed.rich.spans, paras: parsed.rich.paras });
+    richStories[story.id] = parsed.rich;
     // order frames: start from the one with no previous frame (in this story), follow NextTextFrame
     const byId = new Map(frames);
     let startId = frames.find(([, f]) => f.prev === 'n' || !byId.has(f.prev))?.[0] ?? frames[0][0];
@@ -511,6 +490,9 @@ export async function importIdml(bytes: Uint8Array, title: string, resolveLink?:
     f.node.storyId = s.id;
   }
   out.doc.stories = stories;
+  // named paragraph / character / cell styles (QuvreloDocument.textStyles in the Layout model)
+  if (sheet.sheet.paragraph.length || sheet.sheet.character.length || sheet.sheet.cell.length) Object.assign(out.doc, { textStyles: sheet.sheet });
+  (out as IdmlImportResult).rich = { sheet: sheet.sheet, stories: richStories };
 
   // images
   let missingLinks = 0;

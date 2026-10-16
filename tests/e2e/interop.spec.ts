@@ -8,7 +8,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { readPsd, initializeCanvas } from 'ag-psd';
-import { samplePdf, samplePsd, sampleIdml } from '../fixtures/interop';
+import { gradientPdf, samplePdf, samplePsd, sampleIdml } from '../fixtures/interop';
 import { launch, run, shot, state, type Launched } from './helpers';
 
 let L: Launched | null = null;
@@ -57,6 +57,39 @@ test.describe('interop', () => {
     const group = back.children!.find((l) => l.name === 'Stuff')!;
     expect(group.children?.map((c) => [c.name, c.blendMode, !!c.hidden])).toEqual([['Red', 'multiply', false], ['Hidden', 'color burn', true]]);
     expect(group.opacity).toBeCloseTo(0.5, 1);
+  });
+
+  test('an Illustrator gradient opens as an editable gradient fill and draws red to blue', async () => {
+    const ai = await fixture('Gradient.ai', gradientPdf());
+    L = await launch({ QUVRELO_E2E_OPEN: ai });
+    const { page } = L;
+    await run(page, 'file.open');
+    await expect.poll(() => state<string>(page, 'editor.doc && editor.doc.title')).toBe('Gradient');
+    const fill = await state<{ type: string; stops: { color: string }[] }>(page, 'editor.doc.pages[0].nodes[0].fill');
+    expect(fill.type).toBe('linear');
+    expect(fill.stops[0].color).toBe('#ff0000');
+    expect(fill.stops.at(-1)!.color).toBe('#0000ff');
+    // the exported page shows it: the left end of the box is red, the right end blue
+    await page.evaluate(() => (window as unknown as { __quvrelo: { exportForBench(f: string): Promise<unknown> } }).__quvrelo.exportForBench('png'));
+    await expect.poll(() => fs.readdirSync(L!.saveDir).some((f) => f.endsWith('.png'))).toBe(true);
+    const png = fs.readdirSync(L.saveDir).find((f) => f.endsWith('.png'))!;
+    const b64 = fs.readFileSync(path.join(L.saveDir, png)).toString('base64');
+    const [left, right] = await page.evaluate(async (data) => {
+      const blob = await (await fetch(`data:image/png;base64,${data}`)).blob();
+      const bmp = await createImageBitmap(blob);
+      const c = document.createElement('canvas');
+      c.width = bmp.width; c.height = bmp.height;
+      const x = c.getContext('2d')!;
+      x.drawImage(bmp, 0, 0);
+      // box spans 40..160 pt of 200 pt wide, 20..80 of 100 pt tall
+      const at = (fx: number) => Array.from(x.getImageData(Math.round(bmp.width * fx), Math.round(bmp.height * 0.5), 1, 1).data.slice(0, 3));
+      return [at(0.21), at(0.79)];
+    }, b64);
+    expect(left[0]).toBeGreaterThan(200);
+    expect(left[2]).toBeLessThan(60);
+    expect(right[2]).toBeGreaterThan(200);
+    expect(right[0]).toBeLessThan(60);
+    await expect(page.locator('.workspace')).toBeVisible();
   });
 
   test('opens an Illustrator file with editable paths, text and layers', async () => {

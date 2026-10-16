@@ -150,3 +150,51 @@ export async function sampleIdml(opts: { linked?: boolean } = {}): Promise<Uint8
   return z.generateAsync({ type: 'uint8array' });
 }
 
+
+/** An Illustrator-style gradient (clip + sh, red → blue across a 120 × 60 pt box) on a 200 × 100 pt page. */
+export async function gradientPdf(): Promise<Uint8Array> {
+  const pdf = await PDFDocument.create();
+  const page = pdf.addPage([200, 100]);
+  const ctx = pdf.context;
+  const sh = ctx.register(ctx.obj({ ShadingType: 2, ColorSpace: 'DeviceRGB', Coords: [40, 0, 160, 0], Extend: [true, true], Function: { FunctionType: 2, Domain: [0, 1], C0: [1, 0, 0], C1: [0, 0, 1], N: 1 } } as never));
+  page.node.set(PDFName.of('Contents'), ctx.register(ctx.stream('q 40 20 120 60 re W n /Sh0 sh Q')));
+  page.node.set(PDFName.of('Resources'), ctx.obj({ Shading: { Sh0: sh } } as never));
+  return pdf.save({ useObjectStreams: false });
+}
+
+/** One page with a story using named paragraph/character styles, local overrides and a 3 × 2 table with a header row and a merged cell. */
+export async function styledIdml(): Promise<Uint8Array> {
+  const z = new JSZip();
+  z.file('mimetype', 'application/vnd.adobe.indesign-idml-package');
+  z.file('designmap.xml', `<Document xmlns:idPkg="x" Self="d"><idPkg:Graphic src="Resources/Graphic.xml"/><idPkg:Styles src="Resources/Styles.xml"/><idPkg:Spread src="Spreads/Spread_s.xml"/><idPkg:Story src="Stories/Story_st.xml"/></Document>`);
+  z.file('Resources/Graphic.xml', `<idPkg:Graphic xmlns:idPkg="x"><Color Self="Color/Black" Space="CMYK" ColorValue="0 0 0 100" Name="Black"/><Color Self="Color/Navy" Space="RGB" ColorValue="31 42 68" Name="Navy"/><Color Self="Color/Gold" Space="RGB" ColorValue="217 180 74" Name="Gold"/></idPkg:Graphic>`);
+  z.file('Resources/Styles.xml', `<idPkg:Styles xmlns:idPkg="x">
+<RootParagraphStyleGroup>
+  <ParagraphStyle Self="ParagraphStyle/$ID/[No paragraph style]" Name="$ID/[No paragraph style]" PointSize="12" FontStyle="Regular" FillColor="Color/Black"><Properties><AppliedFont type="string">Minion Pro</AppliedFont><Leading type="enumeration">Auto</Leading></Properties></ParagraphStyle>
+  <ParagraphStyle Self="ParagraphStyle/Heading" Name="Heading" PointSize="24" FontStyle="Bold" FillColor="Color/Navy" SpaceAfter="6" KeepWithNext="2"><Properties><BasedOn type="object">ParagraphStyle/$ID/[No paragraph style]</BasedOn><NextStyle type="object">ParagraphStyle/Body</NextStyle></Properties></ParagraphStyle>
+  <ParagraphStyle Self="ParagraphStyle/Body" Name="Body" PointSize="10" FirstLineIndent="12" Justification="LeftJustified"><Properties><BasedOn type="object">ParagraphStyle/$ID/[No paragraph style]</BasedOn><Leading type="unit">14</Leading></Properties></ParagraphStyle>
+</RootParagraphStyleGroup>
+<RootCharacterStyleGroup>
+  <CharacterStyle Self="CharacterStyle/$ID/[No character style]" Name="$ID/[No character style]"/>
+  <CharacterStyle Self="CharacterStyle/Strong" Name="Strong" FontStyle="Bold" FillColor="Color/Gold"/>
+  <CharacterStyle Self="CharacterStyle/Super" Name="Super" Position="Superscript"><Properties><BasedOn type="object">CharacterStyle/Strong</BasedOn></Properties></CharacterStyle>
+</RootCharacterStyleGroup>
+<RootCellStyleGroup><CellStyle Self="CellStyle/$ID/[None]" Name="$ID/[None]"/><CellStyle Self="CellStyle/Head" Name="Head" FillColor="Color/Navy" TopInset="4" VerticalJustification="CenterAlign"/></RootCellStyleGroup>
+</idPkg:Styles>`);
+  z.file('Spreads/Spread_s.xml', `<idPkg:Spread xmlns:idPkg="x"><Spread Self="s"><Page Self="p" Name="1" GeometricBounds="0 0 792 612" ItemTransform="1 0 0 1 0 -396"/>
+  <TextFrame Self="tf" ParentStory="st" PreviousTextFrame="n" NextTextFrame="n" ItemTransform="1 0 0 1 0 0">${box(36, -360, 576, 360)}</TextFrame></Spread></idPkg:Spread>`);
+  const cell = (name: string, t: string, extra = '') => `<Cell Self="c${name}" Name="${name}" ${extra}><ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/Body"><CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]"><Content>${t}</Content></CharacterStyleRange></ParagraphStyleRange></Cell>`;
+  z.file('Stories/Story_st.xml', `<idPkg:Story xmlns:idPkg="x"><Story Self="st">
+  <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/Heading"><CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]"><Content>Year 9 Art</Content><Br/></CharacterStyleRange></ParagraphStyleRange>
+  <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/Body"><CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]"><Content>Mix </Content></CharacterStyleRange><CharacterStyleRange AppliedCharacterStyle="CharacterStyle/Strong"><Content>primary</Content></CharacterStyleRange><CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]" PointSize="14" Underline="true"><Content> colours</Content></CharacterStyleRange><CharacterStyleRange AppliedCharacterStyle="CharacterStyle/Super"><Content>1</Content><Br/></CharacterStyleRange></ParagraphStyleRange>
+  <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/Body" Justification="CenterAlign"><CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]"><Table Self="tb" HeaderRowCount="1" BodyRowCount="2" ColumnCount="2">
+    <Row Self="r0" Name="0" SingleRowHeight="20"/><Row Self="r1" Name="1" SingleRowHeight="18"/><Row Self="r2" Name="2" SingleRowHeight="18"/>
+    <Column Self="k0" Name="0" SingleColumnWidth="120"/><Column Self="k1" Name="1" SingleColumnWidth="200"/>
+    ${cell('0:0', 'Colour', 'AppliedCellStyle="CellStyle/Head"')}${cell('1:0', 'Mix', 'AppliedCellStyle="CellStyle/Head"')}
+    ${cell('0:1', 'Green')}${cell('1:1', 'Blue + yellow', 'RowSpan="2"')}
+    ${cell('0:2', 'Teal')}
+  </Table><Br/></CharacterStyleRange></ParagraphStyleRange>
+  <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/Body"><CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]"><Content>After the table</Content></CharacterStyleRange></ParagraphStyleRange>
+</Story></idPkg:Story>`);
+  return z.generateAsync({ type: 'uint8array' });
+}
