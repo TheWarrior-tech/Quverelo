@@ -2,8 +2,8 @@
  * Which bundled QuvSelect model the app uses. Pure, unit-tested (tests/unit/mlModels.test.ts).
  *
  * ml/models/ can hold (see ml/MODEL_CARD.md):
- *   quvselect_v1.onnx       v1, fp32 (CI-downloaded release asset)  <- preferred: fastest in onnxruntime-web WASM
- *   quvselect_v1_int8.onnx  v1, int8 static QDQ (CI-downloaded release asset): 3.5x smaller, but slower on WASM,
+ *   quvselect_v1.onnx       v1, fp32 (ml-models branch, copied in at build)  <- preferred: fastest in onnxruntime-web WASM
+ *   quvselect_v1_int8.onnx  v1, int8 static QDQ (ml-models branch): 3.5x smaller, but slower on WASM,
  *                           whose int8 conv kernels are not as optimised as its fp32 ones (ml/MODEL_CARD.md)
  *   quvselect.onnx          v0, committed to git: the fallback when a build has no v1 asset
  */

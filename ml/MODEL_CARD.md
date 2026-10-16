@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Files | `ml/models/quvselect_v1.onnx` (fp32, 12.6 MB) and `ml/models/quvselect_v1_int8.onnx` (int8 QDQ, 3.7 MB). Not in git: GitHub Release asset `ml-quvselect-v1`, fetched by `scripts/fetch-ml-models.mjs` (CI) and checked against `ml/models/manifest.json` (sha256 + bytes) |
+| Files | `ml/models/quvselect_v1.onnx` (fp32, 12.6 MB) and `ml/models/quvselect_v1_int8.onnx` (int8 QDQ, 3.7 MB). Not in the main history: orphan branch `ml-models`, copied in by `scripts/fetch-ml-models.mjs` (CI checks the branch out) and checked against `ml/models/manifest.json` (sha256 + bytes) |
 | Version | v1, checkpoint step 2000 (`ml/checkpoints/v1_step*.pt`, gitignored), trained 2026-10-16 |
 | Licence of weights | MIT (Quvrelo). Encoder initialised from `timm/mobilenetv3_large_100.ra_in1k` (Apache-2.0); see `ml/DATA_SOURCES.md` for the ImageNet note |
 | Runtime | ONNX opset 17; onnxruntime-web 1.30 WASM (CPU, 1 thread) in the app, onnxruntime (Python) for evaluation |

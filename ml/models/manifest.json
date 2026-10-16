@@ -1,6 +1,6 @@
 {
  "repo": "TheWarrior-tech/Quverelo",
- "releaseTag": "ml-quvselect-v1",
+ "branch": "ml-models",
  "checkpoint_step": 2000,
  "licence": "MIT (weights, Quvrelo); encoder initialised from timm mobilenetv3_large_100.ra_in1k (Apache-2.0); data Open Images (CC BY), see ml/DATA_SOURCES.md",
  "models": [

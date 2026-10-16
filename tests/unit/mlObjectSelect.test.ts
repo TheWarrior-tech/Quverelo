@@ -29,7 +29,7 @@ import { resizePlane } from '../../src/core/ml/tensor';
 import { selectObject, type SegmentationBackend } from '../../src/core/ml/selectSubject';
 import { MODEL_PREFERENCE } from '../../src/core/ml/models';
 
-/** every bundled model that is present: v0 (committed) and v1 (release asset, ml/models/manifest.json) */
+/** every bundled model that is present: v0 (committed) and v1 (ml-models branch, ml/models/manifest.json) */
 const MODELS = [
   { name: 'QuvSelect v1', path: resolve(__dirname, '../../ml/models/quvselect_v1.onnx'), focusPasses: MODEL_PREFERENCE.find((m) => m.id === 'quvselect-v1')!.focusPasses },
   { name: 'QuvSelect v0', path: resolve(__dirname, '../../ml/models/quvselect.onnx'), focusPasses: MODEL_PREFERENCE.find((m) => m.id === 'quvselect-v0')!.focusPasses },

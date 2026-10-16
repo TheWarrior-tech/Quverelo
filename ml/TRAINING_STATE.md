@@ -5,7 +5,7 @@ _Last updated 2026-10-16 by the ML engineer session (round 2)._
 ## Models
 | Model | File | Status |
 |---|---|---|
-| QuvSelect **v1** (app default) | `ml/models/quvselect_v1.onnx` (+ `_int8`), release asset `ml-quvselect-v1`, sha256 in `ml/models/manifest.json` | **finished** at step 2000 (phase 1 to 1200, phase 2 warm restart to 2000); exported fp32 + int8; staged in /workspace/work/ml-release for publishing |
+| QuvSelect **v1** (app default) | `ml/models/quvselect_v1.onnx` (+ `_int8`), orphan branch `ml-models`, sha256 in `ml/models/manifest.json` | **finished** at step 2000 (phase 1 to 1200, phase 2 warm restart to 2000); exported fp32 + int8; published on the `ml-models` branch, shipped in v0.6.0 |
 | QuvSelect v0 (fallback, committed) | `ml/models/quvselect.onnx` | finished at step 3500 (2026-10-15); see the v0 section of `ml/MODEL_CARD.md` |
 
 Held-out metrics are in `ml/MODEL_CARD.md` and `ml/models/eval_*.json`.

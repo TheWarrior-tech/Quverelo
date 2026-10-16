@@ -1,5 +1,5 @@
 /**
- * ml/models/manifest.json is what scripts/fetch-ml-models.mjs downloads (GitHub Release assets) and checks at build
+ * ml/models/manifest.json is what scripts/fetch-ml-models.mjs copies from the ml-models branch and checks at build
  * time. Its entries must be models the app knows (src/core/ml/models.ts), and a model that is present locally must be
  * byte-identical to the one the manifest pins.
  */
@@ -15,9 +15,9 @@ const MANIFEST = resolve(DIR, 'manifest.json');
 describe.skipIf(!existsSync(MANIFEST))('QuvSelect v1 model manifest', () => {
   const m = existsSync(MANIFEST) ? JSON.parse(readFileSync(MANIFEST, 'utf8')) : null;
 
-  it('names a release and pins every model by size and sha256', () => {
+  it('names the weights branch and pins every model by size and sha256', () => {
     expect(m.repo).toMatch(/^[\w.-]+\/[\w.-]+$/);
-    expect(m.releaseTag).toBeTruthy();
+    expect(m.branch).toBe('ml-models');
     expect(m.models.length).toBeGreaterThan(0);
     for (const e of m.models) {
       expect(e.sha256).toMatch(/^[0-9a-f]{64}$/);

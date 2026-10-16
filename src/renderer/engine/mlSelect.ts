@@ -17,7 +17,7 @@ import wasmUrl from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url';
 import { pickModel } from '../../core/ml/models';
 
 /**
- * Bundled models (local files, never fetched at runtime). QuvSelect v1 is a CI-downloaded release asset
+ * Bundled models (local files, never fetched at runtime). QuvSelect v1 comes from the ml-models branch
  * (scripts/fetch-ml-models.mjs, ml/models/manifest.json); when a build does not have it, the committed v0
  * model is used. import.meta.glob keeps the build working either way.
  */

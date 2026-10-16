@@ -1,3 +1,55 @@
+## Quvrelo v0.6.0 — parity with the pro suites
+
+The first parity release: Photo, Vector and Layout now cover the everyday professional feature set of Affinity and Adobe's apps, with print-ready CMYK output, 16-bit editing, the major interchange formats, scripting, classroom hand-in and a new on-device selection model. Still fully offline, no accounts, no telemetry.
+
+### Photo
+- **Layers** with 24 blend modes, opacity, pass-through and isolated groups, locking, pixel masks with grey levels, and clipping.
+- **Non-destructive adjustment layers:** Levels, Curves, HSL, Brightness/Contrast, Exposure, Vibrance, Colour Balance, Black & White, Invert, Threshold, Gradient Map, Posterise and White Balance, in 8- and 16-bit.
+- **Selections:** marquee, lasso, polygonal lasso, magic wand, add/subtract/intersect, feather, Refine Edge, Colour Range, soft per-pixel selections, and save selection to mask.
+- **Retouching:** brush and eraser with flow and pressure, Clone, Healing, Spot Healing, Dodge/Burn and Smudge.
+- **Filters with live preview:** Gaussian and motion blur, Unsharp Mask, add/reduce noise, vignette, and Liquify.
+- Histogram, crop and straighten, resize with resampling, and canvas size.
+
+### Vector
+- Pen with rubber band and 45° snapping, a full node tool, pencil, and shapes including rounded rectangle, arrow, polygon and star.
+- Boolean operations and live compound shapes, including Divide.
+- Linear, radial and conical gradients with an on-canvas editor; strokes with caps, joins, dashes, arrowheads and editable width profiles; align, distribute and spacing.
+- Artboards, symbols, export slices (@0.5x–@4x) and text on a path.
+- SVG export (embedded or linked images, JPEG option) and SVG import (fill rule, gradients, clipping).
+
+### Layout and typography
+- Multi-page documents with a Pages panel, spreads, master pages with overrides, threaded text frames, auto-flow and columns.
+- Paragraph and character styles, per-character styling, OpenType features, tables with rich cell text, baseline grid, text wrap, page numbers and sections, hyphenation (en-GB, en-US), tab stops with leaders, and keep/widow/orphan control.
+- A **Preflight** panel.
+
+### Print: CMYK, ICC and PDF/X
+- CMYK documents and ICC colour management, with ICC profiles embedded in PNG and JPEG.
+- **PDF/X-1a:2003 and PDF/X-4 export** with output intent and XMP metadata, checked against veraPDF PDF/X rule sets (veraPDF ships no official PDF/X profile, so this is not an ISO-certified preflight).
+
+### 16-bit and RAW
+- A 16-bit-per-channel pipeline end to end.
+- **DNG import** with Quvrelo's own demosaic. CR3, NEF and ARW are not supported (see docs/RAW.md).
+
+### Interop
+- **PSD** import and export, **AI** (PDF-compatible) import, **PDF** import and **IDML** import (styles, threaded frames, tables). See docs/INTEROP.md. Affinity's own formats stay unsupported: they are proprietary and undocumented, so route them through PSD, PDF or SVG.
+
+### Scripting
+- A sandboxed **scripting API** (QuickJS) with TypeScript typings for automating documents, pages, nodes and the selection. Admins can switch it off by policy. See docs/SCRIPTING.md.
+
+### Classroom
+- **Assignment packs and hand-in:** teachers save an assignment pack (brief and starting document); students hand in a bundle with a PDF preview of every page to a policy-set folder. See docs/ADMIN_GUIDE.md.
+
+### Offline and enterprise
+- **Offline hardening:** packaged builds block every network request; new admin policy switches for import, export, scripting and hand-in. See docs/OFFLINE.md and docs/ADMIN_GUIDE.md.
+- **Benchmarks** in docs/BENCHMARKS.md: a 6000 × 4000 photo opens in about 1–1.6 s and a 50-page layout exports to PDF in about 1.1 s on a 2-vCPU test machine.
+
+### QuvSelect v1 (on-device selection model)
+- A new on-device model now powers **Select Subject** and **Object Select**. On held-out images, subject IoU rises from 0.444 to **0.675** and one-click object IoU from 0.304 to **0.624**. A warm Select Subject takes about **280 ms** at 1024 px. It runs entirely on your computer, and the weights are trained on permissively licensed data (see ml/MODEL_CARD.md).
+
+### Known gaps
+- macOS builds are not yet signed or notarised.
+- 16-bit adjustment rendering runs on the main thread.
+
 ## Quvrelo v0.5.0 — premium, signed off
 
 Design critique 3, 4 and 5 fixes. The redesign passed an independent design review in dark, light and high contrast.

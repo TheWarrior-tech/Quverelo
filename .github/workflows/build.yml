@@ -31,10 +31,15 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Fetch QuvSelect v1 models (release asset, sha256-checked; falls back to v0 if absent)
+      - name: Check out QuvSelect v1 weights (orphan branch ml-models)
+        uses: actions/checkout@v4
+        with:
+          ref: ml-models
+          path: ml-models
+      - name: Install QuvSelect v1 models (sha256-checked against ml/models/manifest.json; fails on mismatch or absence)
         run: node scripts/fetch-ml-models.mjs
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          QUVRELO_REQUIRE_ML_MODELS: '1'
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
@@ -87,10 +92,15 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Fetch QuvSelect v1 models (release asset, sha256-checked; falls back to v0 if absent)
+      - name: Check out QuvSelect v1 weights (orphan branch ml-models)
+        uses: actions/checkout@v4
+        with:
+          ref: ml-models
+          path: ml-models
+      - name: Install QuvSelect v1 models (sha256-checked against ml/models/manifest.json; fails on mismatch or absence)
         run: node scripts/fetch-ml-models.mjs
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          QUVRELO_REQUIRE_ML_MODELS: '1'
       - run: npm run build
       - name: Linux packaging tools (rpm)
         if: matrix.name == 'Linux'
@@ -173,10 +183,15 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Fetch QuvSelect v1 models (release asset, sha256-checked; falls back to v0 if absent)
+      - name: Check out QuvSelect v1 weights (orphan branch ml-models)
+        uses: actions/checkout@v4
+        with:
+          ref: ml-models
+          path: ml-models
+      - name: Install QuvSelect v1 models (sha256-checked against ml/models/manifest.json; fails on mismatch or absence)
         run: node scripts/fetch-ml-models.mjs
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          QUVRELO_REQUIRE_ML_MODELS: '1'
       - run: npm run build
       - name: Unpacked Linux app (input to the Flatpak manifest)
         run: npx electron-builder --linux dir --x64 --publish never

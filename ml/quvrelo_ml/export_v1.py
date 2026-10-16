@@ -54,7 +54,7 @@ def main():
     ap.add_argument("--report", default=os.path.join(ML, "models", "export_report_v1.json"))
     ap.add_argument("--calib", type=int, default=64)
     ap.add_argument("--repo", default="TheWarrior-tech/Quverelo")
-    ap.add_argument("--release-tag", default="ml-quvselect-v1")
+    ap.add_argument("--branch", default="ml-models")
     ap.add_argument("--release-dir", default=None, help="also copy the ONNX files + manifest here (release staging)")
     ap.add_argument("--manifest-only", action="store_true", help="only (re)write manifest.json for existing files")
     a = ap.parse_args()
@@ -100,10 +100,10 @@ def sha256(path):
 
 
 def write_manifest(a, step):
-    """ml/models/manifest.json: what scripts/fetch-ml-models.mjs downloads (GitHub Release asset) and checks."""
+    """ml/models/manifest.json: what scripts/fetch-ml-models.mjs copies from the ml-models branch and checks."""
     models = [{"id": i, "file": os.path.basename(p), "bytes": os.path.getsize(p), "sha256": sha256(p)}
               for i, p in (("quvselect-v1", a.out), ("quvselect-v1-int8", a.int8))]
-    m = {"repo": a.repo, "releaseTag": a.release_tag, "checkpoint_step": step, "licence": "MIT (weights, Quvrelo); "
+    m = {"repo": a.repo, "branch": a.branch, "checkpoint_step": step, "licence": "MIT (weights, Quvrelo); "
          "encoder initialised from timm mobilenetv3_large_100.ra_in1k (Apache-2.0); data Open Images (CC BY), see ml/DATA_SOURCES.md",
          "models": models}
     json.dump(m, open(os.path.join(os.path.dirname(a.out), "manifest.json"), "w"), indent=1)
