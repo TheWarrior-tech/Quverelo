@@ -22,6 +22,7 @@
 }
 .arrow-selects select {
   min-width: 0;
+  width: 100%;
 }
 .arrange-bar .align-to {
   flex: none;
@@ -76,6 +77,32 @@
   background: var(--c-raised);
   border: 1px solid var(--c-line);
   display: block;
+}
+.symbol-item > div {
+  min-width: 0;
+}
+.symbol-actions {
+  display: flex;
+  gap: 2px;
+}
+/* the name is edited in place: it reads as a label until hovered or focused */
+.symbol-name.inline-edit {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 22px;
+  padding: 0 4px;
+  margin-left: -4px;
+  border: 1px solid transparent;
+  border-radius: var(--r-1);
+  background: transparent;
+}
+.symbol-name.inline-edit:hover {
+  border-color: var(--c-line);
+}
+.symbol-name.inline-edit:focus {
+  border-color: var(--c-focus);
+  outline: none;
 }
 .symbol-name {
   overflow: hidden;
@@ -190,4 +217,14 @@
 }
 .profile-hint {
   margin: 0;
+}
+
+/* five operations share the inspector width; segments shrink to their text rather than overflow */
+.segmented.compound-ops button {
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

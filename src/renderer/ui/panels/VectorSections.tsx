@@ -41,31 +41,35 @@ export function StrokeExtras({ stroke, onChange, openPath }: { stroke: Stroke; o
   return (
     <div className="stroke-extras">
       {dashed && (
-        <div className="grid3" role="group" aria-label="Dash pattern">
+        <div className="grid2" role="group" aria-label="Dash pattern">
           <NumberField label="Dash" ariaLabel="Dash length" unit="px" min={0} max={500} step={0.5} value={stroke.dash[0] ?? 0} onCommit={(v) => onChange({ ...stroke, dash: [Math.max(0.1, v), stroke.dash[1] ?? v] })} onChange={(v) => onChange({ ...stroke, dash: [Math.max(0.1, v), stroke.dash[1] ?? v] })} />
           <NumberField label="Gap" ariaLabel="Gap length" unit="px" min={0} max={500} step={0.5} value={stroke.dash[1] ?? stroke.dash[0] ?? 0} onCommit={(v) => onChange({ ...stroke, dash: [stroke.dash[0] ?? 1, Math.max(0, v)] })} onChange={(v) => onChange({ ...stroke, dash: [stroke.dash[0] ?? 1, Math.max(0, v)] })} />
-          <NumberField label="Offset" ariaLabel="Dash offset" unit="px" min={-500} max={500} step={0.5} value={stroke.dashOffset ?? 0} onCommit={(v) => onChange({ ...stroke, dashOffset: v })} onChange={(v) => onChange({ ...stroke, dashOffset: v })} />
         </div>
       )}
-      {stroke.join === 'miter' && (
+      {(dashed || stroke.join === 'miter') && (
         <div className="grid2">
-          <NumberField label="Mitre" ariaLabel="Mitre limit" min={1} max={100} step={0.5} digits={1} value={stroke.miter ?? 10} onCommit={(v) => onChange({ ...stroke, miter: v })} onChange={(v) => onChange({ ...stroke, miter: v })} />
+          {dashed && (
+            <NumberField label="Offset" ariaLabel="Dash offset" unit="px" min={-500} max={500} step={0.5} value={stroke.dashOffset ?? 0} onCommit={(v) => onChange({ ...stroke, dashOffset: v })} onChange={(v) => onChange({ ...stroke, dashOffset: v })} />
+          )}
+          {stroke.join === 'miter' && (
+            <NumberField label="Mitre" ariaLabel="Mitre limit" min={1} max={100} step={0.5} digits={1} value={stroke.miter ?? 10} onCommit={(v) => onChange({ ...stroke, miter: v })} onChange={(v) => onChange({ ...stroke, miter: v })} />
+          )}
         </div>
       )}
       {openPath && (
         <>
           <Row label="Arrows">
             <div className="arrow-selects">
-              <select aria-label="Start arrowhead" value={stroke.startArrow ?? 'none'} onChange={(e) => onChange({ ...stroke, startArrow: e.target.value as ArrowHead })}>
-                {ARROW_HEADS.map((h) => <option key={h} value={h}>{h === 'none' ? 'Start: none' : `Start: ${ARROW_LABEL[h].toLowerCase()}`}</option>)}
+              <select {...tip('Start arrowhead')} value={stroke.startArrow ?? 'none'} onChange={(e) => onChange({ ...stroke, startArrow: e.target.value as ArrowHead })}>
+                {ARROW_HEADS.map((h) => <option key={h} value={h}>{h === 'none' ? 'No start' : ARROW_LABEL[h]}</option>)}
               </select>
-              <select aria-label="End arrowhead" value={stroke.endArrow ?? 'none'} onChange={(e) => onChange({ ...stroke, endArrow: e.target.value as ArrowHead })}>
-                {ARROW_HEADS.map((h) => <option key={h} value={h}>{h === 'none' ? 'End: none' : `End: ${ARROW_LABEL[h].toLowerCase()}`}</option>)}
+              <select {...tip('End arrowhead')} value={stroke.endArrow ?? 'none'} onChange={(e) => onChange({ ...stroke, endArrow: e.target.value as ArrowHead })}>
+                {ARROW_HEADS.map((h) => <option key={h} value={h}>{h === 'none' ? 'No end' : ARROW_LABEL[h]}</option>)}
               </select>
             </div>
           </Row>
           {((stroke.startArrow ?? 'none') !== 'none' || (stroke.endArrow ?? 'none') !== 'none') && (
-            <SliderField label="Arrow size" ariaLabel="Arrowhead size" unit="%" min={25} max={400} value={Math.round((stroke.arrowScale ?? 1) * 100)} onChange={(v) => onChange({ ...stroke, arrowScale: v / 100 })} />
+            <SliderField label="Size" ariaLabel="Arrowhead size" unit="%" min={25} max={400} value={Math.round((stroke.arrowScale ?? 1) * 100)} onChange={(v) => onChange({ ...stroke, arrowScale: v / 100 })} />
           )}
         </>
       )}
@@ -97,7 +101,7 @@ export function CompoundSection({ n }: { n: GroupNode }) {
   const set = (patch: Partial<typeof c>, label: string, merge?: string) => editor.commit(label, (d) => updateNode<GroupNode>(d, n.id, (g) => ({ ...g, compound: { ...g.compound!, ...patch } })), merge);
   return (
     <Section id="compound" title="Compound">
-      <Segmented ariaLabel="Compound operation" className="full" value={c.op} onChange={(op: CompoundOp) => set({ op }, 'Compound operation')} options={OPS.map((o) => ({ value: o.value, label: o.label }))} />
+      <Segmented ariaLabel="Compound operation" className="compound-ops" full value={c.op} onChange={(op: CompoundOp) => set({ op }, 'Compound operation')} options={OPS.map((o) => ({ value: o.value, label: o.label }))} />
       <Row label="Fill"><PaintRow kind="fill" label="Compound fill" paint={c.fill} onChange={(p) => set({ fill: p }, 'Fill', 'cfill')} /></Row>
       <Row label="Stroke"><PaintRow kind="stroke" label="Compound stroke" paint={c.stroke.paint} fallback="#1b1b1f" onChange={(p) => set({ stroke: { ...c.stroke, paint: p, width: p.type !== 'none' && !c.stroke.width ? 2 : c.stroke.width } }, 'Stroke', 'cstroke')} /></Row>
       {c.stroke.paint.type !== 'none' && (
