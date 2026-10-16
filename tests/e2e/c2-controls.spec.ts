@@ -98,7 +98,7 @@ test.describe('critique 2: controls', () => {
     const pop = page.getByTestId('color-popover');
     await expect(pop).toBeVisible();
     const tabs = pop.getByRole('radiogroup', { name: 'Paint type' });
-    await expect(tabs.getByRole('radio')).toHaveText(['None', 'Solid', 'Linear', 'Radial']);
+    await expect(tabs.getByRole('radio')).toHaveText(['None', 'Solid', 'Linear', 'Radial', 'Conical']);
     expect(await pop.locator('input[type="checkbox"]').count()).toBe(0);
     // a gradient default reaches the next drawn shape
     await tabs.getByRole('radio', { name: 'Linear' }).click();
@@ -109,7 +109,7 @@ test.describe('critique 2: controls', () => {
     // inspector Fill chip on the new shape: same body
     await page.getByRole('tab', { name: 'Design' }).click();
     await page.locator('.paint-row[data-paint="fill"]').getByRole('button', { name: 'Fill colour' }).click();
-    await expect(pop.getByRole('radiogroup', { name: 'Paint type' }).getByRole('radio')).toHaveText(['None', 'Solid', 'Linear', 'Radial']);
+    await expect(pop.getByRole('radiogroup', { name: 'Paint type' }).getByRole('radio')).toHaveText(['None', 'Solid', 'Linear', 'Radial', 'Conical']);
     await expect(pop.getByRole('radio', { name: 'Linear' })).toHaveAttribute('aria-checked', 'true');
     await page.keyboard.press('Escape');
     // brush: same body, gradients and None disabled rather than hidden
@@ -117,7 +117,7 @@ test.describe('critique 2: controls', () => {
     await page.click('[data-tool="brush"]');
     await page.getByRole('button', { name: 'Brush colour' }).click();
     const bt = pop.getByRole('radiogroup', { name: 'Paint type' });
-    await expect(bt.getByRole('radio')).toHaveText(['None', 'Solid', 'Linear', 'Radial']);
+    await expect(bt.getByRole('radio')).toHaveText(['None', 'Solid', 'Linear', 'Radial', 'Conical']);
     await expect(bt.getByRole('radio', { name: 'Linear' })).toBeDisabled();
     await expect(bt.getByRole('radio', { name: 'None' })).toBeDisabled();
     await expect(pop.getByRole('textbox', { name: 'Hex colour' })).toBeVisible();

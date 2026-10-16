@@ -142,7 +142,7 @@ test.describe('vector studio parity', () => {
     await pickTool(page, 'rrect');
     await drag(page, await at(page, 100, 100), await at(page, 400, 300));
     let n = (await sel(page))[0];
-    expect(n).toMatchObject({ type: 'rect', radius: 16, name: 'Rounded Rectangle' });
+    expect(n).toMatchObject({ type: 'rect', radius: 16, name: 'Rounded rectangle' });
 
     await pickTool(page, 'arrow');
     await drag(page, await at(page, 100, 600), await at(page, 700, 600));

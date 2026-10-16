@@ -225,7 +225,7 @@ class ShapeTool implements Tool {
         addAndSelect(ed, make.rect({ ...base, radius: opts.cornerRadius, fill, stroke }), 'Rectangle');
         break;
       case 'rrect':
-        addAndSelect(ed, make.rect({ ...base, name: 'Rounded Rectangle', radius: opts.roundRadius, fill, stroke }), 'Rounded rectangle');
+        addAndSelect(ed, make.rect({ ...base, name: 'Rounded rectangle', radius: opts.roundRadius, fill, stroke }), 'Rounded rectangle');
         break;
       case 'ellipse':
         addAndSelect(ed, make.ellipse({ ...base, fill, stroke }), 'Ellipse');

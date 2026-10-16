@@ -44,12 +44,13 @@ test.describe('tool rail flyouts', () => {
     await expect(menu).toBeVisible();
     await expect(shapes).toHaveAttribute('aria-expanded', 'true');
     const items = menu.getByRole('menuitemradio');
-    await expect(items).toHaveCount(4);
+    await expect(items).toHaveCount(5);
     await expect(items.nth(0)).toHaveAttribute('aria-checked', 'true');
     await expect(items.nth(0)).toContainText('Rectangle');
     await expect(items.nth(0).locator('kbd')).toHaveText('M');
-    await expect(items.nth(3)).toContainText('Star');
-    await expect(items.nth(3).locator('kbd')).toHaveText('S');
+    await expect(items.nth(1)).toContainText('Rounded rectangle');
+    await expect(items.nth(4)).toContainText('Star');
+    await expect(items.nth(4).locator('kbd')).toHaveText('S');
     // menu sits to the right of the rail button, 4px away (once its slide-in has finished)
     await menu.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
     const b = (await shapes.boundingBox())!;
@@ -112,6 +113,8 @@ test.describe('tool rail flyouts', () => {
     // focus lands on the checked item, roving tabindex
     await expect(menu.getByRole('menuitemradio', { name: /Rectangle/ })).toBeFocused();
     await page.keyboard.press('ArrowDown');
+    await expect(menu.getByRole('menuitemradio', { name: /Rounded rectangle/ })).toBeFocused();
+    await page.keyboard.press('ArrowDown');
     await expect(menu.getByRole('menuitemradio', { name: /Ellipse/ })).toBeFocused();
     await page.keyboard.press('End');
     await expect(menu.getByRole('menuitemradio', { name: /Star/ })).toBeFocused();
@@ -134,7 +137,7 @@ test.describe('tool rail flyouts', () => {
     await page.keyboard.press('Enter');
     await expect(menu).toHaveCount(0);
     await expect(shapes).toBeFocused();
-    expect(await state<string>(page, 'editor.ui.tool')).toBe('ellipse');
+    expect(await state<string>(page, 'editor.ui.tool')).toBe('rrect');
 
     // Shift+F10 opens; a tool's own letter picks it; Space works too
     await page.keyboard.press('Shift+F10');
