@@ -9,6 +9,10 @@ Offline. No accounts. No telemetry. Free and open source (MIT). Windows and macO
   <a href="https://github.com/TheWarrior-tech/Quverelo/releases/latest"><b>⬇ Download the latest release</b></a> ·
   <a href="docs/USER_GUIDE.md">User guide</a> ·
   <a href="docs/ADMIN_GUIDE.md">IT admin guide</a> ·
+  <a href="docs/OFFLINE.md">Offline audit</a> ·
+  <a href="docs/INTEROP.md">File compatibility</a> ·
+  <a href="docs/SCRIPTING.md">Scripting</a> ·
+  <a href="docs/BENCHMARKS.md">Benchmarks</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
@@ -23,9 +27,11 @@ Quvrelo is an all-in-one creative suite in the spirit of Affinity's single-app s
 ## Why Quvrelo
 
 - **One app, one file.** Retouch a photo, draw a logo over it and lay it out in a multi-page newsletter without exporting between programs. Everything lives in a single `.quvrelo` file (a zip with your photos embedded).
-- **Made for classrooms.** A ready-made classroom pack (worksheets, certificates, lesson plans, timetables, exit tickets, name badges, flashcards, reading logs, rules posters), a built-in assignment brief and **Hand In** workflow, dyslexia-friendly fonts, high-contrast mode and a scalable interface.
+- **Made for classrooms.** A ready-made classroom pack (worksheets, certificates, lesson plans, timetables, exit tickets, name badges, flashcards, reading logs, rules posters), **assignment packs** teachers share with a class and a **Hand In** workflow that drops each student's work, a PDF preview for marking and a checksummed manifest into the class folder, dyslexia-friendly fonts, high-contrast mode and a scalable interface.
+- **Opens files from other apps.** Photoshop PSD/PSB with editable layers, text and shapes, Illustrator `.ai` and PDF as editable vectors, InDesign IDML with pages, masters, threaded stories and styles, and layered PSD export. What is kept and what changes: [INTEROP.md](docs/INTEROP.md).
+- **Scriptable, safely.** JavaScript or TypeScript scripts automate repetitive work through a documented API, in a sandbox with no file, network or clipboard access: [SCRIPTING.md](docs/SCRIPTING.md).
 - **Made for IT teams.** Silent per-machine installers (NSIS `/S`, MSI `/qn`, macOS `.pkg`), a machine-wide `policy.json` to lock save locations, hide features, set themes and point at network template/hand-in folders. No sign-in, no licence server, no network traffic.
-- **Private by design.** The renderer is blocked from making any network request. The only optional network call is the manual *Help ▸ Check for Updates*, which admins can disable.
+- **Private by design.** The interface is blocked from making any network request, and fonts, models and engines are bundled. The only network traffic is the update check, which admins can point at their own server or switch off: then Quvrelo makes no connections at all. Evidence for security reviews: [OFFLINE.md](docs/OFFLINE.md).
 
 ## Features (v0.1)
 
@@ -86,7 +92,14 @@ sudo xattr -dr com.apple.quarantine "/Applications/Quvrelo.app"
 ```
 
 ## For IT administrators
-See the [IT admin deployment guide](docs/ADMIN_GUIDE.md) for silent install switches, the `policy.json` reference and an example policy. Quick reference:
+See the [IT admin deployment guide](docs/ADMIN_GUIDE.md) for silent install switches, the `policy.json` reference, an example policy and how to set up the classroom hand-in share. Highlights:
+
+- **Hide features** with `"disabledFeatures"`, including the newer `import-psd`, `import-ai`, `import-idml`, `export-psd`, `scripting` and `assignments`.
+- **Hand-in:** `handInDirectory` points at a share (Quvrelo makes one folder per class); `"handInIncludePreview": false` leaves the PDF preview out of each bundle.
+- **Updates:** `disableUpdateCheck`, `updateFeedUrl`, `autoDownload`, `autoInstall`, `updateChannel`.
+- **Offline audit:** [OFFLINE.md](docs/OFFLINE.md) lists every control that keeps the app offline, with source locations and tests.
+
+Silent install:
 
 ```bat
 :: Windows, per-machine, silent
@@ -115,7 +128,7 @@ npm run dist         # installers for the current OS into ./release
 Architecture in one paragraph: `src/core` holds the pure, fully unit-tested document model shared by all studios (immutable document, commands, history, text flow, pixel operations, boolean ops, SVG exporter, `.quvrelo` serialisation, templates, policy). `src/renderer` is the React UI plus the canvas engine (a single scene renderer used for the editor, thumbnails and every export, with fabric.js providing selection and transform handles). `src/main` is the Electron shell (file IO, menus, policy, recovery). See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Roadmap
-Quvrelo is under active development. Next up: vector (not rasterised) PDF and PDF/X, PSD/IDML import, per-character text styles and paragraph styles, layer effects (shadow, glow), magic wand, healing brush, spreads view, CMYK preview. Progress is tracked in the parity checklist in the project workspace and in GitHub issues.
+Quvrelo is under active development. Next up: vector (not rasterised) PDF and PDF/X, per-character text styles and paragraph styles, layer effects (shadow, glow), magic wand, healing brush, spreads view, CMYK preview. Progress is tracked in the parity checklist in the project workspace and in GitHub issues.
 
 ## Licence
 [MIT](LICENSE). Bundled fonts are under the SIL Open Font License.
