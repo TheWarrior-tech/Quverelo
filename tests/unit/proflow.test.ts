@@ -181,3 +181,14 @@ describe('style interning', () => {
     expect(stableKey({ b: 1, a: { d: [1, { y: 2, x: 1 }], c: undefined } })).toBe('{"a":{"d":[1,{"x":1,"y":2}]},"b":1}');
   });
 });
+
+describe('mixed values in the inspector', () => {
+  it('an attribute unset across the selection is not "mixed"; differing values are', async () => {
+    const { rangeMixed } = await import('../../src/core/typography');
+    let s = createStory('one\ntwo', base);
+    expect(rangeMixed(s, sheet, 0, 7, 'spaceBefore')).toBe(false);
+    s = applyParaProps(s, 4, 4, { spaceBefore: 6 });
+    expect(rangeMixed(s, sheet, 0, 7, 'spaceBefore')).toBe(true);
+    expect(rangeMixed(s, sheet, 4, 7, 'spaceBefore')).toBe(false);
+  });
+});

@@ -9,6 +9,7 @@
 import type { FigureSpacing, FigureStyle, TabAlign, TabStop, TextLanguage, TextPosition, TextStyle } from '../../../core/types';
 import { HYPHEN_LANGUAGES } from '../../../core/hyphenation';
 import { DEFAULT_TAB_INTERVAL } from '../../../core/textflow';
+import { formatLength, fromPx, toPx, UNIT_DIGITS, UNIT_STEP } from '../../../core/units';
 import { Segmented } from '../controls/Segmented';
 import { Icon } from '../Icons';
 import { BUNDLED_FEATURES } from '../../../core/otFeatures';
@@ -164,6 +165,8 @@ const LEADERS: { value: string; label: string }[] = [
 
 /** Tab stops of the paragraph: position, alignment and leader; default stops every ½ inch after the last. */
 export function TabStopsEditor({ style, apply }: { style: TextStyle; apply: (p: Partial<TextStyle>) => void }) {
+  useEditor();
+  const u = editor.unit;
   const stops = [...(style.tabStops ?? [])].sort((a, b) => a.pos - b.pos);
   const set = (next: TabStop[]) => apply({ tabStops: [...next].sort((a, b) => a.pos - b.pos) });
   const update = (i: number, patch: Partial<TabStop>) => set(stops.map((s, k) => (k === i ? { ...s, ...patch } : s)));
@@ -174,10 +177,10 @@ export function TabStopsEditor({ style, apply }: { style: TextStyle; apply: (p: 
         <span>Tab stops</span>
         <button type="button" className="icon-btn sm" aria-label="Add tab stop" data-tip="Add tab stop" onClick={add}><Icon name="plus" size={16} /></button>
       </div>
-      {!stops.length && <p className="hint tab-stops-empty">Default stops every 12.7 mm. Press Tab in the text to move to the next one.</p>}
+      {!stops.length && <p className="hint tab-stops-empty">Default stops every {formatLength(DEFAULT_TAB_INTERVAL, u, { suffix: true })}. Press Tab in the text to move to the next one.</p>}
       {stops.map((st, i) => (
         <div className="tab-stop" key={i} data-testid="tab-stop">
-          <NumberField label="At" ariaLabel={`Tab stop ${i + 1} position`} unit="pt" digits={1} min={0} max={5000} value={st.pos} onCommit={(v) => update(i, { pos: v })} />
+          <NumberField label="At" ariaLabel={`Tab stop ${i + 1} position`} title="Distance from the left edge of the column" lengthUnit={u} unit={u} digits={UNIT_DIGITS[u]} step={UNIT_STEP[u]} min={0} value={fromPx(st.pos, u)} onCommit={(v) => update(i, { pos: Math.max(0, toPx(v, u)) })} />
           <Segmented
             ariaLabel={`Tab stop ${i + 1} alignment`}
             value={st.align}

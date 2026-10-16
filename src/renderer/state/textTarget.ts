@@ -8,7 +8,7 @@
  * With the frame selected (not editing), the change applies to all its text,
  * as in InDesign / Affinity Publisher.
  */
-import { applyTextPatch, pickChar, pickPara, rangeValue, sheetOf, styleAt } from '../../core/typography';
+import { applyTextPatch, pickChar, pickPara, rangeMixed, sheetOf, styleAt } from '../../core/typography';
 import { applyCellCharProps, cellStory, cellStoryId, setCellProps } from '../../core/tables';
 import { updateNode } from '../../core/commands';
 import type { Id, QuvreloDocument, SceneNode, TableNode, TextStyle } from '../../core/types';
@@ -41,7 +41,7 @@ export function frameTextTarget(doc: QuvreloDocument, storyId: Id): FrameTextTar
   const pending = scope === 'caret' ? getViewport()?.textEdit.pendingProps ?? null : null;
   const at = scope === 'caret' ? Math.max(0, range.start - 1) : range.start;
   const style = { ...styleAt(story, sheet, at), ...(pending ?? {}) };
-  const mixed = (key: keyof TextStyle) => range.end > range.start && rangeValue(story, sheet, range.start, range.end, key) === undefined;
+  const mixed = (key: keyof TextStyle) => rangeMixed(story, sheet, range.start, range.end, key);
   const apply = (patch: Partial<TextStyle>) => {
     const merge = `style:${storyId}:${range.start}:${range.end}`;
     if (scope === 'caret') {
@@ -83,7 +83,7 @@ export function cellTextTarget(doc: QuvreloDocument, t: TableNode, r: number, c:
   const pending = scope === 'caret' ? getViewport()?.textEdit.pendingProps ?? null : null;
   const at = scope === 'caret' ? Math.max(0, range.start - 1) : range.start;
   const style = { ...styleAt(story, sheet, at), ...(pending ?? {}) };
-  const mixed = (key: keyof TextStyle) => range.end > range.start && rangeValue(story, sheet, range.start, range.end, key) === undefined;
+  const mixed = (key: keyof TextStyle) => rangeMixed(story, sheet, range.start, range.end, key);
   const id = t.id;
   const onTable = (label: string, fn: (x: TableNode) => TableNode, merge: string) =>
     editor.commit(label, (d) => updateNode(d, id, (x: SceneNode) => (x.type === 'table' ? fn(x) : x)), merge);

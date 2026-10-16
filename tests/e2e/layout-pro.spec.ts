@@ -235,8 +235,9 @@ test.describe('layout: composition (hyphenation, tabs, keeps, rich cells)', () =
     await page.getByRole('tab', { name: 'Design' }).click();
     await page.getByRole('button', { name: 'Add tab stop' }).click();
     await expect(page.getByTestId('tab-stop')).toHaveCount(1);
+    // positions read in the document's unit (mm on an A4 page)
     const pos = page.getByLabel('Tab stop 1 position');
-    await pos.fill('400');
+    await pos.fill('100');
     await pos.press('Enter');
     await page.getByRole('radio', { name: 'Right tab' }).click();
     await page.getByLabel('Tab stop 1 leader').selectOption('.');
@@ -247,9 +248,13 @@ test.describe('layout: composition (hyphenation, tabs, keeps, rich cells)', () =
       const last = runs[runs.length - 1];
       return { pad: n.padding, tab: runs.find((r) => r.tab), last: { x: last.x, width: last.width } };`);
     expect(lay.tab.text).toMatch(/^\.+$/);
-    // the "7" ends at the stop (frame inset + 400)
-    expect(Math.abs(lay.last.x + lay.last.width - (lay.pad + 400))).toBeLessThan(0.6);
-    expect(await ev<unknown>(page, `return ${firstStory(page, 'Chapter')}.paras[0].props.tabStops`)).toEqual([{ pos: 400, align: 'right', leader: '.' }]);
+    const at = (100 * 96) / 25.4; // 100 mm in px
+    // the "7" ends at the stop (frame inset + 100 mm)
+    expect(Math.abs(lay.last.x + lay.last.width - (lay.pad + at))).toBeLessThan(0.6);
+    const stops = await ev<{ pos: number; align: string; leader: string }[]>(page, `return ${firstStory(page, 'Chapter')}.paras[0].props.tabStops`);
+    expect(stops).toHaveLength(1);
+    expect(stops[0]).toMatchObject({ align: 'right', leader: '.' });
+    expect(stops[0].pos).toBeCloseTo(at, 3);
     await page.getByTestId('tab-stops').scrollIntoViewIfNeeded();
     await themeShot(page, 'tab-stops');
   });

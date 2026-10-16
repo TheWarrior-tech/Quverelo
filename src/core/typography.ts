@@ -269,6 +269,21 @@ export function rangeValue<K extends keyof TextStyle>(story: Story, sheet: TextS
   return first ? styleAt(story, sheet, start)[key] : v;
 }
 
+/** Whether `key` differs across the characters of [start, end) (an unset key everywhere is not mixed). */
+export function rangeMixed(story: Story, sheet: TextStyleSheet, start: number, end: number, key: keyof TextStyle): boolean {
+  if (end <= start) return false;
+  let seen: string | null = null;
+  for (const p of styledParagraphs(story, sheet)) {
+    for (const r of p.runs) {
+      if (r.end <= start || r.start >= end) continue;
+      const k = stableKey(r.style[key] ?? null);
+      if (seen === null) seen = k;
+      else if (k !== seen) return true;
+    }
+  }
+  return false;
+}
+
 // ---------------------------------------------------------------------------
 // Span arithmetic
 
