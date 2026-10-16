@@ -332,7 +332,7 @@ export function blockedIntervals(ex: Exclusion[], y0: number, y1: number): [numb
     for (let i = 0; i < pts.length; i++) {
       const p = pts[i];
       const q = pts[(i + 1) % pts.length];
-      if (p.y >= a && p.y <= b) {
+      if (p.y > a && p.y < b) {
         minX = Math.min(minX, p.x);
         maxX = Math.max(maxX, p.x);
       }
