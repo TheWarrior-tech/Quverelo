@@ -121,4 +121,24 @@ describe('ML edge refinement (colour guided-filter matting)', () => {
     expect(m.data.length).toBe(W * H);
     expect(ms).toBeLessThan(2500); // CI-safe bound; typical figure is in ml/MODEL_CARD.md
   });
+
+  it('fast mode handles a frame with no unknown band (all subject / all background)', () => {
+    const W = 900, H = 600;
+    const data = new Uint8ClampedArray(W * H * 4).fill(200);
+    for (const [p, want] of [[0.99, 255], [0.01, 0]] as const) {
+      const m = refineMatte({ width: W, height: H, data }, new Float32Array(W * H).fill(p), { subsample: 2 });
+      expect(m.data.every((v) => v === want)).toBe(true);
+    }
+  });
+
+  it('fast mode at the 1024 px analysis size is several times cheaper than the exact matte', () => {
+    const W = 1024, H = 687;
+    const data = new Uint8ClampedArray(W * H * 4).map((_, i) => (i % 4 === 3 ? 255 : (i * 7) % 255));
+    const prob = new Float32Array(W * H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) prob[y * W + x] = Math.hypot(x - 500, y - 340) < 200 ? 0.9 : 0.1;
+    const cpu = (f: () => unknown, n: number) => { f(); const c0 = process.cpuUsage(); for (let i = 0; i < n; i++) f(); const c = process.cpuUsage(c0); return (c.user + c.system) / 1000 / n; };
+    const fast = cpu(() => refineMatte({ width: W, height: H, data }, prob, { subsample: 2, modelScale: 3.2 }), 4);
+    const exact = cpu(() => refineMatte({ width: W, height: H, data }, prob, { subsample: 1, modelScale: 3.2 }), 1);
+    expect(fast).toBeLessThan(exact / 2.5); // measured ~52 vs ~400 ms CPU on the 2-vCPU sandbox
+  });
 });

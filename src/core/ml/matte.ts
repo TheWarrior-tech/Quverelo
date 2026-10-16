@@ -36,27 +36,35 @@ export interface MatteOptions {
   modelScale?: number;
 }
 
-/** Box mean over a (2r+1)^2 window with clamped borders, via an integral image. */
+/**
+ * Box mean over a (2r+1)^2 window with clamped borders. Separable running sums (a clamped window is a rectangle, so
+ * the mean of the row means over it is the window mean): O(N) whatever the radius, no integral image.
+ */
 export function boxMean(src: Float32Array, w: number, h: number, r: number): Float32Array {
-  const W1 = w + 1;
-  const ii = new Float64Array(W1 * (h + 1));
+  const tmp = new Float32Array(w * h);
+  const out = new Float32Array(w * h);
+  const invX = new Float32Array(w), invY = new Float32Array(h);
+  for (let x = 0; x < w; x++) invX[x] = 1 / (Math.min(w, x + r + 1) - Math.max(0, x - r));
+  for (let y = 0; y < h; y++) invY[y] = 1 / (Math.min(h, y + r + 1) - Math.max(0, y - r));
+  // horizontal
   for (let y = 0; y < h; y++) {
-    let row = 0;
+    const o = y * w;
+    let s = 0;
+    for (let x = 0; x < Math.min(w, r); x++) s += src[o + x];
     for (let x = 0; x < w; x++) {
-      row += src[y * w + x];
-      ii[(y + 1) * W1 + x + 1] = ii[y * W1 + x + 1] + row;
+      if (x + r < w) s += src[o + x + r];
+      if (x - r - 1 >= 0) s -= src[o + x - r - 1];
+      tmp[o + x] = s * invX[x];
     }
   }
-  const out = new Float32Array(w * h);
+  // vertical (row-wise sweeps over a column-sum accumulator, cache friendly)
+  const acc = new Float64Array(w);
+  for (let y = 0; y < Math.min(h, r); y++) for (let x = 0, o = y * w; x < w; x++) acc[x] += tmp[o + x];
   for (let y = 0; y < h; y++) {
-    const y0 = Math.max(0, y - r);
-    const y1 = Math.min(h, y + r + 1);
-    for (let x = 0; x < w; x++) {
-      const x0 = Math.max(0, x - r);
-      const x1 = Math.min(w, x + r + 1);
-      const s = ii[y1 * W1 + x1] - ii[y0 * W1 + x1] - ii[y1 * W1 + x0] + ii[y0 * W1 + x0];
-      out[y * w + x] = s / ((y1 - y0) * (x1 - x0));
-    }
+    if (y + r < h) for (let x = 0, o = (y + r) * w; x < w; x++) acc[x] += tmp[o + x];
+    if (y - r - 1 >= 0) for (let x = 0, o = (y - r - 1) * w; x < w; x++) acc[x] -= tmp[o + x];
+    const iy = invY[y], o = y * w;
+    for (let x = 0; x < w; x++) out[o + x] = acc[x] * iy;
   }
   return out;
 }
@@ -189,6 +197,7 @@ export function refineMatte(img: RgbaImage, prob: Float32Array, opts: MatteOptio
   const sub = Math.max(1, Math.min(4, Math.round(opts.subsample ?? 1)));
   const ms = Math.max(1, opts.modelScale ?? 1);
   const band = Math.max(4, opts.band ?? Math.max(0.015 * long, 3 * ms));
+  if (sub > 1) return refineMatteFast(img, prob, { sub, r, eps, band, inner: Math.max(2, opts.inner ?? 2 * ms) });
   const I = planesOf(img);
   // 1. trimap from the 0.5 contour
   const bin = new Uint8Array(n);
@@ -221,66 +230,144 @@ export function refineMatte(img: RgbaImage, prob: Float32Array, opts: MatteOptio
     const ac = Math.min(1, Math.max(0, a));
     return conf > 0 ? conf * ac + (1 - conf) * p : p;
   };
-  if (sub === 1) {
-    const F: Float32Array[] = [], B: Float32Array[] = [];
-    let fw: Float32Array = new Float32Array(0), bw: Float32Array = new Float32Array(0);
-    for (let c = 0; c < 3; c++) {
-      const f = maskedMean(I[c], fgSure, W, H, R), b = maskedMean(I[c], bgSure, W, H, R);
-      F.push(f.mean); B.push(b.mean); fw = f.weight; bw = b.weight;
+  const F: Float32Array[] = [], B: Float32Array[] = [];
+  let fw: Float32Array = new Float32Array(0), bw: Float32Array = new Float32Array(0);
+  for (let c = 0; c < 3; c++) {
+    const f = maskedMean(I[c], fgSure, W, H, R), b = maskedMean(I[c], bgSure, W, H, R);
+    F.push(f.mean); B.push(b.mean); fw = f.weight; bw = b.weight;
+  }
+  for (let i = 0; i < n; i++)
+    alpha[i] = fgSure[i] ? 1 : bgSure[i] ? 0 : unknownAlpha(i, F[0][i], F[1][i], F[2][i], B[0][i], B[1][i], B[2][i], fw[i], bw[i]);
+  // 3. light colour guided filter (edge-preserving denoise), only applied inside the band
+  const { a: ga, b: gb } = colourGuidedFilter(I, alpha, W, H, gr, eps * 0.1);
+  for (let i = 0; i < n; i++)
+    out[i] = finish(fgSure[i] || bgSure[i] ? alpha[i] : ga[0][i] * I[0][i] + ga[1][i] * I[1][i] + ga[2][i] * I[2][i] + gb[i]);
+  return { width: W, height: H, data: out };
+}
+
+interface FastParams { sub: number; r: number; eps: number; band: number; inner: number }
+
+/**
+ * Subsampled ("fast") matte, the fast guided filter of He & Sun 2015 applied to the whole pipeline: the trimap, the local
+ * F / B colours, the band alpha and the guided-filter coefficients are all solved on sub x sub block averages, and only
+ * the final a.I + b of each unknown-band pixel is evaluated at full resolution against the full-resolution colour, so
+ * strand edges stay sharp. Every full-resolution pass is a single sweep (no full-resolution planes, box filters or
+ * distance transform), which is what keeps a 1024 px matte well under the Select Subject latency budget.
+ */
+function refineMatteFast(img: RgbaImage, prob: Float32Array, o: FastParams): MaskImage {
+  const { width: W, height: H, data } = img;
+  const sub = o.sub;
+  const w = Math.ceil(W / sub), h = Math.ceil(H / sub), m = w * h;
+  const xb = new Int32Array(W), yb = new Int32Array(H);
+  for (let x = 0; x < W; x++) xb[x] = (x / sub) | 0;
+  for (let y = 0; y < H; y++) yb[y] = (y / sub) | 0;
+  // 1. one full-resolution sweep: block means of colour (composited on white, 0..1) and probability
+  const I0 = new Float32Array(m), I1 = new Float32Array(m), I2 = new Float32Array(m);
+  const I: [Float32Array, Float32Array, Float32Array] = [I0, I1, I2];
+  const P = new Float32Array(m), cnt = new Float32Array(m);
+  for (let y = 0, i = 0; y < H; y++) {
+    const row = yb[y] * w;
+    for (let x = 0; x < W; x++, i++) {
+      const k = row + xb[x], j = i << 2, A = data[j + 3];
+      if (A === 255) { I0[k] += data[j]; I1[k] += data[j + 1]; I2[k] += data[j + 2]; }
+      else { const a = A / 255, wh = 255 - A; I0[k] += data[j] * a + wh; I1[k] += data[j + 1] * a + wh; I2[k] += data[j + 2] * a + wh; }
+      P[k] += prob[i]; cnt[k]++;
     }
-    for (let i = 0; i < n; i++)
-      alpha[i] = fgSure[i] ? 1 : bgSure[i] ? 0 : unknownAlpha(i, F[0][i], F[1][i], F[2][i], B[0][i], B[1][i], B[2][i], fw[i], bw[i]);
-    // 3. light colour guided filter (edge-preserving denoise), only applied inside the band
-    const { a: ga, b: gb } = colourGuidedFilter(I, alpha, W, H, gr, eps * 0.1);
-    for (let i = 0; i < n; i++)
-      out[i] = finish(fgSure[i] || bgSure[i] ? alpha[i] : ga[0][i] * I[0][i] + ga[1][i] * I[1][i] + ga[2][i] * I[2][i] + gb[i]);
+  }
+  for (let k = 0; k < m; k++) {
+    const c = 1 / cnt[k], c255 = c / 255;
+    I0[k] *= c255; I1[k] *= c255; I2[k] *= c255; P[k] *= c;
+  }
+  // 2. trimap at low resolution (distances converted back to full-resolution px)
+  const bin = new Uint8Array(m);
+  for (let k = 0; k < m; k++) bin[k] = P[k] >= 0.5 ? 1 : 0;
+  const dist = distanceToEdge(bin, w, h);
+  const fg = new Float32Array(m), bg = new Float32Array(m);
+  const cls = new Uint8Array(m); // 0 unknown, 1 sure foreground, 2 sure background
+  for (let k = 0; k < m; k++) {
+    const d = dist[k] * sub;
+    if (bin[k] && d > o.inner) { fg[k] = 1; cls[k] = 1; } else if (!bin[k] && d > o.band) { bg[k] = 1; cls[k] = 2; }
+  }
+  // 3-4 only need the neighbourhood of the unknown band: crop the low-resolution planes to its bounding box plus the
+  // filter reach, so a compact subject costs a fraction of the frame
+  const Rs = Math.max(1, Math.round(Math.max(3, Math.round(o.band * 1.5)) / sub));
+  const grs = Math.max(1, Math.round(Math.max(1, Math.round(o.r / 2)) / sub));
+  let bx0 = w, by0 = h, bx1 = -1, by1 = -1;
+  for (let y = 0, k = 0; y < h; y++)
+    for (let x = 0; x < w; x++, k++)
+      if (!cls[k]) { if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; if (y > by1) by1 = y; }
+  const out = new Uint8Array(W * H);
+  if (bx1 < 0) { // no unknown band at all
+    for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++) out[i] = cls[yb[y] * w + xb[x]] === 1 ? 255 : 0;
     return { width: W, height: H, data: out };
   }
-  // Subsampled ("fast") path: F / B and the guided-filter coefficients are solved on sub x sub block averages and
-  // bilinearly sampled back only at the unknown-band pixels (the fast guided filter of He & Sun 2015; the guide
-  // itself stays full resolution, so edges do too). Sure pixels never touch the low-resolution planes.
-  const w = Math.ceil(W / sub), h = Math.ceil(H / sub);
-  const down = (p: Float32Array) => blockMean(p, W, H, sub);
-  const Rs = Math.max(1, Math.round(R / sub));
-  const fgW = down(fgSure), bgW = down(bgSure);
-  const Is = [down(I[0]), down(I[1]), down(I[2])] as [Float32Array, Float32Array, Float32Array];
-  const F: Float32Array[] = [], B: Float32Array[] = [];
-  let fwS: Float32Array = new Float32Array(0), bwS: Float32Array = new Float32Array(0);
-  for (let c = 0; c < 3; c++) {
-    const f = maskedMean(Is[c], fgW, w, h, Rs), b = maskedMean(Is[c], bgW, w, h, Rs);
-    F.push(f.mean); B.push(b.mean); fwS = f.weight; bwS = b.weight;
+  const mg = Rs + 2 * grs + 2;
+  bx0 = Math.max(0, bx0 - mg); by0 = Math.max(0, by0 - mg); bx1 = Math.min(w - 1, bx1 + mg); by1 = Math.min(h - 1, by1 + mg);
+  const cw = bx1 - bx0 + 1, ch = by1 - by0 + 1, cm = cw * ch;
+  const crop = (src: Float32Array) => {
+    const c = new Float32Array(cm);
+    for (let y = 0; y < ch; y++) c.set(src.subarray((y + by0) * w + bx0, (y + by0) * w + bx0 + cw), y * cw);
+    return c;
+  };
+  const Ic: [Float32Array, Float32Array, Float32Array] = [crop(I[0]), crop(I[1]), crop(I[2])];
+  const Pc = crop(P), fgc = crop(fg), bgc = crop(bg);
+  // 3. local F / B colours (normalised box filters; the weights are shared by the three channels) and the band
+  //    alpha (colour-line projection), at low resolution
+  const fw = boxMean(fgc, cw, ch, Rs), bw = boxMean(bgc, cw, ch, Rs);
+  const local = (plane: Float32Array, wt: Float32Array, den: Float32Array) => {
+    const v = new Float32Array(cm);
+    for (let k = 0; k < cm; k++) v[k] = plane[k] * wt[k];
+    const num = boxMean(v, cw, ch, Rs);
+    for (let k = 0; k < cm; k++) num[k] = den[k] > 1e-6 ? num[k] / den[k] : 0;
+    return num;
+  };
+  const F = [local(Ic[0], fgc, fw), local(Ic[1], fgc, fw), local(Ic[2], fgc, fw)];
+  const B = [local(Ic[0], bgc, bw), local(Ic[1], bgc, bw), local(Ic[2], bgc, bw)];
+  const alpha = new Float32Array(cm);
+  for (let k = 0; k < cm; k++) {
+    if (fgc[k]) { alpha[k] = 1; continue; }
+    if (bgc[k]) { alpha[k] = 0; continue; }
+    const dr = F[0][k] - B[0][k], dg = F[1][k] - B[1][k], db = F[2][k] - B[2][k];
+    const d2 = dr * dr + dg * dg + db * db, p = Pc[k];
+    if (fw[k] < 1e-3 || bw[k] < 1e-3 || d2 < 0.01) { alpha[k] = p; continue; }
+    const a = ((Ic[0][k] - B[0][k]) * dr + (Ic[1][k] - B[1][k]) * dg + (Ic[2][k] - B[2][k]) * db) / d2;
+    const conf = Math.min(1, (Math.sqrt(d2) - 0.1) / 0.2);
+    const ac = Math.min(1, Math.max(0, a));
+    alpha[k] = conf > 0 ? conf * ac + (1 - conf) * p : p;
   }
-  // bilinear sample of low-res planes at full-res pixel (x, y): low-res pixel j covers [j*sub, (j+1)*sub)
-  const ix = new Int32Array(W * 2), fx = new Float32Array(W), iy = new Int32Array(H * 2), fy = new Float32Array(H);
-  const axis = (N: number, M: number, idx: Int32Array, fr: Float32Array) => {
+  // 4. guided-filter coefficients at low resolution
+  const g = colourGuidedFilter(Ic, alpha, cw, ch, grs, o.eps * 0.1);
+  // 5. full-resolution output: sure pixels straight from the trimap, band pixels a.I + b with bilinear coefficients
+  const fx = new Float32Array(W), fy = new Float32Array(H);
+  const x0 = new Int32Array(W), x1 = new Int32Array(W), y0 = new Int32Array(H), y1 = new Int32Array(H);
+  const axis = (N: number, M: number, i0: Int32Array, i1: Int32Array, fr: Float32Array) => {
     for (let x = 0; x < N; x++) {
       const u = Math.min(M - 1, Math.max(0, (x + 0.5) / sub - 0.5));
       const j = Math.min(M - 1, Math.floor(u));
-      idx[2 * x] = j; idx[2 * x + 1] = Math.min(M - 1, j + 1); fr[x] = u - j;
+      i0[x] = j; i1[x] = Math.min(M - 1, j + 1); fr[x] = u - j;
     }
   };
-  axis(W, w, ix, fx); axis(H, h, iy, fy);
-  let k00 = 0, k01 = 0, k10 = 0, k11 = 0, w00 = 0, w01 = 0, w10 = 0, w11 = 0;
-  const at = (x: number, y: number) => {
-    const ax = fx[x], ay = fy[y], r0 = iy[2 * y] * w, r1 = iy[2 * y + 1] * w, c0 = ix[2 * x], c1 = ix[2 * x + 1];
-    k00 = r0 + c0; k01 = r0 + c1; k10 = r1 + c0; k11 = r1 + c1;
-    w00 = (1 - ax) * (1 - ay); w01 = ax * (1 - ay); w10 = (1 - ax) * ay; w11 = ax * ay;
-  };
-  const S = (p: Float32Array) => p[k00] * w00 + p[k01] * w01 + p[k10] * w10 + p[k11] * w11;
-  for (let y = 0, i = 0; y < H; y++)
+  axis(W, w, x0, x1, fx); axis(H, h, y0, y1, fy);
+  // low-resolution sample positions -> crop coordinates (unknown pixels and their bilinear neighbours lie inside it)
+  for (let x = 0; x < W; x++) { x0[x] = Math.min(cw - 1, Math.max(0, x0[x] - bx0)); x1[x] = Math.min(cw - 1, Math.max(0, x1[x] - bx0)); }
+  for (let y = 0; y < H; y++) { y0[y] = Math.min(ch - 1, Math.max(0, y0[y] - by0)); y1[y] = Math.min(ch - 1, Math.max(0, y1[y] - by0)); }
+  const [aR, aG, aB] = g.a, gb = g.b;
+  for (let y = 0, i = 0; y < H; y++) {
+    const row = yb[y] * w, r0 = y0[y] * cw, r1 = y1[y] * cw, ay = fy[y];
     for (let x = 0; x < W; x++, i++) {
-      if (fgSure[i]) { alpha[i] = 1; continue; }
-      if (bgSure[i]) { alpha[i] = 0; continue; }
-      at(x, y);
-      alpha[i] = unknownAlpha(i, S(F[0]), S(F[1]), S(F[2]), S(B[0]), S(B[1]), S(B[2]), S(fwS), S(bwS));
+      const c = cls[row + xb[x]];
+      if (c) { out[i] = c === 1 ? 255 : 0; continue; }
+      const ax = fx[x], k00 = r0 + x0[x], k01 = r0 + x1[x], k10 = r1 + x0[x], k11 = r1 + x1[x];
+      const w00 = (1 - ax) * (1 - ay), w01 = ax * (1 - ay), w10 = (1 - ax) * ay, w11 = ax * ay;
+      const j = i << 2, a = data[j + 3] / 255, wh = 1 - a, s8 = a / 255;
+      const cr = aR[k00] * w00 + aR[k01] * w01 + aR[k10] * w10 + aR[k11] * w11;
+      const cg = aG[k00] * w00 + aG[k01] * w01 + aG[k10] * w10 + aG[k11] * w11;
+      const cb = aB[k00] * w00 + aB[k01] * w01 + aB[k10] * w10 + aB[k11] * w11;
+      const c0 = gb[k00] * w00 + gb[k01] * w01 + gb[k10] * w10 + gb[k11] * w11;
+      const v = cr * (data[j] * s8 + wh) + cg * (data[j + 1] * s8 + wh) + cb * (data[j + 2] * s8 + wh) + c0;
+      const t = (v - 0.04) / 0.92;
+      out[i] = Math.round(Math.min(1, Math.max(0, t)) * 255);
     }
-  // 3. guided filter coefficients on the block-averaged guide and alpha
-  const g = colourGuidedFilter(Is, down(alpha), w, h, Math.max(1, Math.round(gr / sub)), eps * 0.1);
-  for (let y = 0, i = 0; y < H; y++)
-    for (let x = 0; x < W; x++, i++) {
-      if (fgSure[i] || bgSure[i]) { out[i] = finish(alpha[i]); continue; }
-      at(x, y);
-      out[i] = finish(S(g.a[0]) * I[0][i] + S(g.a[1]) * I[1][i] + S(g.a[2]) * I[2][i] + S(g.b));
-    }
+  }
   return { width: W, height: H, data: out };
 }
