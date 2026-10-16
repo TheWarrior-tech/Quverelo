@@ -44,6 +44,9 @@ def main():
     ap.add_argument("--log", default=os.path.join(ML, "logs", "train_v1.log"))
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--threads", type=int, default=os.cpu_count() or 2)
+    ap.add_argument("--restart-at", type=int, default=0,
+                    help="warm restart: the schedule (50-step warm-up, then cosine to --steps) starts again at this step; "
+                         "used to continue a finished run with more steps without the LR jump a longer cosine causes")
     a = ap.parse_args()
     torch.set_num_threads(a.threads)
     os.makedirs(os.path.dirname(a.ckpt), exist_ok=True); os.makedirs(os.path.dirname(a.log), exist_ok=True)
@@ -64,9 +67,12 @@ def main():
         torch.manual_seed(a.seed)
 
     def lr_mult(s):
-        if s < 200:
-            return (s + 1) / 200
-        return 0.5 * (1 + np.cos(np.pi * min(1.0, (s - 200) / max(1, a.steps - 200)))) + 0.005
+        s0, wu = (a.restart_at, 50) if a.restart_at else (0, 200)
+        if s < s0:
+            s0, wu = 0, 200
+        if s - s0 < wu:
+            return (s - s0 + 1) / wu
+        return 0.5 * (1 + np.cos(np.pi * min(1.0, (s - s0 - wu) / max(1, a.steps - s0 - wu)))) + 0.005
 
     def save(path):
         tmp = path + ".tmp"
@@ -78,7 +84,7 @@ def main():
     log = open(a.log, "a")
     run, n, t0 = 0.0, 0, time.time()
     while step < a.steps:
-        hi = step >= a.hires_from * a.steps
+        hi = step >= a.restart_at + a.hires_from * (a.steps - a.restart_at)
         sampler.crop = a.crop_hi if hi else a.crop
         bs = max(4, int(a.batch * (a.crop / a.crop_hi) ** 2)) if hi else a.batch
         for g in opt.param_groups:
