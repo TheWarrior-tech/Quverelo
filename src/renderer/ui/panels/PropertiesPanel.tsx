@@ -112,7 +112,7 @@ function DocumentProperties() {
 
 const KIND: Record<SceneNode['type'], string> = {
   rect: 'Rectangle', ellipse: 'Ellipse', polygon: 'Polygon', star: 'Star', path: 'Path', text: 'Text', textframe: 'Text frame',
-  imageframe: 'Picture frame', raster: 'Pixel layer', group: 'Group',
+  imageframe: 'Picture frame', raster: 'Pixel layer', table: 'Table', group: 'Group',
 };
 /**
  * The object's own section is named for what it edits, not for the object, so it

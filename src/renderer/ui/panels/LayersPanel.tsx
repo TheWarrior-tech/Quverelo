@@ -17,7 +17,7 @@ import { thumbTint } from '../color/colorMath';
 
 const TYPE_ICON: Record<SceneNode['type'], string> = {
   rect: 'rect', ellipse: 'ellipse', polygon: 'polygon', star: 'star', path: 'pen', text: 'text', textframe: 'textframe',
-  imageframe: 'imageframe', raster: 'pixel', group: 'group',
+  imageframe: 'imageframe', raster: 'pixel', table: 'table', group: 'group',
 };
 
 /** The thumbnail tile colour of the current theme (`--c-raised`), cached per theme. */
