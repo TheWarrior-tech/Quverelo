@@ -7,18 +7,27 @@
 import type { Point } from '../geometry';
 import type { PathCommand } from '../types';
 
-/** Trace every boundary loop of a 0/1 mask. Coordinates are pixel corners (0..w, 0..h). */
+/**
+ * Trace every boundary loop of a 0/1 mask. Coordinates are pixel corners (0..w, 0..h).
+ * A corner has at most two outgoing boundary edges (two at a diagonal "saddle"), so the edge lists are two typed
+ * slots per corner, used as a stack (last added edge is followed first), and corners are visited in the order their
+ * first edge was added.
+ */
 export function traceMaskLoops(bin: Uint8Array, w: number, h: number): Point[][] {
   const W1 = w + 1;
+  const nv = W1 * (h + 1);
   const inside = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && bin[y * w + x] !== 0;
   // directed edges, inside on the right (clockwise in y-down screen space)
-  const out = new Map<number, number[]>();
+  const e0 = new Int32Array(nv), e1 = new Int32Array(nv), cnt = new Uint8Array(nv);
+  let order = new Int32Array(1024), nOrder = 0;
   const add = (x0: number, y0: number, x1: number, y1: number) => {
-    const a = y0 * W1 + x0;
-    const list = out.get(a);
-    const b = y1 * W1 + x1;
-    if (list) list.push(b);
-    else out.set(a, [b]);
+    const a = y0 * W1 + x0, b = y1 * W1 + x1;
+    const c = cnt[a];
+    if (c === 0) {
+      if (nOrder === order.length) { const o = new Int32Array(order.length * 2); o.set(order); order = o; }
+      order[nOrder++] = a; e0[a] = b;
+    } else e1[a] = b;
+    cnt[a] = c + 1;
   };
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
@@ -29,19 +38,20 @@ export function traceMaskLoops(bin: Uint8Array, w: number, h: number): Point[][]
       if (!inside(x - 1, y)) add(x, y + 1, x, y);
     }
   const loops: Point[][] = [];
-  for (const start of Array.from(out.keys())) {
-    while ((out.get(start)?.length ?? 0) > 0) {
+  for (let k = 0; k < nOrder; k++) {
+    const start = order[k];
+    while (cnt[start] > 0) {
       const loop: Point[] = [];
       let v = start;
       let guard = 0;
       do {
         loop.push({ x: v % W1, y: Math.floor(v / W1) });
-        const list = out.get(v)!;
-        const nxt = list.pop()!;
-        if (!list.length) out.delete(v);
+        const c = cnt[v];
+        const nxt = c === 2 ? e1[v] : e0[v];
+        cnt[v] = c - 1;
         v = nxt;
-        if (++guard > 4 * (w + 1) * (h + 1)) break;
-      } while (v !== start && out.has(v));
+        if (++guard > 4 * nv) break;
+      } while (v !== start && cnt[v] > 0);
       if (loop.length >= 3) loops.push(loop);
     }
   }
