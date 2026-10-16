@@ -7,10 +7,20 @@
  * unchanged and the stroke draws the live cut lines; compoundPieces gives the
  * pieces one by one for Expand.
  */
-import { booleanPaths } from './boolean';
 import { composeTransform } from './geometry';
 import { transformPath } from './path';
 import type { CompoundOp, GroupNode, PathCommand, SceneNode } from './types';
+
+/**
+ * The boolean engine (paper.js, core/boolean) registers itself here when it is
+ * loaded, so the document model can evaluate compounds without pulling
+ * paper.js into everything that merely imports core/document.
+ */
+type BooleanEngine = (paths: PathCommand[][], op: CompoundOp) => PathCommand[][];
+let engine: BooleanEngine | null = null;
+export function setBooleanEngine(fn: BooleanEngine): void {
+  engine = fn;
+}
 
 const cache = new WeakMap<SceneNode[], Map<CompoundOp, PathCommand[][]>>();
 
@@ -24,7 +34,8 @@ export function combinePieces(paths: PathCommand[][], op: CompoundOp): PathComma
   const list = paths.filter((d) => d.length);
   if (!list.length) return [];
   if (list.length === 1) return [list[0]];
-  return booleanPaths(list, op);
+  if (!engine) throw new Error('Compound shapes need the boolean engine: import core/boolean before evaluating them');
+  return engine(list, op);
 }
 
 /**
