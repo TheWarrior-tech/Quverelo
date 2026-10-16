@@ -30,6 +30,7 @@ const CROSS = 'crosshair';
 // pointer events that precede them.
 
 let lastPressure = 1;
+let testPressure: number | null = null;
 if (typeof window !== 'undefined') {
   const track = (e: PointerEvent) => {
     lastPressure = e.pointerType === 'pen' && e.pressure > 0 ? e.pressure : 1;
@@ -40,14 +41,15 @@ if (typeof window !== 'undefined') {
 
 /** Pen pressure 0..1 for the current stroke (1 for mouse and touch). */
 export function penPressure(e?: MouseEvent): number {
+  if (testPressure !== null) return testPressure;
   const pe = e as PointerEvent | undefined;
   if (pe && 'pointerType' in pe && pe.pointerType === 'pen' && pe.pressure > 0) return pe.pressure;
   return lastPressure;
 }
 
 /** Test hook: simulate pen pressure (e2e drives a mouse). */
-export function setTestPressure(p: number): void {
-  lastPressure = p;
+export function setTestPressure(p: number | null): void {
+  testPressure = p;
 }
 
 export function drawBrushCursor(ctx: CanvasRenderingContext2D, p: Point, size: number, z: number): void {

@@ -40,8 +40,10 @@ export function brushDynamics() {
   const o = editor.ui.toolOptions;
   return (
     <>
-      <Slider label="Flow" value={o.brushFlow * 100} min={1} max={100} onChange={(v) => set({ brushFlow: v / 100 })} fmt={pct} />
-      <Pri n={3}>
+      <Pri n={4}>
+        <Slider label="Flow" value={o.brushFlow * 100} min={1} max={100} onChange={(v) => set({ brushFlow: v / 100 })} fmt={pct} />
+      </Pri>
+      <Pri n={2}>
         <div className="group" role="group" aria-label="Pen pressure">
           <span className="ctx-label">Pressure</span>
           <Toggle label="Size" ariaLabel="Pressure changes size" checked={o.pressureSize} onChange={(v) => set({ pressureSize: v })} hint="Pen pressure changes the brush size" />
@@ -70,8 +72,12 @@ export function wandControls() {
   const o = editor.ui.toolOptions;
   return (
     <>
-      <Slider label="Tolerance" value={o.wandTolerance} min={0} max={255} onChange={(v) => set({ wandTolerance: v })} />
-      <Toggle label="Contiguous" checked={o.wandContiguous} onChange={(v) => set({ wandContiguous: v })} hint="Only connected pixels of similar colour" />
+      <Pri n={7}>
+        <Slider label="Tolerance" value={o.wandTolerance} min={0} max={255} onChange={(v) => set({ wandTolerance: v })} />
+      </Pri>
+      <Pri n={6}>
+        <Toggle label="Contiguous" checked={o.wandContiguous} onChange={(v) => set({ wandContiguous: v })} hint="Only connected pixels of similar colour" />
+      </Pri>
       <Pri n={2}>
         <Toggle label="All layers" checked={o.wandAllLayers} onChange={(v) => set({ wandAllLayers: v })} hint="Sample every visible layer, not just the active one" />
       </Pri>
@@ -103,8 +109,12 @@ export function retouchControls(t: ToolId) {
   const o = editor.ui.toolOptions;
   return (
     <>
-      <Slider label="Size" value={o.retouchSize} min={1} max={500} onChange={(v) => set({ retouchSize: v })} fmt={px} />
-      <Slider label="Hardness" value={o.brushHardness * 100} min={0} max={100} onChange={(v) => set({ brushHardness: v / 100 })} fmt={pct} />
+      <Pri n={7}>
+        <Slider label="Size" value={o.retouchSize} min={1} max={500} onChange={(v) => set({ retouchSize: v })} fmt={px} />
+      </Pri>
+      <Pri n={3}>
+        <Slider label="Hardness" value={o.brushHardness * 100} min={0} max={100} onChange={(v) => set({ brushHardness: v / 100 })} fmt={pct} />
+      </Pri>
       {(t === 'clone' || t === 'heal') && (
         <>
           <Slider label="Opacity" value={o.brushOpacity * 100} min={1} max={100} onChange={(v) => set({ brushOpacity: v / 100 })} fmt={pct} />

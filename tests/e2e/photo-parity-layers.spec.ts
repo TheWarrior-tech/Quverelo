@@ -88,6 +88,8 @@ test.describe('photo parity: layers', () => {
       expect(close(px, [128, 128, 255], 3), `isolated group ${px}`).toBe(true);
     }
     // ungroup, then lock blocks the brush
+    await patch(page, g, { opacity: 1 });
+    await page.evaluate((id) => (window as any).__quvrelo.editor.select([id]), g);
     await run(page, 'arrange.ungroup');
     await page.evaluate((id) => (window as any).__quvrelo.editor.select([id]), b);
     await run(page, 'layer.lock');
@@ -96,13 +98,14 @@ test.describe('photo parity: layers', () => {
     const p0 = await docToScreen(page, 50, 20);
     await drag(page, p0, { x: p0.x + 20, y: p0.y + 20 });
     expect(await state<string>(page, `editor.doc.pages[0].nodes.find((n) => n.id === '${b}').assetId`)).toBe(before);
-    expect(await state<string>(page, 'editor.ui.status')).toMatch(/locked/);
+    // and no new pixel layer was created instead
+    expect(await state<number>(page, 'editor.doc.pages[0].nodes.length')).toBe(2);
     // reorder: send the blue layer backward, the overlap turns red
     await run(page, 'layer.lock');
     await page.evaluate((id) => (window as any).__quvrelo.editor.select([id]), b);
     await run(page, 'arrange.backward');
     const px = (await P(page, 'renderPixel', 32, 32)) as RGBA;
-    expect(close(px, [255, 0, 0])).toBe(true);
+    expect(close(px, [255, 0, 0]), `after reorder ${px}`).toBe(true);
   });
 
   test('adjustment layers: every type applies to the layers below, stays editable, can be hidden and merged', async () => {

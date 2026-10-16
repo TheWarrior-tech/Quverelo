@@ -161,8 +161,31 @@ export function spotHealDab(work: Pixels, dab: Dab, sel: Sel = null): { ox: numb
       }
     }
   }
-  const snapshot: Pixels = { width: work.width, height: work.height, data: new Uint8ClampedArray(work.data) };
-  healDab(work, snapshot, { ...dab, hardness: Math.min(dab.hardness, 0.5) }, best.ox, best.oy, sel);
+  // membrane blend: texture from the chosen patch, colour from the spot's own surroundings (the
+  // ring), interpolated across the spot so the spot itself never tints the result
+  const snap = new Uint8ClampedArray(d);
+  const rr = r * 1.15;
+  const ringPts: { x: number; y: number; diff: [number, number, number] }[] = [];
+  for (let k = 0; k < 48; k++) {
+    const a = (k / 48) * Math.PI * 2;
+    const x = dab.x + Math.cos(a) * rr, y = dab.y + Math.sin(a) * rr;
+    const i = at(work, Math.round(x), Math.round(y));
+    const j = at(work, Math.round(x + best.ox), Math.round(y + best.oy));
+    ringPts.push({ x, y, diff: [snap[i] - snap[j], snap[i + 1] - snap[j + 1], snap[i + 2] - snap[j + 2]] });
+  }
+  forDab(work, { ...dab, hardness: Math.max(dab.hardness, 0.6) }, sel, (i, wgt, x, y) => {
+    let sw = 0;
+    const off = [0, 0, 0];
+    for (const q of ringPts) {
+      const w = 1 / ((x + 0.5 - q.x) ** 2 + (y + 0.5 - q.y) ** 2 + 1);
+      sw += w;
+      off[0] += q.diff[0] * w;
+      off[1] += q.diff[1] * w;
+      off[2] += q.diff[2] * w;
+    }
+    const j = at(work, x + best.ox, y + best.oy);
+    for (let c = 0; c < 3; c++) d[i + c] += (snap[j + c] + off[c] / sw - d[i + c]) * wgt;
+  });
   return best;
 }
 

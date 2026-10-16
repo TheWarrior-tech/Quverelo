@@ -235,7 +235,7 @@ function CropControls() {
         <NumberField className="ctx" label="W" ariaLabel="Crop width (px)" unit="px" digits={0} value={q.w} min={1} max={doc.settings.width} onCommit={(v) => setCropDimension('w', v)} />
         <NumberField className="ctx" label="H" ariaLabel="Crop height (px)" unit="px" digits={0} value={q.h} min={1} max={doc.settings.height} onCommit={(v) => setCropDimension('h', v)} />
       </div>
-      <Pri n={3}>
+      <Pri n={4.5}>
         <div className="group" role="group" aria-label="Straighten">
           <button className={`btn ghost${o.cropStraighten ? ' selected' : ''}`} aria-pressed={o.cropStraighten} data-action="crop-straighten" {...tip('Straighten')} data-tip-hint="Drag along a line that should be level" onClick={() => ed.setToolOptions({ cropStraighten: !o.cropStraighten })}><Icon name="rotate" /> Straighten</button>
           <NumberField className="ctx" label="°" ariaLabel="Straighten angle (degrees)" digits={1} value={0} min={-45} max={45} onCommit={(v) => straighten(v)} />
