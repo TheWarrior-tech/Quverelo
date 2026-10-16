@@ -26,14 +26,18 @@ const sess = await ort.InferenceSession.create(readFileSync(model), { executionP
 const S = 320;
 const backend = { name: 'bench', inputSize: S, run: async (x: Float32Array, s: number) => (await sess.run({ input: new ort.Tensor('float32', x, [1, 6, s, s]) })).logits.data as Float32Array };
 const med = (v: number[]) => v.sort((a, b) => a - b)[v.length >> 1];
-const time = async (f: () => unknown, n = 5) => { await f(); const t: number[] = []; for (let i = 0; i < n; i++) { const t0 = performance.now(); await f(); t.push(performance.now() - t0); } return Math.round(med(t)); };
+// CPU time per call (user + system) as well as wall time: on a shared machine wall time mostly measures the other jobs
+const cpu: Record<string, number> = {};
+let label = '';
+const time = async (f: () => unknown, n = 5) => { await f(); const t: number[] = []; const c0 = process.cpuUsage(); for (let i = 0; i < n; i++) { const t0 = performance.now(); await f(); t.push(performance.now() - t0); } const c = process.cpuUsage(c0); cpu[label] = Math.round((c.user + c.system) / 1000 / n); return Math.round(med(t)); };
+const T = async (k: string, f: () => unknown) => { label = k; out[k] = await time(f); };
 const input = buildInput(img, [], null, S);
 const logits = await backend.run(input, S);
 const prob = logitsToProb(logits, S, width, height);
 const out: Record<string, number | string> = { model, analysis: `${width}x${height}` };
-out.buildInput = await time(() => buildInput(img, [], null, S));
-out.model = await time(() => backend.run(input, S));
-out.logitsToProb = await time(() => logitsToProb(logits, S, width, height));
-for (const s of subs) out[`matte_sub${s}`] = await time(() => refineMatte(img, prob, { modelScale: Math.max(width, height) / S, subsample: s }));
-out.selectSubject_total = await time(() => selectSubject(img, { backend }));
-console.log(JSON.stringify(out));
+await T('buildInput', () => buildInput(img, [], null, S));
+await T('model_run', () => backend.run(input, S));
+await T('logitsToProb', () => logitsToProb(logits, S, width, height));
+for (const s of subs) await T(`matte_sub${s}`, () => refineMatte(img, prob, { modelScale: Math.max(width, height) / S, subsample: s }));
+await T('selectSubject_total', () => selectSubject(img, { backend }));
+console.log(JSON.stringify({ wall_ms: out, cpu_ms: cpu }));
