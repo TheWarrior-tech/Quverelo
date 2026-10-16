@@ -87,8 +87,8 @@ export function SymbolsPanel() {
                   <div className="symbol-meta">{n === 1 ? '1 instance' : `${n} instances`}</div>
                 </div>
                 <div className="symbol-actions">
-                  <button type="button" className="icon-btn sm" aria-label={`Insert ${s.name}`} {...tip('Insert an instance')} onClick={() => insert(s)}><Icon name="plus" /></button>
-                  <button type="button" className="icon-btn sm" aria-label={`Delete ${s.name}`} {...tip('Delete symbol')} data-tip-hint="Instances stay as plain groups" onClick={() => editor.commit('Delete symbol', (d) => deleteSymbol(d, s.id))}><Icon name="trash" /></button>
+                  <button type="button" className="icon-btn sm" {...tip(`Insert ${s.name}`)} onClick={() => insert(s)}><Icon name="plus" /></button>
+                  <button type="button" className="icon-btn sm" {...tip(`Delete ${s.name}`)} data-tip-hint="Instances stay as plain groups" onClick={() => editor.commit('Delete symbol', (d) => deleteSymbol(d, s.id))}><Icon name="trash" /></button>
                 </div>
               </li>
             );

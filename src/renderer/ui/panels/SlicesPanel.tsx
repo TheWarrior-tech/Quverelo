@@ -30,7 +30,7 @@ function SliceRow({ s }: { s: Slice }) {
       <div className="slice-head">
         <input type="checkbox" aria-label={`Export ${s.name}`} checked={s.enabled} onChange={(e) => editor.commit('Slice', (d) => updateSlice(d, s.id, { enabled: e.target.checked }))} />
         <input type="text" aria-label="Slice name" value={s.name} onChange={(e) => editor.commit('Rename slice', (d) => updateSlice(d, s.id, { name: e.target.value }), 'slicename:' + s.id)} />
-        <button type="button" className="icon-btn sm" aria-label={`Remove slice ${s.name}`} {...tip('Remove slice')} onClick={() => editor.commit('Remove slice', (d) => removeSlice(d, s.id))}><Icon name="trash" /></button>
+        <button type="button" className="icon-btn sm" {...tip(`Remove slice ${s.name}`)} onClick={() => editor.commit('Remove slice', (d) => removeSlice(d, s.id))}><Icon name="trash" /></button>
       </div>
       <div className="slice-meta num">{Math.round(r.w)} × {Math.round(r.h)} px{s.nodeId ? ' · follows its object' : ''}</div>
       <div className="slice-outputs" role="group" aria-label={`${s.name} outputs`}>
@@ -42,7 +42,7 @@ function SliceRow({ s }: { s: Slice }) {
             <select aria-label="Scale" value={o.scale} disabled={o.format === 'svg' || o.format === 'pdf'} onChange={(e) => setOutputs(s, s.outputs.map((x, j) => (j === i ? { ...x, scale: parseFloat(e.target.value) } : x)))}>
               {SLICE_SCALES.map((k) => <option key={k} value={k}>{`@${k}x`}</option>)}
             </select>
-            <button type="button" className="icon-btn sm" aria-label="Remove output" {...tip('Remove output')} disabled={s.outputs.length <= 1} onClick={() => setOutputs(s, s.outputs.filter((_, j) => j !== i))}><Icon name="minus" /></button>
+            <button type="button" className="icon-btn sm" {...tip('Remove output')} disabled={s.outputs.length <= 1} onClick={() => setOutputs(s, s.outputs.filter((_, j) => j !== i))}><Icon name="minus" /></button>
           </div>
         ))}
         <div className="panel-actions">
