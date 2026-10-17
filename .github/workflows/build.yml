@@ -63,10 +63,31 @@ jobs:
             test-screenshots
           if-no-files-found: ignore
 
+  # Installers are attached straight to a draft Release (not to Actions artifacts), so a full
+  # Actions-storage quota can never block publishing. The release job publishes the draft.
+  draft:
+    name: Create draft release
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish)
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create the draft (kept if it already exists)
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then TAG="${GITHUB_REF#refs/tags/}"; else TAG="v$(node -p "require('./package.json').version")"; fi
+          PRE=""; [[ "$TAG" == *-* ]] && PRE="--prerelease"
+          if gh release view "$TAG" >/dev/null 2>&1; then echo "release $TAG exists"; else
+            gh release create "$TAG" --draft --verify-tag $PRE --title "Quvrelo $TAG" --notes-file docs/RELEASE_NOTES.md
+          fi
+
   package:
     name: Package (${{ matrix.name }})
-    needs: test
-    if: github.event_name != 'pull_request'
+    needs: [test, draft]
+    if: always() && needs.test.result == 'success' && (needs.draft.result == 'success' || needs.draft.result == 'skipped') && github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
@@ -159,32 +180,27 @@ jobs:
       - name: List artefacts
         shell: bash
         run: ls -la release
-      - uses: actions/upload-artifact@v4
-        with:
-          name: installers-${{ matrix.name }}
-          retention-days: 1
-          path: |
-            release/*.exe
-            release/*.msi
-            release/*.dmg
-            release/*.pkg
-            release/*.AppImage
-            release/*.deb
-            release/*.rpm
-            release/*.zip
-            release/*.blockmap
-            release/latest*.yml
-            release/beta*.yml
-            release/alpha*.yml
-          if-no-files-found: error
+      - name: Attach installers to the draft release
+        if: needs.draft.result == 'success'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then TAG="${GITHUB_REF#refs/tags/}"; else TAG="v$(node -p "require('./package.json').version")"; fi
+          shopt -s nullglob
+          files=(release/*.exe release/*.msi release/*.dmg release/*.pkg release/*.AppImage release/*.deb release/*.rpm release/*.zip release/*.blockmap release/latest*.yml release/beta*.yml release/alpha*.yml)
+          printf '%s\n' "${files[@]}"
+          [ ${#files[@]} -gt 0 ] || { echo "no installers found"; exit 1; }
+          gh release upload "$TAG" "${files[@]}" --clobber
 
   flatpak:
     # Separate job so a Flatpak problem never fails the AppImage/deb/rpm, Windows or
     # macOS packages. Not continue-on-error: a failure shows up red, but the release
     # job below still publishes the other installers without it.
     name: Package (Flatpak)
-    needs: test
-    if: github.event_name != 'pull_request'
+    needs: [test, draft]
+    if: always() && needs.test.result == 'success' && (needs.draft.result == 'success' || needs.draft.result == 'skipped') && github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -223,50 +239,54 @@ jobs:
           flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
             flatpak-repo "release/Quvrelo-${VERSION}.flatpak" com.quvrelo.app
           ls -la release/*.flatpak
-      - uses: actions/upload-artifact@v4
-        with:
-          name: installers-Flatpak
-          retention-days: 1
-          path: release/*.flatpak
-          if-no-files-found: error
+      - name: Attach the Flatpak to the draft release
+        if: needs.draft.result == 'success'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then TAG="${GITHUB_REF#refs/tags/}"; else TAG="v$(node -p "require('./package.json').version")"; fi
+          gh release upload "$TAG" release/*.flatpak --clobber
 
   release:
     name: Publish GitHub Release
-    needs: [package, flatpak]
+    needs: [package, flatpak, draft]
     # always(): publish even if only the Flatpak job failed; the main packages must succeed.
     if: always() && needs.package.result == 'success' && (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: installers-*
-          path: dist-installers
-          merge-multiple: true
       - name: Work out tag
         id: tag
         shell: bash
         run: |
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT";
           else echo "tag=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"; fi
+      - name: Download every asset from the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release download "${{ steps.tag.outputs.tag }}" --dir dist-installers --clobber
       - name: Check update metadata (latest*.yml + blockmaps for every platform)
         run: node scripts/verify-update-metadata.mjs dist-installers
       - name: Write SHA-256 checksums
         run: cd dist-installers && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: Quvrelo ${{ steps.tag.outputs.tag }}
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          gh release upload "$TAG" dist-installers/SHA256SUMS.txt --clobber
+          LATEST="--latest"; [[ "$TAG" == *-* ]] && LATEST="--prerelease"
           # v1.2.0-beta.1 etc. are prereleases: the beta update channel sees them, stable does not.
-          prerelease: ${{ contains(steps.tag.outputs.tag, '-') }}
-          body_path: docs/RELEASE_NOTES.md
-          files: dist-installers/*
-          fail_on_unmatched_files: true
+          gh release edit "$TAG" --draft=false $LATEST --title "Quvrelo $TAG" --notes-file docs/RELEASE_NOTES.md
 
   diagnose:
     name: Record failure logs (ci-logs branch)
-    needs: [test, package, flatpak, release]
-    if: always() && (needs.test.result == 'failure' || needs.package.result == 'failure' || needs.flatpak.result == 'failure' || needs.release.result == 'failure')
+    needs: [test, draft, package, flatpak, release]
+    if: always() && (needs.draft.result == 'failure' || needs.test.result == 'failure' || needs.package.result == 'failure' || needs.flatpak.result == 'failure' || needs.release.result == 'failure')
     runs-on: ubuntu-latest
     permissions:
       contents: write
