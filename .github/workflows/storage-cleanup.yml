@@ -1,0 +1,49 @@
+name: Actions storage cleanup
+
+# Deletes old workflow artifacts and caches so the account stays inside its
+# included Actions storage. Installers live permanently on GitHub Releases,
+# so artifacts are only needed for a day.
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/storage-cleanup.yml']
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      keep_hours:
+        description: 'Keep artifacts newer than this many hours (0 = delete all)'
+        default: '0'
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          KEEP_HOURS: ${{ inputs.keep_hours || (github.event_name == 'schedule' && '24') || '0' }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const keepMs = Number(process.env.KEEP_HOURS || 0) * 3600e3;
+            const cutoff = Date.now() - keepMs;
+            let artifacts = 0, artBytes = 0;
+            const arts = await github.paginate(github.rest.actions.listArtifactsForRepo, { owner, repo, per_page: 100 });
+            for (const a of arts) {
+              if (a.expired) continue;
+              if (keepMs && new Date(a.created_at).getTime() > cutoff) continue;
+              await github.rest.actions.deleteArtifact({ owner, repo, artifact_id: a.id });
+              artifacts++; artBytes += a.size_in_bytes;
+            }
+            let caches = 0, cacheBytes = 0;
+            const cs = await github.paginate(github.rest.actions.getActionsCacheList, { owner, repo, per_page: 100 });
+            for (const c of cs) {
+              if (keepMs && new Date(c.last_accessed_at).getTime() > cutoff) continue;
+              await github.rest.actions.deleteActionsCacheById({ owner, repo, cache_id: c.id });
+              caches++; cacheBytes += c.size_in_bytes;
+            }
+            core.notice(`Deleted ${artifacts} artifacts (${(artBytes/1e9).toFixed(2)} GB) and ${caches} caches (${(cacheBytes/1e9).toFixed(2)} GB).`);

@@ -54,6 +54,7 @@ jobs:
         if: always()
         with:
           name: e2e-report
+          retention-days: 3
           path: |
             playwright-report
             test-results
@@ -152,6 +153,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: installers-${{ matrix.name }}
+          retention-days: 1
           path: |
             release/*.exe
             release/*.msi
@@ -215,6 +217,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: installers-Flatpak
+          retention-days: 1
           path: release/*.flatpak
           if-no-files-found: error
 
