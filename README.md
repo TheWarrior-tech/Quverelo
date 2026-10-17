@@ -85,7 +85,7 @@ Get the installers from the [latest release](https://github.com/TheWarrior-tech/
 The installers are not yet code-signed, so Windows may show *"Windows protected your PC"*. Click **More info ▸ Run anyway**. Managed deployments via MSI/Intune are not affected by SmartScreen prompts.
 
 ### macOS Gatekeeper
-The app is not yet notarised by Apple. The first time you open it, **right-click (or Control-click) Quvrelo in Applications and choose Open**, then click **Open** in the dialog. On macOS 15+, if there is no Open button, go to **System Settings ▸ Privacy & Security** and click **Open Anyway**. IT admins can remove the quarantine flag after deployment:
+Quvrelo is ad-hoc signed but not notarised by Apple (no Developer ID). The first time you open it, **right-click (or Control-click) Quvrelo in Applications and choose Open**, then click **Open** in the dialog. On macOS 15+, if there is no Open button, go to **System Settings ▸ Privacy & Security** and click **Open Anyway**. IT admins can remove the quarantine flag after deployment:
 
 ```sh
 sudo xattr -dr com.apple.quarantine "/Applications/Quvrelo.app"

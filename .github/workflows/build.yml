@@ -141,6 +141,13 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - name: Verify macOS app signatures (ad-hoc must be valid or macOS reports "damaged")
+        if: matrix.name == 'macOS'
+        shell: bash
+        run: |
+          for app in release/mac*/Quvrelo.app; do
+            echo "== $app"; codesign --verify --deep --strict --verbose=2 "$app"; codesign -dv "$app" 2>&1 | grep -E 'Signature|Identifier'
+          done
       - name: Merge macOS update metadata (x64 + arm64 in one latest-mac.yml)
         if: matrix.name == 'macOS'
         shell: bash

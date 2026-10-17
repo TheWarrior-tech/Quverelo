@@ -1,3 +1,8 @@
+## Quvrelo v0.6.1 — macOS launch fix
+
+- **Fixed:** on Apple Silicon Macs, v0.6.0 could refuse to open with "Quvrelo is damaged and can't be opened". The macOS builds are now ad-hoc signed, so macOS shows its normal first-launch prompt instead. Quvrelo isn't notarised by Apple: the first time you open it, go to **System Settings ▸ Privacy & Security** and click **Open Anyway** (or Control-click the app and choose **Open**).
+- CI now verifies the macOS app signature on every build.
+
 ## Quvrelo v0.6.0 — parity with the pro suites
 
 The first parity release: Photo, Vector and Layout now cover the everyday professional feature set of Affinity and Adobe's apps, with print-ready CMYK output, 16-bit editing, the major interchange formats, scripting, classroom hand-in and a new on-device selection model. Still fully offline, no accounts, no telemetry.
