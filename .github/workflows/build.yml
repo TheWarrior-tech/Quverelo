@@ -51,7 +51,9 @@ jobs:
           CI: 'true'
           QUVRELO_SHOTS_DIR: test-screenshots
       - uses: actions/upload-artifact@v4
-        if: always()
+        # Only needed to debug a red run; a full Actions-storage quota must never turn a green test run red.
+        if: failure()
+        continue-on-error: true
         with:
           name: e2e-report
           retention-days: 3
