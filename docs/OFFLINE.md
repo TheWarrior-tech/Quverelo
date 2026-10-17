@@ -100,16 +100,20 @@ returns `deny`, and opens the browser only if the checks pass) and the
 links do nothing.
 
 One related path: the update dialog's **Download update** button (when an install cannot
-update itself, for example MSI or deb/rpm) opens the release download page through
+update itself, for example a Linux tarball or a Mac app run from its disk image) opens the release download page through
 `UpdateService.openDownload()` (`src/main/updates/updater.ts`). It is controlled by the
 update switches below: with update checks off, no update is ever found, so the button
 never appears.
 
 ## 4. The updater is the only network client
 
-`electron-updater` in the main process is the only code that opens network connections.
-It reads a small YAML feed (`latest.yml` / `beta.yml`) and, if allowed, downloads the
-installer with its checksum (SHA-512) verified. The renderer never sees remote content.
+The updater in the main process (`src/main/updates/`) is the only code that opens network
+connections. `electron-updater` reads a small YAML feed (`latest.yml` / `beta.yml`) and, if
+allowed, the new version is downloaded with its checksum (SHA-512) verified: by
+electron-updater for NSIS / AppImage, and by Quvrelo's own downloader (`files.ts`, a
+dedicated Electron session separate from the UI's) for macOS, MSI and deb/rpm. Both only
+contact the feed host (GitHub Releases and its download CDN, or `updateFeedUrl`). The
+renderer never sees remote content.
 Release notes are reduced to plain text in the main process (`releaseNotesToText()` in
 `src/main/updates/config.ts`).
 
@@ -126,11 +130,12 @@ Policy switches (`policy.json`, see `docs/ADMIN_GUIDE.md` › Updates):
 | --- | --- |
 | `"disableUpdateCheck": true` or `"update-check"` in `disabledFeatures` | No update connection at all, automatic or manual. Help ▸ Check for Updates says updates are managed by your organisation. **With this set, Quvrelo makes no network connections.** |
 | `"updateFeedUrl": "https://updates.school.internal/quvrelo/"` | Use an internal server (electron-builder "generic" feed) instead of GitHub Releases. The app then only contacts that host. |
+| `"updateRepository": "owner/repo"` | Read another public GitHub repository's Releases. |
 | `"autoDownload": false` | Check only; never download in the background. |
 | `"autoInstall": false` | Install a downloaded update only when the user clicks Restart. |
 | `"updateChannel": "stable"` | Lock the channel (no beta builds). |
 
-Default (no policy): the public feed `https://github.com/TheWarrior-tech/Quverelo/releases`.
+Default (no policy): the GitHub Releases of the repository named in `RELEASES_REPO` (`src/main/updates/config.ts`), currently `https://github.com/TheWarrior-tech/Quverelo/releases`.
 
 ## 5. Checking it yourself
 

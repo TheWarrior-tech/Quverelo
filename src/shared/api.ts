@@ -90,6 +90,7 @@ export type UpdateStatus =
   | 'available' // found; not downloading (notify-only installs, or automatic download off)
   | 'downloading'
   | 'ready' // downloaded and verified (sha512); restart to install
+  | 'installing' // deb/rpm: the package manager is installing (administrator prompt), then Quvrelo restarts
   | 'up-to-date'
   | 'error';
 
@@ -119,6 +120,8 @@ export interface UpdateState {
   feedLabel: string;
   autoDownload: boolean;
   autoInstallOnQuit: boolean;
+  /** Installing the ready update shows an administrator prompt (MSI, deb/rpm, a Mac app folder the user cannot write). */
+  adminPrompt: boolean;
   locks: { autoDownload: boolean; autoInstall: boolean; channel: boolean };
   checkedAt: string | null;
 }

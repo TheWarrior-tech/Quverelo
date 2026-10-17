@@ -4,10 +4,25 @@
  */
 import { featureEnabled, type Policy, type UpdateChannel } from '../../core/policy';
 
-/** Public feed: the GitHub Releases of the project (written into app-update.yml by electron-builder too). */
-export const GITHUB_FEED = { provider: 'github', owner: 'TheWarrior-tech', repo: 'Quverelo', releaseType: 'release' } as const;
+/**
+ * THE place that names the public update feed: the GitHub repository whose Releases the
+ * app reads anonymously (latest*.yml + installers). Change it together with
+ * package.json → build.publish (owner/repo), which tells CI / electron-builder where to
+ * upload; tests/unit/updates.test.ts fails if the two disagree. The source repository is
+ * private, so the plan is a public releases-only repository (e.g. TheWarrior-tech/quvrelo-releases).
+ * Administrators can override it per machine with policy "updateRepository" or replace
+ * GitHub entirely with "updateFeedUrl".
+ */
+export const RELEASES_REPO = { owner: 'TheWarrior-tech', repo: 'Quverelo' } as const;
 
-export const RELEASES_PAGE = `https://github.com/${GITHUB_FEED.owner}/${GITHUB_FEED.repo}/releases`;
+/** Public feed: the GitHub Releases of RELEASES_REPO. */
+export const GITHUB_FEED = { provider: 'github', owner: RELEASES_REPO.owner, repo: RELEASES_REPO.repo, releaseType: 'release' } as const;
+
+export const RELEASES_PAGE = releasesPage(RELEASES_REPO.owner, RELEASES_REPO.repo);
+
+export function releasesPage(owner: string, repo: string): string {
+  return `https://github.com/${owner}/${repo}/releases`;
+}
 
 /** The user's own choices (Preferences ▸ General). Policy may override both. */
 export interface UpdatePrefs {
@@ -49,9 +64,10 @@ export function resolveUpdaterConfig(policy: Policy, prefs: UpdatePrefs): Update
   const channel: UpdateChannel = policy.updateChannel ?? (prefs.updateChannel === 'beta' ? 'beta' : 'stable');
   const beta = channel === 'beta';
   const generic = policy.updateFeedUrl;
+  const [owner, repo] = policy.updateRepository ? policy.updateRepository.split('/') : [GITHUB_FEED.owner, GITHUB_FEED.repo];
   const feed: FeedConfig = generic
     ? { provider: 'generic', url: generic, channel: beta ? 'beta' : 'latest' }
-    : { ...GITHUB_FEED };
+    : { provider: 'github', owner, repo, releaseType: 'release' };
 
   let disabledReason: string | null = null;
   if (policy.disableUpdateCheck || !featureEnabled(policy, 'update-check')) {
@@ -73,8 +89,8 @@ export function resolveUpdaterConfig(policy: Policy, prefs: UpdatePrefs): Update
       autoInstall: policy.autoInstall !== null,
       channel: policy.updateChannel !== null,
     },
-    feedLabel: generic ? hostOf(generic) : 'GitHub Releases',
-    downloadPage: generic ?? RELEASES_PAGE,
+    feedLabel: generic ? hostOf(generic) : policy.updateRepository ? `GitHub Releases (${owner}/${repo})` : 'GitHub Releases',
+    downloadPage: generic ?? releasesPage(owner, repo),
   };
 }
 

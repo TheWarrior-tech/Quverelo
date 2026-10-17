@@ -31,7 +31,7 @@ Quvrelo is an all-in-one creative suite in the spirit of Affinity's single-app s
 - **Opens files from other apps.** Photoshop PSD/PSB with editable layers, text and shapes, Illustrator `.ai` and PDF as editable vectors, InDesign IDML with pages, masters, threaded stories and styles, and layered PSD export. What is kept and what changes: [INTEROP.md](docs/INTEROP.md).
 - **Scriptable, safely.** JavaScript or TypeScript scripts automate repetitive work through a documented API, in a sandbox with no file, network or clipboard access: [SCRIPTING.md](docs/SCRIPTING.md).
 - **Made for IT teams.** Silent per-machine installers (NSIS `/S`, MSI `/qn`, macOS `.pkg`), a machine-wide `policy.json` to lock save locations, hide features, set themes and point at network template/hand-in folders. No sign-in, no licence server, no network traffic.
-- **Private by design.** The interface is blocked from making any network request, and fonts, models and engines are bundled. The only network traffic is the update check, which admins can point at their own server or switch off: then Quvrelo makes no connections at all. Evidence for security reviews: [OFFLINE.md](docs/OFFLINE.md).
+- **Private by design.** The interface is blocked from making any network request, and fonts, models and engines are bundled. The only network traffic is updates (check and download), which admins can point at their own server or switch off: then Quvrelo makes no connections at all. Evidence for security reviews: [OFFLINE.md](docs/OFFLINE.md).
 
 ## Features (v0.1)
 
@@ -96,7 +96,7 @@ See the [IT admin deployment guide](docs/ADMIN_GUIDE.md) for silent install swit
 
 - **Hide features** with `"disabledFeatures"`, including the newer `import-psd`, `import-ai`, `import-idml`, `export-psd`, `scripting` and `assignments`.
 - **Hand-in:** `handInDirectory` points at a share (Quvrelo makes one folder per class); `"handInIncludePreview": false` leaves the PDF preview out of each bundle.
-- **Updates:** `disableUpdateCheck`, `updateFeedUrl`, `autoDownload`, `autoInstall`, `updateChannel`.
+- **Updates:** `disableUpdateCheck`, `updateFeedUrl`, `updateRepository`, `autoDownload`, `autoInstall`, `updateChannel`.
 - **Offline audit:** [OFFLINE.md](docs/OFFLINE.md) lists every control that keeps the app offline, with source locations and tests.
 
 Silent install:

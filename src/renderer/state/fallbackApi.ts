@@ -8,7 +8,7 @@ import { DEFAULT_SETTINGS, type QuvreloApi, type OpenedFile, type UpdateState, t
 const browserUpdateState: UpdateState = {
   status: 'disabled', current: 'dev', latest: null, releaseName: null, releaseNotes: null, releaseDate: null,
   channel: 'stable', mode: 'disabled', action: 'none', installKind: 'browser', note: 'Updates are not available in the browser.',
-  progress: null, error: null, downloadUrl: null, command: null, feedLabel: '', autoDownload: false, autoInstallOnQuit: false,
+  progress: null, error: null, downloadUrl: null, command: null, feedLabel: '', autoDownload: false, autoInstallOnQuit: false, adminPrompt: false,
   locks: { autoDownload: false, autoInstall: false, channel: false }, checkedAt: null,
 };
 

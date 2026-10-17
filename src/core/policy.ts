@@ -39,6 +39,11 @@ export interface Policy {
    * beta*.yml, the installers and their .blockmap files. null = the public GitHub Releases feed.
    */
   updateFeedUrl: string | null;
+  /**
+   * GitHub repository ("owner/repo") whose public Releases are the update feed, instead of
+   * the built-in one. Ignored when updateFeedUrl is set. null = the built-in repository.
+   */
+  updateRepository: string | null;
   /** Lock background downloading of updates on (true) or off (false). null = user choice (default on). */
   autoDownload: boolean | null;
   /** Lock installing a downloaded update when the app quits. false = only when the user clicks Restart. null = on. */
@@ -74,6 +79,7 @@ export const DEFAULT_POLICY: Policy = {
   handInIncludePreview: true,
   disableUpdateCheck: false,
   updateFeedUrl: null,
+  updateRepository: null,
   autoDownload: null,
   autoInstall: null,
   updateChannel: null,
@@ -162,6 +168,12 @@ export function parsePolicy(raw: unknown, source: string | null = null): PolicyR
     if (v === null || v === '') policy.updateFeedUrl = null;
     else if (isStr(v) && /^https?:\/\/[^\s/]+/i.test(v.trim())) policy.updateFeedUrl = v.trim().replace(/\/+$/, '') + '/';
     else warnings.push('"updateFeedUrl" must be an http:// or https:// URL or null');
+  }
+  if ('updateRepository' in r) {
+    const v = r.updateRepository;
+    if (v === null || v === '') policy.updateRepository = null;
+    else if (isStr(v) && /^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/.test(v.trim())) policy.updateRepository = v.trim();
+    else warnings.push('"updateRepository" must be "owner/repo" or null');
   }
   if ('updateChannel' in r) {
     const v = r.updateChannel;

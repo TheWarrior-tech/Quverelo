@@ -69,17 +69,19 @@ Formats (PNG, JPEG, SVG or PDF):
 
 ## Assignments (for teachers and students)
 - Teachers: *File ▸ Assignment Details* stores the title, class, due date and instructions inside the document. Save it in your school's template folder or share it.
-- Students: *File ▸ Hand In*, type your name, and a timestamped copy is placed in your class's hand-in folder.
+- Students: *File ▸ Hand In…* (or **Hand in…** in the **▾** menu next to Export), type your name, and Quvrelo saves a named, timestamped bundle (your work plus a PDF preview for marking) to your class's hand-in folder, or asks you to choose one if your school hasn't set it. You can keep working on your own file afterwards.
 
 ## Safety net
 - **Undo** <kbd>Ctrl/⌘</kbd>+<kbd>Z</kbd>, **Redo** <kbd>Ctrl/⌘</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>, or click any step in the **History** panel.
 - Work is **autosaved** for recovery every minute. If the app closes unexpectedly, the welcome screen offers to restore your work.
 
 ## Updates
-Quvrelo checks for updates in the background and downloads them for you. When one is ready you'll see **"Quvrelo x.y.z is ready — Restart"** at the bottom of the canvas and *Restart to update* in the status bar. Click **Restart**, or keep working: it installs the next time you quit. You never lose work: if your document has unsaved changes you're asked to save first.
-- *Help ▸ Check for Updates* shows your version, what's new and the download progress.
+Quvrelo updates itself like any other app. It checks for new versions when it starts and every few hours, downloads them in the background, and checks each download before using it. When one is ready you'll see **"Quvrelo x.y.z is ready — Restart"** at the bottom of the canvas and *Restart to update* in the status bar. Click **Restart** and Quvrelo reopens on the new version a moment later. You never lose work: if your document has unsaved changes you're asked to save first.
+- *Help ▸ Check for Updates* shows your version, what's new and the download progress. If something goes wrong (no internet, for example) it says so, with **Try again**.
+- Most copies also install a ready update when you quit. Copies that need an administrator to install (the Windows MSI, Linux deb/rpm packages, or a Mac app in a folder you can't change) install when you click **Restart**, after your computer asks for an administrator password.
+- On a Mac, keep Quvrelo in your *Applications* folder: a copy opened straight from the downloaded disk image can't update itself.
+- Flatpak: Quvrelo tells you when there's a new version; update it with your software centre or `flatpak update`.
 - *Preferences ▸ General ▸ Updates*: turn off automatic downloads, or switch to the **Beta** channel to try new features early.
-- If you installed Quvrelo with an MSI, a Linux package (deb/rpm) or Flatpak, or your copy isn't signed (macOS), Quvrelo tells you about new versions and links to the download (or shows the command to run) instead of installing them itself.
 - At school or work your IT team may manage updates; those settings then show *Set by your organisation*.
 
 ## Accessibility

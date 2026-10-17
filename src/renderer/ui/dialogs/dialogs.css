@@ -1033,6 +1033,20 @@
 :root[data-reduce-motion='true'] .upd-progress > span {
   transition: none;
 }
+/* installing: length unknown, a slow sweep (static bar when motion is reduced) */
+.upd-progress.indeterminate > span {
+  width: 35% !important;
+  animation: upd-sweep 1.4s var(--ease) infinite;
+}
+@keyframes upd-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(290%); }
+}
+:root[data-reduce-motion='true'] .upd-progress.indeterminate > span {
+  width: 100% !important;
+  animation: none;
+  opacity: 0.6;
+}
 .upd-cmd {
   display: flex;
   align-items: center;

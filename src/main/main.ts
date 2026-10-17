@@ -507,6 +507,8 @@ if (!E2E && !app.requestSingleInstanceLock()) {
   app.on('before-quit', () => {
     if (!dirty) quitting = true;
   });
+  // Quitting for good (every window closed): an ad-hoc signed Mac installs a ready update now.
+  app.on('will-quit', () => updates.onQuit());
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin' || E2E) app.quit();
   });

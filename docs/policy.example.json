@@ -8,6 +8,7 @@
   "handInIncludePreview": true,
   "disableUpdateCheck": true,
   "updateFeedUrl": null,
+  "updateRepository": null,
   "autoDownload": null,
   "autoInstall": null,
   "updateChannel": null,

@@ -44,9 +44,21 @@ function StatusBlock({ s }: { s: UpdateState }) {
       return (
         <div className="upd-status" data-status="ready">
           <p>Quvrelo {v} is downloaded and verified.</p>
+          {s.error && <p className="upd-error">{s.error}</p>}
           <p className="upd-meta">
-            Restart to finish updating{s.autoInstallOnQuit ? ', or it installs the next time you quit' : ''}. Unsaved work is never lost: you will be asked to save first.
+            Restart to finish updating{s.autoInstallOnQuit ? ', or it installs the next time you quit' : ''}.
+            {s.adminPrompt ? ' Your computer will ask for an administrator password to install it.' : ''} Unsaved work is never lost: you will be asked to save first.
           </p>
+        </div>
+      );
+    case 'installing':
+      return (
+        <div className="upd-status" data-status="installing">
+          <p>Installing Quvrelo {v}…</p>
+          <div className="upd-progress indeterminate" role="progressbar" aria-label={`Installing Quvrelo ${v}`}>
+            <span style={{ width: '100%' }} />
+          </div>
+          <p className="upd-meta">Approve the administrator prompt if one appears. Quvrelo restarts when the installation is finished.</p>
         </div>
       );
     case 'available':
@@ -111,15 +123,15 @@ export function UpdatesDialog() {
   useLayoutEffect(() => {
     setUpdatesDialogOpen(true);
     const st = s?.status;
-    if (st !== 'disabled' && st !== 'downloading' && st !== 'ready' && st !== 'checking') void checkForUpdates();
+    if (st !== 'disabled' && st !== 'downloading' && st !== 'ready' && st !== 'checking' && st !== 'installing') void checkForUpdates();
     return () => setUpdatesDialogOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!s) return null;
-  const busy = s.status === 'checking' || s.status === 'downloading';
-  const canCheck = s.mode !== 'disabled' && !busy && s.status !== 'ready';
-  const showNotes = !!s.releaseNotes && ['available', 'downloading', 'ready'].includes(s.status);
+  const busy = s.status === 'checking' || s.status === 'downloading' || s.status === 'installing';
+  const canCheck = s.mode !== 'disabled' && !busy && s.status !== 'ready' && s.status !== 'error';
+  const showNotes = !!s.releaseNotes && ['available', 'downloading', 'ready', 'installing'].includes(s.status);
   const linksAllowed = editor.feature('external-links');
 
   let footer: JSX.Element;
@@ -128,6 +140,13 @@ export function UpdatesDialog() {
       <>
         <button className="btn" onClick={closeDialog}>Later</button>
         <button className="btn primary" data-autofocus onClick={() => { closeDialog(); restartToUpdate(); }}>Restart now</button>
+      </>
+    );
+  } else if (s.status === 'error' && s.mode !== 'disabled') {
+    footer = (
+      <>
+        <button className="btn" onClick={closeDialog}>Close</button>
+        <button className="btn primary" data-autofocus onClick={() => void checkForUpdates()}>Try again</button>
       </>
     );
   } else if (s.status === 'available' && s.mode === 'auto') {
@@ -147,7 +166,7 @@ export function UpdatesDialog() {
       </>
     );
   } else {
-    footer = <button className="btn" data-autofocus onClick={closeDialog}>{s.status === 'downloading' ? 'Hide' : 'Done'}</button>;
+    footer = <button className="btn" data-autofocus onClick={closeDialog}>{s.status === 'downloading' || s.status === 'installing' ? 'Hide' : 'Done'}</button>;
   }
 
   const rows: [string, string][] = [
@@ -193,7 +212,7 @@ export function UpdatesDialog() {
       </dl>
       {s.mode === 'auto' && s.status !== 'disabled' && (
         <p className="fineprint">
-          Quvrelo checks every 4 hours{s.autoDownload ? ', downloads in the background' : ''} and verifies each update’s SHA-512 checksum{s.installKind === 'mac' ? ' and code signature' : ''} before installing it.
+          Quvrelo checks every 6 hours{s.autoDownload ? ', downloads in the background' : ''} and verifies each update’s checksum{s.installKind === 'mac' ? ' and code signature' : ''} before installing it.
         </p>
       )}
     </Dialog>

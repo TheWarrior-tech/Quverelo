@@ -131,6 +131,42 @@ test('ready toast and status-bar indicator; Restart goes to the main process', a
   await app.close();
 });
 
+test('installing and error states: progress while the package manager runs, Try again after a failure', async () => {
+  const { app, page } = await launch({ QUVRELO_POLICY_PATH: policyFile(), QUVRELO_UPDATER_FORCE: '1' });
+  await page.click('[data-template="poster-a4"]');
+  await expect(page.locator('.workspace')).toBeVisible();
+  await expect.poll(async () => (await page.evaluate(() => window.quvrelo.getUpdateState())).mode).toBe('notify');
+  const base = await page.evaluate(() => window.quvrelo.getUpdateState());
+  const send = (s: unknown) => app.evaluate(({ BrowserWindow }, st) => BrowserWindow.getAllWindows()[0].webContents.send('update:state', st), s);
+
+  // a deb/rpm install: Quvrelo is installing with pkexec
+  await send({ ...base, status: 'installing', mode: 'auto', action: 'restart', installKind: 'deb', latest: NEXT, adminPrompt: true });
+  await run(page, 'help.check-updates');
+  const dlg = page.locator('.updates-dialog');
+  await expect(dlg.locator('[data-status="installing"]')).toContainText(`Installing Quvrelo ${NEXT}`);
+  await expect(dlg.getByRole('progressbar', { name: `Installing Quvrelo ${NEXT}` })).toBeVisible();
+  await expect(page.locator('.update-ind')).toContainText('Installing update');
+  await expect(dlg.getByRole('button', { name: 'Hide' })).toBeVisible();
+  await snap(page, 'updates-dialog-installing-dark', dlg);
+
+  // the install was cancelled: ready again, with the reason, the admin hint and Restart now
+  await send({ ...base, status: 'ready', mode: 'auto', action: 'restart', installKind: 'deb', latest: NEXT, adminPrompt: true, autoInstallOnQuit: false, error: 'Installation was cancelled (administrator permission was not given).' });
+  await expect(dlg.locator('[data-status="ready"]')).toContainText('Installation was cancelled');
+  await expect(dlg.locator('[data-status="ready"]')).toContainText('administrator password');
+  await expect(dlg.locator('[data-status="ready"]')).not.toContainText('next time you quit');
+  await expect(dlg.getByRole('button', { name: 'Restart now' })).toBeVisible();
+
+  // a failed download: the error with Try again, which runs a real check against the feed
+  await send({ ...base, status: 'error', latest: NEXT, error: 'The downloaded update failed its integrity check and was discarded.' });
+  await expect(dlg.locator('[data-status="error"]')).toContainText('integrity check');
+  requests.length = 0;
+  await dlg.getByRole('button', { name: 'Try again' }).click();
+  await expect(dlg.locator('[data-status="available"]')).toContainText(`Quvrelo ${NEXT} is available`);
+  expect(requests.some((r) => /^\/latest[^/]*\.yml/.test(r))).toBe(true);
+  await page.keyboard.press('Escape');
+  await app.close();
+});
+
 test('Preferences shows update settings locked by policy', async () => {
   const { app, page } = await launch({ QUVRELO_POLICY_PATH: policyFile({ updateChannel: 'stable', autoDownload: false }), QUVRELO_UPDATER_FORCE: '1' });
   await run(page, 'app.preferences');

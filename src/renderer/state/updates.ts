@@ -103,6 +103,8 @@ export function statusLine(s: UpdateState | null): string | null {
       return s.progress && s.progress.total > 0 ? `Downloading update ${Math.floor(s.progress.percent)}%` : 'Downloading update';
     case 'ready':
       return 'Restart to update';
+    case 'installing':
+      return 'Installing update';
     case 'available':
       return `Update available`;
     default:

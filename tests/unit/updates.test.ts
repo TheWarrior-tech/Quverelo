@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_POLICY, parsePolicy, type Policy } from '../../src/core/policy';
-import { GITHUB_FEED, releaseNotesToText, resolveUpdaterConfig, type UpdatePrefs } from '../../src/main/updates/config';
+import { readFileSync } from 'node:fs';
+import * as os from 'node:os';
+import { GITHUB_FEED, RELEASES_REPO, releaseNotesToText, resolveUpdaterConfig, type UpdatePrefs } from '../../src/main/updates/config';
 import {
   detectInstallKind, isDeveloperIdSigned, packageCommand, selectStrategy, type PlatformFacts,
 } from '../../src/main/updates/strategy';
@@ -59,8 +61,9 @@ vi.mock('electron-updater', () => ({
 
 const openExternal = vi.fn(async (_url: string) => undefined);
 vi.mock('electron', () => ({
-  app: { isPackaged: true, getVersion: () => '0.2.0', getName: () => 'Quvrelo' },
+  app: { isPackaged: true, getVersion: () => '0.2.0', getName: () => 'Quvrelo', getPath: () => os.tmpdir(), quit: () => undefined, relaunch: () => undefined },
   shell: { openExternal: (u: string) => openExternal(u) },
+  session: { fromPartition: () => ({ fetch: (u: string) => fetch(u) }) },
 }));
 
 // ---------------------------------------------------------------------------
@@ -87,6 +90,13 @@ describe('policy keys for updates', () => {
     expect(r.policy.autoInstall).toBe(false);
     expect(r.policy.updateChannel).toBe('beta');
   });
+  it('updateRepository: "owner/repo" or null', () => {
+    expect(parsePolicy({ updateRepository: 'TheWarrior-tech/quvrelo-releases' }).policy.updateRepository).toBe('TheWarrior-tech/quvrelo-releases');
+    expect(parsePolicy({ updateRepository: '' }).policy.updateRepository).toBeNull();
+    const bad = parsePolicy({ updateRepository: 'https://github.com/a/b' });
+    expect(bad.policy.updateRepository).toBeNull();
+    expect(bad.warnings).toHaveLength(1);
+  });
   it('rejects bad values with warnings', () => {
     const r = parsePolicy({ updateFeedUrl: 'file:///etc/passwd', autoDownload: 'no', updateChannel: 'nightly' });
     expect(r.policy.updateFeedUrl).toBeNull();
@@ -108,6 +118,20 @@ describe('policy → updater config', () => {
     expect(c.autoInstallOnAppQuit).toBe(true);
     expect(c.locks).toEqual({ autoDownload: false, autoInstall: false, channel: false });
     expect(c.feedLabel).toBe('GitHub Releases');
+  });
+  it('the built-in repository is the one CI publishes to (package.json build.publish)', () => {
+    const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
+    const gh = pkg.build.publish.find((p: { provider: string }) => p.provider === 'github');
+    expect({ owner: gh.owner, repo: gh.repo }).toEqual({ ...RELEASES_REPO });
+    expect(GITHUB_FEED).toMatchObject(RELEASES_REPO);
+  });
+  it('policy updateRepository points the GitHub feed elsewhere; updateFeedUrl still wins', () => {
+    const c = resolveUpdaterConfig(pol({ updateRepository: 'TheWarrior-tech/quvrelo-releases' }), prefs());
+    expect(c.feed).toEqual({ provider: 'github', owner: 'TheWarrior-tech', repo: 'quvrelo-releases', releaseType: 'release' });
+    expect(c.downloadPage).toBe('https://github.com/TheWarrior-tech/quvrelo-releases/releases');
+    expect(c.feedLabel).toBe('GitHub Releases (TheWarrior-tech/quvrelo-releases)');
+    const g = resolveUpdaterConfig(pol({ updateRepository: 'a/b', updateFeedUrl: 'https://intranet.example/q/' }), prefs());
+    expect(g.feed.provider).toBe('generic');
   });
   it('never carries a token in the feed', () => {
     const c = resolveUpdaterConfig(pol(), prefs());
@@ -160,20 +184,30 @@ describe('platform strategy', () => {
     expect(detectInstallKind(facts({ env: { FLATPAK_ID: 'com.quvrelo.app', APPIMAGE: '/x' } }))).toBe('flatpak');
     expect(detectInstallKind(facts())).toBe('linux-other');
   });
-  it('NSIS and AppImage update themselves with delta downloads', () => {
+  it('NSIS and AppImage update themselves through electron-updater with delta downloads', () => {
     for (const f of [facts({ platform: 'win32', nsisUninstallerPresent: true }), facts({ env: { APPIMAGE: '/a' } })]) {
-      expect(selectStrategy(f)).toMatchObject({ mode: 'auto', action: 'restart', differential: true });
+      expect(selectStrategy(f)).toMatchObject({ mode: 'auto', action: 'restart', installer: 'electron-updater', differential: true });
     }
   });
-  it('macOS updates itself only when Developer ID signed', () => {
-    expect(selectStrategy(facts({ platform: 'darwin', macSigned: true }))).toMatchObject({ mode: 'auto', action: 'restart' });
-    expect(selectStrategy(facts({ platform: 'darwin', macSigned: false }))).toMatchObject({ mode: 'notify', action: 'open-download' });
+  it('macOS: Squirrel.Mac when Developer ID signed, Quvrelo\'s own bundle swap when ad-hoc signed', () => {
+    expect(selectStrategy(facts({ platform: 'darwin', macSigned: true }))).toMatchObject({ mode: 'auto', action: 'restart', installer: 'electron-updater' });
+    expect(selectStrategy(facts({ platform: 'darwin', macSigned: false, macBundlePath: '/Applications/Quvrelo.app' }))).toMatchObject({ mode: 'auto', action: 'restart', installer: 'mac-swap' });
+    expect(selectStrategy(facts({ platform: 'darwin', macSigned: false, macBundlePath: '/Users/a/Applications/Quvrelo.app' })).installer).toBe('mac-swap');
+    expect(selectStrategy(facts({ platform: 'darwin', macSigned: false, macBundlePath: '/Volumes/Drive/Applications/Quvrelo.app' })).installer).toBe('mac-swap');
   });
-  it('MSI, deb, rpm and Flatpak notify only', () => {
-    expect(selectStrategy(facts({ platform: 'win32' }))).toMatchObject({ kind: 'msi', mode: 'notify', action: 'open-download' });
-    expect(selectStrategy(facts({ packageType: 'deb' }))).toMatchObject({ mode: 'notify', action: 'package-manager' });
-    expect(selectStrategy(facts({ packageType: 'rpm' }))).toMatchObject({ mode: 'notify', action: 'package-manager' });
-    expect(selectStrategy(facts({ env: { FLATPAK_ID: 'com.quvrelo.app' } }))).toMatchObject({ kind: 'flatpak', mode: 'notify' });
+  it('macOS running from the DMG or App Translocation cannot replace itself', () => {
+    for (const p of ['/Volumes/Quvrelo 0.6.1/Quvrelo.app', '/private/var/folders/xy/T/AppTranslocation/1234-5678/d/Quvrelo.app']) {
+      expect(selectStrategy(facts({ platform: 'darwin', macSigned: false, macBundlePath: p }))).toMatchObject({ mode: 'notify', action: 'open-download', installer: null });
+    }
+  });
+  it('MSI, deb, rpm and pacman install themselves; Flatpak and Snap stay with their own tools', () => {
+    expect(selectStrategy(facts({ platform: 'win32' }))).toMatchObject({ kind: 'msi', mode: 'auto', action: 'restart', installer: 'msi' });
+    expect(selectStrategy(facts({ packageType: 'deb' }))).toMatchObject({ mode: 'auto', action: 'restart', installer: 'linux-package' });
+    expect(selectStrategy(facts({ packageType: 'rpm' }))).toMatchObject({ mode: 'auto', action: 'restart', installer: 'linux-package' });
+    expect(selectStrategy(facts({ packageType: 'pacman' }))).toMatchObject({ mode: 'auto', installer: 'linux-package' });
+    expect(selectStrategy(facts({ env: { FLATPAK_ID: 'com.quvrelo.app' } }))).toMatchObject({ kind: 'flatpak', mode: 'notify', action: 'package-manager', installer: null });
+    expect(selectStrategy(facts({ env: { SNAP: '/snap/quvrelo/1' } }))).toMatchObject({ kind: 'snap', mode: 'notify' });
+    expect(selectStrategy(facts())).toMatchObject({ kind: 'linux-other', mode: 'notify', action: 'open-download' });
   });
   it('portable and development builds are disabled (dev can be forced to check-only)', () => {
     expect(selectStrategy(facts({ platform: 'win32', env: { PORTABLE_EXECUTABLE_FILE: 'x' } })).mode).toBe('disabled');
@@ -255,26 +289,40 @@ describe('UpdateService (mocked electron-updater)', () => {
     expect(u.downloadUpdate).toHaveBeenCalledOnce();
   });
 
-  it('deb: notify-only, never downloads, shows the apt command', async () => {
-    const { svc, u } = await service({ updateFeedUrl: 'https://intranet.example/q/' }, { updateChannel: 'beta' }, { packageType: 'deb' });
-    expect(u.kind).toBe('deb');
+  it('Flatpak: notify-only, never downloads, shows the flatpak command', async () => {
+    const { svc, u } = await service({ updateFeedUrl: 'https://intranet.example/q/' }, { updateChannel: 'beta' }, { env: { FLATPAK_ID: 'com.quvrelo.app' } });
+    expect(u.kind).toBe('appimage');
     expect(u.feed).toEqual({ provider: 'generic', url: 'https://intranet.example/q/', channel: 'beta' });
     expect(u.autoDownload).toBe(false);
     expect(u.autoInstallOnAppQuit).toBe(false);
+    expect(u.forceDevUpdateConfig).toBe(true);
     const st = await svc.check(true);
     expect(st.status).toBe('available');
-    expect(st.command).toBe('sudo apt install ./Quvrelo-0.3.0-amd64.deb');
-    expect(st.downloadUrl).toBe('https://intranet.example/q/Quvrelo-0.3.0-amd64.deb');
-    await svc.openDownload();
-    expect(openExternal).toHaveBeenCalledWith('https://intranet.example/q/Quvrelo-0.3.0-amd64.deb');
+    expect(st.command).toBe('flatpak update com.quvrelo.app');
     svc.restart();
     expect(svc.wantsInstall).toBe(false);
   });
 
-  it('unsigned mac falls back to the release page', async () => {
-    const { svc, u } = await service({}, {}, { platform: 'darwin', macSigned: false });
-    expect(u.kind).toBe('mac');
+  it('deb: electron-updater only checks; Quvrelo downloads and installs it (no copy-paste command)', async () => {
+    const { svc, u } = await service({ autoDownload: false }, {}, { packageType: 'deb' });
+    expect(u.kind).toBe('deb');
     expect(u.autoDownload).toBe(false);
+    expect(u.autoInstallOnAppQuit).toBe(false);
+    const st = await svc.check(true);
+    expect(st).toMatchObject({ status: 'available', mode: 'auto', action: 'restart', command: null, adminPrompt: true });
+    expect(u.downloadUpdate).not.toHaveBeenCalled();
+  });
+
+  it('linux tarball (no package type) falls back to the download link', async () => {
+    const { svc } = await service({ updateFeedUrl: 'https://intranet.example/q/' }, {}, {});
+    const st = await svc.check(true);
+    expect(st).toMatchObject({ status: 'available', mode: 'notify', action: 'open-download' });
+    await svc.openDownload();
+    expect(openExternal).toHaveBeenCalledWith(expect.stringMatching(/^https:\/\/intranet\.example\/q\//));
+  });
+
+  it('dev builds forced to check point "Download update" at the GitHub release tag', async () => {
+    const { svc } = await service({}, {}, { isPackaged: false, forceCheck: true });
     const st = await svc.check(true);
     expect(st).toMatchObject({ status: 'available', mode: 'notify', action: 'open-download' });
     expect(st.downloadUrl).toBe('https://github.com/TheWarrior-tech/Quverelo/releases/tag/v0.3.0');
