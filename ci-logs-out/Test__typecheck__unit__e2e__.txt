@@ -1,120 +1,120 @@
-2026-10-17T10:22:47.0135587Z [command]/usr/bin/git init /home/runner/work/Quverelo/Quverelo/ml-models
-2026-10-17T10:22:47.0331396Z hint: Using 'master' as the name for the initial branch. This default branch name
-2026-10-17T10:22:47.0339597Z hint: will change to "main" in Git 3.0. To configure the initial branch name
-2026-10-17T10:22:47.0362769Z hint: to use in all of your new repositories, which will suppress this warning,
-2026-10-17T10:22:47.0377994Z hint: call:
-2026-10-17T10:22:47.0396580Z hint:
-2026-10-17T10:22:47.0397049Z hint: 	git config --global init.defaultBranch <name>
-2026-10-17T10:22:47.0397464Z hint:
-2026-10-17T10:22:47.0397959Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
-2026-10-17T10:22:47.0399689Z hint: 'development'. The just-created branch can be renamed via this command:
-2026-10-17T10:22:47.0400160Z hint:
-2026-10-17T10:22:47.0400421Z hint: 	git branch -m <name>
-2026-10-17T10:22:47.0400701Z hint:
-2026-10-17T10:22:47.0401201Z hint: Disable this message with "git config set advice.defaultBranchName false"
-2026-10-17T10:22:47.0402065Z Initialized empty Git repository in /home/runner/work/Quverelo/Quverelo/ml-models/.git/
-2026-10-17T10:22:47.0437955Z [command]/usr/bin/git remote add origin https://github.com/TheWarrior-tech/Quverelo
-2026-10-17T10:22:47.0484769Z ##[endgroup]
-2026-10-17T10:22:47.0489509Z ##[group]Disabling automatic garbage collection
-2026-10-17T10:22:47.0490517Z [command]/usr/bin/git config --local gc.auto 0
-2026-10-17T10:22:47.0555886Z ##[endgroup]
-2026-10-17T10:22:47.0556697Z ##[group]Setting up auth
-2026-10-17T10:22:47.0557540Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
-2026-10-17T10:22:47.0628910Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
-2026-10-17T10:22:47.1085660Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
-2026-10-17T10:22:47.1130536Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
-2026-10-17T10:22:47.1448846Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
-2026-10-17T10:22:47.1525104Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
-2026-10-17T10:22:47.1823614Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
-2026-10-17T10:22:47.4194939Z ##[endgroup]
-2026-10-17T10:22:47.4195758Z ##[group]Fetching the repository
-2026-10-17T10:22:47.4206394Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +refs/heads/ml-models*:refs/remotes/origin/ml-models* +refs/tags/ml-models*:refs/tags/ml-models*
-2026-10-17T10:22:49.3532309Z From https://github.com/TheWarrior-tech/Quverelo
-2026-10-17T10:22:49.3537223Z  * [new branch]      ml-models  -> origin/ml-models
-2026-10-17T10:22:49.3539075Z ##[endgroup]
-2026-10-17T10:22:49.3540037Z ##[group]Determining the checkout info
-2026-10-17T10:22:49.3540934Z [command]/usr/bin/git branch --list --remote origin/ml-models
-2026-10-17T10:22:49.3568318Z   origin/ml-models
-2026-10-17T10:22:49.3572332Z ##[endgroup]
-2026-10-17T10:22:49.3577351Z [command]/usr/bin/git sparse-checkout disable
-2026-10-17T10:22:49.3619083Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
-2026-10-17T10:22:49.3658546Z ##[group]Checking out the ref
-2026-10-17T10:22:49.3661715Z [command]/usr/bin/git checkout --progress --force -B ml-models refs/remotes/origin/ml-models
-2026-10-17T10:22:49.4406995Z Switched to a new branch 'ml-models'
-2026-10-17T10:22:49.4418663Z branch 'ml-models' set up to track 'origin/ml-models'.
-2026-10-17T10:22:49.4428026Z ##[endgroup]
-2026-10-17T10:22:49.4455448Z [command]/usr/bin/git log -1 --format=%H
-2026-10-17T10:22:49.4485378Z ca65cbd293439ab145172d027b2f021793f349c5
-2026-10-17T10:22:49.4613839Z ##[group]Run node scripts/fetch-ml-models.mjs
-2026-10-17T10:22:49.4614139Z node scripts/fetch-ml-models.mjs
-2026-10-17T10:22:49.4671065Z shell: /usr/bin/bash -e {0}
-2026-10-17T10:22:49.4671280Z env:
-2026-10-17T10:22:49.4671452Z   QUVRELO_REQUIRE_ML_MODELS: 1
-2026-10-17T10:22:49.4671664Z ##[endgroup]
-2026-10-17T10:22:49.5117969Z ml: quvselect_v1.onnx from /home/runner/work/Quverelo/Quverelo/ml-models/quvselect_v1.onnx (12633087 bytes, sha256 ok)
-2026-10-17T10:22:49.5164598Z ml: quvselect_v1_int8.onnx from /home/runner/work/Quverelo/Quverelo/ml-models/quvselect_v1_int8.onnx (3660726 bytes, sha256 ok)
-2026-10-17T10:22:49.5257802Z ##[group]Run npm run typecheck
-2026-10-17T10:22:49.5258050Z npm run typecheck
-2026-10-17T10:22:49.5314704Z shell: /usr/bin/bash -e {0}
-2026-10-17T10:22:49.5314922Z ##[endgroup]
-2026-10-17T10:22:49.6157344Z 
-2026-10-17T10:22:49.6158203Z > quvrelo@0.6.1 typecheck
-2026-10-17T10:22:49.6159403Z > tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json
-2026-10-17T10:22:49.6160068Z 
-2026-10-17T10:23:05.2031126Z ##[group]Run npm test
-2026-10-17T10:23:05.2031463Z npm test
-2026-10-17T10:23:05.2109604Z shell: /usr/bin/bash -e {0}
-2026-10-17T10:23:05.2109942Z ##[endgroup]
-2026-10-17T10:23:05.2969494Z 
-2026-10-17T10:23:05.2970452Z > quvrelo@0.6.1 test
-2026-10-17T10:23:05.2971398Z > vitest run
-2026-10-17T10:23:05.2971806Z 
-2026-10-17T10:23:05.5786722Z 
-2026-10-17T10:23:05.5787993Z  RUN  v3.2.7 /home/runner/work/Quverelo/Quverelo
-2026-10-17T10:23:05.5806550Z 
-2026-10-17T10:23:06.1961248Z  ✓ tests/unit/photoParity.test.ts (29 tests) 88ms
-2026-10-17T10:23:07.0003359Z  ✓ tests/unit/vectorFeatures.test.ts (19 tests) 57ms
-2026-10-17T10:23:08.4093237Z  ✓ tests/unit/pdfVector.test.ts (15 tests) 413ms
-2026-10-17T10:23:08.7212967Z  ✓ tests/unit/updates.test.ts (24 tests) 28ms
-2026-10-17T10:23:10.0972278Z  ✓ tests/unit/pdfx.test.ts (6 tests) 472ms
-2026-10-17T10:23:10.3988582Z  ✓ tests/unit/shellLint.test.ts (11 tests) 47ms
-2026-10-17T10:23:10.6949529Z  ✓ tests/unit/proflow.test.ts (19 tests) 13ms
-2026-10-17T10:23:11.1912397Z  ✓ tests/unit/pdfGradients.test.ts (8 tests) 27ms
-2026-10-17T10:23:11.6159508Z  ✓ tests/unit/ml.test.ts (18 tests) 126ms
-2026-10-17T10:23:11.8734427Z  ✓ tests/unit/typography.test.ts (20 tests) 11ms
-2026-10-17T10:23:12.3403924Z  ✓ tests/unit/mlCoords.test.ts (11 tests) 236ms
-2026-10-17T10:23:12.6450520Z  ✓ tests/unit/layoutPages.test.ts (15 tests) 27ms
-2026-10-17T10:23:13.0593239Z  ✓ tests/unit/raw.test.ts (14 tests) 103ms
-2026-10-17T10:23:13.7022093Z  ✓ tests/unit/tablesPreflight.test.ts (15 tests) 15ms
-2026-10-17T10:23:14.1808996Z  ✓ tests/unit/idmlRich.test.ts (5 tests) 27ms
-2026-10-17T10:23:14.5528739Z  ✓ tests/unit/pixels16.test.ts (29 tests) 137ms
-2026-10-17T10:23:17.7534910Z stdout | tests/unit/mlObjectSelect.test.ts > Object Select accuracy on the showcase photo (QuvSelect v1) > a click on the cottage selects the cottage tightly (IoU >= 0.8, area <= 1.5x its bbox)
-2026-10-17T10:23:17.7537212Z [objsel] QuvSelect v1 cottage IoU per click: 0.934 0.934 0.933 0.933 0.933 0.930 0.934
-2026-10-17T10:23:17.7537929Z 
-2026-10-17T10:23:18.3219819Z stdout | tests/unit/mlObjectSelect.test.ts > Object Select accuracy on the showcase photo (QuvSelect v1) > documents the old single-pass behaviour (no zoom, no edge refine) (logged, not asserted: the model may improve)
-2026-10-17T10:23:18.3227551Z [objsel] QuvSelect v1 single-pass IoU 0.775, area 1.2x the cottage
-2026-10-17T10:23:18.3228180Z 
-2026-10-17T10:23:21.2562693Z stdout | tests/unit/mlObjectSelect.test.ts > Object Select accuracy on the showcase photo (QuvSelect v0) > a click on the cottage selects the cottage tightly (IoU >= 0.8, area <= 1.5x its bbox)
-2026-10-17T10:23:21.2566753Z [objsel] QuvSelect v0 cottage IoU per click: 0.938 0.936 0.938 0.933 0.938 0.931 0.937
-2026-10-17T10:23:21.2567621Z 
-2026-10-17T10:23:21.7270950Z stdout | tests/unit/mlObjectSelect.test.ts > Object Select accuracy on the showcase photo (QuvSelect v0) > documents the old single-pass behaviour (no zoom, no edge refine) (logged, not asserted: the model may improve)
-2026-10-17T10:23:21.7275738Z [objsel] QuvSelect v0 single-pass IoU 0.110, area 9.1x the cottage
-2026-10-17T10:23:21.7276631Z 
-2026-10-17T10:23:21.7286319Z  ✓ tests/unit/mlObjectSelect.test.ts (4 tests) 6912ms
-2026-10-17T10:23:21.7288159Z    ✓ Object Select accuracy on the showcase photo (QuvSelect v1) > a click on the cottage selects the cottage tightly (IoU >= 0.8, area <= 1.5x its bbox)  2937ms
-2026-10-17T10:23:21.7290294Z    ✓ Object Select accuracy on the showcase photo (QuvSelect v1) > documents the old single-pass behaviour (no zoom, no edge refine) (logged, not asserted: the model may improve)  568ms
-2026-10-17T10:23:21.7291541Z    ✓ Object Select accuracy on the showcase photo (QuvSelect v0) > a click on the cottage selects the cottage tightly (IoU >= 0.8, area <= 1.5x its bbox)  2934ms
-2026-10-17T10:23:21.7292757Z    ✓ Object Select accuracy on the showcase photo (QuvSelect v0) > documents the old single-pass behaviour (no zoom, no edge refine) (logged, not asserted: the model may improve)  470ms
-2026-10-17T10:23:22.1105184Z  ✓ tests/unit/sentenceCase.test.ts (6 tests) 138ms
-2026-10-17T10:23:22.3568301Z  ✓ tests/unit/welcome.test.ts (21 tests) 12ms
-2026-10-17T10:23:23.3659332Z  ✓ tests/unit/vectorExport.test.ts (6 tests) 110ms
-2026-10-17T10:23:25.0808157Z  ✓ tests/unit/mlMatte.test.ts (8 tests) 1466ms
-2026-10-17T10:23:25.0809515Z    ✓ ML edge refinement (colour guided-filter matting) > refines a 1024 x 768 image quickly  321ms
-2026-10-17T10:23:25.0810672Z    ✓ ML edge refinement (colour guided-filter matting) > fast mode at the 1024 px analysis size is several times cheaper than the exact matte  829ms
-2026-10-17T10:23:25.3046837Z  ✓ tests/unit/toolGroups.test.ts (10 tests) 12ms
-2026-10-17T10:23:25.5997038Z  ✓ tests/unit/palette.test.ts (17 tests) 48ms
-2026-10-17T10:23:25.9678686Z  ✓ tests/unit/colour.test.ts (10 tests) 134ms
-2026-10-17T10:23:26.2442296Z  ✓ tests/unit/richflow.test.ts (13 tests) 9ms
-2026-10-17T10:23:26.9491440Z  ✓ tests/unit/scripting.test.ts (10 tests) 403ms
-2026-10-17T10:23:26.9495448Z    ✓ Script runner (QuickJS sandbox) > stops runaway scripts and applies nothing  302ms
-2026-10-17T10:23:27.2163525Z  ✓ tests/unit/commands.test.ts (11 tests) 12ms
+2026-10-17T10:22:54.2639755Z ##[endgroup]
+2026-10-17T10:22:54.3601396Z Syncing repository: TheWarrior-tech/Quverelo
+2026-10-17T10:22:54.3629465Z ##[group]Getting Git version info
+2026-10-17T10:22:54.3638539Z Working directory is '/home/runner/work/Quverelo/Quverelo/ml-models'
+2026-10-17T10:22:54.3693110Z [command]/usr/bin/git version
+2026-10-17T10:22:54.3708423Z git version 2.55.0
+2026-10-17T10:22:54.3738965Z ##[endgroup]
+2026-10-17T10:22:54.3752452Z Temporarily overriding HOME='/home/runner/work/_temp/2d74a672-68a2-4466-bb42-265cb6095358' before making global git config changes
+2026-10-17T10:22:54.3769029Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-17T10:22:54.3789131Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Quverelo/Quverelo/ml-models
+2026-10-17T10:22:54.3828844Z ##[group]Initializing the repository
+2026-10-17T10:22:54.3848855Z [command]/usr/bin/git init /home/runner/work/Quverelo/Quverelo/ml-models
+2026-10-17T10:22:54.3883574Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-17T10:22:54.3887238Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-17T10:22:54.3888889Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-17T10:22:54.3889728Z hint: call:
+2026-10-17T10:22:54.3890258Z hint:
+2026-10-17T10:22:54.3890953Z hint: 	git config --global init.defaultBranch <name>
+2026-10-17T10:22:54.3939178Z hint:
+2026-10-17T10:22:54.3956180Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-17T10:22:54.3970910Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-17T10:22:54.3991221Z hint:
+2026-10-17T10:22:54.4003816Z hint: 	git branch -m <name>
+2026-10-17T10:22:54.4009709Z hint:
+2026-10-17T10:22:54.4010633Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-17T10:22:54.4012202Z Initialized empty Git repository in /home/runner/work/Quverelo/Quverelo/ml-models/.git/
+2026-10-17T10:22:54.4014644Z [command]/usr/bin/git remote add origin https://github.com/TheWarrior-tech/Quverelo
+2026-10-17T10:22:54.4019760Z ##[endgroup]
+2026-10-17T10:22:54.4020990Z ##[group]Disabling automatic garbage collection
+2026-10-17T10:22:54.4021945Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-17T10:22:54.4023875Z ##[endgroup]
+2026-10-17T10:22:54.4024693Z ##[group]Setting up auth
+2026-10-17T10:22:54.4025740Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-17T10:22:54.4051074Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-17T10:22:54.4393295Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-17T10:22:54.4455520Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-17T10:22:54.4756134Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-17T10:22:54.4806111Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-17T10:22:54.5136094Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-17T10:22:54.5209049Z ##[endgroup]
+2026-10-17T10:22:54.5210387Z ##[group]Fetching the repository
+2026-10-17T10:22:54.5212625Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +refs/heads/ml-models*:refs/remotes/origin/ml-models* +refs/tags/ml-models*:refs/tags/ml-models*
+2026-10-17T10:22:55.7990265Z From https://github.com/TheWarrior-tech/Quverelo
+2026-10-17T10:22:55.7995403Z  * [new branch]      ml-models  -> origin/ml-models
+2026-10-17T10:22:55.7998194Z ##[endgroup]
+2026-10-17T10:22:55.7999072Z ##[group]Determining the checkout info
+2026-10-17T10:22:55.8004909Z [command]/usr/bin/git branch --list --remote origin/ml-models
+2026-10-17T10:22:55.8036848Z   origin/ml-models
+2026-10-17T10:22:55.8041375Z ##[endgroup]
+2026-10-17T10:22:55.8046996Z [command]/usr/bin/git sparse-checkout disable
+2026-10-17T10:22:55.8093336Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-17T10:22:55.8137256Z ##[group]Checking out the ref
+2026-10-17T10:22:55.8146405Z [command]/usr/bin/git checkout --progress --force -B ml-models refs/remotes/origin/ml-models
+2026-10-17T10:22:55.9003767Z Switched to a new branch 'ml-models'
+2026-10-17T10:22:55.9016551Z branch 'ml-models' set up to track 'origin/ml-models'.
+2026-10-17T10:22:55.9018972Z ##[endgroup]
+2026-10-17T10:22:55.9061589Z [command]/usr/bin/git log -1 --format=%H
+2026-10-17T10:22:55.9092854Z ca65cbd293439ab145172d027b2f021793f349c5
+2026-10-17T10:22:55.9231063Z ##[group]Run node scripts/fetch-ml-models.mjs
+2026-10-17T10:22:55.9231437Z node scripts/fetch-ml-models.mjs
+2026-10-17T10:22:55.9294706Z shell: /usr/bin/bash -e {0}
+2026-10-17T10:22:55.9294951Z env:
+2026-10-17T10:22:55.9295166Z   QUVRELO_REQUIRE_ML_MODELS: 1
+2026-10-17T10:22:55.9295405Z ##[endgroup]
+2026-10-17T10:22:55.9886525Z ml: quvselect_v1.onnx from /home/runner/work/Quverelo/Quverelo/ml-models/quvselect_v1.onnx (12633087 bytes, sha256 ok)
+2026-10-17T10:22:55.9954195Z ml: quvselect_v1_int8.onnx from /home/runner/work/Quverelo/Quverelo/ml-models/quvselect_v1_int8.onnx (3660726 bytes, sha256 ok)
+2026-10-17T10:22:56.0062685Z ##[group]Run npm run typecheck
+2026-10-17T10:22:56.0063151Z npm run typecheck
+2026-10-17T10:22:56.0126489Z shell: /usr/bin/bash -e {0}
+2026-10-17T10:22:56.0126738Z ##[endgroup]
+2026-10-17T10:22:56.1268763Z 
+2026-10-17T10:22:56.1279796Z > quvrelo@0.6.1 typecheck
+2026-10-17T10:22:56.1299048Z > tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json
+2026-10-17T10:22:56.1306973Z 
+2026-10-17T10:23:16.1071094Z ##[group]Run npm test
+2026-10-17T10:23:16.1071566Z npm test
+2026-10-17T10:23:16.1161451Z shell: /usr/bin/bash -e {0}
+2026-10-17T10:23:16.1161899Z ##[endgroup]
+2026-10-17T10:23:16.2309621Z 
+2026-10-17T10:23:16.2310701Z > quvrelo@0.6.1 test
+2026-10-17T10:23:16.2311785Z > vitest run
+2026-10-17T10:23:16.2312407Z 
+2026-10-17T10:23:16.5953265Z 
+2026-10-17T10:23:16.5956829Z  RUN  v3.2.7 /home/runner/work/Quverelo/Quverelo
+2026-10-17T10:23:16.6198302Z 
+2026-10-17T10:23:17.4083293Z  ✓ tests/unit/photoParity.test.ts (29 tests) 125ms
+2026-10-17T10:23:18.4525522Z  ✓ tests/unit/vectorFeatures.test.ts (19 tests) 75ms
+2026-10-17T10:23:20.2360769Z  ✓ tests/unit/pdfVector.test.ts (15 tests) 557ms
+2026-10-17T10:23:20.6444010Z  ✓ tests/unit/updates.test.ts (24 tests) 43ms
+2026-10-17T10:23:22.4142893Z  ✓ tests/unit/pdfx.test.ts (6 tests) 621ms
+2026-10-17T10:23:22.8203991Z  ✓ tests/unit/shellLint.test.ts (11 tests) 62ms
+2026-10-17T10:23:23.1893692Z  ✓ tests/unit/proflow.test.ts (19 tests) 18ms
+2026-10-17T10:23:23.8082522Z  ✓ tests/unit/pdfGradients.test.ts (8 tests) 37ms
+2026-10-17T10:23:24.3596305Z  ✓ tests/unit/ml.test.ts (18 tests) 174ms
+2026-10-17T10:23:24.7120344Z  ✓ tests/unit/typography.test.ts (20 tests) 19ms
+2026-10-17T10:23:25.3162973Z  ✓ tests/unit/mlCoords.test.ts (11 tests) 313ms
+2026-10-17T10:23:25.7104418Z  ✓ tests/unit/layoutPages.test.ts (15 tests) 36ms
+2026-10-17T10:23:26.2398611Z  ✓ tests/unit/raw.test.ts (14 tests) 141ms
+2026-10-17T10:23:27.0661945Z  ✓ tests/unit/tablesPreflight.test.ts (15 tests) 20ms
+2026-10-17T10:23:27.6776364Z  ✓ tests/unit/idmlRich.test.ts (5 tests) 37ms
+2026-10-17T10:23:28.1462655Z  ✓ tests/unit/pixels16.test.ts (29 tests) 172ms
+2026-10-17T10:23:32.2135615Z stdout | tests/unit/mlObjectSelect.test.ts > Object Select accuracy on the showcase photo (QuvSelect v1) > a click on the cottage selects the cottage tightly (IoU >= 0.8, area <= 1.5x its bbox)
+2026-10-17T10:23:32.2149091Z [objsel] QuvSelect v1 cottage IoU per click: 0.934 0.934 0.933 0.933 0.933 0.930 0.934
+2026-10-17T10:23:32.2160854Z 
+2026-10-17T10:23:32.9376588Z stdout | tests/unit/mlObjectSelect.test.ts > Object Select accuracy on the showcase photo (QuvSelect v1) > documents the old single-pass behaviour (no zoom, no edge refine) (logged, not asserted: the model may improve)
+2026-10-17T10:23:32.9381730Z [objsel] QuvSelect v1 single-pass IoU 0.775, area 1.2x the cottage
+2026-10-17T10:23:32.9382697Z 
+2026-10-17T10:23:36.4541818Z stdout | tests/unit/mlObjectSelect.test.ts > Object Select accuracy on the showcase photo (QuvSelect v0) > a click on the cottage selects the cottage tightly (IoU >= 0.8, area <= 1.5x its bbox)
+2026-10-17T10:23:36.4547102Z [objsel] QuvSelect v0 cottage IoU per click: 0.938 0.936 0.938 0.933 0.938 0.931 0.937
+2026-10-17T10:23:36.4548458Z 
+2026-10-17T10:23:37.0568962Z stdout | tests/unit/mlObjectSelect.test.ts > Object Select accuracy on the showcase photo (QuvSelect v0) > documents the old single-pass behaviour (no zoom, no edge refine) (logged, not asserted: the model may improve)
+2026-10-17T10:23:37.0575274Z [objsel] QuvSelect v0 single-pass IoU 0.110, area 9.1x the cottage
+2026-10-17T10:23:37.0577462Z 
+2026-10-17T10:23:37.0619371Z  ✓ tests/unit/mlObjectSelect.test.ts (4 tests) 8568ms
+2026-10-17T10:23:37.0624481Z    ✓ Object Select accuracy on the showcase photo (QuvSelect v1) > a click on the cottage selects the cottage tightly (IoU >= 0.8, area <= 1.5x its bbox)  3723ms
+2026-10-17T10:23:37.0627730Z    ✓ Object Select accuracy on the showcase photo (QuvSelect v1) > documents the old single-pass behaviour (no zoom, no edge refine) (logged, not asserted: the model may improve)  724ms
+2026-10-17T10:23:37.0630802Z    ✓ Object Select accuracy on the showcase photo (QuvSelect v0) > a click on the cottage selects the cottage tightly (IoU >= 0.8, area <= 1.5x its bbox)  3516ms
+2026-10-17T10:23:37.0632786Z    ✓ Object Select accuracy on the showcase photo (QuvSelect v0) > documents the old single-pass behaviour (no zoom, no edge refine) (logged, not asserted: the model may improve)  602ms
+2026-10-17T10:23:37.5458881Z  ✓ tests/unit/sentenceCase.test.ts (6 tests) 186ms
+2026-10-17T10:23:37.8838242Z  ✓ tests/unit/welcome.test.ts (21 tests) 10ms
