@@ -35,8 +35,11 @@
     "test:all": "npm run typecheck && npm run audit:contrast && npm test && npm run build && npm run test:e2e"
   },
   "devDependencies": {
+    "@fontsource-variable/geist": "^5.3.0",
     "@fontsource/atkinson-hyperlegible": "^5.3.0",
     "@fontsource/caveat": "^5.3.0",
+    "@fontsource/geist-mono": "^5.3.0",
+    "@fontsource/instrument-serif": "^5.3.0",
     "@fontsource/inter": "^5.3.0",
     "@fontsource/merriweather": "^5.3.0",
     "@fontsource/opendyslexic": "^5.3.0",
