@@ -2,7 +2,7 @@
 import type { FabricObject } from 'fabric';
 
 /** Canvas overlay colour for object selection (DESIGN.md §3). */
-export const SELECTION_COLOR = '#2fb8a6';
+export const SELECTION_COLOR = '#3d8bff';
 /** Ring around the accent handles so they read on any artwork. */
 export const HANDLE_RING = '#ffffff';
 /** Theme-aware canvas overlay colours (tokens in styles.css: --c-canvas-selection/-handle/-handle-ring). */

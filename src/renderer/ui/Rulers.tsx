@@ -66,14 +66,14 @@ function drawRuler(c: HTMLCanvasElement, vp: Viewport, orientation: 'h' | 'v') {
         band(offset - s.bleed * z, offset, 'rgba(230,57,70,0.55)');
         band(offset + extent * z, offset + (extent + s.bleed) * z, 'rgba(230,57,70,0.55)');
       }
-      if (m0 > 0) band(offset, offset + m0 * z, 'rgba(255,107,74,0.6)');
-      if (m1 > 0) band(offset + (extent - m1) * z, offset + extent * z, 'rgba(255,107,74,0.6)');
+      if (m0 > 0) band(offset, offset + m0 * z, 'rgba(232,62,168,0.6)');
+      if (m1 > 0) band(offset + (extent - m1) * z, offset + extent * z, 'rgba(232,62,168,0.6)');
     }
   }
   ctx.strokeStyle = text;
   ctx.fillStyle = text;
   ctx.lineWidth = hl.width;
-  ctx.font = '500 9px Inter, sans-serif';
+  ctx.font = '400 9px "Geist Mono", ui-monospace, monospace';
   (ctx as CanvasRenderingContext2D & { fontVariantNumeric?: string }).fontVariantNumeric = 'tabular-nums';
   ctx.textBaseline = 'alphabetic';
   ctx.beginPath();

@@ -88,7 +88,7 @@ test.describe('critique 3: Object Select and canvas handle tokens', () => {
     await page.waitForTimeout(300);
     // the marker is a 9 px yellow dot on a black ring; no teal anywhere in the overlay
     expect(await overlayNear(page, [255, 212, 0])).toBeGreaterThan(20);
-    expect(await overlayNear(page, [47, 184, 166])).toBe(0);
+    expect(await overlayNear(page, [61, 139, 255])).toBe(0);
 
     await page.evaluate(() => (window as any).__quvrelo.editor.setUi({ pixelSelection: null }));
     await page.click('.toolpalette [data-tool="crop"]');
@@ -98,7 +98,7 @@ test.describe('critique 3: Object Select and canvas handle tokens', () => {
     await page.mouse.move(10, 10);
     await page.waitForTimeout(300);
     expect(await overlayNear(page, [255, 212, 0])).toBeGreaterThan(150);
-    expect(await overlayNear(page, [47, 184, 166])).toBe(0);
+    expect(await overlayNear(page, [61, 139, 255])).toBe(0);
   });
 
   test('N10: in dark the crop handles and the marker use the accent handle token', async () => {
@@ -112,6 +112,6 @@ test.describe('critique 3: Object Select and canvas handle tokens', () => {
     await expect.poll(() => state<boolean>(page, '!!editor.ui.crop')).toBe(true);
     await page.mouse.move(10, 10);
     await page.waitForTimeout(300);
-    expect(await overlayNear(page, [47, 184, 166])).toBeGreaterThan(150);
+    expect(await overlayNear(page, [61, 139, 255])).toBeGreaterThan(150);
   });
 });

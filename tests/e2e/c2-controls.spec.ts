@@ -166,13 +166,13 @@ test.describe('critique 2: controls', () => {
     await pickTool(page, 'rect');
     await drag(page, await docToScreen(page, 300, 300), await docToScreen(page, 500, 420));
     await page.waitForTimeout(150);
-    expect(await overlayNear(page, [47, 184, 166])).toBeGreaterThan(100);
+    expect(await overlayNear(page, [61, 139, 255])).toBeGreaterThan(100);
     await run(page, 'view.theme-contrast');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'high-contrast');
     // nudge a re-render
     await page.evaluate(() => { const { editor } = (window as any).__quvrelo; editor.select([...editor.ui.selection]); });
     await page.waitForTimeout(200);
     expect(await overlayNear(page, [255, 212, 0])).toBeGreaterThan(100);
-    expect(await overlayNear(page, [47, 184, 166])).toBe(0);
+    expect(await overlayNear(page, [61, 139, 255])).toBe(0);
   });
 });

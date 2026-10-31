@@ -7,7 +7,7 @@ import { docToScreen, drag, launch, run, shot, state, pickTool, type Launched } 
 
 const photo = path.resolve('tests/fixtures/sample-photo.jpg');
 
-/** Count overlay pixels that are opaque, and those close to the selection accent #2fb8a6. */
+/** Count overlay pixels that are opaque, and those close to the selection accent #3d8bff. */
 async function overlayStats(page: Page) {
   return page.evaluate(() => {
     const c = document.querySelector('.viewport-overlay') as HTMLCanvasElement;
@@ -17,7 +17,7 @@ async function overlayStats(page: Page) {
     for (let i = 0; i < d.length; i += 4) {
       if (d[i + 3] < 10) continue;
       opaque++;
-      if (Math.abs(d[i] - 47) < 24 && Math.abs(d[i + 1] - 184) < 24 && Math.abs(d[i + 2] - 166) < 24) accent++;
+      if (Math.abs(d[i] - 61) < 24 && Math.abs(d[i + 1] - 139) < 24 && Math.abs(d[i + 2] - 255) < 24) accent++;
     }
     return { opaque, accent };
   });

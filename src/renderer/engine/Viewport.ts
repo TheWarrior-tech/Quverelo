@@ -140,7 +140,7 @@ export class Viewport {
       height: host.clientHeight,
       preserveObjectStacking: true,
       selectionColor: 'rgba(47,184,166,0.12)',
-      selectionBorderColor: '#2fb8a6',
+      selectionBorderColor: '#3d8bff',
       selectionLineWidth: 1,
       fireRightClick: false,
       stopContextMenu: true,
@@ -873,7 +873,7 @@ export class Viewport {
       ctx.stroke();
     }
     // snapping feedback
-    ctx.strokeStyle = '#ff6b4a';
+    ctx.strokeStyle = '#e83ea8';
     for (const s of this.snapLines) {
       ctx.beginPath();
       if (s.orientation === 'v') {
@@ -1099,13 +1099,13 @@ export class Viewport {
       ctx.setLineDash([]);
     }
     if (margins.top || margins.left || margins.right || margins.bottom) {
-      ctx.strokeStyle = 'rgba(255,107,74,0.6)';
+      ctx.strokeStyle = 'rgba(232,62,168,0.6)';
       box(margins.left, margins.top, W - margins.right, H - margins.bottom);
     }
     if (columns > 1) {
       const inner = W - margins.left - margins.right;
       const cw = (inner - (columns - 1) * columnGutter) / columns;
-      ctx.strokeStyle = 'rgba(255,107,74,0.4)';
+      ctx.strokeStyle = 'rgba(232,62,168,0.4)';
       ctx.beginPath();
       for (let i = 1; i < columns; i++) {
         const x = margins.left + i * cw + (i - 1) * columnGutter;

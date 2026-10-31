@@ -164,7 +164,7 @@ class ZoomTool implements Tool {
   drawOverlay(ctx: CanvasRenderingContext2D, z: number) {
     if (!this.start || !this.cur) return;
     const r = boundsOfPoints([this.start, this.cur]);
-    ctx.strokeStyle = '#2fb8a6';
+    ctx.strokeStyle = '#3d8bff';
     ctx.lineWidth = 1 / z;
     ctx.setLineDash([4 / z, 3 / z]);
     ctx.strokeRect(r.x, r.y, r.w, r.h);
@@ -300,7 +300,7 @@ class ShapeTool implements Tool {
     const r = this.rect();
     const opts = this.c.editor.ui.toolOptions;
     ctx.save();
-    ctx.strokeStyle = '#2fb8a6';
+    ctx.strokeStyle = '#3d8bff';
     ctx.fillStyle = 'rgba(47,184,166,0.12)';
     ctx.lineWidth = 1.5 / z;
     let d: PathCommand[];
@@ -323,7 +323,7 @@ class ShapeTool implements Tool {
     const p = new Path2D(pathToString(translatePath(d, r.x + r.w / 2, r.y + r.h / 2)));
     ctx.fill(p);
     ctx.stroke(p);
-    ctx.fillStyle = '#2fb8a6';
+    ctx.fillStyle = '#3d8bff';
     ctx.font = `${11 / z}px Inter, sans-serif`;
     ctx.fillText(`${Math.round(r.w)} × ${Math.round(r.h)}`, r.x + r.w + 6 / z, r.y + r.h + 14 / z);
     ctx.restore();
@@ -495,7 +495,7 @@ class PenTool implements Tool {
     if (!this.anchors.length) return;
     ctx.save();
     const d = subpathsToPath([{ anchors: this.anchors, closed: false }]);
-    ctx.strokeStyle = '#2fb8a6';
+    ctx.strokeStyle = '#3d8bff';
     ctx.lineWidth = 1.5 / z;
     ctx.stroke(new Path2D(pathToString(d)));
     // rubber band: the exact segment the next click adds, bent by the last
@@ -526,7 +526,7 @@ class PenTool implements Tool {
 function drawAnchors(ctx: CanvasRenderingContext2D, anchors: Anchor[], z: number, selected: number) {
   const s = 7 / z;
   anchors.forEach((a, i) => {
-    ctx.strokeStyle = '#2fb8a6';
+    ctx.strokeStyle = '#3d8bff';
     ctx.lineWidth = 1 / z;
     for (const [hx, hy] of [[a.inX, a.inY], [a.outX, a.outY]]) {
       if (hx === null || hy === null) continue;
@@ -540,7 +540,7 @@ function drawAnchors(ctx: CanvasRenderingContext2D, anchors: Anchor[], z: number
       ctx.fill();
       ctx.stroke();
     }
-    ctx.fillStyle = i === selected ? '#2fb8a6' : '#ffffff';
+    ctx.fillStyle = i === selected ? '#3d8bff' : '#ffffff';
     ctx.fillRect(a.x - s / 2, a.y - s / 2, s, s);
     ctx.strokeRect(a.x - s / 2, a.y - s / 2, s, s);
   });
@@ -962,7 +962,7 @@ class NodeTool implements Tool {
     if (!this.drag && (!this.subs || this.loadedDoc !== this.c.editor.doc)) this.load();
     if (!this.subs) return;
     ctx.save();
-    ctx.strokeStyle = '#2fb8a6';
+    ctx.strokeStyle = '#3d8bff';
     ctx.lineWidth = 1 / z;
     ctx.stroke(new Path2D(pathToString(subpathsToPath(this.subs))));
     const sel = new Set(this.selected.map(refKey));
@@ -984,7 +984,7 @@ class NodeTool implements Tool {
 function drawNodeAnchors(ctx: CanvasRenderingContext2D, anchors: Anchor[], z: number, isSel: (i: number) => boolean, closed: boolean) {
   const s = 7 / z;
   anchors.forEach((a, i) => {
-    ctx.strokeStyle = '#2fb8a6';
+    ctx.strokeStyle = '#3d8bff';
     ctx.lineWidth = 1 / z;
     for (const [hx, hy] of [[a.inX, a.inY], [a.outX, a.outY]]) {
       if (hx === null || hy === null) continue;
@@ -998,7 +998,7 @@ function drawNodeAnchors(ctx: CanvasRenderingContext2D, anchors: Anchor[], z: nu
       ctx.fill();
       ctx.stroke();
     }
-    ctx.fillStyle = isSel(i) ? '#2fb8a6' : '#ffffff';
+    ctx.fillStyle = isSel(i) ? '#3d8bff' : '#ffffff';
     ctx.lineWidth = (i === 0 && !closed ? 2 : 1) / z;
     if (nodeKind(a) === 'sharp') {
       ctx.fillRect(a.x - s / 2, a.y - s / 2, s, s);
@@ -1198,7 +1198,7 @@ class GradientTool implements Tool {
     ctx.moveTo(h.s.x, h.s.y);
     ctx.lineTo(h.e.x, h.e.y);
     ctx.stroke();
-    ctx.strokeStyle = '#2fb8a6';
+    ctx.strokeStyle = '#3d8bff';
     ctx.setLineDash([4 / z, 3 / z]);
     ctx.stroke();
     ctx.setLineDash([]);
@@ -1215,13 +1215,13 @@ class GradientTool implements Tool {
       ctx.arc(pt.x, pt.y, r / z, 0, Math.PI * 2);
       ctx.fill();
       ctx.lineWidth = 1.5 / z;
-      ctx.strokeStyle = '#2fb8a6';
+      ctx.strokeStyle = '#3d8bff';
       ctx.stroke();
     }
     const sz = 9 / z;
     h.stops.forEach((st, i) => {
       ctx.fillStyle = st.color;
-      ctx.strokeStyle = i === this.stop ? '#2fb8a6' : '#ffffff';
+      ctx.strokeStyle = i === this.stop ? '#3d8bff' : '#ffffff';
       ctx.lineWidth = (i === this.stop ? 2.5 : 1.5) / z;
       ctx.fillRect(st.x - sz / 2, st.y - sz / 2, sz, sz);
       ctx.strokeRect(st.x - sz / 2, st.y - sz / 2, sz, sz);
@@ -1303,10 +1303,10 @@ class ArtboardTool implements Tool {
     ctx.save();
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
     ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = '#2fb8a6';
+    ctx.strokeStyle = '#3d8bff';
     ctx.lineWidth = 1.5 / z;
     ctx.strokeRect(x, y, w, h);
-    ctx.fillStyle = '#2fb8a6';
+    ctx.fillStyle = '#3d8bff';
     ctx.font = `${11 / z}px Inter, sans-serif`;
     ctx.fillText(`${Math.round(w)} × ${Math.round(h)}`, x + w + 6 / z, y + h + 14 / z);
     ctx.restore();
@@ -1660,7 +1660,7 @@ class ObjectSelectTool implements Tool {
       const q = vp.sceneToScreen(m.x, m.y);
       ctx.beginPath();
       ctx.arc(Math.round(q.x) + 0.5, Math.round(q.y) + 0.5, 4.5, 0, Math.PI * 2);
-      ctx.fillStyle = m.positive ? ov.handle : '#ff6b4a';
+      ctx.fillStyle = m.positive ? ov.handle : '#e83ea8';
       ctx.fill();
       ctx.lineWidth = 1.5;
       ctx.strokeStyle = ov.ring;

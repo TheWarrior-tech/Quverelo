@@ -577,7 +577,7 @@ function drawTextFrame(ctx: CanvasRenderingContext2D, n: Extract<SceneNode, { ty
     const y = n.h / 2 - sz - 2 / z;
     if (isLast && flow.overflow) drawOversetMarker(ctx, x, y, sz, z);
     else if (!isLast) {
-      ctx.fillStyle = '#2fb8a6';
+      ctx.fillStyle = '#3d8bff';
       ctx.beginPath();
       ctx.moveTo(x, y);
       ctx.lineTo(x + sz, y + sz / 2);
@@ -653,7 +653,7 @@ function drawTable(ctx: CanvasRenderingContext2D, n: Extract<SceneNode, { type: 
   if (env.editor && env.tableCell?.nodeId === n.id && n.cells[env.tableCell.r]?.[env.tableCell.c]) {
     const rc = cellRect(n, env.tableCell.r, env.tableCell.c);
     ctx.save();
-    ctx.strokeStyle = '#2fb8a6';
+    ctx.strokeStyle = '#3d8bff';
     ctx.lineWidth = 2 / z;
     ctx.strokeRect(ox + rc.x, oy + rc.y, rc.w, rc.h);
     ctx.restore();

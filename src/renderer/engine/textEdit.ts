@@ -343,7 +343,7 @@ export class TextEditOverlay {
       ta.style.caretColor = 'transparent';
     } else {
       ta.style.color = paintColor(style.fill);
-      ta.style.caretColor = paintColor(style.fill) === '#ffffff' ? '#ffffff' : '#2fb8a6';
+      ta.style.caretColor = paintColor(style.fill) === '#ffffff' ? '#ffffff' : '#3d8bff';
     }
     ta.style.width = `${w}px`;
     ta.style.height = `${h}px`;
@@ -685,7 +685,7 @@ export class TextEditOverlay {
         ctx.save();
         ctx.transform(loc.m[0], loc.m[1], loc.m[2], loc.m[3], loc.m[4], loc.m[5]);
         const x = caretX(loc.line, b, measureText);
-        ctx.fillStyle = '#2fb8a6';
+        ctx.fillStyle = '#3d8bff';
         ctx.fillRect(x - px, loc.line.y, 2 * px, loc.line.height ?? 12);
         ctx.restore();
       } else if (!loc) {
@@ -696,7 +696,7 @@ export class TextEditOverlay {
           const st = story ? story.style : null;
           ctx.save();
           ctx.transform(f.m[0], f.m[1], f.m[2], f.m[3], f.m[4], f.m[5]);
-          ctx.fillStyle = '#2fb8a6';
+          ctx.fillStyle = '#3d8bff';
           const h = st ? lineHeightPx(st) : 16;
           ctx.fillRect(f.frame.padding - px, f.frame.padding, 2 * px, h);
           ctx.restore();
