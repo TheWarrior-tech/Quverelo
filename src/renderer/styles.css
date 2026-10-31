@@ -1,62 +1,71 @@
 /* Quvrelo design system: tokens first (docs/DESIGN.md), components second. */
 
 :root {
-  /* surfaces */
-  --c-canvas: #0d0e0f;
-  --c-app: #131415;
-  --c-panel: #17181a;
-  --c-raised: #1e1f21;
-  --c-popover: #222326;
-  --c-hover: rgba(255, 255, 255, 0.05);
-  --c-press: rgba(255, 255, 255, 0.09);
-  --c-line: rgba(255, 255, 255, 0.08);
-  --c-line-strong: rgba(255, 255, 255, 0.34); /* >= 3:1 on every surface (WCAG 1.4.11 control boundary) */
+  /* v4 "Workbench" (docs/DESIGN.md): warm ink neutrals, one signal-orange accent,
+     chrome as islands on a darker bed. */
+  /* surfaces: bed < stage < island < raised < popover */
+  --c-canvas: #121211; /* stage / pasteboard */
+  --c-app: #0a0a09; /* window bed: top bar, status bar, gutters between islands */
+  --c-panel: #181816; /* islands: tool dock, rails, inspector, context bar */
+  --c-raised: #232320; /* fields, active tiles, cards */
+  --c-popover: #262623; /* menus, dialogs, toasts */
+  --c-hover: rgba(255, 250, 240, 0.055);
+  --c-press: rgba(255, 250, 240, 0.1);
+  --c-line: rgba(255, 250, 240, 0.075);
+  --c-line-strong: rgba(255, 250, 240, 0.37); /* >= 3:1 on every surface (WCAG 1.4.11 control boundary) */
   --c-plot-grid: var(--c-line); /* Curves grid and identity diagonal */
   --c-plot-diagonal: var(--c-line-strong);
   --plot-ghost-alpha: 0.18; /* histogram ghost behind Curves */
   /* text */
-  --c-text: #ececed;
-  --c-text-2: #a3a5aa;
-  --c-text-3: #8b8d93;
-  /* accent (verdigris), the only hue in the chrome */
-  --c-accent: #3cc4b0;
-  --c-accent-hover: #58d3c0;
-  --c-accent-ink: #06231e;
-  --c-accent-wash: rgba(60, 196, 176, 0.14);
-  --c-accent-wash-strong: rgba(60, 196, 176, 0.32); /* text selection (::selection) */
-  --c-selection-ink: #ececed; /* text on --c-accent-wash-strong */
+  --c-text: #f3f1ec;
+  --c-text-2: #b3b0a8;
+  --c-text-3: #908d85;
+  /* accent (signal orange), the only hue in the chrome */
+  --c-accent: #ff6a3d;
+  --c-accent-hover: #ff8660;
+  --c-accent-ink: #1a0802;
+  --c-accent-wash: rgba(255, 106, 61, 0.15);
+  --c-accent-wash-strong: rgba(255, 106, 61, 0.34); /* text selection (::selection) */
+  --c-selection-ink: #f3f1ec; /* text on --c-accent-wash-strong */
   /* segmented control (DESIGN.md §8): track, active tile, its text and boundary */
-  --c-seg-track: #1e1f21;
-  --c-seg-on: #222326;
-  --c-seg-on-text: #ececed;
-  --c-seg-ring: rgba(255, 255, 255, 0.34);
-  /* canvas overlays, read by engine/Viewport.ts (DESIGN.md §3) */
-  --c-canvas-selection: #2fb8a6;
-  --c-canvas-handle: #2fb8a6;
+  --c-seg-track: #0f0f0e;
+  --c-seg-on: #2e2e2a;
+  --c-seg-on-text: #f3f1ec;
+  --c-seg-ring: rgba(255, 250, 240, 0.37);
+  /* canvas overlays, read by engine/Viewport.ts (DESIGN.md §3): selection blue, never the chrome accent */
+  --c-canvas-selection: #3d8bff;
+  --c-canvas-handle: #3d8bff;
   --c-canvas-handle-ring: #ffffff;
-  --c-focus: #58d3c0;
+  --c-focus: #ff8660;
+  /* ink tile: the inverted chip for primary navigation (studio switch, welcome filters) */
+  --c-ink-tile: #f3f1ec;
+  --c-ink-tile-text: #0f0f0e;
+  --c-ink-tile-icon: #d9461a;
   --c-danger: #ff6b6b;
-  --c-backdrop: rgba(0, 0, 0, 0.55);
+  --c-backdrop: rgba(5, 5, 4, 0.62);
   /* geometry */
-  --r-1: 4px;
-  --r-2: 8px;
+  --r-1: 6px;
+  --r-2: 10px;
+  --r-3: 14px; /* islands (rails, inspector, stage, dock) and the welcome cards */
   --r-full: 999px;
   /* derived: tiles inset 2px inside a --r-1 track (segmented controls), checkboxes */
-  --r-tile: calc(var(--r-1) - 1px);
+  --r-tile: calc(var(--r-1) - 2px);
   /* 2px tracks, ticks and insertion bars (slider track, checklist progress, drop line, orientation glyph) */
   --r-hairline: 1px;
-  --e-1: 0 0 0 1px var(--c-line), 0 4px 16px rgba(0, 0, 0, 0.28);
-  --e-2: 0 0 0 1px var(--c-line), 0 16px 48px rgba(0, 0, 0, 0.4);
-  --dur: 120ms;
-  --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
-  /* shell geometry (DESIGN.md §5, v3) */
-  --w-tools: 44px;
-  --w-rail: 248px;
-  --w-inspector: 288px;
-  --h-top: 44px;
+  --gutter: 6px; /* gap between islands and around the window */
+  --e-1: 0 0 0 1px var(--c-line), 0 1px 0 rgba(255, 250, 240, 0.04) inset, 0 8px 24px rgba(0, 0, 0, 0.36);
+  --e-2: 0 0 0 1px var(--c-line), 0 1px 0 rgba(255, 250, 240, 0.05) inset, 0 24px 64px rgba(0, 0, 0, 0.5);
+  --dur: 140ms;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* shell geometry (DESIGN.md §5, v4) */
+  --w-tools: 52px;
+  --w-rail: 252px;
+  --w-inspector: 292px;
+  --h-top: 48px;
   /* type */
-  --font-ui: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font-ui: 'Geist Variable', 'Geist', 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font-display: 'Instrument Serif', Georgia, 'Times New Roman', serif;
 
   /* legacy names, still referenced by a few inline styles */
   --bg: var(--c-app);
@@ -81,36 +90,41 @@
 }
 
 :root[data-theme='light'] {
-  --c-canvas: #dedfdd;
-  --c-app: #f1f1ef;
-  --c-panel: #f8f8f7;
+  --c-canvas: #e6e4df;
+  --c-app: #edebe7;
+  --c-panel: #fbfaf8;
   --c-raised: #ffffff;
   --c-popover: #ffffff;
-  --c-hover: rgba(0, 0, 0, 0.05);
-  --c-press: rgba(0, 0, 0, 0.09);
-  --c-line: rgba(0, 0, 0, 0.09);
-  --c-line-strong: rgba(0, 0, 0, 0.43); /* >= 3:1 on every surface (WCAG 1.4.11 control boundary) */
+  --c-hover: rgba(40, 30, 10, 0.05);
+  --c-press: rgba(40, 30, 10, 0.09);
+  --c-line: rgba(40, 30, 10, 0.1);
+  --c-line-strong: rgba(30, 24, 10, 0.5); /* >= 3:1 on every surface (WCAG 1.4.11 control boundary) */
   --c-plot-grid: var(--c-line);
   --c-plot-diagonal: var(--c-line-strong);
   --plot-ghost-alpha: 0.12;
-  --c-text: #18191b;
-  --c-text-2: #54565b;
-  --c-text-3: #606268; /* >= 4.5:1 on canvas #dedfdd */
-  --c-accent: #0c7a6b;
-  --c-accent-hover: #096558;
+  --c-text: #1a1917;
+  --c-text-2: #55534e;
+  --c-text-3: #5f5d57; /* >= 4.5:1 on canvas */
+  --c-accent: #b3390a;
+  --c-accent-hover: #982f07;
   --c-accent-ink: #ffffff;
-  --c-accent-wash: rgba(12, 122, 107, 0.16);
-  --c-accent-wash-strong: rgba(12, 122, 107, 0.24);
-  --c-selection-ink: #18191b;
-  --c-seg-track: rgba(0, 0, 0, 0.06);
+  --c-accent-wash: rgba(179, 57, 10, 0.1);
+  --c-accent-wash-strong: rgba(179, 57, 10, 0.22);
+  --c-selection-ink: #1a1917;
+  --c-seg-track: rgba(40, 30, 10, 0.07);
   --c-seg-on: #ffffff;
-  --c-seg-on-text: #18191b;
-  --c-seg-ring: rgba(0, 0, 0, 0.43);
-  --c-focus: #096558;
-  --c-danger: #c92a2a;
-  --c-backdrop: rgba(20, 22, 24, 0.4);
-  --e-1: 0 0 0 1px var(--c-line), 0 4px 16px rgba(20, 24, 28, 0.12);
-  --e-2: 0 0 0 1px var(--c-line), 0 16px 48px rgba(20, 24, 28, 0.2);
+  --c-seg-on-text: #1a1917;
+  --c-seg-ring: rgba(30, 24, 10, 0.5);
+  --c-canvas-selection: #2f7bf0;
+  --c-canvas-handle: #2f7bf0;
+  --c-focus: #982f07;
+  --c-ink-tile: #1a1917;
+  --c-ink-tile-text: #fbfaf8;
+  --c-ink-tile-icon: #ff7a4d;
+  --c-danger: #c42727;
+  --c-backdrop: rgba(26, 24, 20, 0.36);
+  --e-1: 0 0 0 1px var(--c-line), 0 8px 24px rgba(40, 30, 10, 0.12);
+  --e-2: 0 0 0 1px var(--c-line), 0 24px 64px rgba(40, 30, 10, 0.2);
   color-scheme: light;
 }
 
@@ -147,6 +161,9 @@
   --c-canvas-handle: #ffd400;
   --c-canvas-handle-ring: #000000;
   --c-focus: #ffd400;
+  --c-ink-tile: #ffd400;
+  --c-ink-tile-text: #000000;
+  --c-ink-tile-icon: #000000;
   --c-danger: #ff8080;
   --c-backdrop: rgba(0, 0, 0, 0.8);
   --e-1: 0 0 0 1px #fff;
@@ -271,12 +288,13 @@ input[inputmode='decimal'],
   height: 28px;
   padding: 0 12px;
   border-radius: var(--r-1);
-  border: 1px solid var(--c-line-strong);
+  border: 1px solid var(--c-line);
   background: var(--c-raised);
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
-  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
 }
 .btn svg.icon {
   width: 16px;
@@ -285,12 +303,14 @@ input[inputmode='decimal'],
 }
 .btn:hover {
   background: var(--c-press);
+  border-color: var(--c-line-strong);
 }
 .btn.primary {
   background: var(--c-accent);
   border-color: transparent;
   color: var(--c-accent-ink);
   font-weight: 600;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 .btn.primary:hover {
   background: var(--c-accent-hover);
@@ -298,6 +318,7 @@ input[inputmode='decimal'],
 .btn.ghost {
   background: transparent;
   border-color: transparent;
+  box-shadow: none;
 }
 .btn.ghost:hover {
   background: var(--c-hover);
@@ -501,7 +522,7 @@ label {
 
 kbd {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10.5px;
   line-height: 16px;
   background: var(--c-raised);
   border: 1px solid var(--c-line-strong);
@@ -528,12 +549,12 @@ kbd {
   height: 20px;
   padding: 0 5px;
   border-radius: var(--r-1);
-  border: 1px solid var(--c-line-strong);
+  border: 1px solid var(--c-line);
   border-bottom-width: 1px;
-  background: var(--c-raised);
+  background: var(--c-press);
   color: var(--c-text-2);
-  font-family: var(--font-ui);
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
   line-height: 16px;
   font-weight: 500;
 }
@@ -549,21 +570,21 @@ kbd {
 
 .studio-switch {
   display: flex;
-  height: 28px;
-  background: var(--c-raised);
+  height: 32px;
+  background: var(--c-panel);
   border: 1px solid var(--c-line);
-  border-radius: var(--r-1);
-  padding: 2px;
+  border-radius: var(--r-full);
+  padding: 3px;
   gap: 2px;
 }
 .studio-switch button {
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 22px;
-  padding: 0 12px 0 10px;
+  height: 24px;
+  padding: 0 14px 0 11px;
   border: none;
-  border-radius: var(--r-tile);
+  border-radius: var(--r-full);
   background: transparent;
   color: var(--c-text-2);
   cursor: pointer;
@@ -581,12 +602,12 @@ kbd {
   color: var(--c-text);
 }
 .studio-switch button[aria-pressed='true'] {
-  background: var(--c-press);
-  color: var(--c-text);
-  box-shadow: inset 0 0 0 1px var(--c-line);
+  background: var(--c-ink-tile);
+  color: var(--c-ink-tile-text);
+  box-shadow: none;
 }
 .studio-switch button[aria-pressed='true'] svg.icon {
-  color: var(--c-accent);
+  color: var(--c-ink-tile-icon);
   opacity: 1;
 }
 .studio-switch button:focus-visible {
@@ -610,14 +631,15 @@ kbd {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 12px;
-  height: 36px;
+  padding: 0 12px 0 14px;
+  height: 40px;
   background: var(--c-panel);
   border-bottom: 1px solid var(--c-line);
   overflow-x: auto;
   overflow-y: hidden;
   white-space: nowrap;
   scrollbar-width: none;
+  border-radius: var(--r-3) var(--r-3) 0 0;
 }
 .contextbar::-webkit-scrollbar {
   display: none;
@@ -831,16 +853,17 @@ kbd {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  width: 44px;
+  width: var(--w-tools);
   padding: 8px 0;
-  background: var(--c-app);
-  border-right: 1px solid var(--c-line);
+  background: var(--c-panel);
   overflow-y: auto;
   scrollbar-width: none;
+  border-radius: var(--r-3);
 }
 .toolpalette .icon-btn {
-  width: 32px;
-  height: 32px;
+  width: 38px;
+  height: 36px;
+  border-radius: var(--r-2);
 }
 .toolpalette .icon-btn svg.icon {
   width: 20px;
@@ -856,9 +879,9 @@ kbd {
   height: 16px;
 }
 .toolpalette .divider {
-  width: 16px;
+  width: 20px;
   height: 1px;
-  background: var(--c-line-strong);
+  background: var(--c-line);
   margin: 6px 0;
 }
 
@@ -944,6 +967,8 @@ kbd {
   min-width: 0;
   min-height: 0;
   background: var(--c-canvas);
+  border-radius: 0 0 var(--r-3) var(--r-3);
+  overflow: hidden;
 }
 .canvas-area.no-rulers {
   grid-template-columns: 0 1fr;
@@ -953,12 +978,12 @@ kbd {
   display: none;
 }
 .ruler-corner {
-  background: var(--c-app);
+  background: var(--c-panel);
   border-right: 1px solid var(--c-line);
   border-bottom: 1px solid var(--c-line);
 }
 .ruler {
-  background: var(--c-app);
+  background: var(--c-panel);
   cursor: crosshair;
 }
 .ruler.h {
@@ -1057,11 +1082,10 @@ kbd {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 0 12px;
-  height: 24px;
+  padding: 0 14px;
+  height: 30px;
   background: var(--c-app);
-  border-top: 1px solid var(--c-line);
-  color: var(--c-text-2);
+  color: var(--c-text-3);
   font-size: 11px;
 }
 .statusbar .spacer {
@@ -1461,12 +1485,12 @@ kbd {
 .cmdk-head {
   height: 28px;
   padding: 8px 8px 0;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 16px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--c-text-3);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--c-text-2);
 }
 .cmdk-row {
   display: flex;
@@ -1670,12 +1694,12 @@ kbd {
 }
 .menu-heading {
   padding: 4px 8px 2px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 16px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--c-text-3);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--c-text-2);
 }
 
 /* ---------- split button (top bar "Export ▾", UX audit P0-5) ---------- */
