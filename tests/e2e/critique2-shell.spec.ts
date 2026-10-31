@@ -42,13 +42,13 @@ test.describe('critique 2: shell', () => {
     const search = page.getByRole('button', { name: 'Search commands' });
     await expect(search).toBeVisible();
     await expect(search).toContainText('Search commands');
-    // the label fits in full at 200px (no ellipsis)
+    // the label fits in full at 232px (no ellipsis)
     expect(await search.locator('.topbar-search-label').evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
     await expect(search.locator('kbd')).toHaveText([/Ctrl|⌘/, 'K']);
     await expect(search).toHaveAttribute('aria-keyshortcuts', /K$/);
     const sb = (await search.boundingBox())!;
-    expect(Math.round(sb.height)).toBe(28);
-    expect(Math.round(sb.width)).toBe(200);
+    expect(Math.round(sb.height)).toBe(30);
+    expect(Math.round(sb.width)).toBe(232);
     // sits left of the outbound cluster
     const open = (await page.locator('.topbar-zone.actions [aria-label="Open…"]').boundingBox())!;
     expect(sb.x + sb.width).toBeLessThanOrEqual(open.x);
@@ -60,7 +60,7 @@ test.describe('critique 2: shell', () => {
     // below 1280px it collapses to an icon button and stays centred
     await page.setViewportSize({ width: 1180, height: 800 });
     await expect(search.locator('.topbar-search-label')).toBeHidden();
-    expect(Math.round((await search.boundingBox())!.width)).toBe(28);
+    expect(Math.round((await search.boundingBox())!.width)).toBe(30);
     const bar2 = (await page.locator('.topbar').boundingBox())!;
     const sw2 = (await page.locator('.studio-switch').boundingBox())!;
     expect(Math.abs(sw2.x + sw2.width / 2 - (bar2.x + bar2.width / 2))).toBeLessThanOrEqual(1);
