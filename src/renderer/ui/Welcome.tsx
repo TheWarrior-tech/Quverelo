@@ -164,6 +164,44 @@ function startEntries(feature: (f: never) => boolean): StartEntry[] {
   return list;
 }
 
+/**
+ * Start-card artwork (DESIGN.md v4 §8 Welcome): a small line drawing of what the studio
+ * makes, in the card's own ink with one accent stroke. Decorative (aria-hidden).
+ */
+function StartArt({ id }: { id: StartEntry['id'] }) {
+  return (
+    <svg className="start-art-svg" viewBox="0 0 240 112" aria-hidden="true" focusable="false">
+      {id === 'photo' && (
+        <g>
+          <rect className="a-sheet" x="62" y="14" width="116" height="84" rx="6" />
+          <path className="a-fill" d="M62 80 L96 50 L118 68 L140 46 L178 82 L178 92 a6 6 0 0 1 -6 6 L68 98 a6 6 0 0 1 -6 -6 Z" />
+          <circle className="a-accent-fill" cx="152" cy="34" r="8" />
+          <path className="a-dash" d="M84 30 h44 v40 h-44 Z" />
+        </g>
+      )}
+      {id === 'vector' && (
+        <g>
+          <path className="a-line" d="M56 84 C 84 18, 132 18, 120 56 S 160 100, 186 30" />
+          <path className="a-handle" d="M84 40 L56 84 M120 56 L104 76 M120 56 L136 36" />
+          <rect className="a-node" x="52" y="80" width="8" height="8" />
+          <rect className="a-node a-node-on" x="116" y="52" width="8" height="8" />
+          <rect className="a-node" x="182" y="26" width="8" height="8" />
+          <circle className="a-knob" cx="104" cy="76" r="3" />
+          <circle className="a-knob" cx="136" cy="36" r="3" />
+        </g>
+      )}
+      {id === 'layout' && (
+        <g>
+          <rect className="a-sheet" x="80" y="8" width="80" height="104" rx="3" />
+          <rect className="a-accent-fill" x="90" y="20" width="40" height="7" rx="1.5" />
+          <rect className="a-fill" x="90" y="34" width="60" height="28" rx="2" />
+          <path className="a-text" d="M90 70 h28 M90 76 h28 M90 82 h24 M90 88 h28 M90 94 h18 M122 70 h28 M122 76 h28 M122 82 h22 M122 88 h28 M122 94 h26" />
+        </g>
+      )}
+    </svg>
+  );
+}
+
 /** First-run checklist (UX audit P1-4). Each row goes straight to the action. */
 function Checklist({ recent }: { recent: RecentFile[] | null }) {
   const ed = useEditor();
@@ -338,6 +376,15 @@ export function Welcome() {
           </section>
         )}
 
+        {!q && (
+          <section className="w-hero" aria-label="Welcome">
+            <h2 className="w-hero-title">
+              What will you <em>make</em> today?
+            </h2>
+            <p className="w-hero-sub">Photos, posters and pages, all in one place. Pick a starting point or open a file.</p>
+          </section>
+        )}
+
         <div className={`w-layout${q ? ' searching' : ''}`}>
           <div className="w-main">
             {!q && starts.length > 0 && (
@@ -347,6 +394,7 @@ export function Welcome() {
                   {starts.map((s) => (
                     <div key={s.id} className="start-card" data-studio-card={s.id}>
                       <button type="button" className="start-main" onClick={s.run} data-start={s.id}>
+                        <span className="start-art"><StartArt id={s.id} /></span>
                         <span className="start-icon"><Icon name={s.id} /></span>
                         <span className="start-text">
                           <span className="start-title">{s.title}</span>
