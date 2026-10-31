@@ -86,7 +86,7 @@ function Histogram({ node }: { node: RasterNode }) {
     ctx.lineTo(0, ch);
     ctx.closePath();
     ctx.globalAlpha = hc ? 0.6 : 0.4;
-    ctx.fillStyle = hc ? '#ffffff' : mode === 'rgb' || mode === 'l' ? cssVar('--c-text-3', '#8b8d93') : HIST_LINE[mode];
+    ctx.fillStyle = hc ? '#ffffff' : mode === 'rgb' || mode === 'l' ? cssVar('--c-text-3', '#908d85') : HIST_LINE[mode];
     ctx.fill();
     // colour lines
     if (mode === 'rgb') {

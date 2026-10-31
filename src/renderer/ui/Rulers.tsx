@@ -29,7 +29,7 @@ function drawRuler(c: HTMLCanvasElement, vp: Viewport, orientation: 'h' | 'v') {
   const tok = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback;
   ctx.fillStyle = tok('--c-app', '#131415');
   ctx.fillRect(0, 0, w, h);
-  const text = tok('--c-text-3', '#8b8d93');
+  const text = tok('--c-text-3', '#908d85');
   const v = vp.vpt;
   const z = v[0];
   const unit = editor.unit;

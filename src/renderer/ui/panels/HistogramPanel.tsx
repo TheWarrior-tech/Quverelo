@@ -98,7 +98,7 @@ export function HistogramPanel() {
     x.lineTo(0, ch);
     x.closePath();
     x.globalAlpha = hc ? 0.6 : 0.4;
-    x.fillStyle = hc ? '#ffffff' : area === 'l' ? cssVar('--c-text-3', '#8b8d93') : LINE[area as 'r'];
+    x.fillStyle = hc ? '#ffffff' : area === 'l' ? cssVar('--c-text-3', '#908d85') : LINE[area as 'r'];
     x.fill();
     if (channel === 'rgb') {
       x.globalAlpha = hc ? 1 : 0.7;

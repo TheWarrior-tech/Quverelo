@@ -103,7 +103,7 @@ export function CurvesEditor({ node, adj, onChange, onBegin, onEnd }: {
       // soften spikes so the shape stays readable
       const norm = (v: number) => Math.sqrt(v / max);
       ctx.globalAlpha = parseFloat(cssVar('--plot-ghost-alpha', '0.18')) || 0.18;
-      ctx.fillStyle = TINT[channel] || cssVar('--c-text-3', '#8b8d93');
+      ctx.fillStyle = TINT[channel] || cssVar('--c-text-3', '#908d85');
       ctx.beginPath();
       ctx.moveTo(0, size);
       for (let i = 0; i < 256; i++) ctx.lineTo(X(i), size - norm(arr[i]) * size * 0.9);

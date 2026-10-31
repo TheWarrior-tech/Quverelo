@@ -139,7 +139,7 @@ export class Viewport {
       width: host.clientWidth,
       height: host.clientHeight,
       preserveObjectStacking: true,
-      selectionColor: 'rgba(47,184,166,0.12)',
+      selectionColor: 'rgba(61,139,255,0.12)',
       selectionBorderColor: '#3d8bff',
       selectionLineWidth: 1,
       fireRightClick: false,
@@ -1051,7 +1051,7 @@ export class Viewport {
       ctx.beginPath();
       ctx.roundRect(Math.round(cx - tw / 2), Math.round(by), Math.round(tw), 18, 4);
       ctx.fill();
-      ctx.fillStyle = '#06231e';
+      ctx.fillStyle = '#04122b';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(label, Math.round(cx), Math.round(by) + 9.5);
@@ -1134,7 +1134,7 @@ export class Viewport {
         const f = loc.node;
         pts.push({ x: f.x, y: f.y, on: getContainer(doc, loc.container.id)?.id === container.id });
       }
-      ctx.strokeStyle = 'rgba(47,184,166,0.9)';
+      ctx.strokeStyle = 'rgba(61,139,255,0.9)';
       ctx.lineWidth = 1.5 * px;
       ctx.setLineDash([6 * px, 4 * px]);
       for (let i = 1; i < pts.length; i++) {

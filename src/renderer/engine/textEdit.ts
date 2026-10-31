@@ -659,14 +659,14 @@ export class TextEditOverlay {
       ctx.transform(f.m[0], f.m[1], f.m[2], f.m[3], f.m[4], f.m[5]);
       // frame outline while editing (a cell already has its selection outline)
       if (this.mode === 'frame') {
-        ctx.strokeStyle = 'rgba(47,184,166,0.9)';
+        ctx.strokeStyle = 'rgba(61,139,255,0.9)';
         ctx.lineWidth = px;
         ctx.setLineDash([4 * px, 3 * px]);
         ctx.strokeRect(0, 0, f.frame.w, f.frame.h);
         ctx.setLineDash([]);
       }
       if (lay && a !== b) {
-        ctx.fillStyle = 'rgba(47,184,166,0.28)';
+        ctx.fillStyle = 'rgba(61,139,255,0.28)';
         for (const l of lay.lines) {
           const s = Math.max(a, l.start);
           const e = Math.min(b, l.end);

@@ -301,7 +301,7 @@ class ShapeTool implements Tool {
     const opts = this.c.editor.ui.toolOptions;
     ctx.save();
     ctx.strokeStyle = '#3d8bff';
-    ctx.fillStyle = 'rgba(47,184,166,0.12)';
+    ctx.fillStyle = 'rgba(61,139,255,0.12)';
     ctx.lineWidth = 1.5 / z;
     let d: PathCommand[];
     switch (this.kind) {
@@ -513,7 +513,7 @@ class PenTool implements Tool {
         ctx.stroke();
       } else {
         const s = 5 / z;
-        ctx.fillStyle = 'rgba(47,184,166,0.35)';
+        ctx.fillStyle = 'rgba(61,139,255,0.35)';
         ctx.fillRect(pv.target.x - s / 2, pv.target.y - s / 2, s, s);
         ctx.strokeRect(pv.target.x - s / 2, pv.target.y - s / 2, s, s);
       }
@@ -970,7 +970,7 @@ class NodeTool implements Tool {
     const d = this.drag;
     if (d?.mode === 'marquee') {
       ctx.setLineDash([4 / z, 3 / z]);
-      ctx.fillStyle = 'rgba(47,184,166,0.08)';
+      ctx.fillStyle = 'rgba(61,139,255,0.08)';
       const x = Math.min(d.start.x, d.cur.x);
       const y = Math.min(d.start.y, d.cur.y);
       ctx.fillRect(x, y, Math.abs(d.cur.x - d.start.x), Math.abs(d.cur.y - d.start.y));
@@ -1597,7 +1597,7 @@ class CropTool implements Tool {
       ctx.beginPath();
       ctx.roundRect(Math.round(cx - tw / 2), Math.round(by), Math.round(tw), 18, 4);
       ctx.fill();
-      ctx.fillStyle = oc.ring === '#000000' ? '#000000' : '#06231e';
+      ctx.fillStyle = oc.ring === '#000000' ? '#000000' : '#04122b';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(label, Math.round(cx), Math.round(by) + 9.5);
