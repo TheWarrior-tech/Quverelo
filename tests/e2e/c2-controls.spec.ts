@@ -126,7 +126,7 @@ test.describe('critique 2: controls', () => {
   test('text selection uses the accent wash, not the OS highlight', async () => {
     L = await launch();
     const { page } = L;
-    for (const [theme, bg] of [['dark', 'rgba(60, 196, 176, 0.32)'], ['light', 'rgba(12, 122, 107, 0.24)'], ['high-contrast', 'rgb(255, 212, 0)']] as const) {
+    for (const [theme, bg] of [['dark', 'rgba(255, 106, 61, 0.34)'], ['light', 'rgba(179, 57, 10, 0.22)'], ['high-contrast', 'rgb(255, 212, 0)']] as const) {
       await run(page, themeCmd(theme));
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       const sel = await page.evaluate(() => {

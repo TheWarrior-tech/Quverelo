@@ -201,9 +201,9 @@ test.describe('tool rail flyouts', () => {
       return { anim: s.animationName, radius: s.borderTopLeftRadius, itemH: item.height, itemR: item.borderTopLeftRadius };
     });
     expect(css.anim).toBe('none');
-    expect(css.radius).toBe('8px');
+    expect(css.radius).toBe('10px');
     expect(css.itemH).toBe('28px');
-    expect(css.itemR).toBe('4px');
+    expect(css.itemR).toBe('6px');
   });
 
   test('dark screenshot of an open flyout', async () => {

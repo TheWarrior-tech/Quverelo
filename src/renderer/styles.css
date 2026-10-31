@@ -1545,6 +1545,9 @@ kbd {
 .cmdk-keys {
   flex: none;
 }
+.cmdk-row.active .cmdk-keys .keys kbd {
+  color: var(--c-text);
+}
 .cmdk-keys .keys kbd {
   height: 20px;
 }

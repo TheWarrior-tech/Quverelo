@@ -34,6 +34,11 @@ async function panelShot(page: Page, selector: string, name: string) {
 const nodes = (page: Page) => state<any[]>(page, 'editor.doc.pages[0].nodes');
 const sel = (page: Page) => state<any[]>(page, 'editor.selectedNodes()');
 const at = async (page: Page, x: number, y: number) => docToScreen(page, x, y);
+/** A board drawn by a screen drag lands within a document pixel of its size at any fit zoom (the pointer is whole screen pixels). */
+function expectBoard(b: { w: number; h: number }, w: number, h: number) {
+  expect(Math.abs(b.w - w), `width ${b.w} ≈ ${w}`).toBeLessThanOrEqual(1);
+  expect(Math.abs(b.h - h), `height ${b.h} ≈ ${h}`).toBeLessThanOrEqual(1);
+}
 async function click(page: Page, x: number, y: number, opts: { shift?: boolean; alt?: boolean } = {}) {
   const p = await at(page, x, y);
   if (opts.shift) await page.keyboard.down('Shift');
@@ -315,7 +320,13 @@ test.describe('vector studio parity', () => {
     await drag(page, await at(page, 100, 100), await at(page, 500, 400));
     let ns = await nodes(page);
     expect(ns).toHaveLength(1);
-    expect(ns[0].artboard).toMatchObject({ w: 400, h: 300, background: '#ffffff' });
+    expectBoard(ns[0].artboard, 400, 300);
+    expect(ns[0].artboard.background).toBe('#ffffff');
+    // type the exact size, as a user would, so the slices below export at whole pixels
+    await page.evaluate(() => {
+      const { editor } = (window as any).__quvrelo;
+      editor.commit('Board size', (d: any) => ({ ...d, pages: d.pages.map((p: any) => ({ ...p, nodes: p.nodes.map((n: any) => (n.artboard ? { ...n, artboard: { ...n.artboard, w: 400, h: 300 } } : n)) })) }));
+    });
     const boardId = ns[0].id;
     await page.evaluate((id) => (window as any).__quvrelo.editor.commit('Name', (d: any) => ({ ...d, pages: d.pages.map((p: any) => ({ ...p, nodes: p.nodes.map((n: any) => (n.id === id ? { ...n, name: 'Hero card' } : n)) })) })), boardId);
 
@@ -348,15 +359,15 @@ test.describe('vector studio parity', () => {
     await run(page, 'arrange.rotate-cw');
     ns = await nodes(page);
     expect(ns[0].rotation).toBe(0);
-    expect(ns[0].artboard).toMatchObject({ w: 300, h: 400 });
+    expectBoard(ns[0].artboard, 300, 400);
     expect(ns[0].children[0].rotation).toBe(90);
     await expect(page.locator('.inspector').getByRole('radio', { name: 'Portrait' })).toBeChecked();
     await page.locator('.inspector').getByRole('radio', { name: 'Landscape' }).click();
-    expect((await nodes(page))[0].artboard).toMatchObject({ w: 400, h: 300 });
+    expectBoard((await nodes(page))[0].artboard, 400, 300);
     await run(page, 'edit.undo');
     await run(page, 'edit.undo');
     ns = await nodes(page);
-    expect(ns[0].artboard).toMatchObject({ w: 400, h: 300 });
+    expectBoard(ns[0].artboard, 400, 300);
     expect(ns[0].children[0].rotation).toBe(0);
 
     // Export tab: a slice for the board with PNG @1x, @2x and SVG
