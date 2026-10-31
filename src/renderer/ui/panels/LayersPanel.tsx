@@ -26,7 +26,7 @@ function thumbTile(): string {
   const theme = document.documentElement.dataset.theme ?? 'dark';
   if (tileCache?.theme !== theme) {
     const v = getComputedStyle(document.documentElement).getPropertyValue('--c-raised').trim();
-    tileCache = { theme, color: v || '#1e1f21' };
+    tileCache = { theme, color: v || '#232320' };
   }
   return tileCache.color;
 }

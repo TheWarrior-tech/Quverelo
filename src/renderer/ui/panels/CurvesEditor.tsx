@@ -156,8 +156,8 @@ export function CurvesEditor({ node, adj, onChange, onBegin, onEnd }: {
     }
     ctx.stroke();
     // control points: end points are small solid knobs (text fill, app-coloured ring); inner points are rings
-    const accent = cssVar('--c-accent', '#3cc4b0');
-    const ring = cssVar('--c-app', '#131415');
+    const accent = cssVar('--c-accent', '#ff6a3d');
+    const ring = cssVar('--c-app', '#0a0a09');
     const text = cssVar('--c-text', '#ececed');
     points.forEach((p, i) => {
       const cx = X(p.x);

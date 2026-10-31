@@ -27,7 +27,7 @@ function drawRuler(c: HTMLCanvasElement, vp: Viewport, orientation: 'h' | 'v') {
   const hl = hairline(dpr);
   const css = getComputedStyle(document.documentElement);
   const tok = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback;
-  ctx.fillStyle = tok('--c-app', '#131415');
+  ctx.fillStyle = tok('--c-panel', '#181816');
   ctx.fillRect(0, 0, w, h);
   const text = tok('--c-text-3', '#908d85');
   const v = vp.vpt;
@@ -49,7 +49,7 @@ function drawRuler(c: HTMLCanvasElement, vp: Viewport, orientation: 'h' | 'v') {
     const s = doc.settings;
     const extent = orientation === 'h' ? s.width : s.height;
     // page extent: one tone step up from the ruler
-    ctx.fillStyle = tok('--c-raised', '#1e1f21');
+    ctx.fillStyle = tok('--c-raised', '#232320');
     span(offset, offset + extent * z);
     if (editor.ui.studio === 'layout') {
       // Layout: margins as coral bands at the ruler's inner edge, bleed as a faint band outside the page

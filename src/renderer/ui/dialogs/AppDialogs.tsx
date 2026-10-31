@@ -222,8 +222,8 @@ type Theme = UserSettings['theme'];
 
 /** Palette used only to draw the miniature in each theme tile (mirrors the tokens in styles.css). */
 const MINI: Record<Exclude<Theme, 'system'>, { app: string; panel: string; canvas: string; page: string; accent: string; line: string }> = {
-  dark: { app: '#131415', panel: '#17181a', canvas: '#0d0e0f', page: '#ececed', accent: '#3cc4b0', line: 'rgba(255,255,255,.08)' },
-  light: { app: '#f1f1ef', panel: '#f8f8f7', canvas: '#dedfdd', page: '#ffffff', accent: '#0c7a6b', line: 'rgba(0,0,0,.09)' },
+  dark: { app: '#0a0a09', panel: '#181816', canvas: '#121211', page: '#f3f1ec', accent: '#ff6a3d', line: 'rgba(255,250,240,.075)' },
+  light: { app: '#edebe7', panel: '#fbfaf8', canvas: '#e6e4df', page: '#ffffff', accent: '#b3390a', line: 'rgba(40,30,10,.1)' },
   'high-contrast': { app: '#000000', panel: '#000000', canvas: '#000000', page: '#ffffff', accent: '#ffd400', line: '#ffffff' },
 };
 
