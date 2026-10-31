@@ -865,15 +865,16 @@
 }
 .about-head .logo {
   flex: none;
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
 }
 .about-head h3 {
   margin: 0;
-  font-size: 18px;
-  line-height: 24px;
-  font-weight: 600;
+  font-size: 34px;
+  line-height: 36px;
+  font-weight: 400;
   letter-spacing: -0.01em;
+  font-family: var(--font-display);
 }
 .about-head span {
   color: var(--c-text-2);
@@ -1238,4 +1239,11 @@
 /* v4: the selected preset rings its page tile in the accent; the tile itself takes a quiet hover tone */
 .preset[aria-checked='true'] .glyph {
   box-shadow: 0 0 0 2px var(--c-accent);
+}
+/* the Software Update dialog keeps a UI-weight title; only About speaks in the display face */
+.updates-dialog .about-head h3 {
+  font-family: var(--font-ui);
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
 }

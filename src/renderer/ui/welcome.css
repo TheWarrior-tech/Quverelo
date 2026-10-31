@@ -15,7 +15,7 @@
   position: sticky;
   top: 0;
   z-index: 2;
-  background: color-mix(in srgb, var(--c-app) 92%, transparent);
+  background: var(--c-app);
   border-bottom: 1px solid transparent;
 }
 .w-bar-inner {

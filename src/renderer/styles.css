@@ -665,7 +665,7 @@ kbd {
   width: 1px;
   height: 16px;
   margin-top: -8px;
-  background: var(--c-line-strong);
+  background: var(--c-line);
 }
 :is(.contextbar, .ctx-more-body) label {
   font-size: 12px;
