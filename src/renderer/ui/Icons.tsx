@@ -207,10 +207,10 @@ export function Icon({ name, title, size }: { name: string; title?: string; size
 export function Logo({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 64 64" aria-hidden="true">
-      <rect x="2" y="2" width="60" height="60" rx="14" fill="#141516" />
+      <rect x="2" y="2" width="60" height="60" rx="14" fill="#141413" />
       <rect x="2.5" y="2.5" width="59" height="59" rx="13.5" fill="none" stroke="#ffffff" strokeOpacity="0.14" />
-      <circle cx="30" cy="30" r="15" fill="none" stroke="#ececed" strokeWidth="7" />
-      <path d="M36.5 36.5L48 48" stroke="#3cc4b0" strokeWidth="7.5" strokeLinecap="butt" />
+      <circle cx="30" cy="30" r="15" fill="none" stroke="#f3f1ec" strokeWidth="7" />
+      <path d="M36.5 36.5L48 48" stroke="#ff6a3d" strokeWidth="7.5" strokeLinecap="butt" />
     </svg>
   );
 }
